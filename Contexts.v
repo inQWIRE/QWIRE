@@ -18,41 +18,53 @@ Fixpoint interpret (w:WType) : Set :=
     | Tensor w1 w2 => (interpret w1) * (interpret w2)
   end.
 
+(*
 Inductive NCtx := 
   End : WType -> NCtx
 | Cons : option WType -> NCtx -> NCtx.
 Inductive Ctx := Empty | NEmpty : NCtx -> Ctx.
+*)
 Definition Var := nat.
-(*Definition Ctx := list (option WType).*)
+Definition Ctx := list (option WType).
 
-Inductive SingletonNCtx : Var -> WType -> NCtx -> Set :=
-| SingletonHere  : forall w, SingletonNCtx 0 w (End w)
-| SingletonLater : forall x w ctx, SingletonNCtx x w ctx -> SingletonNCtx x w (Cons None ctx)
+(* Padding with nones is dangerous! Trying alternative.
+Inductive EmptyCtx : Ctx -> Set :=
+| EmptyNil : EmptyCtx []
+| EmptyCons : forall ctx, EmptyCtx ctx -> EmptyCtx (None :: ctx)
 .
+
 Inductive SingletonCtx : Var -> WType -> Ctx -> Set :=
-| SingletonN : forall x w ctx, SingletonNCtx x w ctx -> SingletonCtx x w (NEmpty ctx)
+| SingletonHere : forall w ctx, EmptyCtx ctx -> SingletonCtx 0 w (Some w :: ctx)
+| SingletonLater : forall x w ctx, SingletonCtx x w ctx -> SingletonCtx (S x) w (None :: ctx)
 .
+*)
 
+(* Temporarily leaving this. If it works, can delete. *)
+Inductive EmptyCtx : Ctx -> Set := EmptyNil : EmptyCtx [].
 
+Inductive SingletonCtx : Var -> WType -> Ctx -> Set :=
+| SingletonHere : forall w, SingletonCtx 0 w [Some w]
+| SingletonLater : forall x w ctx, SingletonCtx x w ctx -> SingletonCtx (S x) w (None :: ctx).
+
+(* Dead Code? 
+Inductive AddCtx : Var -> WType -> Ctx -> Ctx -> Set :=
+| AddHere : forall w ctx, AddCtx 0 w (None :: ctx) (Some w :: ctx)
+| AddLater : forall x w ctx ctx' m, AddCtx x w ctx ctx' -> AddCtx (S x) w (m :: ctx) (m :: ctx')
+.
+*)
 
 Inductive MergeOption : option WType -> option WType -> option WType -> Set :=
 | MergeNone : MergeOption None None None
 | MergeLeft : forall a, MergeOption (Some a) None (Some a)
 | MergeRight : forall a, MergeOption None (Some a) (Some a)
 .
-Inductive MergeNCtx : NCtx -> NCtx -> NCtx -> Set :=
-| MergeEndL : forall w ctx, MergeNCtx (End w) (Cons None ctx) (Cons (Some w) ctx)
-| MergeEndR : forall w ctx, MergeNCtx (Cons None ctx) (End w) (Cons (Some w) ctx)
-| MergeCons : forall o1 o2 o ctx1 ctx2 ctx, MergeOption o1 o2 o -> MergeNCtx ctx1 ctx2 ctx ->
-              MergeNCtx (Cons o1 ctx1) (Cons o2 ctx2) (Cons o ctx)
-.
-Inductive MergeCtx : Ctx -> Ctx -> Ctx -> Set :=
-| MergeEmptyL : forall ctx, MergeCtx Empty ctx ctx
-| MergeEmptyR : forall ctx, MergeCtx ctx Empty ctx
-| MergeNEmpty : forall ctx1 ctx2 ctx, 
-                MergeNCtx ctx1 ctx2 ctx -> MergeCtx (NEmpty ctx1) (NEmpty ctx2) (NEmpty ctx)
-.
 
+Inductive MergeCtx : Ctx -> Ctx -> Ctx -> Set :=
+| MergeNilL : forall ctx, MergeCtx [] ctx ctx
+| MergeNilR : forall ctx, MergeCtx ctx [] ctx
+| MergeCons : forall o1 o2 o g1 g2 g, 
+              MergeOption o1 o2 o -> MergeCtx g1 g2 g -> MergeCtx (o1 :: g1) (o2 :: g2) (o :: g)
+.
 
 (* Syntax *)
 
@@ -119,7 +131,7 @@ Delimit Scope circ_scope with circ.
 
 Inductive WF_Pat : Ctx -> Pat -> WType -> Set :=
 | wf_var  : forall x w ctx, SingletonCtx x w ctx -> WF_Pat ctx (var x) w
-| wf_unit : WF_Pat Empty unit One
+| wf_unit : forall ctx, EmptyCtx ctx -> WF_Pat ctx unit One
 | wf_pair : forall g1 g2 g w1 w2 p1 p2, 
             MergeCtx g1 g2 g -> WF_Pat g1 p1 w1 -> WF_Pat g2 p2 w2 
          -> WF_Pat g (pair p1 p2) (Tensor w1 w2)
