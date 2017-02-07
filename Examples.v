@@ -16,9 +16,7 @@ Definition w1  := var 7.
 Definition w1' := var 8.
 Definition w2  := var 9.
 Definition w2' := var 10.
-
-
-
+ 
 (* Getting contexts for input patterns *)
 
 Open Scope default_scope.
@@ -44,12 +42,12 @@ Fixpoint manual_merge (ctx1 ctx2 : Ctx) : Ctx :=
     (manual_merge_atom c1 c2) :: (manual_merge ctx1' ctx2')
   end.
 
-Fixpoint get_context (p : Pat) (W : WType) : Ctx :=
+Fixpoint make_context (p : Pat) (W : WType) : Ctx :=
   match p with
   | var v => get_singleton v W
   | unit => []
   | pair p1 p2 => match W with 
-               | W1 ⊗ W2 => manual_merge (get_context p1 W1) (get_context p2 W2)
+               | W1 ⊗ W2 => manual_merge (make_context p1 W1) (make_context p2 W2)
                | _ => [] (* Fails *)
                end
   end.
@@ -58,7 +56,7 @@ Fixpoint get_context (p : Pat) (W : WType) : Ctx :=
 (* Should be element of, but company coq is annoying *)
 (* Infix " ⊂ " := get_context (at level 50). *)
 
-Notation "'Box' w ⊂ W => C" := (box (get_context w W) w C _ _) (at level 60) 
+Notation "'Box' w ⊂ W => C" := (box (make_context w W) w C _ _) (at level 60) 
                                : circ_scope.
 
 Close Scope default_scope.
@@ -102,8 +100,6 @@ Ltac type_check_circ :=
 (*** Paper Examples ***)
 
 Local Obligation Tactic := type_check_circ.
-
-Program Definition test : Boxed_Circ Qubit Qubit := (Box w ⊂ Qubit => output w).
 
 Program Definition hadamard_measure : Boxed_Circ Qubit Bit :=
   Box w ⊂ Qubit => 
@@ -190,4 +186,17 @@ Program Definition teleport : Boxed_Circ Qubit Qubit :=
     (unbox bob (x,y,b)))).
 Obligation 2. type_check_circ. Admitted.
 
+(* For when run is implemented: *)
 
+Parameter run : Circuit -> bool.
+
+Program Definition flip : bool := 
+  run 
+  (gate init0 unit q
+  (gate H q q
+  (gate meas q b
+  (output b)))).
+
+
+
+(* *)
