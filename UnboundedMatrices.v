@@ -14,6 +14,9 @@ Bind Scope nat_scope with nat.
 
 Definition Matrix (m n : nat) := nat -> nat -> R. 
 
+Definition mat_equiv {m n : nat} (A B : Matrix m n) : Prop := 
+  forall (x : nat | x < m) (y : nat | y < n), (A (`x) (`y)) = (B (`x) (`y)).
+
 (* I won't be using this much, but it can ensure the matrix bounds *)
 Definition get {m n} (A : Matrix m n) (a : nat | a < m) (b : nat | b < n) := 
   A (`a) (`b).
@@ -85,6 +88,7 @@ Infix "∘" := dot (at level 40, left associativity) : matrix_scope.
 Infix "+" := Mplus (at level 50, left associativity) : matrix_scope.
 Infix "×" := Mmult (at level 40, left associativity) : matrix_scope.
 Infix "⊗" := kron (at level 40, left associativity) : matrix_scope.
+Infix "≡" := mat_equiv (at level 100) : matrix_scope.
 
 Open Scope matrix_scope.
 
@@ -136,87 +140,94 @@ Proof.
     apply IHn.
 Qed.    
 
-Lemma Mmult_1_l' : forall {m n x y z : nat} (A : Matrix m n), 
-  ((Id m) x y * A y z)%R = if x =? y then A y z else 0%R.
-Proof.
-  intros m n x y z A.
-  unfold Id.
-  destruct (x =? y); lra.
-Qed.
-
-Lemma Mmult_1_l'': forall {m n : nat} (A : Matrix m n) (x z k : nat), 
-  k > 0 ->
-  Rsum_to_n (fun y : nat => (Id n x y * A y z)%R) k = if x <? k then 0%R else A k z.  
-Proof.
+(* using <= because our form Rsum_to_n is exclusive. *)
+Lemma Mmult_1_l_gen: forall {m n : nat} (A : Matrix m n) (x z k : nat), 
+  (k <= x -> Rsum_to_n (fun y : nat => (Id m x y * A y z)%R) k = 0%R) /\
+  (k > x -> Rsum_to_n (fun y : nat => (Id m x y * A y z)%R) k = A x z).
+Proof.  
+  intros m n A x z k.
   induction k.
-  + omega. 
-  + intros. 
+  simpl. split. reflexivity. omega.
+  destruct IHk as [IHl IHr].
+  split.
+  + intros leSkx.
+    simpl.
+    unfold Id.
+    replace (x =? k) with false by (symmetry; apply Nat.eqb_neq; omega).
+    rewrite Rmult_0_l, Rplus_0_r.
+    apply IHl.
+    omega.
+  + intros gtSkx.
     simpl. 
-    destruct (x <? k) eqn:ltx.
-    - apply Nat.ltb_lt in ltx.
-      replace (x <? S k) with true.
-      rewrite IHk; [|omega].
-      rewrite Rplus_0_l.
-      unfold Id. 
-      replace (x=?k) with false.
-      rewrite Rmult_0_l.
-      reflexivity.
-      symmetry; apply Nat.eqb_neq; omega.
-      symmetry; apply Nat.ltb_lt; omega.
-    - rewrite IHk.
-      
-
-Search nat "dec".
-
-
-Lemma Mmult_1_l : forall {m n : nat} (A : Matrix m n), m > 0 ->  Id m × A = A.
-Proof.
-  intros m n A H.
-  apply functional_extensionality; intros x.
-  apply functional_extensionality; intros y.
-  unfold Mmult.
-
-
-    
-
-    rewrite Mmult_1_l'.
-
     unfold Id in *.
-    rewrite IHm.
-    destruct (x =? m) eqn:Eq.
-    
-
-
-
-
-    destruct (x =? m) eqn:Eq.
-    - apply beq_nat_true in Eq; subst.
-      assert (Rsum_to_n (fun y0 : nat => Id (S m) m y0 * A y0 y) m = 0)%R as H'.
-      2: rewrite H'; lra.
-      clear IHm H.
-      induction m; trivial. 
-      simpl. 
-      unfold Id in *. 
-      replace (S m =? m) with false. 
+    destruct (x =? k) eqn:Eqxk.
+    - apply Nat.eqb_eq in Eqxk; subst.
+      rewrite Rmult_1_l.
+      rewrite IHl; try omega.
+      rewrite Rplus_0_l.     
+      reflexivity.
+    - apply Nat.eqb_neq in Eqxk; subst.
       rewrite Rmult_0_l.
       rewrite Rplus_0_r.
-      
+      apply IHr.
+      omega.
+Qed.
+
+Lemma Mmult_1_l : forall {m n : nat} (A : Matrix m n), Id m × A ≡ A.
+Proof.
+  intros m n A x y.
+  destruct x as [x Px], y as [y Py].
+  simpl. 
+  unfold Mmult.
+  edestruct (@Mmult_1_l_gen m n) as [Hl Hr].
+  apply Hr.
+  omega.
+Qed.  
+
+Lemma Mmult_1_r_gen: forall {m n : nat} (A : Matrix m n) (x z k : nat), 
+  (k <= z -> Rsum_to_n (fun y : nat => (A x y * Id m y z)%R) k = 0%R) /\
+  (k > z -> Rsum_to_n (fun y : nat => (A x y * Id m y z)%R) k = A x z).
+Proof.  
+  intros m n A x z k.
+  induction k.
+  simpl. split. reflexivity. omega.
+  destruct IHk as [IHl IHr].
+  split.
+  + intros leSkz.
+    simpl.
+    unfold Id.
+    replace (k =? z) with false by (symmetry; apply Nat.eqb_neq; omega).
+    rewrite Rmult_0_r, Rplus_0_r.
+    apply IHl.
+    omega.
+  + intros gtSkz.
+    simpl. 
+    unfold Id in *.
+    destruct (k =? z) eqn:Eqxk.
+    - apply Nat.eqb_eq in Eqxk; subst.
+      rewrite Rmult_1_r.
+      rewrite IHl; try omega.
+      rewrite Rplus_0_l.     
+      reflexivity.
+    - apply Nat.eqb_neq in Eqxk; subst.
+      rewrite Rmult_0_r.
+      rewrite Rplus_0_r.
+      apply IHr.
+      omega.
+Qed.
+
+Lemma Mmult_1_r : forall {m n : nat} (A : Matrix m n), A × Id n ≡ A.
+Proof.
+  intros m n A x y.
+  destruct x as [x Px], y as [y Py].
+  simpl. 
+  unfold Mmult.
+  edestruct (@Mmult_1_r_gen m n) as [Hl Hr].
+  apply Hr.
+  omega.
+Qed.  
 
       
-
-
-2: simpl. 
-Search beq_nat false.
-
-
-      rewrite IHm.
-
-    rewrite Rmult_0_r.
-    rewrite Rplus_0_r.
-    apply IHn.
-Qed.    
-
-
 
 
 (* *)
