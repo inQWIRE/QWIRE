@@ -22,7 +22,7 @@ Definition get {m n} (A : Matrix m n) (a : nat | a < m) (b : nat | b < n) :=
   A (`a) (`b).
 
 Definition list2D_to_matrix (l : list (list R)) : 
-  Matrix (length l) (length (hd l [])) :=
+  Matrix (length l) (length (hd [] l)) :=
   fun x y => nth y (nth x l []) 0%R.
 
 Definition M23 : Matrix 2 3 :=
@@ -34,7 +34,7 @@ fun x y =>
   | (1, 0) => 4%R
   | (1, 1) => 5%R
   | (1, 2) => 6%R
-  | _ => 0%R (* bah. still there *)
+  | _ => 0%R
   end.
 
 Definition M23' := 
@@ -71,13 +71,16 @@ Fixpoint Rsum_to_n_in (f : nat -> R) (n : nat) :=
   | S n' => (Rsum_to_n f n' +  f n')%R
   end.
 
-Definition dot {n : nat} (A : Matrix 1 n) (B : Matrix n 1) :=
+Definition scale {m n : nat} (r : R) (A : Matrix m n) := 
+  fun x y => (r * A x y)%R.
+
+Definition dot {n : nat} (A : Matrix 1 n) (B : Matrix n 1) : R :=
   Rsum_to_n (fun x => A O x * B x O)%R n.
 
 Definition Mplus {m n : nat} (A B : Matrix m n) : Matrix m n :=
   fun x y => (A x y + B x y)%R.
 
-Definition Mmult {m n o : nat} (A : Matrix m n) (B : Matrix n o) := 
+Definition Mmult {m n o : nat} (A : Matrix m n) (B : Matrix n o) : Matrix m o := 
   fun x z => Rsum_to_n (fun y => A x y * B y z )%R n.
 
 Definition kron {m n o p : nat} (A : Matrix m n) (B : Matrix o p) : 
@@ -226,8 +229,6 @@ Proof.
   apply Hr.
   omega.
 Qed.  
-
-      
 
 
 (* *)
