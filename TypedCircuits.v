@@ -101,6 +101,7 @@ Admitted.
 Lemma mergeSymm : forall {Γ1 Γ2 Γ}, MergeCtx Γ1 Γ2 Γ -> MergeCtx Γ2 Γ1 Γ.
 Admitted.
 
+(* Does this have to be with regard to some special notion of context equalitiy? *)
 Lemma mergeFunctional : forall {Γ1 Γ2 Γ Γ'}, 
                  MergeCtx Γ1 Γ2 Γ -> MergeCtx Γ1 Γ2 Γ' -> Γ = Γ'.
 Admitted.
