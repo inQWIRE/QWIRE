@@ -4,8 +4,11 @@ Import ListNotations.
 Open Scope list_scope.
 
 
-
 Inductive WType := Qubit | Bit | One | Tensor : WType -> WType -> WType.
+
+Notation "W1 ⊗ W2" := (Tensor W1 W2) (at level 1, left associativity): circ_scope.
+
+Open Scope circ_scope.
 
 (* Coq interpretations of wire types *)
 Fixpoint interpret (w:WType) : Set :=
@@ -27,11 +30,6 @@ Inductive EmptyCtx : Ctx -> Set :=
 Inductive SingletonCtx : Var -> WType -> Ctx -> Set :=
 | SingletonHere : forall w ctx, EmptyCtx ctx -> SingletonCtx 0 w (Some w :: ctx)
 | SingletonLater : forall x w ctx, SingletonCtx x w ctx -> SingletonCtx (S x) w (None :: ctx)
-.
-
-Inductive AddCtx : Var -> WType -> Ctx -> Ctx -> Set :=
-| AddHere : forall w ctx, AddCtx 0 w (None :: ctx) (Some w :: ctx)
-| AddLater : forall x w ctx ctx' m, AddCtx x w ctx ctx' -> AddCtx (S x) w (m :: ctx) (m :: ctx')
 .
 
 Inductive MergeOption : option WType -> option WType -> option WType -> Set :=
@@ -57,7 +55,43 @@ Inductive Pat : Ctx -> WType -> Set :=
       -> Pat ctx (Tensor w1 w2)
 .
 
-Parameter (Gate : WType -> WType -> Set).
+(* Dangerous to take this notation *)
+Notation "a , b" := (Datatypes.pair a b) (at level 11, left associativity) : default_scope.
+Notation "w1 , w2" := (pair w1 w2) (at level 11, left associativity) : circ_scope.
+(* Notation "()" := unit : circ_scope. *)
+
+(* Parameter (Gate : WType -> WType -> Set). *)
+
+Inductive Unitary : WType -> Set := 
+  | H : Unitary Qubit 
+  | σx : Unitary Qubit
+  | σy : Unitary Qubit
+  | σz : Unitary Qubit
+  | CNOT : Unitary (Qubit ⊗ Qubit)
+  | control : forall {W} (U : Unitary W), Unitary (Qubit ⊗ W) 
+  | bit_control : forall {W} (U : Unitary W), Unitary (Bit ⊗ W) 
+  | transpose : forall {W} (U : Unitary W), Unitary W.
+
+Check H.
+Check CNOT.
+Check control H.
+Check control (control H).
+Check transpose CNOT.
+
+Inductive Gate : WType -> WType -> Set := 
+  | U : forall {W} (u : Unitary W), Gate W W
+  | init0 : Gate One Qubit
+  | init1 : Gate One Qubit
+  | new0 : Gate One Bit
+  | new1 : Gate One Bit
+  | meas : Gate Qubit Bit
+  | discard : Gate Bit One.
+
+(*
+
+Coercion U : Unitary >-> Gate.
+
+*)
 
 Inductive Circuit : Ctx -> WType -> Set :=
 | output : forall {ctx w}, Pat ctx w -> Circuit ctx w
@@ -85,21 +119,14 @@ Definition Disjoint Γ1 Γ2 := {Γ : Ctx & MergeCtx Γ1 Γ2 Γ}.
 Definition Subset Γ1 Γ := {Γ2 : Ctx & MergeCtx Γ1 Γ2 Γ}.
 
 Lemma disjointEmptyL : forall Γ, Disjoint [] Γ.
-Proof.
-  intro. exists Γ. constructor.
-Qed.
+Proof. intro. exists Γ. constructor. Qed.
 
 Lemma disjointEmptyR : forall Γ, Disjoint Γ [].
-Proof.
-  intro. exists Γ. constructor.
-Qed.
+Proof. intro. exists Γ. constructor. Qed.
 
 Lemma disjointCons : forall o1 o2 o Γ1 Γ2,
       MergeOption o1 o2 o -> Disjoint Γ1 Γ2 -> Disjoint (o1 :: Γ1) (o2 :: Γ2).
-Proof.
-  destruct 2 as [Γ pfDisjoint].
-  exists (o :: Γ). constructor; auto.
-Qed.
+Proof. destruct 2 as [Γ pfDisjoint]. exists (o :: Γ). constructor; auto. Qed.
 
 Lemma mergeOptionDisjoint : forall o1 o2 o3 o o',
       MergeOption o1 o2 o -> MergeOption o o3 o' -> 
@@ -126,17 +153,14 @@ Proof.
   - split; try apply disjointEmptyL.
     destruct (IHmerge_Γ_Γ3_Γ' Γ []) as [disjoint_g1_g2 _]; try constructor.
     eapply disjointCons; eauto.
-  - destruct (IHmerge_Γ_Γ3_Γ' _ _ H4).
+  - destruct (IHmerge_Γ_Γ3_Γ' _ _ H5).
     edestruct (mergeOptionDisjoint o1 o2 o3) as [ [? ?] [? ?]]; eauto.
     split; eapply disjointCons; eauto.
 Qed.
 
-
 Lemma mergeOptionFunctional : forall o1 o2 o o',
                               MergeOption o1 o2 o -> MergeOption o1 o2 o' -> o = o'.
-Proof.
-  destruct 1; inversion 1; auto.
-Qed.
+Proof. destruct 1; inversion 1; auto. Qed.
 
 Lemma mergeFunctional : forall {Γ1 Γ2 Γ Γ'}, 
                  MergeCtx Γ1 Γ2 Γ -> MergeCtx Γ1 Γ2 Γ' -> Γ = Γ'.
@@ -150,25 +174,18 @@ Proof.
     erewrite mergeOptionFunctional with (o := o) (o' := o4); eauto.
     rewrite IHmerge_Γ1_Γ2_Γ with (Γ' := g4); eauto.
 Qed.
-Lemma mergeOptionSymm : forall o1 o2 o, MergeOption o1 o2 o -> MergeOption o2 o1 o.
-Proof.
-  destruct 1; constructor.
-Qed.
-Lemma mergeSymm : forall {Γ1 Γ2 Γ}, MergeCtx Γ1 Γ2 Γ -> MergeCtx Γ2 Γ1 Γ.
-Proof.
-  induction 1; constructor; auto.
-  apply mergeOptionSymm; auto.
-Qed.
 
+Lemma mergeOptionSymm : forall o1 o2 o, MergeOption o1 o2 o -> MergeOption o2 o1 o.
+Proof. destruct 1; constructor. Qed.
+
+Lemma mergeSymm : forall {Γ1 Γ2 Γ}, MergeCtx Γ1 Γ2 Γ -> MergeCtx Γ2 Γ1 Γ.
+Proof. induction 1; constructor; auto. apply mergeOptionSymm; auto. Qed.
 
 Lemma mergeOptionAssoc : forall o1 o2 o3 o o' o0,
       MergeOption o1 o2 o -> MergeOption o o3 o'
    -> MergeOption o1 o3 o0
    -> MergeOption o2 o0 o'.
-Proof.
-  inversion 1; inversion 1; inversion 1; constructor.
-Qed.
-
+Proof. inversion 1; inversion 1; inversion 1; constructor. Qed.
 
 Lemma mergeAssoc : forall Γ1 Γ2 Γ3 Γ Γ' Γ0,
       MergeCtx Γ1 Γ2 Γ -> MergeCtx Γ Γ3 Γ' 
