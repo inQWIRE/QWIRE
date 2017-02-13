@@ -22,14 +22,9 @@ Fixpoint interpret (w:WType) : Set :=
 Definition Var := nat.
 Definition Ctx := list (option WType).
 
-Inductive EmptyCtx : Ctx -> Set :=
-| EmptyNil : EmptyCtx []
-| EmptyCons : forall ctx, EmptyCtx ctx -> EmptyCtx (None :: ctx)
-.
-
 Inductive SingletonCtx : Var -> WType -> Ctx -> Set :=
-| SingletonHere : forall w ctx, EmptyCtx ctx -> SingletonCtx 0 w (Some w :: ctx)
-| SingletonLater : forall x w ctx, SingletonCtx x w ctx -> SingletonCtx (S x) w (None :: ctx)
+| SingletonHere : forall w, SingletonCtx 0 w (Some w :: [])
+| SingletonLater : forall x w ctx, SingletonCtx x w ctx -> SingletonCtx (S x) w (None::ctx)
 .
 
 Inductive MergeOption : option WType -> option WType -> option WType -> Set :=
@@ -42,12 +37,13 @@ Inductive MergeCtx : Ctx -> Ctx -> Ctx -> Set :=
 | MergeNilL : forall ctx, MergeCtx [] ctx ctx
 | MergeNilR : forall ctx, MergeCtx ctx [] ctx
 | MergeCons : forall o1 o2 o g1 g2 g, 
-              MergeOption o1 o2 o -> MergeCtx g1 g2 g -> MergeCtx (o1 :: g1) (o2 :: g2) (o :: g)
+              MergeOption o1 o2 o -> MergeCtx g1 g2 g -> 
+              MergeCtx (o1 :: g1) (o2 :: g2) (o :: g)
 .
 
 Inductive Pat : Ctx -> WType -> Set :=
 | var  : forall x w ctx, SingletonCtx x w ctx -> Pat ctx w
-| unit : forall ctx, EmptyCtx ctx -> Pat ctx One
+| unit : Pat [] One
 | pair : forall ctx1 ctx2 ctx w1 w2,
          MergeCtx ctx1 ctx2 ctx
       -> Pat ctx1 w1
@@ -58,7 +54,8 @@ Inductive Pat : Ctx -> WType -> Set :=
 (* Dangerous to take this notation *)
 Notation "a , b" := (Datatypes.pair a b) (at level 11, left associativity) : default_scope.
 Notation "w1 , w2" := (pair w1 w2) (at level 11, left associativity) : circ_scope.
-(* Notation "()" := unit : circ_scope. *)
+Notation "(())" := unit : circ_scope.
+
 
 (* Parameter (Gate : WType -> WType -> Set). *)
 
@@ -72,12 +69,6 @@ Inductive Unitary : WType -> Set :=
   | bit_control : forall {W} (U : Unitary W), Unitary (Bit ⊗ W) 
   | transpose : forall {W} (U : Unitary W), Unitary W.
 
-Check H.
-Check CNOT.
-Check control H.
-Check control (control H).
-Check transpose CNOT.
-
 Inductive Gate : WType -> WType -> Set := 
   | U : forall {W} (u : Unitary W), Gate W W
   | init0 : Gate One Qubit
@@ -87,11 +78,7 @@ Inductive Gate : WType -> WType -> Set :=
   | meas : Gate Qubit Bit
   | discard : Gate Bit One.
 
-(*
-
 Coercion U : Unitary >-> Gate.
-
-*)
 
 Inductive Circuit : Ctx -> WType -> Set :=
 | output : forall {ctx w}, Pat ctx w -> Circuit ctx w
