@@ -84,34 +84,124 @@ Open Scope type_scope.
 Definition Disjoint Γ1 Γ2 := {Γ : Ctx & MergeCtx Γ1 Γ2 Γ}.
 Definition Subset Γ1 Γ := {Γ2 : Ctx & MergeCtx Γ1 Γ2 Γ}.
 
+Lemma disjointEmptyL : forall Γ, Disjoint [] Γ.
+Proof.
+  intro. exists Γ. constructor.
+Qed.
+
+Lemma disjointEmptyR : forall Γ, Disjoint Γ [].
+Proof.
+  intro. exists Γ. constructor.
+Qed.
+
+Lemma disjointCons : forall o1 o2 o Γ1 Γ2,
+      MergeOption o1 o2 o -> Disjoint Γ1 Γ2 -> Disjoint (o1 :: Γ1) (o2 :: Γ2).
+Proof.
+  destruct 2 as [Γ pfDisjoint].
+  exists (o :: Γ). constructor; auto.
+Qed.
+
+Lemma mergeOptionDisjoint : forall o1 o2 o3 o o',
+      MergeOption o1 o2 o -> MergeOption o o3 o' -> 
+      {o0 : option WType  & MergeOption o1 o3 o0} 
+    * {o0' : option WType & MergeOption o2 o3 o0'}.
+Proof.
+  inversion 1; inversion 1; subst; split;
+    try (exists None; constructor);
+    try (exists (Some a); constructor).
+Qed.
+
 Lemma mergeDisjoint : forall Γ1 Γ2 Γ3 Γ Γ',
       MergeCtx Γ1 Γ2 Γ -> MergeCtx Γ Γ3 Γ' -> Disjoint Γ1 Γ3 * Disjoint Γ2 Γ3.
-Admitted.
+Proof.
+  intros ? ? ? ? ? merge_Γ1_Γ2_Γ merge_Γ_Γ3_Γ';
+    revert Γ1 Γ2 merge_Γ1_Γ2_Γ.
+  induction merge_Γ_Γ3_Γ' as [ | | o o3 o' Γ Γ3 Γ' merge_o_o3_o' merge_Γ_Γ3_Γ']; 
+    intros Γ1 Γ2 merge_Γ1_Γ2_Γ;
+    inversion merge_Γ1_Γ2_Γ; subst;
+    try (split; (apply disjointEmptyL || apply disjointEmptyR); fail).
+  - split; try apply disjointEmptyL.
+    destruct (IHmerge_Γ_Γ3_Γ' Γ []) as [disjoint_g1_g2 _]; try constructor.
+    eapply disjointCons; eauto.
+  - split; try apply disjointEmptyL.
+    destruct (IHmerge_Γ_Γ3_Γ' Γ []) as [disjoint_g1_g2 _]; try constructor.
+    eapply disjointCons; eauto.
+  - destruct (IHmerge_Γ_Γ3_Γ' _ _ H4).
+    edestruct (mergeOptionDisjoint o1 o2 o3) as [ [? ?] [? ?]]; eauto.
+    split; eapply disjointCons; eauto.
+Qed.
 
-Lemma disjointTrans : forall Γ1 Γ2 Γ Γ', 
-      MergeCtx Γ1 Γ2 Γ -> Disjoint Γ1 Γ' -> Disjoint Γ2 Γ' -> Disjoint Γ Γ'.
-Admitted.
+
+Lemma mergeOptionFunctional : forall o1 o2 o o',
+                              MergeOption o1 o2 o -> MergeOption o1 o2 o' -> o = o'.
+Proof.
+  destruct 1; inversion 1; auto.
+Qed.
+
+Lemma mergeFunctional : forall {Γ1 Γ2 Γ Γ'}, 
+                 MergeCtx Γ1 Γ2 Γ -> MergeCtx Γ1 Γ2 Γ' -> Γ = Γ'.
+Proof.
+  intros Γ1 Γ2 Γ Γ' merge_Γ1_Γ2_Γ.
+  revert Γ'.
+  induction merge_Γ1_Γ2_Γ; intros Γ' merge_Γ1_Γ2_Γ'.
+  - inversion merge_Γ1_Γ2_Γ'; auto.
+  - inversion merge_Γ1_Γ2_Γ'; auto.
+  - inversion merge_Γ1_Γ2_Γ'; subst.
+    erewrite mergeOptionFunctional with (o := o) (o' := o4); eauto.
+    rewrite IHmerge_Γ1_Γ2_Γ with (Γ' := g4); eauto.
+Qed.
+Lemma mergeOptionSymm : forall o1 o2 o, MergeOption o1 o2 o -> MergeOption o2 o1 o.
+Proof.
+  destruct 1; constructor.
+Qed.
+Lemma mergeSymm : forall {Γ1 Γ2 Γ}, MergeCtx Γ1 Γ2 Γ -> MergeCtx Γ2 Γ1 Γ.
+Proof.
+  induction 1; constructor; auto.
+  apply mergeOptionSymm; auto.
+Qed.
+
+
+Lemma mergeOptionAssoc : forall o1 o2 o3 o o' o0,
+      MergeOption o1 o2 o -> MergeOption o o3 o'
+   -> MergeOption o1 o3 o0
+   -> MergeOption o2 o0 o'.
+Proof.
+  inversion 1; inversion 1; inversion 1; constructor.
+Qed.
+
 
 Lemma mergeAssoc : forall Γ1 Γ2 Γ3 Γ Γ' Γ0,
       MergeCtx Γ1 Γ2 Γ -> MergeCtx Γ Γ3 Γ' 
-   -> MergeCtx Γ2 Γ3 Γ0
-   -> MergeCtx Γ1 Γ0 Γ'.
-Admitted.
-
-Lemma mergeSymm : forall {Γ1 Γ2 Γ}, MergeCtx Γ1 Γ2 Γ -> MergeCtx Γ2 Γ1 Γ.
-Admitted.
-
-(* Does this have to be with regard to some special notion of context equalitiy? *)
-Lemma mergeFunctional : forall {Γ1 Γ2 Γ Γ'}, 
-                 MergeCtx Γ1 Γ2 Γ -> MergeCtx Γ1 Γ2 Γ' -> Γ = Γ'.
-Admitted.
-
+   -> MergeCtx Γ1 Γ3 Γ0
+   -> MergeCtx Γ2 Γ0 Γ'.
+Proof.
+  intros Γ1 Γ2 Γ3 Γ Γ' Γ0 merge_Γ1_Γ2_Γ. (* merge_Γ_Γ3_Γ' merge_Γ1_Γ3_Γ0. *)
+  revert Γ3 Γ' Γ0.
+  induction merge_Γ1_Γ2_Γ; intros Γ3 Γ' Γ0 merge_Γ_Γ3_Γ' merge_Γ1_Γ3_Γ0.
+  - inversion merge_Γ1_Γ3_Γ0; subst; auto.
+  - rewrite (mergeFunctional merge_Γ_Γ3_Γ' merge_Γ1_Γ3_Γ0); constructor.
+  - inversion merge_Γ1_Γ3_Γ0; subst; auto.
+    * inversion merge_Γ_Γ3_Γ'; subst; auto.
+      constructor. apply mergeOptionSymm; auto. apply mergeSymm; auto.
+    * inversion merge_Γ_Γ3_Γ'; subst; auto.
+      constructor.
+      + eapply mergeOptionAssoc; eauto.
+      + eapply IHmerge_Γ1_Γ2_Γ; eauto.
+Qed.        
 
 Definition Merge3 Γ1 Γ2 Γ3 Γ := { Γ0 : Ctx & MergeCtx Γ1 Γ2 Γ0 * MergeCtx Γ0 Γ3 Γ}.
+
 Lemma merge3Assoc : forall Γ1 Γ2 Γ3 Γ,
                     Merge3 Γ1 Γ2 Γ3 Γ -> Merge3 Γ1 Γ3 Γ2 Γ.
-Admitted.
-
+Proof.
+  destruct 1 as [Γ0 [merge_Γ1_Γ2_Γ0 merge_Γ0_Γ3_Γ]].
+  assert (disjoint_Γ1_Γ3 : Disjoint Γ1 Γ3).
+    edestruct (mergeDisjoint Γ1 Γ2 Γ3); eauto.
+  destruct disjoint_Γ1_Γ3 as [Γ0' merge_Γ1_Γ3_Γ0'].
+  exists Γ0'. split; auto.
+  apply mergeSymm.
+  eapply (mergeAssoc Γ1 Γ2 Γ3); eauto.
+Qed.
 
 Fixpoint compose {Γ1} {W} (c : Circuit Γ1 W)
                  : forall {Γ} {Γ1'} {W'}, 
@@ -130,7 +220,7 @@ Fixpoint compose {Γ1} {W} (c : Circuit Γ1 W)
   edestruct (mergeDisjoint Γ01 Γ0 Γ) as [Disj_Γ01_Γ Disj_Γ0_Γ]; eauto.
   destruct Disj_Γ0_Γ as [Γ0' Merge_Γ0_Γ_Γ0'].
   assert (Merge_Γ01_Γ0'_Γ1' : MergeCtx Γ01 Γ0' Γ1').
-    eapply mergeAssoc; eauto.
+    eapply mergeAssoc; eauto. apply mergeSymm; auto.
   refine (gate _ g p1 (fun Γ02 Γ02' Merge_Γ02_Γ0'_Γ02' q => _) Merge_Γ01_Γ0'_Γ1').
     edestruct (mergeDisjoint Γ0 Γ Γ02) as [[Γ002 Merge_Γ_Γ02_Γ002]
                                            [Γ02'' Merge_Γ0_Γ002_Γ02'']]; eauto;
