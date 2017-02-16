@@ -440,6 +440,46 @@ Qed.
 Theorem transpose_involutive : forall {m n : nat} (A : Matrix m n), (A⊤)⊤ = A.
 Proof. reflexivity. Qed. (* Wow *)
 
+Lemma conj_involutive : forall (c : C), Cconj (Cconj c) = c.
+Proof. intros c. clra. Qed.
+
+Theorem conj_transpose_involutive : forall {m n : nat} (A : Matrix m n), (A†)† = A.
+Proof. 
+  intros m n A. unfold conj_transpose. 
+  apply functional_extensionality; intros x.
+  apply functional_extensionality; intros y.       
+  apply conj_involutive.
+Qed.  
+
+Lemma id_transpose_eq : forall n, (Id n)⊤ = (Id n).
+Proof.
+  intros n.
+  apply functional_extensionality; intros x.
+  apply functional_extensionality; intros y.
+  unfold Id, transpose; simpl.
+  destruct (y =? x) eqn:Eq.
+  + apply Nat.eqb_eq in Eq; subst.
+    rewrite Nat.eqb_refl.
+    reflexivity.
+  + rewrite Nat.eqb_sym. rewrite Eq.
+    reflexivity.    
+Qed.
+
+Lemma id_conj_transpose_eq : forall n, (Id n)† = (Id n).
+Proof.
+  intros n.
+  apply functional_extensionality; intros x.
+  apply functional_extensionality; intros y.
+  unfold Id, conj_transpose; simpl.
+  destruct (y =? x) eqn:Eq.
+  + apply Nat.eqb_eq in Eq; subst.
+    rewrite Nat.eqb_refl.
+    destruct (x <? n); simpl; clra.
+  + rewrite Nat.eqb_sym. rewrite Eq.
+    simpl. 
+    clra.
+Qed.
+
 Theorem Mplus_comm : forall {m n : nat} (A B : Matrix m n), A .+ B = B .+ A.
 Proof.
   unfold Mplus. 

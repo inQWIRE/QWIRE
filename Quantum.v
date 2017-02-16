@@ -80,5 +80,123 @@ Definition control {n : nat} (A : Matrix n n) : Matrix (2*n) (2*n) :=
   fun x y => if (x <? n) && (y <? n) then Id n x y 
                                   else A (x-n)%nat (y-n)%nat.
           
+Definition unitary_matrix {n: nat} (A : Matrix n n): Prop :=
+  A† × A = Id n. 
+
+
+
+(* Would rather use something more basic than lra - but fourier and ring 
+   aren't always up to the task *)
+
+Ltac Rsimpl := 
+  simpl;
+  unfold Rminus;
+  unfold Rdiv;
+  repeat (
+    try rewrite Ropp_0;
+    try rewrite Ropp_involutive;
+    try rewrite Rplus_0_l;
+    try rewrite Rplus_0_r;
+    try rewrite Rmult_0_l;
+    try rewrite Rmult_0_r;
+    try rewrite Rmult_1_l;
+    try rewrite Rmult_1_r;
+    try rewrite <- Ropp_mult_distr_l;
+    try rewrite <- Ropp_mult_distr_r;
+    try (rewrite Rinv_l; [|lra]);
+    try (rewrite Rinv_r; [|lra]);
+    try (rewrite sqrt_sqrt; [|lra])        
+).
+
+(* Seems like this could loop forever *)
+Ltac group_radicals := 
+  repeat (
+  match goal with
+    | [ |- context[(?r1 * √ ?r2)%R] ] => rewrite (Rmult_comm r1 (√r2)) 
+    | [ |- context[(?r1 * (√ ?r2 * ?r3))%R] ] => rewrite <- (Rmult_assoc _ (√ r2) _)
+    | [ |- context[((√?r * ?r1) + (√?r * ?r2))%R ] ] => 
+        rewrite <- (Rmult_plus_distr_l r r1 r2)
+  end).
+
+Ltac Rsolve := repeat (try Rsimpl; try group_radicals); lra.
+
+Ltac Csolve := eapply c_proj_eq; simpl; Rsolve.
+
+Lemma H_unitary : unitary_matrix hadamard.
+Proof.
+  unfold unitary_matrix.
+  apply functional_extensionality; intros x.
+  apply functional_extensionality; intros y.
+  unfold conj_transpose, Mmult, Id.
+  simpl.
+  destruct x as [|x]; destruct y as [|y].
+  + Csolve.
+  + destruct y; Csolve.
+  + destruct x; Csolve.
+  + destruct x, y; try Csolve.
+    - replace ((S (S x) <? 2)) with (false) by reflexivity.
+      rewrite andb_false_r.
+      clra.
+Qed.
+
+Lemma σx_unitary : unitary_matrix pauli_x.
+Proof.
+  unfold unitary_matrix.
+  apply functional_extensionality; intros x.
+  apply functional_extensionality; intros y.
+  unfold conj_transpose, Mmult, Id.
+  simpl.
+  destruct x as [|x]; destruct y as [|y].
+  + clra.
+  + destruct y; clra.
+  + destruct x; clra.
+  + destruct x, y; try clra.
+    - replace ((S (S x) <? 2)) with (false) by reflexivity.
+      rewrite andb_false_r.
+      clra.
+Qed.
+
+Lemma σy_unitary : unitary_matrix pauli_y.
+Proof.
+  unfold unitary_matrix.
+  apply functional_extensionality; intros x.
+  apply functional_extensionality; intros y.
+  unfold conj_transpose, Mmult, Id.
+  simpl.
+  destruct x as [|x]; destruct y as [|y].
+  + clra.
+  + destruct y; clra.
+  + destruct x; clra.
+  + destruct x, y; try clra.
+    - replace ((S (S x) <? 2)) with (false) by reflexivity.
+      rewrite andb_false_r.
+      clra.
+Qed.
+
+Lemma σz_unitary : unitary_matrix pauli_z.
+Proof.
+  unfold unitary_matrix.
+  apply functional_extensionality; intros x.
+  apply functional_extensionality; intros y.
+  unfold conj_transpose, Mmult, Id.
+  simpl.
+  destruct x as [|x]; destruct y as [|y].
+  + clra.
+  + destruct y; clra.
+  + destruct x; clra.
+  + destruct x, y; try clra.
+    - replace ((S (S x) <? 2)) with (false) by reflexivity.
+      rewrite andb_false_r.
+      clra.
+Qed.
+
+Lemma id_unitary : forall n, unitary_matrix (Id n). 
+Proof.
+  intros n.
+  unfold unitary_matrix.
+  rewrite id_conj_transpose_eq.
+  apply Mmult_1_l.
+  apply WF_Id.
+Qed.
 
 (* *)
