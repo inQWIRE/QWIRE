@@ -3,7 +3,6 @@ Require Import List.
 Import ListNotations.
 Open Scope list_scope.
 
-
 Inductive WType := Qubit | Bit | One | Tensor : WType -> WType -> WType.
 
 Notation "W1 ⊗ W2" := (Tensor W1 W2) (at level 1, left associativity): circ_scope.
@@ -41,23 +40,20 @@ Inductive MergeCtx : Ctx -> Ctx -> Ctx -> Set :=
               MergeCtx (o1 :: g1) (o2 :: g2) (o :: g)
 .
 
+(* Typed Circuits Scope [UC is UntypedCircuits] *)
+Module TC.
+
 Inductive Pat : Ctx -> WType -> Set :=
-| var  : forall x w ctx, SingletonCtx x w ctx -> Pat ctx w
+(* | var  : forall x w ctx, SingletonCtx x w ctx -> Pat ctx w *)
 | unit : Pat [] One
+| qubit : forall x ctx, (SingletonCtx x Qubit ctx) -> Pat ctx Qubit 
+| bit : forall x ctx, (SingletonCtx x Bit ctx) -> Pat ctx Bit 
 | pair : forall ctx1 ctx2 ctx w1 w2,
          MergeCtx ctx1 ctx2 ctx
       -> Pat ctx1 w1
       -> Pat ctx2 w2
       -> Pat ctx (Tensor w1 w2)
 .
-
-(* Dangerous to take this notation *)
-Notation "a , b" := (Datatypes.pair a b) (at level 11, left associativity) : default_scope.
-Notation "w1 , w2" := (pair w1 w2) (at level 11, left associativity) : circ_scope.
-Notation "(())" := unit : circ_scope.
-
-
-(* Parameter (Gate : WType -> WType -> Set). *)
 
 Inductive Unitary : WType -> Set := 
   | H : Unitary Qubit 
@@ -82,12 +78,12 @@ Coercion U : Unitary >-> Gate.
 
 Inductive Circuit : Ctx -> WType -> Set :=
 | output : forall {ctx w}, Pat ctx w -> Circuit ctx w
-| gate   : forall ctx {ctx1 ctx1' w1 w2 w},
-           Gate w1 w2
+| gate   : forall ctx {ctx1 ctx1' w1 w2 w}, 
+          MergeCtx ctx1 ctx ctx1'            
+        -> Gate w1 w2
         -> Pat ctx1 w1
         -> (forall {ctx2 ctx2'}, MergeCtx ctx2 ctx ctx2' 
             -> Pat ctx2 w2 -> Circuit ctx2' w)
-        -> MergeCtx ctx1 ctx ctx1'
         -> Circuit ctx1' w
 .
 
@@ -99,6 +95,9 @@ Definition unbox {ctx} {w1} {w2} (b : Box w1 w2) : Pat ctx w1 -> Circuit ctx w2 
   match b with
     box f => f ctx
   end.
+
+End TC.
+Import TC.
 
 Open Scope type_scope.
 
@@ -209,13 +208,14 @@ Qed.
 
 Fixpoint compose {Γ1} {W} (c : Circuit Γ1 W)
                  : forall {Γ} {Γ1'} {W'}, 
+                  MergeCtx Γ1 Γ Γ1' ->
                   (forall {Γ2} {Γ2'}, MergeCtx Γ2 Γ Γ2'
                                     -> Pat Γ2 W
                                     -> Circuit Γ2' W') 
-               -> MergeCtx Γ1 Γ Γ1' -> Circuit Γ1' W'.
+                -> Circuit Γ1' W'.
   refine (match c with
-            output p1 => fun Γ Γ1' W' f pfM => f _ _ pfM p1
-          | gate ctx g p1 h pfM' => fun Γ Γ1' W' f pfM => _
+            output p1 => fun Γ Γ1' W' pfM f => f _ _ pfM p1
+          | gate ctx pfM' g p1 h  => fun Γ Γ1' W' pfM f => _
           end). 
   clear W c Γ1;
   rename w into W1, w0 into W2, w1 into W;
@@ -225,11 +225,11 @@ Fixpoint compose {Γ1} {W} (c : Circuit Γ1 W)
   destruct Disj_Γ0_Γ as [Γ0' Merge_Γ0_Γ_Γ0'].
   assert (Merge_Γ01_Γ0'_Γ1' : MergeCtx Γ01 Γ0' Γ1').
     eapply mergeAssoc; eauto. apply mergeSymm; auto.
-  refine (gate _ g p1 (fun Γ02 Γ02' Merge_Γ02_Γ0'_Γ02' q => _) Merge_Γ01_Γ0'_Γ1').
+  refine (gate _ Merge_Γ01_Γ0'_Γ1' g p1 (fun Γ02 Γ02' Merge_Γ02_Γ0'_Γ02' q => _)).
     edestruct (mergeDisjoint Γ0 Γ Γ02) as [[Γ002 Merge_Γ_Γ02_Γ002]
                                            [Γ02'' Merge_Γ0_Γ002_Γ02'']]; eauto;
       try (eapply mergeSymm; eauto; fail).
-  refine (compose _ _ (h Γ02 Γ002 _ q) _ _ _ f _);
+  refine (compose _ _ (h Γ02 Γ002 _ q) _ _ _ _ f);
     try (apply mergeSymm; auto; fail).
     (* Γ002 = Γ0 ⋓ Γ02 *)
     (* Γ02' = Γ02 ⋓ Γ0' = Γ02 ⋓ (Γ0 ⋓ Γ) *)
@@ -242,5 +242,3 @@ Fixpoint compose {Γ1} {W} (c : Circuit Γ1 W)
       eapply mergeFunctional; eauto.
     subst. auto.
 Qed.
-
-
