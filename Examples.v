@@ -169,26 +169,9 @@ Open Scope circ_scope.
 Opaque wproj.
 Opaque Ctx.
 
-(*
-Ltac type_check_circ_prev := 
-  intros;
-  compute in *;
-  repeat match goal with 
-  | [ |- Ctx ]                      => simpl (* do not try random ctx or permute goal *)
-  | [ |- ?Γ = ?Γ ]                  => reflexivity
-  | [ H : MergeCtx ?Γ1 ?Γ2 ?Γ3 |- MergeCtx ?Γ1 ?Γ2 ?Γ3 ] => exact H
-  | [ H : MergeCtx ?Γ1 ?Γ2 ?Γ3 |- MergeCtx ?Γ2 ?Γ1 ?Γ3 ] => apply (merge_symm H)
-  | [ H : MergeCtx [] ?Γ1 ?Γ2 |- _] => apply merge_nil_l in H; subst 
-  | [ H : MergeCtx ?Γ1 [] ?Γ2 |- _] => apply merge_nil_r in H; subst
-  | [ p : Pat ?Γ One |- _ ]         => inversion p; subst; clear p
-  | [ |- Pat [] One ]               => apply unit
-  | [ |- SingletonCtx _ ?W (?C :: [])]  => apply SingletonHere
-  | [ |- SingletonCtx _ ?W (None :: _)] => apply SingletonLater
-  | [ |- MergeCtx [] _ _]           => apply MergeNilL
-  | [ |- MergeCtx _ [] _]           => apply MergeNilR
-  | [ |- MergeCtx _ _ []]           => apply MergeNilL (* Both work *)
-  end.
-*)
+Arguments merge_assoc {Γ1 Γ2 Γ3 Γ Γ' Γ0} M1 M2 M3.
+Arguments merge_disjoint {Γ1 Γ2 Γ3 Γ Γ'} M1 M2.
+Notation msym := merge_symm.
 
 Ltac type_check_once := 
   intros;
@@ -215,9 +198,74 @@ Ltac type_check_once :=
   | [ H : MergeCtx ?Γ1 _ ?Γ3 |- MergeCtx _ ?Γ1 ?Γ3 ] => apply (merge_symm H)
   | [ H : MergeCtx ?Γ1 ?Γ2 _ |- MergeCtx ?Γ2 ?Γ1 _ ] => apply (merge_symm H)
 (* /may fail *)
+  | [ |- context[merge_disjoint ?H ?H'] ] =>
+        destruct (merge_disjoint H H') as [[? ?] [? ?]]
 (* For transitive merges *)
-(* /transitive *)
+  | [ H : MergeCtx ?Γ1 ?Γ2 ?Γ' , H': MergeCtx ?Γ' ?Γ3 ?Γ4 |- MergeCtx ?Γ1 ?Γ3 ?Γ'' ] =>
+      apply (projT2 (fst (merge_disjoint H H')))
+  | [ H : MergeCtx ?Γ1 ?Γ2 ?Γ' , H': MergeCtx ?Γ' ?Γ3 ?Γ4 |- MergeCtx ?Γ2 ?Γ3 ?Γ'' ] =>
+      apply (projT2 (snd (merge_disjoint H H'))) 
+  | [ H : MergeCtx ?Γ1 ?Γ2 ?Γ' , H': MergeCtx ?Γ' ?Γ3 ?Γ4 |- MergeCtx ?Γ3 ?Γ1 ?Γ'' ] =>
+      apply (merge_symm (projT2 (fst (merge_disjoint H H')))) 
+  | [ H : MergeCtx ?Γ1 ?Γ2 ?Γ' , H': MergeCtx ?Γ' ?Γ3 ?Γ4 |- MergeCtx ?Γ3 ?Γ2 ?Γ'' ] =>
+      apply (merge_symm (projT2 (snd (merge_disjoint H H')))) 
+(* Associative *)
+  | [H: MergeCtx ?Γ1 ?Γ3 ?Δ |- MergeCtx ?Γ2 ?Δ ?Γ' ] => 
+    eapply merge_assoc; [| | apply H]; type_check_once; fail
+  | [H: MergeCtx ?Γ1 ?Γ3 ?Δ |- MergeCtx ?Γ2 ?Δ ?Γ' ] => 
+    eapply merge_assoc; [| | apply (msym H)]; type_check_once; fail
+  | [H: MergeCtx ?Γ1 ?Γ3 ?Δ |- MergeCtx ?Δ ?Γ2 ?Γ' ] => 
+    eapply msym; eapply merge_assoc; [| | apply H]; type_check_once; fail
+  | [H: MergeCtx ?Γ1 ?Γ3 ?Δ |- MergeCtx ?Δ ?Γ2 ?Γ' ] => 
+    eapply msym; eapply merge_assoc; [| | apply (msym H)]; type_check_once; fail
   end.
+
+Ltac check_assoc := match goal with
+(* Associative Merges *)
+  | [H1 : MergeCtx ?Γ1 ?Γ2 ?Γ, H2: MergeCtx ?Γ ?Γ3 ?Γ', H3: MergeCtx ?Γ1 ?Γ3 ?Δ 
+     |- MergeCtx ?Γ2 ?Δ ?Γ' ] => apply (merge_assoc H1 H2 H3)
+  | [H1 : MergeCtx ?Γ1 ?Γ2 ?Γ, H2: MergeCtx ?Γ ?Γ3 ?Γ', H3: MergeCtx ?Γ1 ?Γ3 ?Δ 
+     |- MergeCtx ?Δ ?Γ2 ?Γ' ] => apply (msym (merge_assoc H1 H2 H3))
+  | [H1 : MergeCtx ?Γ2 ?Γ1 ?Γ, H2: MergeCtx ?Γ ?Γ3 ?Γ', H3: MergeCtx ?Γ1 ?Γ3 ?Δ 
+     |- MergeCtx ?Γ2 ?Δ ?Γ' ] => apply (merge_assoc (msym H1) H2 H3)
+  | [H1 : MergeCtx ?Γ2 ?Γ1 ?Γ, H2: MergeCtx ?Γ ?Γ3 ?Γ', H3: MergeCtx ?Γ1 ?Γ3 ?Δ 
+     |- MergeCtx ?Δ ?Γ2 ?Γ' ] => apply (msym (merge_assoc (msym H1) H2 H3))
+  | [H1 : MergeCtx ?Γ1 ?Γ2 ?Γ, H2: MergeCtx ?Γ3 ?Γ ?Γ', H3: MergeCtx ?Γ1 ?Γ3 ?Δ 
+     |- MergeCtx ?Γ2 ?Δ ?Γ' ] => apply (merge_assoc H1 (msym H2) H3)
+  | [H1 : MergeCtx ?Γ1 ?Γ2 ?Γ, H2: MergeCtx ?Γ3 ?Γ ?Γ', H3: MergeCtx ?Γ1 ?Γ3 ?Δ 
+     |- MergeCtx ?Δ ?Γ2 ?Γ' ] => apply (msym (merge_assoc H1 (msym H2) H3))
+  | [H1 : MergeCtx ?Γ2 ?Γ1 ?Γ, H2: MergeCtx ?Γ3 ?Γ ?Γ', H3: MergeCtx ?Γ1 ?Γ3 ?Δ 
+     |- MergeCtx ?Γ2 ?Δ ?Γ' ] => apply (merge_assoc (msym H1) (msym H2) H3)
+  | [H1 : MergeCtx ?Γ2 ?Γ1 ?Γ, H2: MergeCtx ?Γ3 ?Γ ?Γ', H3: MergeCtx ?Γ1 ?Γ3 ?Δ 
+     |- MergeCtx ?Δ ?Γ2 ?Γ' ] => apply (msym (merge_assoc (msym H1) (msym H2) H3))
+  | [H1 : MergeCtx ?Γ1 ?Γ2 ?Γ, H2: MergeCtx ?Γ ?Γ3 ?Γ', H3: MergeCtx ?Γ3 ?Γ1 ?Δ 
+     |- MergeCtx ?Γ2 ?Δ ?Γ' ] => apply (merge_assoc H1 H2 (msym H3))
+  | [H1 : MergeCtx ?Γ1 ?Γ2 ?Γ, H2: MergeCtx ?Γ ?Γ3 ?Γ', H3: MergeCtx ?Γ3 ?Γ1 ?Δ 
+     |- MergeCtx ?Δ ?Γ2 ?Γ' ] => apply (msym (merge_assoc H1 H2 (msym H3)))
+  | [H1 : MergeCtx ?Γ2 ?Γ1 ?Γ, H2: MergeCtx ?Γ ?Γ3 ?Γ', H3: MergeCtx ?Γ3 ?Γ1 ?Δ 
+     |- MergeCtx ?Γ2 ?Δ ?Γ' ] => apply (merge_assoc (msym H1) H2 (msym H3))
+  | [H1 : MergeCtx ?Γ2 ?Γ1 ?Γ, H2: MergeCtx ?Γ ?Γ3 ?Γ', H3: MergeCtx ?Γ3 ?Γ1 ?Δ 
+     |- MergeCtx ?Δ ?Γ2 ?Γ' ] => apply (msym (merge_assoc (msym H1) H2 (msym H3)))
+  | [H1 : MergeCtx ?Γ1 ?Γ2 ?Γ, H2: MergeCtx ?Γ3 ?Γ ?Γ', H3: MergeCtx ?Γ3 ?Γ1 ?Δ 
+     |- MergeCtx ?Γ2 ?Δ ?Γ' ] => apply (merge_assoc H1 (msym H2) (msym H3))
+  | [H1 : MergeCtx ?Γ1 ?Γ2 ?Γ, H2: MergeCtx ?Γ3 ?Γ ?Γ', H3: MergeCtx ?Γ3 ?Γ1 ?Δ 
+     |- MergeCtx ?Δ ?Γ2 ?Γ' ] => apply (msym (merge_assoc H1 (msym H2) (msym H3)))
+  | [H1 : MergeCtx ?Γ2 ?Γ1 ?Γ, H2: MergeCtx ?Γ3 ?Γ ?Γ', H3: MergeCtx ?Γ3 ?Γ1 ?Δ 
+     |- MergeCtx ?Γ2 ?Δ ?Γ' ] => apply (merge_assoc (msym H1) (msym H2) (msym H3))
+  | [H1 : MergeCtx ?Γ2 ?Γ1 ?Γ, H2: MergeCtx ?Γ3 ?Γ ?Γ', H3: MergeCtx ?Γ3 ?Γ1 ?Δ 
+    |- MergeCtx ?Δ ?Γ2 ?Γ' ] => apply (msym (merge_assoc (msym H1) (msym H2) (msym H3)))
+end.
+
+Ltac check_assoc' := match goal with
+  | [H: MergeCtx ?Γ1 ?Γ3 ?Δ |- MergeCtx ?Γ2 ?Δ ?Γ' ] => 
+    eapply merge_assoc; [| | apply H]; type_check_once; fail
+  | [H: MergeCtx ?Γ1 ?Γ3 ?Δ |- MergeCtx ?Γ2 ?Δ ?Γ' ] => 
+    eapply merge_assoc; [| | apply (msym H)]; type_check_once; fail
+  | [H: MergeCtx ?Γ1 ?Γ3 ?Δ |- MergeCtx ?Δ ?Γ2 ?Γ' ] => 
+    apply msym; eapply merge_assoc; [| | apply H]; type_check_once; fail
+  | [H: MergeCtx ?Γ1 ?Γ3 ?Δ |- MergeCtx ?Δ ?Γ2 ?Γ' ] => 
+    apply msym; eapply merge_assoc; [| | apply (msym H)]; type_check_once; fail
+end.  
 
 
 (*  | [ H : MergeCtx _ ?Γ2 ?Γ3 |- MergeCtx ?Γ1 ?Γ2 ?Γ3 ] => has_evar Γ1; exact H
@@ -237,6 +285,7 @@ Ltac type_check_num :=
   let post := numgoals in idtac "Goals after: " post "";
   tryif (guard post < pre) then type_check_num else idtac.
 
+(* Easiest solution *)
 Ltac type_check := let n := numgoals in do n [> type_check_once..].  
 
 (*** Paper Examples ***)
@@ -303,113 +352,21 @@ Proof.
   Stupid shelf!
 *)
 
-Lemma merge_disjoint13 : forall Γ1 Γ2 Γ3 Γ Γ',
-      MergeCtx Γ1 Γ2 Γ -> MergeCtx Γ Γ3 Γ' -> {Γ'' : Ctx & MergeCtx Γ1 Γ3 Γ''}.
-Proof. apply merge_disjoint. Qed.
-
-Lemma merge_disjoint23 : forall Γ1 Γ2 Γ3 Γ Γ',
-      MergeCtx Γ1 Γ2 Γ -> MergeCtx Γ Γ3 Γ' -> {Γ'' : Ctx & MergeCtx Γ2 Γ3 Γ''}.
-Proof. apply merge_disjoint. Qed.
-
-Ltac check_this := 
-match goal with
-  | [ H : MergeCtx ?Γ1 ?Γ2 ?Γ' , H': MergeCtx ?Γ' ?Γ3 ?Γ4 |- 
-      MergeCtx ?Γ3 ?Γ2 ?Γ'' ] => has_evar Γ''; 
-                                let Γ := fresh "Γ" in 
-                                let M := fresh "M" in 
-                                specialize (merge_disjoint _ _ _ _ _  H H');
-                                intros [_ [Γ M]]; apply (merge_symm M)
-end.
-
-
-Ltac check_this' := 
-match goal with
-  | [ H : MergeCtx ?Γ1 ?Γ2 ?Γ' , H': MergeCtx ?Γ' ?Γ3 ?Γ4 |- 
-      MergeCtx ?Γ3 ?Γ2 ?Γ'' ] => has_evar Γ''; 
-                         let d := fresh "d" in 
-                         let Γ := fresh "Γ" in 
-                         let M := fresh "M" in 
-                         exact
-                          ((fun H0 : Γ1 ∥ Γ3 * Γ2 ∥ Γ3 =>
-                             (fun H1 : Γ2 ∥ Γ3 * Γ2 ∥ Γ3 =>
-                                let (_, d) := H1 in let (Γ, M) := d in (merge_symm M)) H0)
-                            (merge_disjoint _ _ _ _ _ H H'))              
-end.
-
-(*
-((fun H0 : Γx ∥ Γb * Γy ∥ Γb =>
-      (fun H1 : Γx ∥ Γb * Γy ∥ Γb =>
-       let (_, d) := H1 in let (Γyb, _) := d in Γyb) H0)
-       (merge_disjoint Γx Γy Γb Γxy Γxyb Mxy Mxyb))
-*)
-
 Definition bob' : Box (Bit⊗(Bit⊗Qubit)) Qubit. 
 refine(
   box (fun Γxyb xyb =>
     let 'existT23 Γx Γyb x yb Mxyb := wproj xyb in
     gate _ _ (bit_control σx) yb
      (fun Γyb Γyb' Myb yb' =>
-     let 'existT23 Γy' Γb' y' b' Myb := wproj yb' in
+     let 'existT23 Γy' Γb' y' b' Myb' := wproj yb' in
       gate _ _ (bit_control σz) (x * b') (* <? *)
        (fun Γxb Γxb' Mxb xb =>
         gate _ _ discard y' 
          (fun Γz1 Γz1 Mz1 z1 =>
           let 'existT23 Γx' Γb'' x' b'' Mxb := wproj xb in
           gate _ _ discard x'
-           (fun Γz2 Γz2' Mz2 z2 => output _ b'')))))); type_check. 
-
-Unshelve.
-
-(*
-(* doesn't work *)
-(*
-Focus 2.
-exact ((fun H0 : Γy' ∥ Γx * Γb' ∥ Γx =>
-      (fun H1 : Γy' ∥ Γx * Γb' ∥ Γx =>
-       let (_, d) := H1 in let 'existT _ Γxb Mxb := d in (merge_symm Mxb)) H0)
-       (merge_disjoint _ _ _ _ _ Myb Myb0)).
-*)
-
-(* works *)
-Focus 2.
-exact (let p := merge_disjoint Γy' Γb' Γx Γyb Γyb' Myb Myb0 in
-           let
-             (_, d0) as p0
-              return
-                (MergeCtx (let (_, d) := p0 in let (Γxb, _) := d in Γxb) Γy'
-                   Γyb') := p in
-           let
-             (x0, m) as s
-              return (MergeCtx (let (Γxb, _) := s in Γxb) Γy' Γyb') := d0 in
-           merge_symm
-             (merge_assoc Γb' Γy' Γx Γyb Γyb' x0 (merge_symm Myb) Myb0 m)).
-
-(* works *)
-(*
-Focus 3.
-exact ((fun H0 : Γy' ∥ Γx * Γb' ∥ Γx =>
-      (fun H1 : Γy' ∥ Γx * Γb' ∥ Γx =>
-       let (_, d) := H1 in let 'existT _ Γxb Mxb := d in Γxb) H0)
-       (merge_disjoint _ _ _ _ _ Myb Myb0)).
-*)
-*)
-
-Focus 3.
-specialize (merge_disjoint _ _ _ _ _ Myb Myb0); intros [_ [Γxb _]]; exact Γxb.
-
-simpl; repeat match goal with |- context[let (_,_) := ?x in _] => destruct x end.
-rename x0 into Γxb.
-apply merge_symm.
-eapply merge_assoc.
-3: apply m.
-apply (merge_symm Myb).
-assumption.
-
-simpl; repeat match goal with |- context[let (_,_) := ?x in _] => destruct x end.
-apply merge_symm; assumption.
+           (fun Γz2 Γz2' Mz2 z2 => output _ b'')))))); type_check.
 Defined.
-
-Print bob'.
 
 Definition bob : Box (Bit⊗Bit⊗Qubit) Qubit. 
 refine(
@@ -427,71 +384,179 @@ refine(
           gate _ _ discard x'
            (fun Γz2 Γz2' Mz2 z2 => output _ b'')))))); type_check.
 
-Unshelve.
-
-Focus 6.
-specialize (merge_disjoint _ _ _ _ _ Mxy Mxyb); intros [_ [Γyb Myb]].
-exact Γyb.
-
-Focus 2.
-simpl; repeat match goal with |- context[let (_,_) := ?x in _] => destruct x end.
-assumption.
-
-simpl; repeat match goal with |- context[let (_,_) := ?x in _] => destruct x end.
-rename x0 into Γyb.
+rename x1 into Γyb.
 apply merge_symm in Mxy.
 specialize (merge3_assoc Γy Γx Γb Γxyb (existT _ Γxy (Datatypes.pair Mxy Mxyb))); intros.
 destruct H0.
 destruct p.
-apply (merge_functional m0) in m; subst.
-apply m1.
+apply (merge_functional m0) in m1; subst.
+apply m2.
 
-Focus 3.
-specialize (merge_disjoint _ _ _ _ _ Myb Myb0); intros [_ [Γxb Mxb]].
-exact Γxb.
+eapply merge_symm.
+eapply merge_assoc.
+2: apply Myb0.
+apply (merge_symm Myb).
+type_check.
 
-simpl; repeat match goal with [ |- context[let (_,_) := ?x in _]] => destruct x 
-                            | [ |- context[let _ := ?x in _]] => destruct x end.
-clear - Myb Myb0 m.
-apply merge_symm in Myb.
-specialize (merge3_assoc Γb' Γy' Γx Γyb' (existT _ Γyb (Datatypes.pair Myb Myb0))); intros.
-destruct H0 as [Γbx [Mbx Mbxy]].
-apply (merge_functional m) in Mbx; subst.
-assumption.
-
-simpl; repeat match goal with |- context[let (_,_) := ?x in _] => destruct x end.
-apply (merge_symm m).
+type_check.
 Defined.
 
-Definition teleport : Box Qubit Qubit.
+(*
+Definition teleport' : Box Qubit Qubit.
   refine(
   box (fun Γq q =>
     compose (unbox bell00 _ unit) _
       (fun Γab Γab' Mab ab => 
        let 'existT23 Γa Γb a b Mab' := wproj ab in 
        compose (unbox alice _ (q * a)) _
-               (fun Γxy Γxy' Mxy xy => unbox bob _ (xy * b)))
+               (fun Γxy Γxy' Mxy xy => 
+                  let 'existT23 Γx Γy x y Mxy := wproj xy in 
+                  unbox bob' _ (x * (y * b))))
       )); type_check.
-
-Unshelve.
-
-Focus 3.
-specialize (merge_disjoint _ _ _ _ _ Mab' Mab); intros [[Γaq Maq] [Γyb Myb]].
-exact Γaq.
-
-simpl; repeat match goal with |- context[let (_,_) := ?x in _] => destruct x end.
-destruct (merge_disjoint _ _ _ _ _ _).
-simpl; repeat match goal with |- context[let (_,_) := ?x in _] => destruct x end.
-apply (merge_symm m).
-
-simpl; repeat match goal with |- context[let (_,_) := ?x in _] => destruct x end.
-destruct (merge_disjoint _ _ _ _ _ _).
-simpl; repeat match goal with |- context[let (_,_) := ?x in _] => destruct x end.
-
-specialize (merge3_assoc Γa Γb Γq Γab' (existT _ Γab (Datatypes.pair Mab' Mab))); intros.
-destruct H0 as [Γaq [Maq Maqb]].
-apply (merge_functional m) in Maq; subst.
-assumption.
 Defined.
+*)
+
+Definition teleport : Box Qubit Qubit.
+  refine(
+  box (fun _ q =>
+    compose (unbox bell00 _ unit) _
+      (fun _ _ _ ab => 
+       let 'existT23 _ _ a b _ := wproj ab in 
+       compose (unbox alice _ (q * a)) _
+               (fun _ _ _ qa => unbox bob _ (qa * b)))
+      )); type_check.
+Defined.
+
+
+(* Right associative Tensor *)
+Fixpoint Tensor (n : nat) (W : WType) := 
+  match n with 
+  | 0 => One
+  | 1 => W
+  | S n' =>  W ⊗ (Tensor n' W)
+  end.
+
+Infix "⨂" := Tensor (at level 30). 
+(* Transparent Tensor. *)
+Opaque Tensor.
+
+Fixpoint inSeqMany {W} (n :nat) (c : Box W W) : Box W W := 
+  match n with
+  | 0 => id_circ
+  | 1 => c
+  | S n' => inSeq c (inSeqMany n' c)
+  end.
+
+Print inSeqMany.
+
+(* Zero-indexed variant. I don't know why this is necessary *)
+(* This will be fairly common *)
+Fixpoint inParManyZ {W1 W2} (n : nat) (c : Box W1 W2) {struct n} : 
+  Box (S n ⨂ W1) (S n ⨂ W2) :=
+  match n with 
+  | 0 => c
+  | S n' => inPar c (inParManyZ n' c)
+  end. 
+
+Definition inParMany {W1 W2} (n : nat) (c : Box W1 W2) : Box (n ⨂ W1) (n ⨂ W2) := 
+  match n with 
+  | 0 => id_circ
+  | S n' => inParManyZ n' c 
+  end.
+
+Eval compute in inParMany 4 hadamard_measure.
+
+Parameter RGate : nat -> Unitary Qubit.
+
+Local Obligation Tactic := type_check.
+
+Fixpoint rotationsZ (m : nat) (n : nat) : Box (S (S n) ⨂ Qubit) (S (S n) ⨂ Qubit).
+refine (
+  match n as n0 return n = n0 -> Box (S (S n0) ⨂ Qubit) (S (S n0) ⨂ Qubit) with
+  | 0 => fun eq => id_circ 
+  | S n' => fun eq => box (fun Γ w =>
+    let 'existT23 Γc Γqqs c qqs Mcqqs := wproj w in 
+    let 'existT23 Γq Γqs q qs Mqqs := wproj qqs in 
+    compose (unbox (rotationsZ m n') _ (c * qs)) _
+            (fun Γcqs Γcqs' Mcqs cqs =>  
+               let 'existT23 Γc' Γqs' c' qs' Mcqs' := wproj cqs in 
+               gate _ _ (control (RGate (1 + m - n'))) (c' * q)
+               (fun Γcq Γcq' Mcq cq => 
+               let 'existT23 Γc'' Γq'' c'' q'' Mcq' := wproj cq in 
+               output _ (c'' * (q'' * qs')))))
+   end (eq_refl n)); type_check.
+
+apply (merge_symm (projT2 (snd (merge_disjoint Mqqs (msym Mcqqs))))).
+
+type_check.
+
+Admitted.
+
+Definition rotations (m : nat) (n : nat) : Box (S n ⨂ Qubit) (S n ⨂ Qubit) :=
+  match n with 
+  | 0 => id_circ
+  | S n' => rotationsZ m n' 
+  end.
+
+Fixpoint qftZ (n : nat) : Box (S n ⨂ Qubit) (S n ⨂ Qubit).
+refine(
+  match n as n0 return n = n0 -> Box (S n0 ⨂ Qubit) (S n0 ⨂ Qubit) with 
+  | 0 => fun eq => (box (fun Γ p1 =>  gate _ _ H p1 (fun Γ2 Γ2' M2 p2 => output _ p2)))
+  | S n' => fun eq => box (fun Γqw qw =>
+             let 'existT23 Γq Γw q w Mqw := wproj qw in
+             compose (unbox (qftZ n') _ w) _
+                     (fun Γw' Γw'' Mw' w' => (unbox (rotationsZ (S n') n') _ (q * w'))))
+  end (eq_refl n)); type_check.
+Defined.
+
+Definition qft (n : nat) : Box (n ⨂ Qubit) (n ⨂ Qubit) :=
+  match n with 
+  | 0 => id_circ
+  | S n' => qftZ n'
+  end.
+
+
+
+fourier : Π(n:Nat). CIRC(  n qubit,   n qubit)= fun n => case n of
+| 0 => id
+| 1 => hadamard
+    | S n’ => box (q,w) =>
+                w <- unbox fourier n’ w;
+                unbox rotations (S n’) n’ (q,w)
+
+(* RGate (2+m-n') *)
+
+
+(** Approaches to a general list-based solver **)
+(*
+
+1) For known head:
+
+H : MergeCtx [...] Γ 
+
+|­ MergeCtx [Γx ; Γy ; Γz] Γ
+
+Saturate the tails of H and the goal (i.e. replace all compound contexts with their atoms). Then apply permute_equal H.
+
+2a) 
+
+H : [x ; y ; z ; a ; b ] Γ
+
+MergeCtx [ x ; y ; z] ?Goal <-> MergeCtx [x ; y ; z ; a] ?Goal' <-> MergeCtx [x ; y ; z ; a ; b] ?Goal''
+
+
+2b) 
+
+H : [x ; y ; z ; a ; b ] Γ
+-> H : [x ; y ; z ; a] Γ'
+-> H : [x ; y ; z] Γ''
+
+MergeCtx [ x ; y ; z] ?Goal
+
+*)
+
+
+
+
 
 (* *)
