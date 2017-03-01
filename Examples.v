@@ -6,175 +6,155 @@ Require Import TypedCircuits.
 Import TC.
 Import ListNotations.
 Open Scope list_scope.
-
-(** The merge function **)
-
-Fixpoint merge_atom (W1 W2 : option WType) : option WType := 
-  match W1, W2 with
-  | None, W' => W'
-  | W', None => W'
-  | _, _     => None (* ERROR CASE *) 
+        
+(* Merging Contexts *)
+Program Definition mmerge_atom (o1 o2 : option WType) {dis : [o1] ∥ [o2]} :=
+  match o1, o2 with
+  | None, None   => None
+  | None, Some W => Some W 
+  | Some W, None => Some W
+  | Some W1, Some W2 => _
   end.
+Next Obligation. inversion dis. inversion H0; subst. inversion H6. Defined.
 
-Fixpoint merge (ctx1 ctx2 : Ctx) : Ctx :=
-  match ctx1, ctx2 with 
-  | [], _ => ctx2
-  | _, [] => ctx1
-  | (c1 :: ctx1'), (c2 :: ctx2') => 
-    (merge_atom c1 c2) :: (merge ctx1' ctx2')
+Program Fixpoint mmerge (Γ1 Γ2 : Ctx) (dis : Γ1 ∥ Γ2) := 
+  match Γ1, Γ2 with 
+  | [], _ => Γ2
+  | _, [] => Γ1
+  | (o1 :: Γ1'), (o2 :: Γ2') => @mmerge_atom o1 o2 _ :: mmerge Γ1' Γ2' _
   end.
+Next Obligation. destruct dis. inversion m; subst.
+                 exists [o]. constructor; trivial. constructor. Defined.
+Next Obligation. destruct dis. inversion m; subst.
+                 exists g; assumption. Defined.
 
-Infix "∪" := merge (at level 30). 
+Notation "Γ1 ⋓ Γ2" := (mmerge Γ1 Γ2 _) (at level 30).
 
-Lemma merge_eq : forall Γ1 Γ2 Γ3, MergeCtx Γ1 Γ2 Γ3 -> Γ1 ∪ Γ2 = Γ3.
+Lemma merge_atom_irrelevant : forall o1 o2 D1 D2, 
+                                @mmerge_atom o1 o2 D1 = @mmerge_atom o1 o2 D2.
 Proof.
   intros.
-  generalize dependent Γ1. 
-  generalize dependent Γ2. 
-  induction Γ3.
-  + intros.
-    inversion H0; subst; reflexivity.
-  + intros.  
-    inversion H0; subst.
-    - reflexivity.
-    - reflexivity.
-    - simpl. 
-      rewrite IHΓ3; trivial.
-      inversion H5; reflexivity.
-Qed. 
-
-(* Have to rename to avoid conflicts *)
-Lemma merge_trans_l : forall Γ1 Γ2 Γ3 Γ4 Γ',
-  MergeCtx Γ1 Γ3 Γ' -> 
-  MergeCtx Γ2 Γ' Γ4 ->
-  MergeCtx (Γ1 ∪ Γ2) Γ3 Γ4.
-Proof.
-  intros Γ1 Γ2 Γ3 Γ4 Γ' H0 H1.
-  generalize dependent Γ'.
-  generalize dependent Γ4.
-  generalize dependent Γ3.
-  generalize dependent Γ1.
-  induction Γ2.
-  + intros Γ1 Γ3 Γ4 Γ' H0 H1. 
-    apply merge_nil_l in H1.
-    subst.
-    destruct Γ1; assumption.
-  + intros Γ1 Γ3 Γ4 Γ' H0 H1.
-    destruct Γ1.     
-    - simpl. 
-      apply merge_nil_l in H0; subst.
-      assumption.
-    - simpl. 
-      inversion H0; subst.
-      * inversion H1; subst.
-        apply merge_symm in H1.
-        apply merge_eq in H1.
-        simpl in H1. rewrite H1.
-        constructor.
-      * inversion H1; subst.
-        destruct o, a, o2, o4; inversion H4; subst; inversion H9; subst; simpl in *;
-        constructor; try constructor; eapply IHΓ2; try apply H7; try apply H10.
-Qed.
-
-Lemma merge_trans_r : forall Γ1 Γ2 Γ3 Γ4 Γ',
-  MergeCtx Γ1 Γ2 Γ' -> 
-  MergeCtx Γ3 Γ' Γ4 ->
-  MergeCtx Γ1 (Γ2 ∪ Γ3) Γ4.
-Proof.
-  intros Γ1 Γ2 Γ3 Γ4 Γ' H0 H1.
-  apply merge_symm.
-  eapply merge_trans_l.
-  apply (merge_symm H0).
-  apply H1.
+  inversion D1. inversion H0; subst. inversion H6; subst; reflexivity.
 Qed.  
 
-Lemma manual_merge_symm : forall Γ1 Γ2, Γ1 ∪ Γ2 = Γ2 ∪ Γ1.
+Lemma merge_irrelevant : forall Γ1 Γ2 D1 D2, mmerge Γ1 Γ2 D1 = mmerge Γ1 Γ2 D2.
 Proof.
-  intros Γ1. 
-  induction Γ1; intros Γ2.
-  destruct Γ2; reflexivity.  
-  destruct Γ2; trivial.
+  induction Γ1. reflexivity.
+  intros.
+  destruct Γ2.
+  simpl. reflexivity.
   simpl. 
+  erewrite merge_atom_irrelevant.
+  erewrite IHΓ1.
+  reflexivity.
+Qed.  
+
+Lemma mmerge_atom_refl : forall o1 o2 (dis: [o1] ∥ [o2]), 
+                        MergeOption o1 o2 (@mmerge_atom o1 o2 dis).
+Proof.
+  intros.
+  destruct o1, o2; (try constructor).
+  destruct dis.
+  inversion m; subst.
+  inversion H5.
+Qed.
+
+Lemma mmerge_refl : forall Γ1 Γ2 (dis: Γ1 ∥ Γ2), MergeCtx Γ1 Γ2 (@mmerge Γ1 Γ2 dis).
+Proof.
+  induction Γ1.
+  intros. simpl. constructor.
+  intros.
+  destruct Γ2.
+  simpl. constructor.
+  simpl.
+  constructor.
+  apply mmerge_atom_refl.
+  apply IHΓ1.
+Qed.
+
+Lemma mmerge_symm : forall Γ1 Γ2 (D: Γ1 ∥ Γ2), 
+                      mmerge Γ1 Γ2 D = mmerge Γ2 Γ1 (disjoint_symm _ _ D). 
+Proof.
+  induction Γ1.
+  intros. simpl. 
+  destruct Γ2; reflexivity.
+  intros.
+  destruct Γ2.
+  reflexivity.
+  simpl.
   rewrite IHΓ1.
-  destruct a, o; reflexivity.
-Qed.
+  destruct D.
+  inversion m; subst.
+  inversion H5; subst; simpl; erewrite merge_irrelevant; reflexivity.
+Qed.  
 
-Lemma manual_merge_assoc : forall Γ1 Γ2 Γ3, 
-  Γ1 ∥ Γ2 ->
-  Γ2 ∥ Γ3 ->
-  (Γ1 ∪ Γ2) ∪ Γ3 = Γ1 ∪ (Γ2 ∪ Γ3).
+(*
+Lemma mmerge_assoc_r : forall Γ1 Γ2 Γ3 Γ4 D, MergeCtx (mmerge Γ1 Γ2 D) Γ3 Γ4 ->
+                                        {D' : _ & MergeCtx Γ1 (mmerge Γ2 Γ3 D') Γ4}.
 Proof.
-  intros Γ1 Γ2.
-  generalize dependent Γ1.
-  induction Γ2.
-  + intros; simpl.
-    destruct Γ1; reflexivity.
-  + intros; simpl.
-    destruct Γ1, Γ3; simpl; trivial.
-    rewrite IHΓ2.
-    - destruct o, a, o0; trivial.
-      inversion H0.
-      inversion H2; subst.
-      inversion H8.    
-    - inversion H0.
-      inversion H2; subst.
-      exists g. assumption.
-    - inversion H1.
-      inversion H2; subst.
-      exists g. assumption.
-Qed.
+  intros.
+ *) 
+  
 
-Lemma disjoint_merge : forall Γ1 Γ2, Γ1 ∥ Γ2 -> MergeCtx Γ1 Γ2 (Γ1 ∪ Γ2).
+Lemma mmerge_merge3 : forall Γ1 Γ2 Γ3 Γ4 D, MergeCtx (mmerge Γ1 Γ2 D) Γ3 Γ4 -> 
+                                       merge3 Γ1 Γ2 Γ3 Γ4.
 Proof.
-  intros Γ1 Γ2 H0.
-  unfold disjoint in H0.
-  destruct H0.
-  specialize (merge_eq _ _ _ m); intros; subst.
+  intros.
+  unfold merge3.
+  exists (mmerge Γ1 Γ2 D).
+  split.
+  apply mmerge_refl.
   assumption.
-Qed.
+Qed.  
 
-Lemma pairwise_disjoint : forall Γ1 Γ2 Γ3, 
-  Γ1 ∥ Γ2 -> Γ2 ∥ Γ3 -> Γ1 ∥ Γ3 -> (Γ1 ∪ Γ2) ∥ Γ3.
+Lemma merge3_mmerge : forall Γ1 Γ2 Γ3 Γ4, merge3 Γ1 Γ2 Γ3 Γ4 -> 
+                                     {D : _ & MergeCtx (mmerge Γ1 Γ2 D) Γ3 Γ4}.
 Proof.
-  intros Γ1 Γ2. generalize dependent Γ1.
-  induction Γ2; intros.
-  + destruct Γ1; simpl; assumption. 
-  + destruct Γ1, Γ3; simpl; trivial.
-    - apply disjoint_nil_r.
-    - apply disjoint_cons_inv in H0 as [D12 [o12 mo12]].
-      apply disjoint_cons_inv in H1 as [D23 [o23 mo23]].
-      apply disjoint_cons_inv in H2 as [D13 [o13 mo13]].
-      apply disjoint_cons with (o := merge_atom o12 o0) .
-      destruct o, a, o0; inversion mo12; inversion mo23; inversion mo13; subst;
-      simpl; constructor.
-      apply IHΓ2; assumption.
-Qed.      
-        
+  intros.
+  destruct H0 as [Γ [H1 H2]].
+  assert (Γ1 ∥ Γ2) as D1. exists Γ. assumption.
+  exists D1.
+  specialize (mmerge_refl _ _ D1). intros.
+  apply (merge_functional H1) in H0.
+  subst.
+  assumption.  
+Qed.  
+
+
+(*
+Lemma mmerge_assoc : forall Γ1 Γ2 Γ3 Γ4 dis dis', MergeCtx (mmerge Γ1 Γ2 dis) Γ3 Γ4 ->
+                                             MergeCtx Γ1 (mmerge Γ2 Γ3 dis') Γ4.
+Proof.
+*)  
+
 (* Projecting out elements of tensors *)
+Inductive sigT23 (A:Type) (P Q R : A -> A -> Type) : Type :=
+    existT23 : forall (x y : A), P x y -> Q x y -> R x y -> sigT23 A P Q R.
+
+(*
+Notation "{ x, y : A & P & Q & R }" := (sigT23 A (fun x y => P) (fun x y => Q) (fun x y => R)).
+*)
+
+Arguments existT23 {A} {P Q R} x y p1 p2 M.
+
 Program Definition wproj {Γ W1 W2} (p : Pat Γ (Tensor W1 W2)) : 
-  {Γ1 : Ctx & Pat Γ1 W1 } * {Γ2 : Ctx & Pat Γ2 W2} :=
+  sigT23 Ctx (fun x y => Pat x W1) (fun x y => Pat y W2) (fun x y => MergeCtx x y Γ) :=
+(*  {Γ1 Γ2 : Ctx & Pat Γ1 W1 & Pat Γ2 W2 & MergeCtx Γ1 Γ2 Γ} *)
   match p with 
   | unit => _
   | qubit _ _ _ => _
   | bit _ _ _ => _
-  | pair ctx1 ctx2 ctx w1 w2 M' p1 p2 => (existT _ ctx1 p1, existT _ ctx2 p2)  
+  | pair Γ1 Γ2 Γ W1 W2 M p1 p2 => 
+    existT23 Γ1 Γ2 p1 p2 M  
   end.
 
-(* Necessary associated lemma *)
-Lemma wproj_merge : forall Γ Γ1 Γ2 W1 W2 p1 p2 (p : Pat Γ (Tensor W1 W2)),
-  (existT (fun Γ1 : Ctx => Pat Γ1 W1) Γ1 p1, existT (fun Γ2 : Ctx => Pat Γ2 W2) Γ2 p2) 
-   = wproj p -> 
-  MergeCtx Γ1 Γ2 Γ.
-Proof.
-  intros Γ Γ1 Γ2 W1 W2 p1 p2 p H.
-  dependent destruction p.
-  inversion H0; subst.
-  assumption.
-Qed.
+Check wproj.
 
-(* Dangerous to take this notation *)
-Notation "a , b" := (Datatypes.pair a b) (at level 11, left associativity) : default_scope.
-Notation "w1 , w2" := (pair _ _ _ _ _ _ w1 w2) (at level 11, left associativity) : circ_scope.
+(*
+Notation "⟨ w1 , w2 ⟩" := (pair _ _ _ _ _ _ w1 w2) (at level 11, left associativity) : circ_scope. *)
+(*
+Notation "w1 & w2" := (pair _ _ _ _ _ _ w1 w2) (at level 11, left associativity) : circ_scope. *)
+Notation "w1 * w2" := (pair _ _ _ _ _ _ w1 w2) (at level 40, left associativity) : circ_scope.
 Notation "(())" := unit : circ_scope.
 
 Parameter Δ1 Δ2 Δ3 Δ4 Δ5 Δ6 Δ7: Ctx.
@@ -186,11 +166,11 @@ Open Scope circ_scope.
 (*** Tactics ***)
 
 (* Prevent compute from unfolding important fixpoints *)
-Opaque merge.
 Opaque wproj.
 Opaque Ctx.
 
-Ltac type_check_circ := 
+(*
+Ltac type_check_circ_prev := 
   intros;
   compute in *;
   repeat match goal with 
@@ -198,7 +178,6 @@ Ltac type_check_circ :=
   | [ |- ?Γ = ?Γ ]                  => reflexivity
   | [ H : MergeCtx ?Γ1 ?Γ2 ?Γ3 |- MergeCtx ?Γ1 ?Γ2 ?Γ3 ] => exact H
   | [ H : MergeCtx ?Γ1 ?Γ2 ?Γ3 |- MergeCtx ?Γ2 ?Γ1 ?Γ3 ] => apply (merge_symm H)
-  | [ H : _  = wproj ?p |- _ ]      => apply wproj_merge in H
   | [ H : MergeCtx [] ?Γ1 ?Γ2 |- _] => apply merge_nil_l in H; subst 
   | [ H : MergeCtx ?Γ1 [] ?Γ2 |- _] => apply merge_nil_r in H; subst
   | [ p : Pat ?Γ One |- _ ]         => inversion p; subst; clear p
@@ -209,128 +188,310 @@ Ltac type_check_circ :=
   | [ |- MergeCtx _ [] _]           => apply MergeNilR
   | [ |- MergeCtx _ _ []]           => apply MergeNilL (* Both work *)
   end.
+*)
 
+Ltac type_check_once := 
+  intros;
+  compute in *;
+  repeat match goal with 
+  | [ |- ?Γ = ?Γ ]                  => reflexivity
+  | [ p : Pat _ One |- _ ]          => inversion p; subst; clear p
+  | [ |- Pat _ One ]                => apply unit
+  | [ p: Pat ?Γ ?W |- Pat ?Γ ?W ]   => exact p (* danger? *)
+  | [ H : MergeCtx ?Γ1 ?Γ2 ?Γ3 |- MergeCtx ?Γ1 ?Γ2 ?Γ3 ] => exact H
+  | [ H : MergeCtx ?Γ1 ?Γ2 ?Γ3 |- MergeCtx ?Γ2 ?Γ1 ?Γ3 ] => apply (merge_symm H)
+  | [ H : MergeCtx [] ?Γ1 ?Γ2 |- _] => apply merge_nil_l in H; subst 
+  | [ H : MergeCtx ?Γ1 [] ?Γ2 |- _] => apply merge_nil_r in H; subst
+  | [ |- MergeCtx _ ?Γ ?Γ ]         => apply MergeNilL 
+  | [ |- MergeCtx ?Γ _ ?Γ ]         => apply MergeNilR 
+  | [ |- MergeCtx [] _ _]           => apply MergeNilL
+  | [ |- MergeCtx _ [] _]           => apply MergeNilR
+  | [ |- MergeCtx _ _ []]           => apply MergeNilL (* Both work *)
+(* the following may fail *)
+  | [ H : MergeCtx _ ?Γ2 ?Γ3 |- MergeCtx ?Γ1 ?Γ2 ?Γ3 ] => apply H 
+  | [ H : MergeCtx ?Γ1 _ ?Γ3 |- MergeCtx ?Γ1 ?Γ2 ?Γ3 ] => apply H
+  | [ H : MergeCtx ?Γ1 ?Γ2 _ |- MergeCtx ?Γ1 ?Γ2 ?Γ3 ] => apply H 
+  | [ H : MergeCtx _ ?Γ2 ?Γ3 |- MergeCtx ?Γ2 _ ?Γ3 ] => apply (merge_symm H)
+  | [ H : MergeCtx ?Γ1 _ ?Γ3 |- MergeCtx _ ?Γ1 ?Γ3 ] => apply (merge_symm H)
+  | [ H : MergeCtx ?Γ1 ?Γ2 _ |- MergeCtx ?Γ2 ?Γ1 _ ] => apply (merge_symm H)
+(* /may fail *)
+(* For transitive merges *)
+(* /transitive *)
+  end.
+
+
+(*  | [ H : MergeCtx _ ?Γ2 ?Γ3 |- MergeCtx ?Γ1 ?Γ2 ?Γ3 ] => has_evar Γ1; exact H
+  | [ H : MergeCtx ?Γ1 _ ?Γ3 |- MergeCtx ?Γ1 ?Γ2 ?Γ3 ] => has_evar Γ2; exact H
+  | [ H : MergeCtx ?Γ1 ?Γ2 _ |- MergeCtx ?Γ1 ?Γ2 ?Γ3 ] => has_evar Γ3; exact H 
+  | [ H : MergeCtx _ ?Γ2 ?Γ3 |- MergeCtx ?Γ2 ?Γ1 ?Γ3 ] => has_evar Γ1; 
+                                                        apply (merge_symm H)
+  | [ H : MergeCtx ?Γ1 _ ?Γ3 |- MergeCtx ?Γ2 ?Γ1 ?Γ3 ] => has_evar Γ2; 
+                                                        apply (merge_symm H)
+  | [ H : MergeCtx ?Γ1 ?Γ2 _ |- MergeCtx ?Γ2 ?Γ1 ?Γ3 ] => has_evar Γ3; 
+                                                        apply (merge_symm H) *)
+
+(* Useful for debugging *)
+Ltac type_check_num := 
+  let pre := numgoals in idtac "Goals before: " pre "";
+  [> type_check_once..];
+  let post := numgoals in idtac "Goals after: " post "";
+  tryif (guard post < pre) then type_check_num else idtac.
+
+Ltac type_check := let n := numgoals in do n [> type_check_once..].  
 
 (*** Paper Examples ***)
 
-Local Obligation Tactic := type_check_circ.
+Definition id_circ {W} :  Box W W. 
+  refine (box (fun Γ p1 => output _ p1)); type_check.
+Defined.
 
-Program Definition id_circ {W} :  Box W W := 
-  box (fun Γ p1 => output p1).
+Definition hadamard_measure : Box Qubit Bit.
+  refine (box (fun Γ p1 => 
+   gate _ _ H p1 
+  (fun Γ2 Γ2' M2 p2 => gate _ _ meas p2
+  (fun Γ3 Γ3' M3 p3 => output _ p3)))); type_check.
+Defined.
+
+Definition inSeq {W1 W2 W3} (c1 : Box W1 W2) (c2 : Box W2 W3) : Box W1 W3. 
+  refine (box (fun Γ1 p1 => compose (unbox c1 _ p1) _  
+                                (fun Γ2 Γ2' M2 p2 => unbox c2 _ p2))); type_check.
+Defined.
+
+Definition inPar {W1 W2 W1' W2'} (c1 : Box W1 W1') (c2 : Box W2 W2') : 
+  Box (W1⊗W2) (W1'⊗W2').
+  refine (
+  box (fun Γ12 p12 => 
+   let 'existT23 Γ1 Γ2 p1 p2 M := wproj p12 in 
+   compose (unbox c1 _ p1) _
+           (fun Γ3 Γ3' M3 p1' => compose (unbox c2 _ p2) _
+                                      (fun Γ4 Γ4' M4 p2' => (output _ (p1' * p2') ))))); 
+   type_check.
+Defined.
+   
+Definition init (b : bool) : Box One Qubit.
+  refine (
+  if b then (box (fun Γ p1 => gate _ _ init1 p1 (fun Γ2 Γ2' M2 p2 => output _ p2)))
+       else (box (fun Γ p1 => gate _ _ init0 p1 (fun Γ2 Γ2' M2 p2 => output _ p2))));
+  type_check. 
+Defined.
+
+Definition bell00 : Box One (Qubit ⊗ Qubit).
+  refine (
+  box (fun Γ p1 => 
+  (gate _ _ init0 p1
+  (fun Γ2 Γ2' M2 p2 => gate _ _ init0 (())
+  (fun Γ3 Γ3' M3 p3 => gate _ _ (* Γ2'? *) H p2
+  (fun Γ4 Γ4' M4 p4 => gate _ _ CNOT (p3 * p4) 
+  (fun Γ5 Γ5' M5 p5 => output _ p5))))))); type_check.
+Defined.
+
+Definition alice : Box (Qubit⊗Qubit) (Bit⊗Bit).
+refine (
+  box (fun Γ qa => 
+  (gate _ _ CNOT qa
+  (fun Γ2 Γ2' M2 p2 => let 'existT23 Γq Γa q a M := wproj p2 in gate Γa _ H q
+  (fun Γ3 Γ3' M3 p3 => gate _ _ meas p3
+  (fun Γ4 Γ4' M4 p4 => gate _ _ meas a 
+  (fun Γ5 Γ5' M5 p5 => output _ (p4 * p5)))))))); type_check. Defined.
 
 (*
-Program Definition id_circ' : Circuit _ _ := 
-  output (type_var q Qubit).
+Lemma wrong : forall Γ1 Γ2, {Γ3 : Ctx & MergeCtx Γ1 Γ2 Γ3}.
+Proof.
+  intros.
+  esplit. 
+  apply merge_refl.
+  Stupid shelf!
 *)
 
-Program Definition hadamard_measure : Box Qubit Bit :=
-  box (fun Γ p1 => 
-   gate [] _ H p1 
-  (fun Γ2 Γ2' M2 p2 => gate [] _ meas p2
-  (fun Γ3 Γ3' M3 p3 => output p3))).
+Lemma merge_disjoint13 : forall Γ1 Γ2 Γ3 Γ Γ',
+      MergeCtx Γ1 Γ2 Γ -> MergeCtx Γ Γ3 Γ' -> {Γ'' : Ctx & MergeCtx Γ1 Γ3 Γ''}.
+Proof. apply merge_disjoint. Qed.
 
-Program Definition inSeq {W1 W2 W3} (c1 : Box W1 W2) (c2 : Box W2 W3) : Box W1 W3  := 
-  box (fun Γ1 p1 => @compose Γ1 W2 (unbox c1 p1) [] Γ1 W3 _ 
-                                (fun Γ2 Γ2' M2 p2 => unbox c2 p2)). 
+Lemma merge_disjoint23 : forall Γ1 Γ2 Γ3 Γ Γ',
+      MergeCtx Γ1 Γ2 Γ -> MergeCtx Γ Γ3 Γ' -> {Γ'' : Ctx & MergeCtx Γ2 Γ3 Γ''}.
+Proof. apply merge_disjoint. Qed.
 
-Program Definition inPar {W1 W2 W1' W2'} (c1 : Box W1 W1') (c2 : Box W2 W2') : 
-  Box (W1⊗W2) (W1'⊗W2') :=
-  box (fun Γ12 p12 => 
-   match wproj p12 with Datatypes.pair (existT _ Γ1 p1) (existT _ Γ2 p2) =>
-   @compose Γ1 W1' (unbox c1 p1) Γ2 Γ12 (W1'⊗W2') _
-                   (fun Γ3 Γ3' M3 p1' => @compose Γ2 W2' (unbox c2 p2) Γ3 Γ3' (W1'⊗W2')
-                                       _ (fun Γ4 Γ4' M4 p2' => (output (p1',p2')))) 
-   end).
+Ltac check_this := 
+match goal with
+  | [ H : MergeCtx ?Γ1 ?Γ2 ?Γ' , H': MergeCtx ?Γ' ?Γ3 ?Γ4 |- 
+      MergeCtx ?Γ3 ?Γ2 ?Γ'' ] => has_evar Γ''; 
+                                let Γ := fresh "Γ" in 
+                                let M := fresh "M" in 
+                                specialize (merge_disjoint _ _ _ _ _  H H');
+                                intros [_ [Γ M]]; apply (merge_symm M)
+end.
 
-Program Definition init (b : bool) : Box One Qubit :=
-  if b then (box (fun Γ p1 => gate [] _ init1 p1 (fun Γ2 Γ2' M2 p2 => output p2)))
-       else (box (fun Γ p1 => gate [] _ init0 p1 (fun Γ2 Γ2' M2 p2 => output p2))).
 
-Program Definition bell00 : Box One (Qubit ⊗ Qubit) :=
-(* I don't like this. Would be much simpler if I could force Γ = [] *)
-  box (fun Γ p1 => 
-  (gate [] _ init0 p1
-  (fun Γ2 Γ2' M2 p2 => gate Γ2 _ init0 (())
-  (fun Γ3 Γ3' M3 p3 => gate Γ3 _ (* Γ2'? *) H p2
-  (fun Γ4 Γ4' M4 p4 => gate [] _ CNOT (p3,p4) 
-  (fun Γ5 Γ5' M5 p5 => output p5)))))).
-Next Obligation. apply Γ4'. Defined.
+Ltac check_this' := 
+match goal with
+  | [ H : MergeCtx ?Γ1 ?Γ2 ?Γ' , H': MergeCtx ?Γ' ?Γ3 ?Γ4 |- 
+      MergeCtx ?Γ3 ?Γ2 ?Γ'' ] => has_evar Γ''; 
+                         let d := fresh "d" in 
+                         let Γ := fresh "Γ" in 
+                         let M := fresh "M" in 
+                         exact
+                          ((fun H0 : Γ1 ∥ Γ3 * Γ2 ∥ Γ3 =>
+                             (fun H1 : Γ2 ∥ Γ3 * Γ2 ∥ Γ3 =>
+                                let (_, d) := H1 in let (Γ, M) := d in (merge_symm M)) H0)
+                            (merge_disjoint _ _ _ _ _ H H'))              
+end.
 
-(* Work in progress *)
-Notation "⟨ p1 , p2 , Γ1 , Γ2 ⟩ ↩ p $ exp" := match wproj p with 
-  Datatypes.pair (existT _ Γ1 p1) (existT _ Γ2 p2) => exp end (at level 20).
+(*
+((fun H0 : Γx ∥ Γb * Γy ∥ Γb =>
+      (fun H1 : Γx ∥ Γb * Γy ∥ Γb =>
+       let (_, d) := H1 in let (Γyb, _) := d in Γyb) H0)
+       (merge_disjoint Γx Γy Γb Γxy Γxyb Mxy Mxyb))
+*)
 
-Program Definition alice : Box (Qubit⊗Qubit) (Bit⊗Bit) :=
-  box (fun Γ qa => 
-  (gate [] _ CNOT qa
-  (fun Γ2 Γ2' M2 p2 => match wproj p2 with Datatypes.pair (existT _ Γq q) (existT _ Γa a) =>
-     gate Γa _ H q
-  (fun Γ3 Γ3' M3 p3 => gate Γa _ meas p3
-  (fun Γ4 Γ4' M4 p4 => gate Γ4 _ meas a 
-  (fun Γ5 Γ5' M5 p5 => output (p4,p5)))) 
-end))).
-
-Program Definition bob : Box (Bit⊗Bit⊗Qubit) Qubit :=
+Definition bob' : Box (Bit⊗(Bit⊗Qubit)) Qubit. 
+refine(
   box (fun Γxyb xyb =>
-    match wproj xyb with Datatypes.pair (existT _ Γxy xy) (existT _ Γb b) =>
-    match wproj xy with Datatypes.pair (existT _ Γx x) (existT _ Γy y) =>
-    gate Γx _ (bit_control σx) (y,b) 
-     (fun Γyb Γyb' Myb yb =>
-      match wproj yb with Datatypes.pair (existT _ Γy' y') (existT _ Γb' b') =>
-      gate Γy' _ (bit_control σz) (x,b')
+    let 'existT23 Γx Γyb x yb Mxyb := wproj xyb in
+    gate _ _ (bit_control σx) yb
+     (fun Γyb Γyb' Myb yb' =>
+     let 'existT23 Γy' Γb' y' b' Myb := wproj yb' in
+      gate _ _ (bit_control σz) (x * b') (* <? *)
        (fun Γxb Γxb' Mxb xb =>
-        gate Γxb _ discard y' 
+        gate _ _ discard y' 
          (fun Γz1 Γz1 Mz1 z1 =>
-          match wproj xb with Datatypes.pair (existT _ Γx' x') (existT _ Γb'' b'') =>
-          gate Γb'' _ discard x'
-           (fun Γz2 Γz2' Mz2 z2 => output b'')
-          end))
-      end)
-    end
-    end).
-Next Obligation. apply (merge Γy Γb). Defined.
-Next Obligation. eapply merge_trans_l.
-                 apply (merge_symm Heq_anonymous). 
-                 apply (merge_symm Heq_anonymous0). Defined.
-Next Obligation. specialize (merge_disjoint _ _ _ _ _ Heq_anonymous Heq_anonymous0). 
-                 intros [D1 D2].
-                 apply disjoint_merge.
-                 assumption. Defined.
-Next Obligation. apply (merge Γb' Γx). Defined.
-Next Obligation. eapply merge_trans_l.
-                 apply (merge_symm Heq_anonymous). 
-                 apply (merge_symm Myb). Defined.
-Next Obligation. apply merge_symm.
-                 specialize (merge_disjoint _ _ _ _ _ Heq_anonymous Myb). 
-                 intros [D1 D2].
-                 apply disjoint_merge.
-                 assumption. Defined.
+          let 'existT23 Γx' Γb'' x' b'' Mxb := wproj xb in
+          gate _ _ discard x'
+           (fun Γz2 Γz2' Mz2 z2 => output _ b'')))))); type_check. 
 
-Program Definition teleport : Box Qubit Qubit :=
+Unshelve.
+
+(*
+(* doesn't work *)
+(*
+Focus 2.
+exact ((fun H0 : Γy' ∥ Γx * Γb' ∥ Γx =>
+      (fun H1 : Γy' ∥ Γx * Γb' ∥ Γx =>
+       let (_, d) := H1 in let 'existT _ Γxb Mxb := d in (merge_symm Mxb)) H0)
+       (merge_disjoint _ _ _ _ _ Myb Myb0)).
+*)
+
+(* works *)
+Focus 2.
+exact (let p := merge_disjoint Γy' Γb' Γx Γyb Γyb' Myb Myb0 in
+           let
+             (_, d0) as p0
+              return
+                (MergeCtx (let (_, d) := p0 in let (Γxb, _) := d in Γxb) Γy'
+                   Γyb') := p in
+           let
+             (x0, m) as s
+              return (MergeCtx (let (Γxb, _) := s in Γxb) Γy' Γyb') := d0 in
+           merge_symm
+             (merge_assoc Γb' Γy' Γx Γyb Γyb' x0 (merge_symm Myb) Myb0 m)).
+
+(* works *)
+(*
+Focus 3.
+exact ((fun H0 : Γy' ∥ Γx * Γb' ∥ Γx =>
+      (fun H1 : Γy' ∥ Γx * Γb' ∥ Γx =>
+       let (_, d) := H1 in let 'existT _ Γxb Mxb := d in Γxb) H0)
+       (merge_disjoint _ _ _ _ _ Myb Myb0)).
+*)
+*)
+
+Focus 3.
+specialize (merge_disjoint _ _ _ _ _ Myb Myb0); intros [_ [Γxb _]]; exact Γxb.
+
+simpl; repeat match goal with |- context[let (_,_) := ?x in _] => destruct x end.
+rename x0 into Γxb.
+apply merge_symm.
+eapply merge_assoc.
+3: apply m.
+apply (merge_symm Myb).
+assumption.
+
+simpl; repeat match goal with |- context[let (_,_) := ?x in _] => destruct x end.
+apply merge_symm; assumption.
+Defined.
+
+Print bob'.
+
+Definition bob : Box (Bit⊗Bit⊗Qubit) Qubit. 
+refine(
+  box (fun Γxyb xyb =>
+    let 'existT23 Γxy Γb xy b Mxyb := wproj xyb in
+    let 'existT23 Γx Γy x y Mxy := wproj xy in
+    gate _ _ (bit_control σx) (y * b) 
+     (fun Γyb Γyb' Myb yb =>
+     let 'existT23 Γy' Γb' y' b' Myb := wproj yb in
+      gate _ _ (bit_control σz) (x * b') (* <? *)
+       (fun Γxb Γxb' Mxb xb =>
+        gate _ _ discard y' 
+         (fun Γz1 Γz1 Mz1 z1 =>
+          let 'existT23 Γx' Γb'' x' b'' Mxb := wproj xb in
+          gate _ _ discard x'
+           (fun Γz2 Γz2' Mz2 z2 => output _ b'')))))); type_check.
+
+Unshelve.
+
+Focus 6.
+specialize (merge_disjoint _ _ _ _ _ Mxy Mxyb); intros [_ [Γyb Myb]].
+exact Γyb.
+
+Focus 2.
+simpl; repeat match goal with |- context[let (_,_) := ?x in _] => destruct x end.
+assumption.
+
+simpl; repeat match goal with |- context[let (_,_) := ?x in _] => destruct x end.
+rename x0 into Γyb.
+apply merge_symm in Mxy.
+specialize (merge3_assoc Γy Γx Γb Γxyb (existT _ Γxy (Datatypes.pair Mxy Mxyb))); intros.
+destruct H0.
+destruct p.
+apply (merge_functional m0) in m; subst.
+apply m1.
+
+Focus 3.
+specialize (merge_disjoint _ _ _ _ _ Myb Myb0); intros [_ [Γxb Mxb]].
+exact Γxb.
+
+simpl; repeat match goal with [ |- context[let (_,_) := ?x in _]] => destruct x 
+                            | [ |- context[let _ := ?x in _]] => destruct x end.
+clear - Myb Myb0 m.
+apply merge_symm in Myb.
+specialize (merge3_assoc Γb' Γy' Γx Γyb' (existT _ Γyb (Datatypes.pair Myb Myb0))); intros.
+destruct H0 as [Γbx [Mbx Mbxy]].
+apply (merge_functional m) in Mbx; subst.
+assumption.
+
+simpl; repeat match goal with |- context[let (_,_) := ?x in _] => destruct x end.
+apply (merge_symm m).
+Defined.
+
+Definition teleport : Box Qubit Qubit.
+  refine(
   box (fun Γq q =>
-    @compose [] (Qubit⊗Qubit) (unbox bell00 unit) Γq Γq Qubit _
+    compose (unbox bell00 _ unit) _
       (fun Γab Γab' Mab ab => 
-       match wproj ab with Datatypes.pair (existT _ Γa a) (existT _ Γb b) =>
-       @compose (merge Γq Γa) (Bit⊗Bit) (unbox alice (q,a)) Γb (merge Γq Γab) Qubit _
-         (fun Γxy Γxy' Mxy xy => unbox bob (xy,b))
-       end)
-      ).
-Next Obligation. apply disjoint_merge.
-                 apply disjoint_symm.
-                 eapply merge_disjoint.
-                 apply (merge_symm Heq_anonymous).
-                 apply Mab. Defined.
-Next Obligation. assert (Γa ∥ Γb) as Dab.
-                   exists Γab. assumption.
-                 specialize (merge_disjoint _ _ _ _ _ Heq_anonymous Mab).
-                 intros [Daq Dbq].
-                 apply merge_eq in Heq_anonymous.
-                 subst.                 
-                 apply disjoint_symm in Daq.
-                 apply disjoint_symm in Dbq.
-                 rewrite <- manual_merge_assoc; trivial.
-                 apply disjoint_merge; trivial.
-                 apply pairwise_disjoint; assumption. Defined.
-Next Obligation. apply merge_eq. apply (merge_symm Mab). Defined.
+       let 'existT23 Γa Γb a b Mab' := wproj ab in 
+       compose (unbox alice _ (q * a)) _
+               (fun Γxy Γxy' Mxy xy => unbox bob _ (xy * b)))
+      )); type_check.
+
+Unshelve.
+
+Focus 3.
+specialize (merge_disjoint _ _ _ _ _ Mab' Mab); intros [[Γaq Maq] [Γyb Myb]].
+exact Γaq.
+
+simpl; repeat match goal with |- context[let (_,_) := ?x in _] => destruct x end.
+destruct (merge_disjoint _ _ _ _ _ _).
+simpl; repeat match goal with |- context[let (_,_) := ?x in _] => destruct x end.
+apply (merge_symm m).
+
+simpl; repeat match goal with |- context[let (_,_) := ?x in _] => destruct x end.
+destruct (merge_disjoint _ _ _ _ _ _).
+simpl; repeat match goal with |- context[let (_,_) := ?x in _] => destruct x end.
+
+specialize (merge3_assoc Γa Γb Γq Γab' (existT _ Γab (Datatypes.pair Mab' Mab))); intros.
+destruct H0 as [Γaq [Maq Maqb]].
+apply (merge_functional m) in Maq; subst.
+assumption.
+Defined.
 
 (* *)

@@ -40,6 +40,13 @@ Inductive MergeCtx : Ctx -> Ctx -> Ctx -> Set :=
               MergeCtx (o1 :: g1) (o2 :: g2) (o :: g)
 .
 
+(* For future tactics *)
+Inductive MergeCtxList : list Ctx -> Ctx -> Set :=
+| MergeZero : MergeCtxList [] []
+| MergeOne : forall Γ, MergeCtxList [Γ] Γ 
+| MergeMult : forall Γ Γs Γ' Γ'', MergeCtxList Γs Γ' -> MergeCtx Γ Γ' Γ'' -> 
+                             MergeCtxList (Γ :: Γs) Γ''.
+
 (* Typed Circuits Scope [UC is UntypedCircuits] *)
 Module TC.
 
@@ -76,7 +83,7 @@ Inductive Gate : WType -> WType -> Set :=
 Coercion U : Unitary >-> Gate.
 
 Inductive Circuit : Ctx -> WType -> Set :=
-| output : forall {ctx w}, Pat ctx w -> Circuit ctx w
+| output : forall {ctx ctx' w},  MergeCtx ctx [] ctx' -> Pat ctx w -> Circuit ctx' w
 | gate   : forall ctx {ctx1 ctx1' w1 w2 w}, 
           MergeCtx ctx1 ctx ctx1'            
         -> Gate w1 w2
@@ -89,8 +96,9 @@ Inductive Box : WType -> WType -> Set :=
 | box : forall {w1} {w2}, 
         (forall {ctx}, Pat ctx w1 -> Circuit ctx w2) -> Box w1 w2.
 
-Definition unbox {ctx} {w1} {w2} (b : Box w1 w2) : Pat ctx w1 -> Circuit ctx w2 :=
-  match b with box f => f ctx end.
+Definition unbox {ctx ctx'} {w1} {w2} (b : Box w1 w2) : 
+  MergeCtx ctx [] ctx' -> Pat ctx w1 -> Circuit ctx' w2.
+  refine (match b with box f => _ end). intros M; inversion M; auto. Qed.
 
 End TC.
 Import TC.
@@ -197,6 +205,7 @@ Lemma merge_option_assoc : forall o1 o2 o3 o o' o0,
    -> MergeOption o2 o0 o'.
 Proof. inversion 1; inversion 1; inversion 1; constructor. Qed.
 
+(* An associativity rule should have Γ1 Γ0 Γ' as the conclusion *)
 Lemma merge_assoc : forall Γ1 Γ2 Γ3 Γ Γ' Γ0,
       MergeCtx Γ1 Γ2 Γ -> MergeCtx Γ Γ3 Γ' 
    -> MergeCtx Γ1 Γ3 Γ0
@@ -218,6 +227,7 @@ Qed.
 
 Definition merge3 Γ1 Γ2 Γ3 Γ := { Γ0 : Ctx & MergeCtx Γ1 Γ2 Γ0 * MergeCtx Γ0 Γ3 Γ}.
 
+(* more commutativity than associativity *)
 Lemma merge3_assoc : forall Γ1 Γ2 Γ3 Γ,
                     merge3 Γ1 Γ2 Γ3 Γ -> merge3 Γ1 Γ3 Γ2 Γ.
 Proof.
@@ -238,9 +248,15 @@ Fixpoint compose {Γ1} {W} (c : Circuit Γ1 W)
                                     -> Circuit Γ2' W') 
                 -> Circuit Γ1' W'.
   refine (match c with
-            output p1 => fun Γ Γ1' W' pfM f => f _ _ pfM p1
+            output _ p1 => fun Γ Γ1' W' pfM f => _ (* f _ _ pfM p1 *)
           | gate ctx pfM' g p1 h  => fun Γ Γ1' W' pfM f => _
           end). 
+  (*output case*)
+  eapply f.
+  apply pfM.
+  apply merge_nil_r in m; subst.
+  apply p1.
+  (* gate case*)
   clear W c Γ1;
   rename w into W1, w0 into W2, w1 into W;
   rename c0 into Γ01, c1 into Γ1, ctx into Γ0.
