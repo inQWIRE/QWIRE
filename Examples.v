@@ -2,20 +2,22 @@ Require Import Program.
 Require Import Datatypes.
 Require Import Arith.
 Require Import List.
+Require Import Contexts.
 Require Import TypedCircuits.
-Import TC.
+(* Import TC. *)
 Import ListNotations.
 Open Scope list_scope.
 
-(* Projecting out elements of tensors *)
+(** Projecting out elements of tensors **)
+
 Inductive sigT23 (A:Type) (P Q R : A -> A -> Type) : Type :=
     existT23 : forall (x y : A), P x y -> Q x y -> R x y -> sigT23 A P Q R.
 
-(*
-Notation "{ x, y : A & P & Q & R }" := (sigT23 A (fun x y => P) (fun x y => Q) (fun x y => R)).
-*)
+(* Notation "{ x, y : A & P & Q & R }" := (sigT23 A (fun x y => P) (fun x y => Q) (fun x y => R)). *)
 
 Arguments existT23 {A} {P Q R} x y p1 p2 M.
+
+Locate "⋓".
 
 Program Definition wproj {Γ W1 W2} (p : Pat Γ (Tensor W1 W2)) : 
   sigT23 OCtx (fun x y => Pat x W1) (fun x y => Pat y W2) (fun x y => Γ = x ⋓ y) :=
@@ -27,8 +29,6 @@ Program Definition wproj {Γ W1 W2} (p : Pat Γ (Tensor W1 W2)) :
   | pair Γ1 Γ2 Γ W1 W2 M p1 p2 => 
     existT23 Γ1 Γ2 p1 p2 M  
   end.
-
-Check wproj.
 
 (*
 Notation "⟨ w1 , w2 ⟩" := (pair _ _ _ _ _ _ w1 w2) (at level 11, left associativity) : circ_scope. *)
@@ -43,12 +43,36 @@ Parameter Δ1 Δ2 Δ3 Δ4 Δ5 Δ6 Δ7: Ctx.
 
 Open Scope circ_scope.
 
+
+
+(*
+Require Import Coq.Sorting.Permutation.
+Require Import Coq.Sorting.Sorting.
+
+Lemma list_test : forall x y z, (sort [x; y; z]) = (sort [x; z; y]).
+
+Print test3.
+*)
+
 (*** Tactics ***)
 
 (* Prevent compute from unfolding important fixpoints *)
 Opaque merge.
 Opaque wproj.
 Opaque Ctx.
+
+(*
+
+x = ?Goal
+*)
+
+Ltac type_check_once' := 
+  intros;
+  compute in *;
+  subst;
+  repeat match goal with 
+  | [ p : Pat _ One |- _ ]          => inversion p; subst; clear p
+  end; try ring.
 
 Ltac type_check_once := 
   intros;
@@ -66,24 +90,29 @@ Ltac type_check_once :=
   | [ |- ?Γ ⋓ _ = ?Γ ⋓ _ ]          => apply merge_cancel_l
   | [ |- ?Γ ⋓ _ = ?Γ' ⋓ ?Γ ⋓ _ ]    => rewrite (merge_comm Γ' Γ)
   (* These are too precise, will make general rules *)
-  | [ |- ?Γ ⋓ ?Γ1 ⋓ _ = ?Γ ⋓ ?Γ2 ⋓ _ ] => rewrite (merge_assoc Γ Γ1), 
-                                        (merge_assoc Γ Γ2); idtac "assoc right 0"
-  | [ |- ?Γ1 ⋓ ?Γ ⋓ _ = ?Γ2 ⋓ ?Γ ⋓ _ ] => rewrite (merge_comm Γ1 Γ), (merge_comm Γ2 Γ);
-                                       rewrite (merge_assoc Γ Γ1), (merge_assoc Γ Γ2);
+  | [ |- ?Γ ⋓ ?Γ1 ⋓ _ = ?Γ ⋓ ?Γ2 ⋓ _ ] => rewrite <- (merge_assoc Γ Γ1), 
+                                        <- (merge_assoc Γ Γ2); 
+                                        idtac "assoc right 0"
+  | [ |- ?Γ1 ⋓ ?Γ ⋓ _ = ?Γ2 ⋓ ?Γ ⋓ _ ] => rewrite (merge_comm Γ1 Γ), 
+                                        (merge_comm Γ2 Γ),
+                                       <- (merge_assoc Γ Γ1), 
+                                       <- (merge_assoc Γ Γ2);
                                        idtac "assoc right 1"
-  | [ |- ?Γ ⋓ ?Γ1 ⋓ _ = ?Γ2 ⋓ ?Γ ⋓ _ ] => rewrite (merge_comm Γ2 Γ); 
-                                       rewrite (merge_assoc Γ Γ1), (merge_assoc Γ Γ2);
+  | [ |- ?Γ ⋓ ?Γ1 ⋓ _ = ?Γ2 ⋓ ?Γ ⋓ _ ] => rewrite (merge_comm Γ2 Γ),
+                                       <- (merge_assoc Γ Γ1), 
+                                       <- (merge_assoc Γ Γ2);
                                        idtac "assoc right 2"
-  | [ |- ?Γ1 ⋓ ?Γ ⋓ _ = ?Γ ⋓ ?Γ2 ⋓ _ ] => rewrite (merge_comm Γ1 Γ);
-                                       rewrite (merge_assoc Γ Γ1), (merge_assoc Γ Γ2);
+  | [ |- ?Γ1 ⋓ ?Γ ⋓ _ = ?Γ ⋓ ?Γ2 ⋓ _ ] => rewrite (merge_comm Γ1 Γ),
+                                       <- (merge_assoc Γ Γ1), 
+                                       <- (merge_assoc Γ Γ2);
                                        idtac "assoc right 3"
   | [ |- ?Γ ⋓ _ = _ ⋓ ?Γ ]          => apply merge_comm (* danger? *)
   | [ |- _ ⋓ ?Γ = ?Γ ⋓ _ ]          => apply merge_comm (* danger? *)
   | [ |- ?Γ1 = ?Γ2 ]                => is_evar Γ1; reflexivity
   | [ |- ?Γ1 = ?Γ2 ]                => is_evar Γ2; reflexivity
-  | [ |- ?Γ1 ⋓ (?Γ2 ⋓ ?Γ3) = _ ]    => rewrite <- (merge_assoc Γ1 Γ2 Γ3); 
+  | [ |- ?Γ1 ⋓ (?Γ2 ⋓ ?Γ3) = _ ]    => rewrite (merge_assoc Γ1 Γ2 Γ3); 
                                      idtac "rassoc lhs"
-  | [ |- _ = ?Γ1 ⋓ (?Γ2 ⋓ ?Γ3) ]    => rewrite <- (merge_assoc Γ1 Γ2 Γ3); 
+  | [ |- _ = ?Γ1 ⋓ (?Γ2 ⋓ ?Γ3) ]    => rewrite (merge_assoc Γ1 Γ2 Γ3); 
                                      idtac "rassoc rhs"
   end.
 
@@ -107,6 +136,7 @@ Ltac type_check_num :=
   tryif (guard post < pre) then type_check_num else idtac.
 
 (* Easiest solution *)
+
 Ltac type_check := let n := numgoals in do n [> type_check_once..].  
 
 (*** Paper Examples ***)
@@ -119,7 +149,7 @@ Definition hadamard_measure : Box Qubit Bit.
   refine (box (fun Γ p1 => 
    gate _ _ H p1 
   (fun Γ2 Γ2' M2 p2 => gate _ _ meas p2
-  (fun Γ3 Γ3' M3 p3 => output _ p3)))); type_check.
+  (fun Γ3 Γ3' M3 p3 => output _ p3)))); type_check. 
 Defined.
 
 Definition inSeq {W1 W2 W3} (c1 : Box W1 W2) (c2 : Box W2 W3) : Box W1 W3. 
