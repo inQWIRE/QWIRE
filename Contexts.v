@@ -268,7 +268,6 @@ Ltac monoid :=
   (* move evar to far right *)
   | [ |- _ = ?Γ ⋓ ?Γ' ]             => is_evar Γ; rewrite (merge_comm Γ Γ')
   (* solve nil evars *)
-  | [ |- ?Γ ⋓ _ = ?Γ  ]             => apply merge_nil_r
   | [ |- ?Γ = ?Γ ⋓ _ ]              => rewrite merge_nil_r; reflexivity  
   (* cycle and apply merge_cancel_l *)
   | [ |- ?Γ ⋓ _ = ?Γ ⋓ _ ]          => apply merge_cancel_l
