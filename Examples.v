@@ -13,34 +13,21 @@ Open Scope list_scope.
 Inductive sigT23 (A:Type) (P Q R : A -> A -> Type) : Type :=
     existT23 : forall (x y : A), P x y -> Q x y -> R x y -> sigT23 A P Q R.
 
-(* Notation "{ x, y : A & P & Q & R }" := (sigT23 A (fun x y => P) (fun x y => Q) (fun x y => R)). *)
-
 Arguments existT23 {A} {P Q R} x y p1 p2 M.
 
 Program Definition wproj {Γ W1 W2} (p : Pat Γ (Tensor W1 W2)) : 
   sigT23 OCtx (fun x y => Pat x W1) (fun x y => Pat y W2) (fun x y => Γ = x ⋓ y) :=
-(*  {Γ1 Γ2 : Ctx & Pat Γ1 W1 & Pat Γ2 W2 & MergeCtx Γ1 Γ2 Γ} *)
   match p with 
   | unit => _
   | qubit _ _ _ => _
   | bit _ _ _ => _
-  | pair Γ1 Γ2 Γ W1 W2 M p1 p2 => 
-    existT23 Γ1 Γ2 p1 p2 M  
+  | pair Γ1 Γ2 Γ W1 W2 M p1 p2 => existT23 Γ1 Γ2 p1 p2 M  
   end.
-
-(*
-Notation "⟨ w1 , w2 ⟩" := (pair _ _ _ _ _ _ w1 w2) (at level 11, left associativity) : circ_scope. *)
-(*
-Notation "w1 & w2" := (pair _ _ _ _ _ _ w1 w2) (at level 11, left associativity) : circ_scope. *)
-Notation "w1 * w2" := (pair _ _ _ _ _ _ w1 w2) (at level 40, left associativity) : circ_scope.
-Notation "(())" := unit : circ_scope.
-
-(* Getting contexts for input patterns *)
-
-Open Scope circ_scope.
 
 
 (*** Typechecking Tactic ***)
+
+Open Scope circ_scope.
 
 (* Prevent compute from unfolding important fixpoints *)
 Opaque merge.
@@ -84,124 +71,101 @@ Ltac type_check := let n := numgoals in do n [> type_check_once..].
 
 (*** Paper Examples ***)
 
-Definition id_circ {W} :  Box W W. 
-  refine (box (fun Γ p1 => output _ p1)); type_check.
+Tactic Notation (at level 0) "make_circ" uconstr(C) := refine C; type_check.
+Tactic Notation (at level 0) "box'" uconstr(C) := refine (box (fun _ => C)); type_check.
+
+Notation "w1 ⊕ w2" := (pair _ _ _ _ _ _ w1 w2) (at level 10) : circ_scope.
+Notation "(())" := unit : circ_scope.
+
+Notation output' p := (output _ p). 
+Notation gate' g p1 p2 c := (gate _ _ g p1 (fun _ _ _ p2 => c)).
+Notation comp' p c1 c2 := (compose c1 _ (fun _ _ _ p => c2)).
+Notation unbox' c p := (unbox c _ p).
+Notation bind' p1 p2 p C := (let 'existT23 _ _ p1 p2 _ := wproj p in C). 
+
+Notation "p1 & p2 <-- p ;; C" := (bind' p1 p2 p C) (at level 10). 
+
+(* Future work:
+Notation gate' g p1 p2 c := (gate _ _ g p1 (fun _ _ _ z => match z with
+                                                        | p2 => c
+                                                        end)). *)
+
+Definition id_circ {W} : Box W W. 
+  box' (fun p1 => output' p1).
 Defined.
 
 Definition hadamard_measure : Box Qubit Bit.
-  refine (box (fun Γ p1 => 
-   gate _ _ H p1 
-  (fun Γ2 Γ2' M2 p2 => gate _ _ meas p2
-  (fun Γ3 Γ3' M3 p3 => output _ p3)))); type_check. 
+  box' (fun q => 
+   gate' H q q
+  (gate' meas q b
+  (output' b))). 
 Defined.
 
 Definition inSeq {W1 W2 W3} (c1 : Box W1 W2) (c2 : Box W2 W3) : Box W1 W3. 
-  refine (box (fun Γ1 p1 => compose (unbox c1 _ p1) _  
-                                (fun Γ2 Γ2' M2 p2 => unbox c2 _ p2))); type_check. 
+  box' (fun p1 => comp' p2 (unbox' c1 p1) (unbox' c2 p2)). 
 Defined.
 
 Definition inPar {W1 W2 W1' W2'} (c1 : Box W1 W1') (c2 : Box W2 W2') : 
   Box (W1⊗W2) (W1'⊗W2').
-  refine (
-  box (fun Γ12 p12 => 
-   let 'existT23 Γ1 Γ2 p1 p2 M := wproj p12 in 
-   compose (unbox c1 _ p1) _
-           (fun Γ3 Γ3' M3 p1' => compose (unbox c2 _ p2) _
-                                      (fun Γ4 Γ4' M4 p2' => (output _ (p1' * p2') )))));
-type_check.
+  box' (fun p12 => 
+   p1 & p2 <-- p12 ;; 
+   (comp' p1' (unbox' c1 p1)
+              (comp' p2' (unbox' c2 p2) (output' (p1'⊕p2'))))).
 Defined.
    
 Definition init (b : bool) : Box One Qubit.
-  refine (
-  if b then (box (fun Γ p1 => gate _ _ init1 p1 (fun Γ2 Γ2' M2 p2 => output _ p2)))
-       else (box (fun Γ p1 => gate _ _ init0 p1 (fun Γ2 Γ2' M2 p2 => output _ p2))));
-  type_check. 
+  make_circ (if b then (box (fun Γ p1 => gate' init1 p1 p2 (output' p2)))
+                  else (box (fun Γ p1 => gate' init0 p1 p2 (output' p2)))).
 Defined.
 
 Definition bell00 : Box One (Qubit ⊗ Qubit).
-  refine (
-  box (fun Γ p1 => 
-  (gate _ _ init0 p1
-  (fun Γ2 Γ2' M2 p2 => gate _ _ init0 (())
-  (fun Γ3 Γ3' M3 p3 => gate _ _ (* Γ2'? *) H p2
-  (fun Γ4 Γ4' M4 p4 => gate _ _ CNOT (p3 * p4) 
-  (fun Γ5 Γ5' M5 p5 => output _ p5))))))); type_check.
+  box' (fun p1 => 
+  (gate' init0 (()) a
+  (gate' init0 (()) b
+  (gate' H a a
+  (gate' CNOT (a ⊕ b) ab
+  (output' ab)))))).
 Defined.
 
 Definition alice : Box (Qubit⊗Qubit) (Bit⊗Bit).
-refine (
-  box (fun Γ qa => 
-  (gate _ _ CNOT qa
-  (fun Γ2 Γ2' M2 p2 => let 'existT23 Γq Γa q a M := wproj p2 in gate Γa _ H q
-  (fun Γ3 Γ3' M3 p3 => gate _ _ meas p3
-  (fun Γ4 Γ4' M4 p4 => gate _ _ meas a 
-  (fun Γ5 Γ5' M5 p5 => output _ (p4 * p5)))))))); type_check. 
+  box' (fun qa => 
+  (gate' CNOT qa qa
+  (q&a <-- qa ;; (gate' H q q
+  (gate' meas q x
+  (gate' meas a y
+  (output' (x ⊕ y)))))))). 
 Defined.
 
-(*
-Lemma wrong : forall Γ1 Γ2, {Γ3 : Ctx & MergeCtx Γ1 Γ2 Γ3}.
-Proof.
-  intros.
-  esplit. 
-  apply merge_refl.
-  Stupid shelf!
-*)
-
-Definition bob' : Box (Bit⊗(Bit⊗Qubit)) Qubit. 
-refine(
-  box (fun Γxyb xyb =>
-    let 'existT23 Γx Γyb x yb Mxyb := wproj xyb in
-    gate _ _ (bit_control σx) yb
-     (fun Γyb Γyb' Myb yb' =>
-     let 'existT23 Γy' Γb' y' b' Myb' := wproj yb' in
-      gate _ _ (bit_control σz) (x * b') (* <? *)
-       (fun Γxb Γxb' Mxb xb =>
-        gate _ _ discard y' 
-         (fun Γz1 Γz1 Mz1 z1 =>
-          let 'existT23 Γx' Γb'' x' b'' Mxb := wproj xb in
-          gate _ _ discard x'
-           (fun Γz2 Γz2' Mz2 z2 => output _ b'')))))); type_check.
+Definition bob' : Box (Bit⊗(Bit⊗Qubit)) Qubit.
+  box' (fun xyb =>
+  (x&yb <-- xyb ;; (gate' (bit_control σx) yb yb
+  (y&b <-- yb ;; (gate' (bit_control σz) (x⊕b) xb
+  (gate' discard y u   
+  (x&b <-- xb ;; (gate' discard x u'
+  (output' b))))))))).
 Defined.
 
-Definition bob : Box (Bit⊗Bit⊗Qubit) Qubit. 
-refine(
-  box (fun Γxyb xyb =>
-    let 'existT23 Γxy Γb xy b Mxyb := wproj xyb in
-    let 'existT23 Γx Γy x y Mxy := wproj xy in
-    gate _ _ (bit_control σx) (y * b) 
-     (fun Γyb Γyb' Myb yb =>
-     let 'existT23 Γy' Γb' y' b' Myb := wproj yb in
-      gate _ _ (bit_control σz) (x * b') (* <? *)
-       (fun Γxb Γxb' Mxb xb =>
-        gate _ _ discard y' 
-         (fun Γz1 Γz1 Mz1 z1 =>
-          let 'existT23 Γx' Γb'' x' b'' Mxb := wproj xb in
-          gate _ _ discard x'
-           (fun Γz2 Γz2' Mz2 z2 => output _ b'')))))); type_check.
+Definition bob : Box (Bit⊗Bit⊗Qubit) Qubit.
+  box' (fun xyb =>
+  (xy&b <-- xyb ;; (x&y <-- xy ;; (gate' (bit_control σx) (y⊕b) yb
+  (y&b <-- yb ;; (gate' (bit_control σz) (x⊕b) xb
+  (gate' discard y u   
+  (x&b <-- xb ;; (gate' discard x u'
+  (output' b)))))))))).
 Defined.
 
 Definition teleport' : Box Qubit Qubit.
-  refine(
-  box (fun Γq q =>
-    compose (unbox bell00 _ unit) _
-      (fun Γab Γab' Mab ab => 
-       let 'existT23 Γa Γb a b Mab' := wproj ab in 
-       compose (unbox alice _ (q * a)) _
-               (fun Γxy Γxy' Mxy xy => 
-                  let 'existT23 Γx Γy x y Mxy := wproj xy in 
-                  unbox bob' _ (x * (y * b))))
-      )); type_check.
+  box' (fun q =>
+  (comp' ab (unbox' bell00 (()))
+             (a&b <-- ab ;; (comp' xy (unbox' alice (q⊕a))
+                           (x&y <-- xy ;; (unbox' bob' (x⊕(y⊕b)))))))).
 Defined.
 
 Definition teleport : Box Qubit Qubit.
-  refine(
-  box (fun _ q =>
-    compose (unbox bell00 _ unit) _
-      (fun _ _ _ ab => 
-       let 'existT23 _ _ a b _ := wproj ab in 
-       compose (unbox alice _ (q * a)) _
-               (fun _ _ _ qa => unbox bob _ (qa * b)))
-      )); type_check.
+  box' (fun q =>
+  (comp' ab (unbox' bell00 (()))
+             (a&b <-- ab ;; (comp' xy (unbox' alice (q⊕a))
+                           (x&y <-- xy ;; (unbox' bob (x⊕y⊕b))))))).
 Defined.
 
 
@@ -245,20 +209,15 @@ Definition inParMany {W1 W2} (n : nat) (c : Box W1 W2) : Box (n ⨂ W1) (n ⨂ W
 Parameter RGate : nat -> Unitary Qubit.
 
 Fixpoint rotationsZ (m : nat) (n : nat) : Box (S (S n) ⨂ Qubit) (S (S n) ⨂ Qubit).
-refine (
+make_circ (
   match n as n0 return n = n0 -> Box (S (S n0) ⨂ Qubit) (S (S n0) ⨂ Qubit) with
   | 0 => fun eq => id_circ 
   | S n' => fun eq => box (fun Γ w =>
-    let 'existT23 Γc Γqqs c qqs Mcqqs := wproj w in 
-    let 'existT23 Γq Γqs q qs Mqqs := wproj qqs in 
-    compose (unbox (rotationsZ m n') _ (c * qs)) _
-            (fun Γcqs Γcqs' Mcqs cqs =>  
-               let 'existT23 Γc' Γqs' c' qs' Mcqs' := wproj cqs in 
-               gate _ _ (control (RGate (1 + m - n'))) (c' * q)
-               (fun Γcq Γcq' Mcq cq => 
-               let 'existT23 Γc'' Γq'' c'' q'' Mcq' := wproj cq in 
-               output _ (c'' * (q'' * qs')))))
-   end (eq_refl n)); type_check.
+    c & qqs <-- w ;; (q & qs <-- qqs ;;  
+    (comp' cqs (unbox' (rotationsZ m n') (c ⊕ qs))
+               (c & qs <-- cqs ;; (gate' (control (RGate (1 + m - n'))) (c ⊕ q) cq
+               (c & q <-- cq ;; (output' (c ⊕ (q ⊕ qs)))))))))
+   end (eq_refl n)).
 Defined.
 
 Definition rotations (m : nat) (n : nat) : Box (S n ⨂ Qubit) (S n ⨂ Qubit) :=
@@ -268,14 +227,14 @@ Definition rotations (m : nat) (n : nat) : Box (S n ⨂ Qubit) (S n ⨂ Qubit) :
   end.
 
 Fixpoint qftZ (n : nat) : Box (S n ⨂ Qubit) (S n ⨂ Qubit).
-refine(
+make_circ (
   match n as n0 return n = n0 -> Box (S n0 ⨂ Qubit) (S n0 ⨂ Qubit) with 
-  | 0 => fun eq => (box (fun Γ p1 =>  gate _ _ H p1 (fun Γ2 Γ2' M2 p2 => output _ p2)))
+  | 0 => fun eq => box (fun Γ p1 =>  gate' H p1 p2 (output' p2))
   | S n' => fun eq => box (fun Γqw qw =>
-             let 'existT23 Γq Γw q w Mqw := wproj qw in
-             compose (unbox (qftZ n') _ w) _
-                     (fun Γw' Γw'' Mw' w' => (unbox (rotationsZ (S n') n') _ (q * w'))))
-  end (eq_refl n)); type_check.
+             q & w <-- qw ;; 
+             (comp' w (unbox' (qftZ n') w) 
+                         (unbox' (rotationsZ (S n') n') (q ⊕ w))))
+  end (eq_refl n)).
 Defined.
 
 Definition qft (n : nat) : Box (n ⨂ Qubit) (n ⨂ Qubit) :=
@@ -283,6 +242,5 @@ Definition qft (n : nat) : Box (n ⨂ Qubit) (n ⨂ Qubit) :=
   | 0 => id_circ
   | S n' => qftZ n'
   end.
-
 
 (* *)
