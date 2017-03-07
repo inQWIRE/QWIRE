@@ -17,8 +17,6 @@ Inductive sigT23 (A:Type) (P Q R : A -> A -> Type) : Type :=
 
 Arguments existT23 {A} {P Q R} x y p1 p2 M.
 
-Locate "⋓".
-
 Program Definition wproj {Γ W1 W2} (p : Pat Γ (Tensor W1 W2)) : 
   sigT23 OCtx (fun x y => Pat x W1) (fun x y => Pat y W2) (fun x y => Γ = x ⋓ y) :=
 (*  {Γ1 Γ2 : Ctx & Pat Γ1 W1 & Pat Γ2 W2 & MergeCtx Γ1 Γ2 Γ} *)
@@ -37,96 +35,40 @@ Notation "w1 & w2" := (pair _ _ _ _ _ _ w1 w2) (at level 11, left associativity)
 Notation "w1 * w2" := (pair _ _ _ _ _ _ w1 w2) (at level 40, left associativity) : circ_scope.
 Notation "(())" := unit : circ_scope.
 
-Parameter Δ1 Δ2 Δ3 Δ4 Δ5 Δ6 Δ7: Ctx.
-
 (* Getting contexts for input patterns *)
 
 Open Scope circ_scope.
 
 
-
-(*
-Require Import Coq.Sorting.Permutation.
-Require Import Coq.Sorting.Sorting.
-
-Lemma list_test : forall x y z, (sort [x; y; z]) = (sort [x; z; y]).
-
-Print test3.
-*)
-
-(*** Tactics ***)
+(*** Typechecking Tactic ***)
 
 (* Prevent compute from unfolding important fixpoints *)
 Opaque merge.
 Opaque wproj.
 Opaque Ctx.
 
-(*
-
-x = ?Goal
-*)
-
-Ltac type_check_once' := 
-  intros;
-  compute in *;
-  subst;
-  repeat match goal with 
-  | [ p : Pat _ One |- _ ]          => inversion p; subst; clear p
-  end; try ring.
+(* Local check for multiple evars *)
+Ltac has_evars term := 
+  match term with
+    | ?L = ?R        => has_evar L; has_evar R
+    | ?L = ?R        => has_evars L
+    | ?L = ?R        => has_evars R
+    | ?Γ1 ⋓ ?Γ2      => has_evar Γ1; has_evar Γ2
+    | ?Γ1 ⋓ ?Γ2      => has_evars Γ1
+    | ?Γ1 ⋓ ?Γ2      => has_evars Γ2
+  end.
 
 Ltac type_check_once := 
   intros;
   compute in *;
   subst;
   repeat match goal with 
-  | [ p : Pat _ One |- _ ]          => inversion p; subst; clear p
-  | [ |- ?Γ = ?Γ ]                  => reflexivity 
-  | [ |- context[?Γ ⋓ ∅] ]          => rewrite (merge_nil_r Γ)
-  | [ |- context[∅ ⋓ ?Γ] ]          => rewrite (merge_nil_l Γ)
-  | [ |- ?Γ ⋓ _ = ?Γ  ]             => apply merge_nil_r
-  | [ |- _ ⋓ ?Γ = ?Γ ]              => apply merge_nil_l
-  | [ |- ?Γ = ?Γ ⋓ _ ]              => rewrite merge_nil_r; reflexivity
-  | [ |- ?Γ = _ ⋓ ?Γ ]              => rewrite merge_nil_l; reflexivity
-  | [ |- ?Γ ⋓ _ = ?Γ ⋓ _ ]          => apply merge_cancel_l
-  | [ |- ?Γ ⋓ _ = ?Γ' ⋓ ?Γ ⋓ _ ]    => rewrite (merge_comm Γ' Γ)
-  (* These are too precise, will make general rules *)
-  | [ |- ?Γ ⋓ ?Γ1 ⋓ _ = ?Γ ⋓ ?Γ2 ⋓ _ ] => rewrite <- (merge_assoc Γ Γ1), 
-                                        <- (merge_assoc Γ Γ2); 
-                                        idtac "assoc right 0"
-  | [ |- ?Γ1 ⋓ ?Γ ⋓ _ = ?Γ2 ⋓ ?Γ ⋓ _ ] => rewrite (merge_comm Γ1 Γ), 
-                                        (merge_comm Γ2 Γ),
-                                       <- (merge_assoc Γ Γ1), 
-                                       <- (merge_assoc Γ Γ2);
-                                       idtac "assoc right 1"
-  | [ |- ?Γ ⋓ ?Γ1 ⋓ _ = ?Γ2 ⋓ ?Γ ⋓ _ ] => rewrite (merge_comm Γ2 Γ),
-                                       <- (merge_assoc Γ Γ1), 
-                                       <- (merge_assoc Γ Γ2);
-                                       idtac "assoc right 2"
-  | [ |- ?Γ1 ⋓ ?Γ ⋓ _ = ?Γ ⋓ ?Γ2 ⋓ _ ] => rewrite (merge_comm Γ1 Γ),
-                                       <- (merge_assoc Γ Γ1), 
-                                       <- (merge_assoc Γ Γ2);
-                                       idtac "assoc right 3"
-  | [ |- ?Γ ⋓ _ = _ ⋓ ?Γ ]          => apply merge_comm (* danger? *)
-  | [ |- _ ⋓ ?Γ = ?Γ ⋓ _ ]          => apply merge_comm (* danger? *)
-  | [ |- ?Γ1 = ?Γ2 ]                => is_evar Γ1; reflexivity
-  | [ |- ?Γ1 = ?Γ2 ]                => is_evar Γ2; reflexivity
-  | [ |- ?Γ1 ⋓ (?Γ2 ⋓ ?Γ3) = _ ]    => rewrite (merge_assoc Γ1 Γ2 Γ3); 
-                                     idtac "rassoc lhs"
-  | [ |- _ = ?Γ1 ⋓ (?Γ2 ⋓ ?Γ3) ]    => rewrite (merge_assoc Γ1 Γ2 Γ3); 
-                                     idtac "rassoc rhs"
+  | [ p : Pat _ One |- _ ] => inversion p; subst; clear p
+  end; 
+  (* Runs monoid iff a single evar appears in context *)
+  match goal with
+  | [|- ?G ] => tryif (has_evars G) then idtac else monoid
   end.
-
-(* No subst
-Ltac type_check_once := 
-  intros;
-  compute in *;
-  repeat match goal with 
-  | [ |- ?Γ = ?Γ ]                  => reflexivity
-  | [ |- ?Γ = ?Γ ⋓ _ ]              => rewrite merge_nil_r; reflexivity
-  | [ |- ?Γ = _ ⋓ ?Γ ]              => rewrite merge_nil_l; reflexivity
-  | [ H: ?Γ1 = ?Γ2 |- ?Γ1 = ?Γ2 ]   => apply H 
-  end.
-*)
 
 (* Useful for debugging *)
 Ltac type_check_num := 
@@ -138,6 +80,7 @@ Ltac type_check_num :=
 (* Easiest solution *)
 
 Ltac type_check := let n := numgoals in do n [> type_check_once..].  
+
 
 (*** Paper Examples ***)
 
@@ -164,8 +107,8 @@ Definition inPar {W1 W2 W1' W2'} (c1 : Box W1 W1') (c2 : Box W2 W2') :
    let 'existT23 Γ1 Γ2 p1 p2 M := wproj p12 in 
    compose (unbox c1 _ p1) _
            (fun Γ3 Γ3' M3 p1' => compose (unbox c2 _ p2) _
-                                      (fun Γ4 Γ4' M4 p2' => (output _ (p1' * p2') ))))); 
-   type_check.
+                                      (fun Γ4 Γ4' M4 p2' => (output _ (p1' * p2') )))));
+type_check.
 Defined.
    
 Definition init (b : bool) : Box One Qubit.
@@ -192,7 +135,8 @@ refine (
   (fun Γ2 Γ2' M2 p2 => let 'existT23 Γq Γa q a M := wproj p2 in gate Γa _ H q
   (fun Γ3 Γ3' M3 p3 => gate _ _ meas p3
   (fun Γ4 Γ4' M4 p4 => gate _ _ meas a 
-  (fun Γ5 Γ5' M5 p5 => output _ (p4 * p5)))))))); type_check. Defined.
+  (fun Γ5 Γ5' M5 p5 => output _ (p4 * p5)))))))); type_check. 
+Defined.
 
 (*
 Lemma wrong : forall Γ1 Γ2, {Γ3 : Ctx & MergeCtx Γ1 Γ2 Γ3}.
@@ -236,7 +180,6 @@ refine(
            (fun Γz2 Γz2' Mz2 z2 => output _ b'')))))); type_check.
 Defined.
 
-(*
 Definition teleport' : Box Qubit Qubit.
   refine(
   box (fun Γq q =>
@@ -249,7 +192,6 @@ Definition teleport' : Box Qubit Qubit.
                   unbox bob' _ (x * (y * b))))
       )); type_check.
 Defined.
-*)
 
 Definition teleport : Box Qubit Qubit.
   refine(
@@ -282,8 +224,6 @@ Fixpoint inSeqMany {W} (n :nat) (c : Box W W) : Box W W :=
   | S n' => inSeq c (inSeqMany n' c)
   end.
 
-Print inSeqMany.
-
 (* Zero-indexed variant. I don't know why this is necessary *)
 (* This will be fairly common *)
 Fixpoint inParManyZ {W1 W2} (n : nat) (c : Box W1 W2) {struct n} : 
@@ -299,11 +239,10 @@ Definition inParMany {W1 W2} (n : nat) (c : Box W1 W2) : Box (n ⨂ W1) (n ⨂ W
   | S n' => inParManyZ n' c 
   end.
 
-Eval compute in inParMany 4 hadamard_measure.
+
+(** Quantum Fourier Transform **)
 
 Parameter RGate : nat -> Unitary Qubit.
-
-Local Obligation Tactic := type_check.
 
 Fixpoint rotationsZ (m : nat) (n : nat) : Box (S (S n) ⨂ Qubit) (S (S n) ⨂ Qubit).
 refine (
