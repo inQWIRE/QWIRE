@@ -33,6 +33,12 @@ Inductive SingletonCtx : Var -> WType -> Ctx -> Set :=
 | SingletonLater : forall x w ctx, SingletonCtx x w ctx -> SingletonCtx (S x) w (None::ctx)
 .
 
+Fixpoint singleton (x : Var) (W : WType) : Ctx :=
+  match x with
+  | O => [Some W]
+  | S x => None :: singleton x W
+  end.
+
 Definition merge_wire (o1 o2 : option WType) : OCtx :=
   match o1, o2 with
   | None, o2 => Valid [o2]
@@ -249,6 +255,8 @@ Proof.
         reflexivity.
 Qed.
 
+(*** Semi-ring ***)
+
 (*** Automation ***)
 
 (* Assumes at most one evar *)
@@ -260,7 +268,6 @@ Ltac monoid :=
   repeat (rewrite <- merge_assoc); 
   match goal with
   | [ |- ?Γ = ?Γ ]                  => reflexivity
-  | [ |- ?Γ1 = ?Γ2 ]                => is_evar Γ1; reflexivity
   | [ |- ?Γ1 = ?Γ2 ]                => is_evar Γ2; reflexivity
   (* remove nils *)
   | [ |- context[?Γ ⋓ ∅] ]          => rewrite (merge_nil_r Γ)
@@ -272,7 +279,16 @@ Ltac monoid :=
   (* cycle and apply merge_cancel_l *)
   | [ |- ?Γ ⋓ _ = ?Γ ⋓ _ ]          => apply merge_cancel_l
   | [ |- ?Γ1 ⋓ ?Γ1' = ?Γ ⋓ _ ]      => rewrite (merge_comm Γ1 Γ1')
+(*| [ |- context[?Γ] = ?Γ ⋓ _ ]     => move_left Γ *)
   end).
+
+(*
+Ltac move_left Γ :=
+  try match goal with
+      | [ |- Γ ⋓ _ = _ ] => return
+      | [ |- context[Γ] ⋓ _ = _ ] => 
+      | [ |- _ ⋓ context[Γ] = _ ] => 
+*)
 
 Lemma test1 : forall x y z, x ⋓ y ⋓ z = z ⋓ x ⋓ y.
 Proof. intros. monoid. Qed.
@@ -297,3 +313,56 @@ Proof. intros. inversion H; subst. reflexivity. Qed.
 
 Lemma test_evar_ctx : forall x y z, x ⋓ y ⋓ z = z ⋓ x ⋓ y.
 Proof. intros. eapply create_evar. 2: monoid. constructor. Qed.
+
+
+(* Extra helper functions *)
+Definition xor_option {a} (o1 : option a) (o2 : option a) : option a :=
+  match o1, o2 with
+  | Some a1, None => Some a1
+  | None, Some a2 => Some a2
+  | _   , _       => None
+  end.
+
+
+Fixpoint index (ls : OCtx) (i : nat) : option WType :=
+  match ls with
+  | Invalid => None
+  | Valid [] => None
+  | Valid (h :: t) => match i with
+              | O => h
+              | S i => index (Valid t) i
+              end
+  end.
+
+
+Definition lengthO (ls : OCtx) : nat :=
+  match ls with
+  | Invalid => O
+  | Valid ls => length ls
+  end.
+
+Lemma eta_OCtx : forall (Ω : OCtx),
+                 match Ω with
+                 | Invalid => Invalid
+                 | Valid Ω' => Ω'
+                 end = Ω.
+Admitted.
+
+Lemma Ctx_nil_inversion : forall (Γ1 Γ2 : Ctx), Γ1 ⋓ Γ2 = ∅ -> (Γ1 = []) * (Γ2 = []).
+Proof.
+  induction Γ1 as [ | o Γ1]; intros Γ2; try inversion 1; auto.
+  destruct Γ2 as [ | o' Γ2]; try inversion H1.
+  destruct o; destruct o'; simpl in *; try inversion H.
+  remember (merge' Γ1 Γ2) as Γ0. destruct Γ0; try inversion H3.
+  remember (merge' Γ1 Γ2) as Γ0. destruct Γ0; try inversion H3.
+  remember (merge' Γ1 Γ2) as Γ0. destruct Γ0; try inversion H3.
+Qed.
+
+Lemma Ctx_cons_inversion : forall Γ1 Γ2 o Γ,
+      Γ1 ⋓ Γ2 = Valid (o :: Γ) ->
+      {o1 : option WType & {o2 : option WType & {Γ1' : Ctx & {Γ2' : Ctx 
+      & (Γ1 = Valid (o1 :: Γ1')) * (Γ2 = Valid (o2 :: Γ2')) * (Γ1' ⋓ Γ2' = Valid Γ)
+        * (merge_wire o1 o2 = Valid [o])}}}}%type.
+Admitted.
+
+
