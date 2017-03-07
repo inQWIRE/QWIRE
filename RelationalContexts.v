@@ -20,12 +20,6 @@ Fixpoint interpret (w:WType) : Set :=
   end.
 
 
-Definition xor_option {a} (o1 : option a) (o2 : option a) : option a :=
-  match o1, o2 with
-  | Some a1, None => Some a1
-  | None, Some a2 => Some a2
-  | _   , _       => None
-  end.
 
 (*
 Inductive NCtx := 
