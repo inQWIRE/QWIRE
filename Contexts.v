@@ -257,69 +257,53 @@ Qed.
 
 (*** Semi-ring ***)
 
-(* Here we attempt to show that OCtx's with merge and the function below form a 
-   semi-ring, despite the unfortunate reality that they do not.
+(*** Automation ***)
 
-   This allows us to use Coq's powerful Ring tactic, which should ignore the 
-   Ctx_mul function below, as we never use it. *)
+(* Assumes at most one evar *)
+Ltac monoid := 
+  try match goal with
+  | [ |- ?Γ1 = ?Γ2 ] => has_evar Γ1; symmetry
+  end;
+  repeat (
+  repeat (rewrite <- merge_assoc); 
+  match goal with
+  | [ |- ?Γ = ?Γ ]                  => reflexivity
+  | [ |- ?Γ1 = ?Γ2 ]                => is_evar Γ2; reflexivity
+  (* remove nils *)
+  | [ |- context[?Γ ⋓ ∅] ]          => rewrite (merge_nil_r Γ)
+  | [ |- context[∅ ⋓ ?Γ] ]          => rewrite (merge_nil_l Γ)
+  (* move evar to far right *)
+  | [ |- _ = ?Γ ⋓ ?Γ' ]             => is_evar Γ; rewrite (merge_comm Γ Γ')
+  (* solve nil evars *)
+  | [ |- ?Γ = ?Γ ⋓ _ ]              => rewrite merge_nil_r; reflexivity  
+  (* cycle and apply merge_cancel_l *)
+  | [ |- ?Γ ⋓ _ = ?Γ ⋓ _ ]          => apply merge_cancel_l
+  | [ |- ?Γ1 ⋓ ?Γ1' = ?Γ ⋓ _ ]      => rewrite (merge_comm Γ1 Γ1')
+(*| [ |- context[?Γ] = ?Γ ⋓ _ ]     => move_left Γ *)
+  end).
 
-Require Import Ring.
-Require Import Omega.
-
-Fixpoint Ctx_mul (Γ1 Γ2 : OCtx) := 
-  match Γ1, Γ2 with
-  | Invalid, _ => Γ2
-  | _, Invalid => Γ1
-  | _, _       => Valid []
-  end.
-
-Infix "⋒" := Ctx_mul (at level 50, no associativity).
-
-Lemma Ctx_mul_1_l : forall n, Invalid ⋒ n = n. Proof. reflexivity. Qed.
-Lemma Ctx_mul_0_l : forall n, ∅ ⋒ n = ∅.       Proof. destruct n; reflexivity. Qed.
-Lemma Ctx_mul_sym : forall n m, n ⋒ m = m ⋒ n. Proof. destruct n, m; reflexivity. Qed.
-Lemma Ctx_mul_assoc : forall n m p, n ⋒ (m ⋒ p) = (n ⋒ m) ⋒ p. 
-Proof. destruct m, n, p; reflexivity. Qed.
-Lemma Ctx_distr_l : forall n m p, (n ⋓ m) ⋒ p = (n ⋒ p) ⋓ (m ⋒ p).
-Proof. intros. destruct n, m, p; simpl; trivial. (* so close! *) Admitted. 
-
-Lemma Ctx_nil_inversion : forall (Γ1 Γ2 : Ctx), Γ1 ⋓ Γ2 = ∅ -> (Γ1 = []) * (Γ2 = []).
-Proof.
-  induction Γ1 as [ | o Γ1]; intros Γ2; try inversion 1; auto.
-  destruct Γ2 as [ | o' Γ2]; try inversion H1.
-  destruct o; destruct o'; simpl in *; try inversion H.
-  remember (merge' Γ1 Γ2) as Γ0. destruct Γ0; try inversion H3.
-  remember (merge' Γ1 Γ2) as Γ0. destruct Γ0; try inversion H3.
-  remember (merge' Γ1 Γ2) as Γ0. destruct Γ0; try inversion H3.
-Qed.
-
-Lemma Ctx_cons_inversion : forall Γ1 Γ2 o Γ,
-      Γ1 ⋓ Γ2 = Valid (o :: Γ) ->
-      {o1 : option WType & {o2 : option WType & {Γ1' : Ctx & {Γ2' : Ctx 
-      & (Γ1 = Valid (o1 :: Γ1')) * (Γ2 = Valid (o2 :: Γ2')) * (Γ1' ⋓ Γ2' = Valid Γ)
-        * (merge_wire o1 o2 = Valid [o])}}}}%type.
-Admitted.
-
-Definition ring_proof := (mk_srt ∅ Invalid merge Ctx_mul eq merge_nil_l merge_comm merge_assoc Ctx_mul_1_l Ctx_mul_0_l Ctx_mul_sym Ctx_mul_assoc Ctx_distr_l).
-
-Check ring_proof.
-
-Add Ring lin_contexts : ring_proof.
+(*
+Ltac move_left Γ :=
+  try match goal with
+      | [ |- Γ ⋓ _ = _ ] => return
+      | [ |- context[Γ] ⋓ _ = _ ] => 
+      | [ |- _ ⋓ context[Γ] = _ ] => 
+*)
 
 Lemma test1 : forall x y z, x ⋓ y ⋓ z = z ⋓ x ⋓ y.
-Proof. intros. ring. Qed.
+Proof. intros. monoid. Qed.
 
 Lemma test2 : forall x, x ⋓ ∅ = x.
-Proof. intros. ring. Qed.
+Proof. intros. monoid. Qed.
 
 Lemma test21 : forall x, x ⋓ ∅ = x ⋓ ∅.
-Proof. intros. ring. Qed.
+Proof. intros. monoid. Qed.
 
 Lemma test3 : forall w x y z, x ⋓ (y ⋓ z) ⋓ w = w ⋓ z ⋓ (x ⋓ y).
-Proof. intros. ring. Qed.
+Proof. intros. monoid. Qed.
 
 Lemma test4 : forall w x y z, x ⋓ (y ⋓ ∅ ⋓ z) ⋓ w = w ⋓ z ⋓ (x ⋓ y).
-Proof. intros. ring. Qed.
+Proof. intros. monoid. Qed.
 
 Inductive Eqq {A} : A -> A -> Prop := 
 | eqq : forall x, Eqq x x.
@@ -327,51 +311,9 @@ Inductive Eqq {A} : A -> A -> Prop :=
 Lemma create_evar : forall A (x x' y z : A) f, Eqq x x' -> f y x = z -> f y x' = z.
 Proof. intros. inversion H; subst. reflexivity. Qed.
 
-Lemma test_evar_nat : forall x y z, (x + y + z = z + x + y)%nat.
-Proof. intros. eapply create_evar. (*Focus 2. ring. Fails.*) constructor. ring. Qed.
-
 Lemma test_evar_ctx : forall x y z, x ⋓ y ⋓ z = z ⋓ x ⋓ y.
-Proof. intros. eapply create_evar. (*Focus 2. ring. Fails.*) constructor. ring. Qed.
+Proof. intros. eapply create_evar. 2: monoid. constructor. Qed.
 
-(*** Automation ***)
-
-Ltac ring_solve := intros; compute in *; subst; try ring.
-
-Ltac merge_solve := 
-  intros;
-  compute in *;
-  subst;
-  repeat match goal with 
-  | [ |- ?Γ = ?Γ ]                  => reflexivity 
-  | [ |- context[?Γ ⋓ ∅] ]          => rewrite (merge_nil_r Γ)
-  | [ |- context[∅ ⋓ ?Γ] ]          => rewrite (merge_nil_l Γ)
-  | [ |- ?Γ ⋓ _ = ?Γ  ]             => apply merge_nil_r
-  | [ |- _ ⋓ ?Γ = ?Γ ]              => apply merge_nil_l
-  | [ |- ?Γ = ?Γ ⋓ _ ]              => rewrite merge_nil_r; reflexivity
-  | [ |- ?Γ = _ ⋓ ?Γ ]              => rewrite merge_nil_l; reflexivity
-  | [ |- ?Γ ⋓ _ = ?Γ ⋓ _ ]          => apply merge_cancel_l
-  | [ |- ?Γ ⋓ _ = ?Γ' ⋓ ?Γ ⋓ _ ]    => rewrite (merge_comm Γ' Γ)
-  (* These are too precise, will make general rules *)
-  | [ |- ?Γ ⋓ ?Γ1 ⋓ _ = ?Γ ⋓ ?Γ2 ⋓ _ ] => rewrite (merge_assoc Γ Γ1), 
-                                        (merge_assoc Γ Γ2); idtac "assoc right 0"
-  | [ |- ?Γ1 ⋓ ?Γ ⋓ _ = ?Γ2 ⋓ ?Γ ⋓ _ ] => rewrite (merge_comm Γ1 Γ), (merge_comm Γ2 Γ);
-                                       rewrite (merge_assoc Γ Γ1), (merge_assoc Γ Γ2);
-                                       idtac "assoc right 1"
-  | [ |- ?Γ ⋓ ?Γ1 ⋓ _ = ?Γ2 ⋓ ?Γ ⋓ _ ] => rewrite (merge_comm Γ2 Γ); 
-                                       rewrite (merge_assoc Γ Γ1), (merge_assoc Γ Γ2);
-                                       idtac "assoc right 2"
-  | [ |- ?Γ1 ⋓ ?Γ ⋓ _ = ?Γ ⋓ ?Γ2 ⋓ _ ] => rewrite (merge_comm Γ1 Γ);
-                                       rewrite (merge_assoc Γ Γ1), (merge_assoc Γ Γ2);
-                                       idtac "assoc right 3"
-  | [ |- ?Γ ⋓ _ = _ ⋓ ?Γ ]          => apply merge_comm (* danger? *)
-  | [ |- _ ⋓ ?Γ = ?Γ ⋓ _ ]          => apply merge_comm (* danger? *)
-  | [ |- ?Γ1 = ?Γ2 ]                => is_evar Γ1; reflexivity
-  | [ |- ?Γ1 = ?Γ2 ]                => is_evar Γ2; reflexivity
-  | [ |- ?Γ1 ⋓ (?Γ2 ⋓ ?Γ3) = _ ]    => rewrite <- (merge_assoc Γ1 Γ2 Γ3); 
-                                     idtac "rassoc lhs"
-  | [ |- _ = ?Γ1 ⋓ (?Γ2 ⋓ ?Γ3) ]    => rewrite <- (merge_assoc Γ1 Γ2 Γ3); 
-                                     idtac "rassoc rhs"
-  end.
 
 (* Extra helper functions *)
 Definition xor_option {a} (o1 : option a) (o2 : option a) : option a :=
@@ -405,3 +347,22 @@ Lemma eta_OCtx : forall (Ω : OCtx),
                  | Valid Ω' => Ω'
                  end = Ω.
 Admitted.
+
+Lemma Ctx_nil_inversion : forall (Γ1 Γ2 : Ctx), Γ1 ⋓ Γ2 = ∅ -> (Γ1 = []) * (Γ2 = []).
+Proof.
+  induction Γ1 as [ | o Γ1]; intros Γ2; try inversion 1; auto.
+  destruct Γ2 as [ | o' Γ2]; try inversion H1.
+  destruct o; destruct o'; simpl in *; try inversion H.
+  remember (merge' Γ1 Γ2) as Γ0. destruct Γ0; try inversion H3.
+  remember (merge' Γ1 Γ2) as Γ0. destruct Γ0; try inversion H3.
+  remember (merge' Γ1 Γ2) as Γ0. destruct Γ0; try inversion H3.
+Qed.
+
+Lemma Ctx_cons_inversion : forall Γ1 Γ2 o Γ,
+      Γ1 ⋓ Γ2 = Valid (o :: Γ) ->
+      {o1 : option WType & {o2 : option WType & {Γ1' : Ctx & {Γ2' : Ctx 
+      & (Γ1 = Valid (o1 :: Γ1')) * (Γ2 = Valid (o2 :: Γ2')) * (Γ1' ⋓ Γ2' = Valid Γ)
+        * (merge_wire o1 o2 = Valid [o])}}}}%type.
+Admitted.
+
+
