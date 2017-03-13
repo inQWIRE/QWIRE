@@ -12,9 +12,11 @@ Notation "a , b" := (Datatypes.pair a b) (at level 11, left associativity) : def
 Notation "w1 , w2" := (pair w1 w2) (at level 11, left associativity) : circ_scope.
 
 Inductive WF_Pat : OCtx -> Pat -> WType -> Set :=
+(*
 | wf_qubit : forall x ctx, SingletonCtx x Qubit ctx -> WF_Pat ctx (var x) Qubit
 | wf_bit   : forall x ctx, SingletonCtx x Bit ctx -> WF_Pat ctx (var x) Bit
-(*| wf_var  : forall x w ctx, SingletonCtx x w ctx -> WF_Pat ctx (var x) w*)
+*)
+| wf_var  : forall x w ctx, SingletonCtx x w ctx -> WF_Pat ctx (var x) w
 | wf_unit : forall ctx, EmptyCtx ctx -> WF_Pat ctx unit One
 | wf_pair : forall (Γ1 Γ2 Γ : OCtx) w1 w2 p1 p2, 
             MergeO Γ1 Γ2 Γ ->
@@ -39,7 +41,7 @@ Lemma wf_pat_equiv : forall Γ1 p W, WF_Pat Γ1 p W ->
 Proof.
   induction 1; intros Γ0 eq.
   - inversion eq; constructor. eapply equiv_singleton; eauto.
-  - inversion eq; constructor. eapply equiv_singleton; eauto.
+(*  - inversion eq; constructor. eapply equiv_singleton; eauto.*)
   - inversion eq; constructor. eapply equiv_empty; eauto.
   - inversion m; subst.
     * (* Γ2 is invalid *) edestruct (wf_pat_not_invalid); eauto.
@@ -134,7 +136,7 @@ Lemma wf_pat_unique : forall Γ p W,
 Proof.
   induction 1; simpl.
   - apply EquivValid. apply singleton_equiv. auto.
-  - apply EquivValid. apply singleton_equiv. auto.
+(*  - apply EquivValid. apply singleton_equiv. auto.*)
   - apply EquivValid. apply EquivEmpty; auto. constructor.
   - apply equivO_trans with (Γ2 := Γ1 ⋓ Γ2).
     * apply equivO_symm. apply equiv_merge_merge. auto.
@@ -147,9 +149,8 @@ Lemma shift_equiv : forall p W,
       WF_Pat (get_ctx p W) p W.
 Proof.
   induction p as [x | | p1 IHp1 p2 IHp2]; destruct W as [ | | | W1 W2]; 
-  simpl; inversion 1; subst.
-  - constructor. inversion H2; auto.
-  - constructor. inversion H2; auto.
+  simpl; inversion 1; subst;
+    try (constructor; inversion H2; auto; fail).
   - constructor. auto.
   - inversion H; subst.
     econstructor; [ | apply IHp1 | apply IHp2].
@@ -387,7 +388,6 @@ Lemma get_ctx_shift : forall Γ (p : Pat) W,
 Proof.
   induction 1; simpl.
   - apply equivO_refl.
-  - apply equivO_refl.
   - repeat constructor. 
   - apply equivO_trans 
       with (cons_o None (get_ctx p1 w1) ⋓ cons_o None (get_ctx p2 w2)).
@@ -454,7 +454,6 @@ Lemma wf_subst_pat : forall Ω p0 W, WF_Pat Ω p0 W
                      WF_Pat (subst_ctx' σ Ω) (subst_pat' σ p0) W.
 Proof.
   induction 1; intros σ consistent.
-  - apply consistent_singleton; auto.
   - apply consistent_singleton; auto.
   - simpl. apply wf_pat_equiv with (Γ1 := ∅); try (constructor; constructor).
     apply EquivOEmpty; [ repeat constructor | ].
