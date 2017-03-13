@@ -34,7 +34,7 @@ Inductive EmptyCtx : Ctx -> Set :=
 | EmptyCons : forall Γ, EmptyCtx Γ -> EmptyCtx (None :: Γ)
 .
 Inductive EmptyOCtx : OCtx -> Set :=
-| EmptyInvalid : EmptyOCtx Invalid
+(*| EmptyInvalid : EmptyOCtx Invalid*)
 | EmptyValid : forall Γ, EmptyCtx Γ -> EmptyOCtx (Valid Γ)
 .
 
@@ -141,6 +141,9 @@ Proof. intros; subst; reflexivity. Qed.
 Lemma merge_I_l : forall Γ, Invalid ⋓ Γ = Invalid. Proof. reflexivity. Qed.
 
 Lemma merge_I_r : forall Γ, Γ ⋓ Invalid = Invalid. Proof. destruct Γ; reflexivity. Qed.
+
+Lemma merge_symm : forall Γ1 Γ2, Γ1 ⋓ Γ2 = Γ2 ⋓ Γ1.
+Admitted.
 
 Lemma merge_invalid_iff : forall (o1 o2 : option WType) (Γ1 Γ2 : Ctx), 
   Valid (o1 :: Γ1) ⋓ Valid (o2 :: Γ2) = Invalid <-> 
@@ -386,7 +389,9 @@ Definition cons_o (o : option WType) (Γ : OCtx) : OCtx :=
   end.
 Lemma cons_distr_merge : forall Γ1 Γ2,
       cons_o None (Γ1 ⋓ Γ2) = cons_o None Γ1 ⋓ cons_o None Γ2.
-Admitted.
+Proof.
+  destruct Γ1; destruct Γ2; simpl; auto.
+Qed.
 
 Fixpoint index (ls : OCtx) (i : nat) : option WType :=
   match ls with
@@ -405,12 +410,6 @@ Definition lengthO (ls : OCtx) : nat :=
   | Valid ls => length ls
   end.
 
-Lemma eta_OCtx : forall (Ω : OCtx),
-                 match Ω with
-                 | Invalid => Invalid
-                 | Valid Ω' => Ω'
-                 end = Ω.
-Admitted.
 
 Inductive EquivO : OCtx -> OCtx -> Set :=
 | EquivInvalid : EquivO Invalid Invalid
@@ -418,24 +417,58 @@ Inductive EquivO : OCtx -> OCtx -> Set :=
 .
 
 Lemma equiv_refl : forall Γ, Equiv Γ Γ.
-Admitted.
+Proof.
+  induction Γ; try (repeat constructor; fail).
+  apply EquivCons; auto.
+Qed.
 Lemma equivO_refl : forall Γ, EquivO Γ Γ.
-Admitted.
+Proof.
+  destruct Γ; constructor. apply equiv_refl.
+Qed.
 
 Lemma equiv_symm : forall Γ1 Γ2, Equiv Γ1 Γ2 -> Equiv Γ2 Γ1.
-Admitted.
+Proof.
+  induction 1. 
+  - apply EquivEmpty; auto.
+  - apply EquivCons; auto.
+Qed.
 Lemma equivO_symm : forall Γ1 Γ2, EquivO Γ1 Γ2 -> EquivO Γ2 Γ1.
-Admitted.
+Proof.
+  destruct 1; constructor. apply equiv_symm; auto.
+Qed.
 
-Lemma equiv_merge_empty : forall Γ1 Γ2, EmptyOCtx Γ2 -> EquivO Γ1 (Γ1 ⋓ Γ2).
-Admitted.   
+Lemma EquivOEmpty : forall Γ1 Γ2,
+    EmptyOCtx Γ1 -> EmptyOCtx Γ2 -> EquivO Γ1 Γ2.
+Proof.
+  destruct Γ1 as [ | Γ1]; destruct Γ2 as [ | Γ2]; 
+  intros empty1 empty2; try constructor.
+  - inversion empty1.
+  - inversion empty2.
+  - inversion empty1. inversion empty2. constructor; auto.
+Qed.
 
 Lemma equivO_trans : forall Γ1 Γ2 Γ3, EquivO Γ1 Γ2 -> EquivO Γ2 Γ3 -> EquivO Γ1 Γ3.
 Admitted.
 
-Lemma EquivOEmpty : forall Γ1 Γ2,
-    EmptyOCtx Γ1 -> EmptyOCtx Γ2 -> EquivO Γ1 Γ2.
+Lemma merge_cons_r : forall Γ1 o Γ2, EquivO (Γ1 ⋓ (cons_o o Γ2)) (cons_o o (Γ1 ⋓ Γ2)).
 Admitted.
+
+
+Lemma equiv_merge_empty : forall Γ1 Γ2, EmptyOCtx Γ1 -> EquivO (Γ1 ⋓ Γ2) Γ2.
+Proof.
+  intros Γ1 Γ2; destruct 1 as [Γ1 empty].
+  induction empty; simpl.
+  - destruct Γ2; apply equivO_refl.
+  - destruct Γ2; try apply equivO_refl.
+    destruct c. 
+    * apply EquivOEmpty; repeat (constructor; auto).
+    * assert (eq : EquivO (Γ ⋓ cons_o o (Valid c)) (cons_o o (Γ ⋓ Valid c))).
+        apply merge_cons_r.
+      simpl in eq. unfold cons_o in eq.
+      apply equivO_trans with (Γ ⋓ Valid (o :: c)); auto.
+      apply equivO_symm. auto.
+Qed.
+
 
 Inductive Merge_option : option WType -> option WType -> option WType -> Set :=
 | MergeNone : Merge_option None None None
@@ -453,10 +486,11 @@ Inductive Merge : Ctx -> Ctx -> Ctx -> Set :=
               Merge (o1 :: Γ1) (o2 :: Γ2) (o :: Γ)
 .
 Inductive MergeO : OCtx -> OCtx -> OCtx -> Set :=
-| MergeInvalidL : forall Γ1 Γ, EquivO Γ1 Γ -> MergeO Γ1 Invalid Γ
-| MergeInvalidR : forall Γ2 Γ, EquivO Γ2 Γ -> MergeO Invalid Γ2 Γ
+| MergeInvalidL : forall Γ1 Γ, EquivO Γ1 Γ -> MergeO Γ1 Invalid Invalid
+| MergeInvalidR : forall Γ2 Γ, EquivO Γ2 Γ -> MergeO Invalid Γ2 Invalid
 | MergeValid : forall Γ1 Γ2 Γ, Merge Γ1 Γ2 Γ -> MergeO Γ1 Γ2 Γ
 .
+Definition Disjoint Γ1 Γ2 := {Γ : Ctx & Merge Γ1 Γ2 Γ}.
 
 Lemma MergeOEmptyL : forall Γ1 Γ2 Γ,
       EmptyOCtx Γ1 -> EquivO Γ2 Γ -> MergeO Γ1 Γ2 Γ.
@@ -468,9 +502,6 @@ Lemma MergeOCons : forall o1 o2 o Γ1 Γ2 Γ,
                    Merge_option o1 o2 o -> 
                    MergeO Γ1 Γ2 Γ ->
                    MergeO (cons_o o1 Γ1) (cons_o o2 Γ2) (cons_o o Γ).
-Admitted.
-
-Lemma merge_empty_L : forall Γ, Γ = ∅ ⋓ Γ.
 Admitted.
 
 Lemma merge_merge : forall (Γ1 Γ2 Γ : Ctx), Γ1 ⋓ Γ2 = Valid Γ -> Merge Γ1 Γ2 Γ.
