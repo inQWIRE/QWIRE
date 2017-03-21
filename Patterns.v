@@ -1,9 +1,9 @@
 Require Import Arith.
+Require Import Program.
+Require Import Contexts.
 Require Import List.
 Import ListNotations.
 Open Scope list_scope.
-Require Import Program.
-Require Import Contexts.
 
 Inductive Pat := var : Var -> Pat | unit | pair : Pat -> Pat -> Pat.
 
@@ -11,19 +11,35 @@ Inductive Pat := var : Var -> Pat | unit | pair : Pat -> Pat -> Pat.
 Notation "a , b" := (Datatypes.pair a b) (at level 11, left associativity) : default_scope.
 Notation "w1 , w2" := (pair w1 w2) (at level 11, left associativity) : circ_scope.
 
+(*
+Inductive WF_Pat : Ctx -> Pat -> WType -> Set :=
+(*
+| wf_qubit : forall x ctx, SingletonCtx x Qubit ctx -> WF_Pat ctx (var x) Qubit
+| wf_bit   : forall x ctx, SingletonCtx x Bit ctx -> WF_Pat ctx (var x) Bit
+*)
+| wf_var  : forall x w ctx, SingletonCtx x w ctx -> WF_Pat ctx (var x) w
+| wf_unit : WF_Pat [] unit One
+| wf_pair : forall (Γ1 Γ2 Γ : Ctx) w1 w2 p1 p2, 
+            Valid Γ = Γ1 ⋓ Γ2 ->
+            WF_Pat Γ1 p1 w1 -> WF_Pat Γ2 p2 w2 ->
+            WF_Pat Γ (pair p1 p2) (Tensor w1 w2)
+.
+*)
+
 Inductive WF_Pat : OCtx -> Pat -> WType -> Set :=
 (*
 | wf_qubit : forall x ctx, SingletonCtx x Qubit ctx -> WF_Pat ctx (var x) Qubit
 | wf_bit   : forall x ctx, SingletonCtx x Bit ctx -> WF_Pat ctx (var x) Bit
 *)
 | wf_var  : forall x w ctx, SingletonCtx x w ctx -> WF_Pat ctx (var x) w
-| wf_unit : forall ctx, EmptyCtx ctx -> WF_Pat ctx unit One
-| wf_pair : forall (Γ1 Γ2 Γ : OCtx) w1 w2 p1 p2, 
-            MergeO Γ1 Γ2 Γ ->
+| wf_unit : WF_Pat ∅ unit One
+| wf_pair : forall Γ1 Γ2 Γ w1 w2 p1 p2, 
+            Valid Γ = Γ1 ⋓ Γ2 ->
             WF_Pat Γ1 p1 w1 -> WF_Pat Γ2 p2 w2 ->
-            WF_Pat Γ (pair p1 p2) (Tensor w1 w2)
+            WF_Pat (Valid Γ) (pair p1 p2) (Tensor w1 w2)
 .
 
+(* Now immediate 
 Lemma wf_pat_not_invalid : forall p W, WF_Pat Invalid p W -> False.
 Proof.
   remember Invalid as Γ eqn:H.
@@ -35,23 +51,7 @@ Proof.
   - apply IHwf_p2. inversion H1; subst; auto.
   - apply IHwf_p1. inversion H1; subst; auto.
 Qed.
-
-Lemma wf_pat_equiv : forall Γ1 p W, WF_Pat Γ1 p W -> 
-      forall Γ2, EquivO Γ1 Γ2 -> WF_Pat Γ2 p W.
-Proof.
-  induction 1; intros Γ0 eq.
-  - inversion eq; constructor. eapply equiv_singleton; eauto.
-(*  - inversion eq; constructor. eapply equiv_singleton; eauto.*)
-  - inversion eq; constructor. eapply equiv_empty; eauto.
-  - inversion m; subst.
-    * (* Γ2 is invalid *) edestruct (wf_pat_not_invalid); eauto.
-    * (* Γ1 is invalid *) edestruct (wf_pat_not_invalid); eauto.
-    * inversion eq; subst.
-      destruct (equiv_split _ _ _ _ H1 H3) as [Γ1' [Γ2' [[merge' eq1] eq2]]].
-      econstructor; [ | apply IHWF_Pat1; constructor; eauto 
-                      | apply IHWF_Pat2; constructor; eauto].
-      constructor; auto.
-Qed.
+*)
 
 (*Definition wf_var W : {Γ : Ctx & {p : Pat & WF_Pat Γ p W}}.*)
 
@@ -82,6 +82,7 @@ Fixpoint subst_pat' (σ : Substitution) (p0 : Pat) : Pat :=
   | unit  => unit
   | pair p1 p2 => pair (subst_pat' σ p1) (subst_pat' σ p2)
   end.
+
 Definition subst_pat {p' : Pat} {p : Pat} (σ : p' ≼ p) (p0 : Pat) : Pat :=
   subst_pat' (mk_subst σ) p0.
 
@@ -91,76 +92,169 @@ Fixpoint shift_pat (p : Pat) : Pat :=
   | unit  => unit
   | (p1,p2) => (shift_pat p1, shift_pat p2)
   end.
+
 Definition shift (σ : Substitution) : Substitution := fun i => 
     match σ (S i) with
     | Some p => Some p (*(shift_pat p)*)
     | None   => None
     end.
 
-
-
 Open Scope default_scope.
 Fixpoint get_ctx (p : Pat) (W : WType) : OCtx :=
   match p, W with
   | var x,      W       => singleton x W
-  | unit,       Unit    => ∅
+  | unit,       One     => ∅
   | pair p1 p2, W1 ⊗ W2 => get_ctx p1 W1 ⋓ get_ctx p2 W2
   | _,          _       => Invalid
   end.
 Close Scope default_scope.
 
-
-Inductive Consistent_Ctx : Substitution -> OCtx -> Set :=
-(*| Consistent_Invalid : forall σ, Consistent_Ctx σ Invalid*)
-| Consistent_Nil  : forall σ, Consistent_Ctx σ ∅
-| Consistent_None : forall σ Γ,
-                    Consistent_Ctx (shift σ) (Valid Γ) -> 
-                    Consistent_Ctx σ (Valid (None :: Γ))
-| Consistent_Some : forall σ W (Γ : Ctx) p0,
-                    σ 0 = Some p0 ->
-                    WF_Pat (get_ctx p0 W) p0 W ->
-                    Consistent_Ctx (shift σ) (Valid Γ) ->
-                    Consistent_Ctx σ (Valid (Some W :: Γ))
-.
-
-Lemma singleton_equiv : forall x W Γ,
-      SingletonCtx x W Γ -> Equiv Γ (singleton x W).
-Proof.
-  induction 1; simpl.
-  - apply EquivCons. apply EquivEmpty; auto. constructor.
-  - apply EquivCons. auto.
-Qed.
-
 Lemma wf_pat_unique : forall Γ p W,
-      WF_Pat Γ p W -> EquivO Γ (get_ctx p W).
+      WF_Pat Γ p W -> Γ = (get_ctx p W).
 Proof.
   induction 1; simpl.
-  - apply EquivValid. apply singleton_equiv. auto.
-(*  - apply EquivValid. apply singleton_equiv. auto.*)
-  - apply EquivValid. apply EquivEmpty; auto. constructor.
-  - apply equivO_trans with (Γ2 := Γ1 ⋓ Γ2).
-    * apply equivO_symm. apply equiv_merge_merge. auto.
-    * apply equiv_merge; auto.
+  - apply ctx_octx. apply singleton_equiv. assumption.
+  - reflexivity.
+  - rewrite <- IHWF_Pat1, <- IHWF_Pat2. assumption.
 Qed.
 
+
+Fixpoint units (p : Pat) : bool :=
+  match p with
+  | unit => true
+  | p1, p2 => units p1 && units p2
+  | _ => false
+  end.
+
+Lemma shift_pat_units : forall p, units p = units (shift_pat p).
+Proof. induction p; auto. simpl. rewrite IHp1, IHp2. reflexivity. Qed.
+
+Lemma get_ctx_units : forall p W, units p = true ->
+                             get_ctx p W = ∅ \/ get_ctx p W = Invalid.
+Proof.
+  induction p; intros W H; inversion H; subst.
+  + destruct W; eauto.
+  + destruct W; eauto.
+    simpl.
+    apply andb_prop in H1 as [H1 H2].
+    destruct (IHp1 W1 H1) as [E1|E1], (IHp2 W2 H2) as [E2|E2]; rewrite E1, E2; auto.
+Qed.
+
+Lemma get_ctx_shift_units : forall p W, units p = true -> 
+                             get_ctx p W = get_ctx (shift_pat p) W.
+Proof. induction p.
+       - simpl; intros; congruence. 
+       - reflexivity. 
+       - intros. destruct W; auto.
+         simpl in H. apply andb_prop in H as [H1 H2].
+         simpl.
+         rewrite IHp1, IHp2; auto. 
+Qed.
+
+Lemma get_ctx_shift : forall p W, units p = false -> 
+                             get_ctx (shift_pat p) W = cons_o None (get_ctx p W).
+Proof.
+  induction p; intros W Neq; trivial.
+  + inversion Neq. 
+  + destruct W; auto.
+    simpl in *.
+    destruct (units p1) eqn:U1, (units p2) eqn:U2.
+    - inversion Neq.
+    - rewrite IHp2; trivial.
+      rewrite <- get_ctx_shift_units; trivial.
+      destruct (get_ctx_units p1 W1) as [H | H]; trivial.
+      rewrite H; destruct (get_ctx p2 W2); reflexivity.
+      rewrite H; destruct (get_ctx p2 W2); reflexivity.
+    - rewrite IHp1; trivial.
+      rewrite <- get_ctx_shift_units; trivial.
+      destruct (get_ctx_units p2 W2) as [H | H]; trivial.
+      rewrite H; destruct (get_ctx p1 W1); rewrite 2 merge_nil_r; reflexivity.
+      rewrite H; destruct (get_ctx p1 W1); reflexivity.
+    - rewrite IHp1, IHp2; trivial.
+      Search cons_o.
+      rewrite cons_distr_merge; reflexivity.
+Qed.
+
+Lemma shift_valid : forall p W,
+  {Γ : Ctx & get_ctx (shift_pat p) W = Valid Γ} -> 
+  {Γ': Ctx & get_ctx p W = Valid Γ'}.
+Proof.
+  intros p W [Γ V].
+  destruct (units p) eqn:Eq.
+  - eapply get_ctx_shift_units in Eq.
+    rewrite <- Eq in V.
+    eauto.
+  - eapply get_ctx_shift in Eq.
+    rewrite Eq in V.
+    destruct (get_ctx p W).
+    inversion V.
+    eauto.
+Qed.    
 
 Lemma shift_equiv : forall p W,
       WF_Pat (get_ctx (shift_pat p) W) (shift_pat p) W ->
       WF_Pat (get_ctx p W) p W.
 Proof.
-  induction p as [x | | p1 IHp1 p2 IHp2]; destruct W as [ | | | W1 W2]; 
-  simpl; inversion 1; subst;
-    try (constructor; inversion H2; auto; fail).
-  - constructor. auto.
-  - inversion H; subst.
-    econstructor; [ | apply IHp1 | apply IHp2].
-    * apply mergeO_merge'.
-    * assert (wf_p1 : WF_Pat Γ1 (shift_pat p1) W1); auto.
-      apply wf_pat_unique in wf_p1.
-      apply wf_pat_equiv with (Γ1 := Γ1); auto.
-    * assert (wf_p2 : WF_Pat Γ2 (shift_pat p2) W2); auto.
-      apply wf_pat_unique in wf_p2.
-      apply wf_pat_equiv with (Γ1 := Γ2); auto.
+  induction p; intros W WF. 
+  + simpl in *. inversion WF; subst. inversion H1; subst.
+    constructor. assumption.
+  + simpl in *. assumption.
+  + specialize (shift_valid (p1,p2) W); intros V.
+    destruct W; simpl in *; inversion WF. subst.
+    destruct (get_ctx p1 W1 ⋓ get_ctx p2 W2) as [|Γ'] eqn:Eq.     
+    - destruct V as [Γ' F]. eauto.
+      inversion F.
+    - econstructor.
+      symmetry. apply Eq.
+      apply IHp1. 
+      specialize (wf_pat_unique _ _ _ H5). intros Eq2. rewrite <- Eq2. assumption.
+      apply IHp2. 
+      specialize (wf_pat_unique _ _ _ H6). intros Eq2. rewrite <- Eq2. assumption.
+Qed.
+
+Inductive Consistent_Ctx : Substitution -> Ctx -> Ctx -> Set :=
+| Consistent_Nil  : forall σ, Consistent_Ctx σ [] []
+| Consistent_Γ_None : forall σ Γ Γ',
+                    Consistent_Ctx (shift σ) Γ Γ' -> 
+                    Consistent_Ctx σ (None :: Γ) Γ'
+| Consistent_σ_None : forall σ Γ Γ' Γ'' (W : WType),
+                      σ 0 = None ->
+                      Consistent_Ctx (shift σ) Γ Γ' ->
+                      Valid [Some W] ⋓ Γ' = Valid Γ'' ->
+                      Consistent_Ctx σ (Some W :: Γ) Γ''
+| Consistent_Some : forall σ Γ Γ' p W Γ_p Γ_p',
+                    σ 0 = Some p ->
+                    Consistent_Ctx (shift σ) Γ Γ' ->
+                    get_ctx p W = Valid Γ_p ->
+                    WF_Pat Γ_p p W ->
+                    Γ' ⋓ Γ_p = Valid Γ_p' ->
+                    Consistent_Ctx σ (Some W :: Γ) Γ_p'.
+
+(* Previously lower down. Can move later. *)
+(* (cons_o None (get_ctx p W)) = (get_ctx (shift_pat p) W). *)
+Program Fixpoint subst_ctx (σ : Substitution) (Γ : Ctx) : OCtx :=
+  match Γ with
+  | [] => ∅
+  | None   :: Γ' => (subst_ctx (shift σ) Γ')
+  | Some W :: Γ' => match σ 0 with
+                    | None => Valid [Some W] ⋓ subst_ctx (shift σ) Γ'
+                    | Some p => get_ctx p W  ⋓ subst_ctx (shift σ) Γ'
+                    end
+  end.
+
+Lemma consistent_valid : forall σ Γ Γ',
+      Consistent_Ctx σ Γ Γ' -> subst_ctx σ Γ = Valid Γ'.
+Proof.
+  intros σ Γ Γ' H.
+  induction H; auto.
+  + rewrite <- e0, <- IHConsistent_Ctx.
+    simpl. 
+    rewrite e.
+    reflexivity.
+  + rewrite <- e1, <- e0, <- IHConsistent_Ctx.
+    simpl. 
+    rewrite e.
+    apply merge_comm.
 Qed.
 
 Lemma consistent_ctx_correct : forall σ Γ,
@@ -187,201 +281,139 @@ Proof.
       unfold shift. rewrite eq_σ. auto.
 Qed.
 
-Lemma consistent_ctx_empty : forall Γ, EmptyCtx Γ -> forall σ,
-      Consistent_Ctx σ Γ.
-Proof.
-  induction 1; intros; constructor; auto.
-Qed.
-
-Lemma consistent_equiv : forall Γ1 Γ2,
-      EquivO Γ1 Γ2 -> 
-      forall σ, Consistent_Ctx σ Γ1 -> Consistent_Ctx σ Γ2.
-Proof.
-  destruct 1 as [ | Γ1 Γ2 equiv].
-  - intros. inversion H.
-  - induction equiv; intros σ consistent.
-    * apply consistent_ctx_empty; auto.
-    * inversion consistent; subst.
-      + constructor; auto.
-      + econstructor; eauto.
-Qed.
-
 Lemma consistent_split : forall σ (Γ : Ctx),
       Consistent_Ctx σ Γ ->
-      forall Γ1 Γ2, Merge Γ1 Γ2 Γ ->
+      forall (Γ1 Γ2 : Ctx), Valid Γ = Γ1 ⋓ Γ2 ->
       Consistent_Ctx σ Γ1 * Consistent_Ctx σ Γ2.
 Proof.
-  intros σ Γ consistent Γ1 Γ2 merge.
-  remember (Valid Γ) as Γ'.
-  revert Γ HeqΓ' Γ1 Γ2 merge.
-  induction consistent; intros Γ' eq Γ1 Γ2 merge; inversion eq; subst.
-  - inversion merge; subst; split;
-      apply consistent_ctx_empty; auto;
-      (apply equiv_empty with (Γ1 := []); [apply equiv_symm; auto | constructor ]).
-  - inversion merge; subst; split;
-    try (apply consistent_ctx_empty; auto; fail).
-    * eapply consistent_equiv; 
-        [apply EquivValid; apply equiv_symm; eauto | constructor; auto].
-    * eapply consistent_equiv; 
-        [apply EquivValid; apply equiv_symm; eauto | constructor; auto].
-    * inversion H3; subst; rename Γ0 into Γ1, Γ3 into Γ2.
-      constructor.
-      destruct IHconsistent with (Γ0 := Γ) (Γ1 := Γ1) (Γ2 := Γ2); auto.
-    * inversion H3; subst; rename Γ0 into Γ1, Γ3 into Γ2.
-      constructor.
-      destruct IHconsistent with (Γ0 := Γ) (Γ1 := Γ1) (Γ2 := Γ2); auto.
-  - inversion merge; subst; split;
-    try (apply consistent_ctx_empty; auto; fail).
-    * eapply consistent_equiv; 
-      [ apply EquivValid; apply equiv_symm; eauto | econstructor; eauto ].
-    * eapply consistent_equiv; 
-      [ apply EquivValid; apply equiv_symm; eauto | econstructor; eauto ].
-    * rename Γ0 into Γ1, Γ3 into Γ2.
-      destruct IHconsistent with (Γ0 := Γ) (Γ1 := Γ1) (Γ2 := Γ2) as [IH1 IH2]; auto.
-      inversion H3; subst; econstructor; eauto.
-    * rename Γ0 into Γ1, Γ3 into Γ2.
-      destruct IHconsistent with (Γ0 := Γ) (Γ1 := Γ1) (Γ2 := Γ2) as [IH1 IH2]; auto.
-      inversion H3; subst; econstructor; eauto.
+  intros σ Γ consistent.
+  induction consistent; intros Γ1 Γ2 M. 
+  - symmetry in M. apply merge_nil_inversion in M as [e1 e2].
+    inversion e1; inversion e2.
+    split; constructor.
+  - destruct Γ1 as [|o1 Γ1'], Γ2 as [|o2 Γ2']; try solve [inversion M].
+    * rewrite merge_nil_l in M.
+      inversion M; subst.
+      split; constructor.
+      assumption.
+    * rewrite merge_nil_r in M.
+      inversion M; subst.
+      split; constructor.
+      assumption.
+    * symmetry in M; apply ctx_cons_inversion in M as [M Mo]; symmetry in M.
+      destruct o1, o2; inversion Mo; subst.
+      specialize (IHconsistent _ _ M).
+      intuition; constructor; auto.
+  - destruct Γ1 as [|o1 Γ1'], Γ2 as [|o2 Γ2']; try solve [inversion M].
+    * rewrite merge_nil_l in M.
+      inversion M; subst.
+      split; econstructor; eauto.
+    * rewrite merge_nil_r in M.
+      inversion M; subst.
+      split; econstructor; eauto.
+    * symmetry in M; apply ctx_cons_inversion in M as [M Mo]; symmetry in M.
+      specialize (IHconsistent _ _ M).
+      destruct o1, o2; inversion Mo; subst; intuition; econstructor; eauto.
 Qed.
-  
-
-Lemma consistentO_split : forall σ Γ,
-      Consistent_Ctx σ Γ ->
-      forall Γ1 Γ2, MergeO Γ1 Γ2 Γ ->
-      Consistent_Ctx σ Γ1 * Consistent_Ctx σ Γ2.
-Proof.
-  intros σ Γ consistent Γ1 Γ2 merge. 
-  destruct merge; try (split; 
-    try constructor;
-    eapply consistent_equiv; eauto; apply equivO_symm; eauto; constructor; auto;
-    fail);
-    try (inversion consistent; fail).
-    eapply consistent_split; eauto.
-Qed.
-
-
 
 Lemma consistent_merge : forall Γ1 Γ2 Γ σ,
       Consistent_Ctx σ Γ1 -> Consistent_Ctx σ Γ2 ->
       Γ1 ⋓ Γ2 = Valid Γ ->  Consistent_Ctx σ Γ.
 Proof.
-  destruct Γ1 as [ | Γ1]; try (inversion 3; fail).
-  destruct Γ2 as [ | Γ2]; try (inversion 3; fail); revert Γ2.
-  induction Γ1 as [ | [W1 | ]];
-  destruct  Γ2 as [ | [W2 | ]];
-    intros Γ σ consistent1 consistent2 merge;
-    try (inversion merge; subst; auto; fail);
-    inversion consistent1;
-    inversion consistent2; subst;
-    simpl in merge;
-    remember (merge' Γ1 Γ2) as Γ';
-    destruct Γ' as [ | Γ']; inversion merge; subst;
-    econstructor; eauto.
+  induction Γ1 as [ | [W1 | ]].
+  + intros Γ2 Γ σ H H0 H1.
+    rewrite merge_nil_l in H1; subst. 
+    apply ctx_octx in H1.
+    subst; assumption.
+  + intros Γ2 Γ σ H H0 H1.
+    destruct Γ2.
+    - rewrite merge_nil_r in H1; subst. 
+      apply ctx_octx in H1.
+      subst; assumption.
+    - inversion H1.
+      destruct o; inversion H3.
+      destruct (merge' Γ1 Γ2) as [|Γ']. inversion H3.
+      rewrite <- H4 in H1.
+      apply ctx_octx in H3.
+      rewrite <- H3.
+      inversion H; subst.
+      inversion H0; subst.
+      econstructor; eauto.
+      eapply IHΓ1; eauto.
+      apply ctx_cons_inversion in H1 as [M Mo]; auto.
+  + intros Γ2 Γ σ H H0 H1.
+    destruct Γ2.
+    - rewrite merge_nil_r in H1; subst. 
+      apply ctx_octx in H1.
+      subst; assumption.
+    - inversion H1.
+      destruct o; inversion H3.
+      * destruct (merge' Γ1 Γ2) as [|Γ']. inversion H3.
+        rewrite <- H4 in H1.
+        apply ctx_octx in H3.
+        rewrite <- H3.
+        inversion H; subst.
+        inversion H0; subst.
+        econstructor; eauto.
+        eapply IHΓ1; eauto.
+        apply ctx_cons_inversion in H1 as [M Mo]; auto.
+      * destruct (merge' Γ1 Γ2) as [|Γ']. inversion H3.
+        rewrite <- H4 in H1.
+        apply ctx_octx in H3.
+        rewrite <- H3.
+        inversion H; subst.
+        inversion H0; subst.
+        econstructor; eauto.
+        eapply IHΓ1; eauto.
+        apply ctx_cons_inversion in H1 as [M Mo]; auto.
 Qed.
 
-
-(* (cons_o None (get_ctx p W)) = (get_ctx (shift_pat p) W). *)
-Program Fixpoint subst_ctx (σ : Substitution) (Γ : Ctx) : OCtx :=
-  match Γ with
-  | [] => ∅
-  | None   :: Γ' => (subst_ctx (shift σ) Γ')
-  | Some W :: Γ' => match σ 0 with
-                    | None => Invalid
-                    | Some p => get_ctx p W ⋓ subst_ctx (shift σ) Γ'
-                    end
-  end.
+(*
 Definition subst_ctx' σ Γ := 
   match Γ with
   | Valid Γ' => subst_ctx σ Γ'
   | Invalid => Invalid
   end.
 
-Lemma consistent_empty : forall (Γ : Ctx),
-      EmptyCtx Γ -> forall σ, EmptyOCtx (subst_ctx σ Γ).
-Proof.
-  induction 1; intros σ; simpl; auto.
-  do 2 constructor.
-Qed.
-
-
 Hint Unfold subst_ctx': auto.
-
-Lemma equiv_subst : forall σ Γ1 Γ2,
-                    Equiv Γ1 Γ2 -> 
-                    EquivO (subst_ctx σ Γ1) (subst_ctx σ Γ2).
-Proof.
-    intros σ Γ1 Γ2 eq; revert σ. 
-    induction eq; intros σ.
-    * apply EquivOEmpty;
-      apply consistent_empty; auto.
-    * destruct o as [ W |]; simpl; auto.
-      remember (σ 0) as x; 
-      destruct x; simpl; try (constructor; fail).
-      apply equiv_merge; auto.
-      apply equivO_refl.
-Qed.
-
-Lemma equivO_subst : forall Γ1 Γ2,
-                     EquivO Γ1 Γ2 ->
-                     forall σ, EquivO (subst_ctx' σ Γ1) (subst_ctx' σ Γ2).
-Proof.
-  destruct 1; intros; simpl; try constructor.
-  apply equiv_subst; auto.
-Qed.
-    
+*)
 
 Lemma subst_ctx_split : forall (Γ Γ1 Γ2 : Ctx),
-      Merge Γ1 Γ2 Γ ->
+      Valid Γ = Γ1 ⋓ Γ2 ->
       forall σ, 
       Consistent_Ctx σ Γ ->
       Consistent_Ctx σ Γ1 ->
       Consistent_Ctx σ Γ2 ->
-      MergeO (subst_ctx σ Γ1) (subst_ctx σ Γ2) (subst_ctx σ Γ).
-Proof.
-  induction 1; intros σ consistent consistent1 consistent2;
-    unfold subst_ctx' in *;
-    subst.
-  - apply MergeOEmptyL; [apply consistent_empty | apply equiv_subst]; auto.
-  - apply MergeOEmptyR; [apply consistent_empty | apply equiv_subst]; auto.
-  - inversion m; subst; simpl.
-    * inversion consistent1. 
-      inversion consistent2. 
-      inversion consistent. 
-      apply IHMerge; auto.
-    * inversion consistent; subst.
-      rewrite H2. 
-      rewrite <- merge_nil_l with (Γ := subst_ctx (shift σ) Γ2).
-      apply mergeO_merge. 
-      + apply MergeOEmptyR; [repeat constructor | apply equivO_refl].
-      + inversion consistent1.
-        inversion consistent2.
-        apply IHMerge; auto.
-    * inversion consistent; subst.
-      rewrite H2. 
-      rewrite <- merge_nil_l with (Γ := subst_ctx (shift σ) Γ1).
-      apply mergeO_merge.
-      + apply MergeOEmptyL; [ repeat constructor | apply equivO_refl].
-      + inversion consistent1.
-        inversion consistent2.
-        apply IHMerge; auto.
-Qed.
+      (subst_ctx σ Γ) = (subst_ctx σ Γ1) ⋓ (subst_ctx σ Γ2).
+Proof. 
+  induction Γ as [|o Γ' IHΓ] ; intros Γ1 Γ2 M σ C C1 C2.
+  + symmetry in M.
+    apply merge_nil_inversion' in M.
+    intuition; subst; reflexivity.
+  + destruct Γ1 as [|o1 Γ1'], Γ2 as [|o2 Γ2']; inversion M; subst.
+    simpl (subst_ctx σ []). rewrite merge_nil_l. reflexivity.
+    simpl (subst_ctx σ []). rewrite merge_nil_r. reflexivity.
+    symmetry in M; apply ctx_cons_inversion in M as [M Mo]; symmetry in M.
+    specialize (IHΓ _ _ M (shift σ)).
+    destruct o1, o2; inversion Mo; subst.
+    - inversion C; inversion C1; inversion C2; subst.
+      simpl.
+      rewrite H2.
+      rewrite IHΓ; auto.
+      monoid.
+    - inversion C; inversion C1; inversion C2; subst.
+      simpl.
+      rewrite H2.
+      rewrite IHΓ; auto.
+      monoid.
+    - inversion C; inversion C1; inversion C2; subst.
+      simpl.
+      rewrite IHΓ; auto.
+Qed.    
 
 
-Lemma subst_OCtx_split : forall (Γ Γ1 Γ2 : OCtx),
-      MergeO Γ1 Γ2 Γ ->
-      forall σ, 
-      Consistent_Ctx σ Γ ->
-      Consistent_Ctx σ Γ1 ->
-      Consistent_Ctx σ Γ2 ->
-      MergeO (subst_ctx' σ Γ1) (subst_ctx' σ Γ2) (subst_ctx' σ Γ).
-Proof.
-  induction 1; intros σ consistent consistent1 consistent2; simpl.
-  - inversion consistent.
-  - inversion consistent.
-  - apply subst_ctx_split; auto.
-Qed.
 
-
+(* I cannot believe this existed. cf. get_ctx_shift above... 
 Lemma get_ctx_shift : forall Γ (p : Pat) W,
     WF_Pat Γ p W -> 
     EquivO (cons_o None (get_ctx p W)) (get_ctx (shift_pat p) W).
@@ -394,23 +426,20 @@ Proof.
     * rewrite cons_distr_merge. apply equivO_refl.
     * apply equiv_merge; auto.
 Qed.
+*)
 
 Lemma singleton_get_ctx : forall x W Γ,
       SingletonCtx x W Γ ->
       forall σ p, Consistent_Ctx σ Γ ->
                 σ x = Some p -> 
-                EquivO (subst_ctx σ Γ) (get_ctx p W).
+                subst_ctx σ Γ = get_ctx p W.
 Proof.
   induction 1; intros σ p consistent σ_eq; simpl; try rewrite σ_eq.
-  - inversion consistent; subst. 
-    rewrite merge_symm. 
-    apply equiv_merge_empty.
-    apply consistent_empty; auto.
+  - inversion consistent; subst. monoid.
   - inversion consistent; subst.
     apply IHSingletonCtx; auto.
     unfold shift. rewrite σ_eq. auto.
 Qed.
-
 
 Lemma singleton_consistent_lookup : forall x W Γ,
     SingletonCtx x W Γ ->
@@ -426,35 +455,99 @@ Qed.
 
 Lemma singleton_lookup : forall x W Γ,
     SingletonCtx x W Γ -> lookupO Γ x = Some W.    
-Proof.
-  induction 1; simpl; auto.
-Qed.
+Proof. induction 1; simpl; auto. Qed.
 
 Lemma consistent_singleton : forall x W Γ σ,
       SingletonCtx x W Γ ->
       Consistent_Ctx σ Γ ->
       WF_Pat (subst_ctx σ Γ) (subst_pat' σ (var x)) W.
-Proof. 
+Proof.
   intros x W Γ σ singleton consistent.
-  remember (σ x) as p0.
-  destruct p0 as [p0' | ]; simpl; rewrite <- Heqp0.
-  - apply wf_pat_equiv with (Γ1 := get_ctx p0' W). 
-    * eapply consistent_ctx_correct; eauto.
-      apply singleton_lookup; auto.
-    * apply equivO_symm. eapply singleton_get_ctx; eauto.
+  destruct (σ x) as [p0' | ] eqn:Eq; simpl; rewrite Eq.
+  - erewrite singleton_get_ctx; eauto.
+    eapply consistent_ctx_correct; eauto.
+    apply singleton_lookup; auto.
   - edestruct singleton_consistent_lookup as [p pf]; eauto.
-    rewrite pf in *. inversion Heqp0.
+    rewrite pf in *. inversion Eq.
 Qed.
+
+(*
+Lemma consistent_valid : forall σ Ω, Consistent_Ctx σ Ω ->
+                                exists Γ', subst_ctx σ Ω = Valid Γ'.
+Proof.
+  intros σ Ω H.
+  induction H; eauto.
+  - exists []. reflexivity.
+  - destruct IHConsistent_Ctx.
+    simpl.
+    rewrite e.
+
+    Search subst_ctx.
+    erewrite singleton_get_ctx; eauto.
+    eauto.
+*)
+
+Lemma wf_subst_pat : forall Ω p0 W, WF_Pat (Valid Ω) p0 W
+                  -> forall σ,
+                     Consistent_Ctx σ Ω ->
+                     WF_Pat (subst_ctx σ Ω) (subst_pat' σ p0) W.
+Proof.
+  intros Ω p W WF.
+  remember (Valid Ω) as Ω' eqn:Eq.
+  revert Eq. 
+  revert Ω.
+  induction WF; intros Ω Eq σ H. 
+  - apply ctx_octx in Eq; subst.
+    apply consistent_singleton; subst; auto.
+  - apply ctx_octx in Eq; subst.
+    simpl. constructor.
+  - apply ctx_octx in Eq; subst.
+    simpl.
+    destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try solve [inversion e].
+    destruct consistent_split with (σ:=σ) (Γ1:=Γ1) (Γ2:=Γ2) (Γ:=Ω)
+        as [consistent1 consistent2]; auto.
     
 
 
-Lemma wf_subst_pat : forall Ω p0 W, WF_Pat Ω p0 W
-                  -> forall σ,
-                     Consistent_Ctx σ Ω ->
-                     WF_Pat (subst_ctx' σ Ω) (subst_pat' σ p0) W.
-Proof.
+    inversion H; subst.
+    * symmetry in e.
+      apply merge_nil_inversion' in e as [Eq1 Eq2]; subst.
+      econstructor; eauto; simpl; auto.
+    * simpl.
+
+econstructor; eauto.
+
+
+    destruct (subst_ctx σ Ω) eqn:Eq.
+    * inversion Eq.
+
+    destruct Ω.
+    * simpl. econstructor; auto.      
+      symmetry in e.
+      apply merge_nil_inversion' in e.
+      intuition; subst; auto.
+    * simpl. 
+
+    Search subst_ctx.
+
+    erewrite subst_ctx_split; eauto.
+
+    destruct (subst_ctx σ Ω).
+        
+    erewrite singleton_get_ctx; eauto.
+    econstructor.
+
+
+    eapply wf_pair with (Γ := subst_ctx σ Ω).
+
+    econstructor; eauto.
+    unfold subst_ctx'.
+    apply subst_OCtx_split; auto.
+Qed.
+
+
   induction 1; intros σ consistent.
-  - apply consistent_singleton; auto.
+  - apply consistent_singleton; auto. 
   - simpl. apply wf_pat_equiv with (Γ1 := ∅); try (constructor; constructor).
     apply EquivOEmpty; [ repeat constructor | ].
     apply consistent_empty; auto.

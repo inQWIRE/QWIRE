@@ -8,7 +8,7 @@ Open Scope list_scope.
 Inductive WType := Qubit | Bit | One | Tensor : WType -> WType -> WType.
 
 Notation "W1 ⊗ W2" := (Tensor W1 W2) (at level 1, left associativity): circ_scope.
-
+ 
 Open Scope circ_scope.
 
 (* Coq interpretations of wire types *)
@@ -28,57 +28,13 @@ Inductive OCtx :=
 | Invalid : OCtx 
 | Valid : Ctx -> OCtx.
 
-
-Inductive EmptyCtx : Ctx -> Set :=
-| EmptyNil : EmptyCtx []
-| EmptyCons : forall Γ, EmptyCtx Γ -> EmptyCtx (None :: Γ)
-.
-Inductive EmptyOCtx : OCtx -> Set :=
-(*| EmptyInvalid : EmptyOCtx Invalid*)
-| EmptyValid : forall Γ, EmptyCtx Γ -> EmptyOCtx (Valid Γ)
-.
+Lemma ctx_octx : forall Γ Γ', Valid Γ = Valid Γ' <-> Γ = Γ'.
+Proof. intuition; congruence. Qed.
 
 Inductive SingletonCtx : Var -> WType -> Ctx -> Set :=
-| SingletonHere : forall w Γ, EmptyCtx Γ -> SingletonCtx 0 w (Some w :: Γ)
-| SingletonLater : forall x w ctx, SingletonCtx x w ctx -> SingletonCtx (S x) w (None::ctx)
+| SingletonHere : forall w, SingletonCtx 0 w [Some w]
+| SingletonLater : forall x w Γ, SingletonCtx x w Γ -> SingletonCtx (S x) w (None::Γ)
 .
-
-Inductive Equiv : Ctx -> Ctx -> Set :=
-| EquivEmpty : forall Γ1 Γ2, EmptyCtx Γ1 -> EmptyCtx Γ2 -> Equiv Γ1 Γ2
-| EquivCons  : forall o Γ1 Γ2, Equiv Γ1 Γ2 -> Equiv (o :: Γ1) (o :: Γ2)
-.
-
-Lemma empty_singleton_absurd : forall x W Γ A,
-      SingletonCtx x W Γ -> EmptyCtx Γ -> A.
-Proof.
-  intros x W Γ A sing empty.
-  revert x W sing A.
-  induction empty; intros x W sing A.
-  - inversion sing.
-  - inversion sing; subst. eapply IHempty; eauto.
-Qed.
-
-
-Lemma equiv_empty : forall Γ1 Γ2, Equiv Γ1 Γ2 -> EmptyCtx Γ1 -> EmptyCtx Γ2.
-Proof.
-  induction 1; intros empty; auto.
-  inversion empty; subst.
-  constructor. 
-  apply IHEquiv; auto.
-Qed.
-
-Lemma equiv_singleton : forall Γ1 Γ2 x W,
-      Equiv Γ1 Γ2 -> SingletonCtx x W Γ1 -> SingletonCtx x W Γ2.
-Proof.
-  intros Γ1 Γ2 x W equiv sing. revert x W sing.
-  induction equiv; intros x W sing.
-  - eapply empty_singleton_absurd; eauto.
-  - inversion sing; subst.
-    * constructor. eapply equiv_empty; eauto.
-    * constructor. apply IHequiv. auto.
-Qed.
-
-
 
 Fixpoint singleton (x : Var) (W : WType) : Ctx :=
   match x with
@@ -90,9 +46,17 @@ Lemma singleton_singleton : forall x W,
       SingletonCtx x W (singleton x W).
 Proof.
   induction x; intros W.
-  - constructor. constructor.
+  - constructor. 
   - simpl. constructor. apply IHx.
 Qed.   
+
+Lemma singleton_equiv : forall x W Γ,
+      SingletonCtx x W Γ -> Γ = singleton x W.
+Proof.
+  induction 1; trivial.
+  simpl. rewrite IHSingletonCtx. reflexivity.
+Qed.
+
 
 Definition merge_wire (o1 o2 : option WType) : OCtx :=
   match o1, o2 with
@@ -142,8 +106,25 @@ Lemma merge_I_l : forall Γ, Invalid ⋓ Γ = Invalid. Proof. reflexivity. Qed.
 
 Lemma merge_I_r : forall Γ, Γ ⋓ Invalid = Invalid. Proof. destruct Γ; reflexivity. Qed.
 
-Lemma merge_symm : forall Γ1 Γ2, Γ1 ⋓ Γ2 = Γ2 ⋓ Γ1.
-Admitted.
+(*
+Lemma merge_valid : forall (Γ1 Γ2 : OCtx) (Γ : Ctx), 
+  Γ1 ⋓ Γ2 = Valid Γ ->
+  (exists Γ1', Γ1 = Valid Γ1') /\ (exists Γ2', Γ2 = Valid Γ2'). 
+Proof.
+  intros Γ1 Γ2 Γ M.
+  destruct Γ1 as [|Γ1'], Γ2 as [|Γ2']; inversion M.
+  eauto.
+Qed.
+*)
+
+Lemma merge_valid : forall (Γ1 Γ2 : OCtx) (Γ : Ctx), 
+  Γ1 ⋓ Γ2 = Valid Γ ->
+  {Γ1' : Ctx & Γ1 = Valid Γ1'} * {Γ2' : Ctx & Γ2 = Valid Γ2'}. 
+Proof.
+  intros Γ1 Γ2 Γ M.
+  destruct Γ1 as [|Γ1'], Γ2 as [|Γ2']; inversion M.
+  eauto.
+Qed.
 
 Lemma merge_invalid_iff : forall (o1 o2 : option WType) (Γ1 Γ2 : Ctx), 
   Valid (o1 :: Γ1) ⋓ Valid (o2 :: Γ2) = Invalid <-> 
@@ -314,11 +295,11 @@ Proof.
         reflexivity.
 Qed.
 
-(*** Semi-ring ***)
-
 (*** Automation ***)
 
 (* Assumes at most one evar *)
+(* Note: Changed is_evar to has_evar to deal with "Valid ?Goal". 
+         Might make line two risky *)
 Ltac monoid := 
   try match goal with
   | [ |- ?Γ1 = ?Γ2 ] => has_evar Γ1; symmetry
@@ -326,13 +307,16 @@ Ltac monoid :=
   repeat (
   repeat (rewrite <- merge_assoc); 
   match goal with
+  | [ |- ?G ] => idtac G
+  end;
+  match goal with
   | [ |- ?Γ = ?Γ ]                  => reflexivity
-  | [ |- ?Γ1 = ?Γ2 ]                => is_evar Γ2; reflexivity
+  | [ |- ?Γ1 = ?Γ2 ]                => has_evar Γ2; reflexivity
   (* remove nils *)
   | [ |- context[?Γ ⋓ ∅] ]          => rewrite (merge_nil_r Γ)
   | [ |- context[∅ ⋓ ?Γ] ]          => rewrite (merge_nil_l Γ)
   (* move evar to far right *)
-  | [ |- _ = ?Γ ⋓ ?Γ' ]             => is_evar Γ; rewrite (merge_comm Γ Γ')
+  | [ |- _ = ?Γ ⋓ ?Γ' ]             => has_evar Γ; rewrite (merge_comm Γ Γ')
   (* solve nil evars *)
   | [ |- ?Γ = ?Γ ⋓ _ ]              => rewrite merge_nil_r; reflexivity  
   (* cycle and apply merge_cancel_l *)
@@ -387,11 +371,10 @@ Definition cons_o (o : option WType) (Γ : OCtx) : OCtx :=
   | Invalid => Invalid
   | Valid Γ' => Valid (o :: Γ')
   end.
+
 Lemma cons_distr_merge : forall Γ1 Γ2,
-      cons_o None (Γ1 ⋓ Γ2) = cons_o None Γ1 ⋓ cons_o None Γ2.
-Proof.
-  destruct Γ1; destruct Γ2; simpl; auto.
-Qed.
+  cons_o None (Γ1 ⋓ Γ2) = cons_o None Γ1 ⋓ cons_o None Γ2.
+Proof. destruct Γ1; destruct Γ2; simpl; auto. Qed.
 
 Fixpoint index (ls : OCtx) (i : nat) : option WType :=
   match ls with
@@ -403,191 +386,62 @@ Fixpoint index (ls : OCtx) (i : nat) : option WType :=
               end
   end.
 
-
 Definition lengthO (ls : OCtx) : nat :=
   match ls with
   | Invalid => O
   | Valid ls => length ls
   end.
 
-
-Inductive EquivO : OCtx -> OCtx -> Set :=
-| EquivInvalid : EquivO Invalid Invalid
-| EquivValid : forall Γ1 Γ2, Equiv Γ1 Γ2 -> EquivO (Valid Γ1) (Valid Γ2)
-.
-
-Lemma equiv_refl : forall Γ, Equiv Γ Γ.
-Proof.
-  induction Γ; try (repeat constructor; fail).
-  apply EquivCons; auto.
-Qed.
-Lemma equivO_refl : forall Γ, EquivO Γ Γ.
-Proof.
-  destruct Γ; constructor. apply equiv_refl.
-Qed.
-
-Lemma equiv_symm : forall Γ1 Γ2, Equiv Γ1 Γ2 -> Equiv Γ2 Γ1.
-Proof.
-  induction 1. 
-  - apply EquivEmpty; auto.
-  - apply EquivCons; auto.
-Qed.
-Lemma equivO_symm : forall Γ1 Γ2, EquivO Γ1 Γ2 -> EquivO Γ2 Γ1.
-Proof.
-  destruct 1; constructor. apply equiv_symm; auto.
-Qed.
-
-Lemma EquivOEmpty : forall Γ1 Γ2,
-    EmptyOCtx Γ1 -> EmptyOCtx Γ2 -> EquivO Γ1 Γ2.
-Proof.
-  destruct Γ1 as [ | Γ1]; destruct Γ2 as [ | Γ2]; 
-  intros empty1 empty2; try constructor.
-  - inversion empty1.
-  - inversion empty2.
-  - inversion empty1. inversion empty2. constructor; auto.
-Qed.
-
-Lemma equivO_trans : forall Γ1 Γ2 Γ3, EquivO Γ1 Γ2 -> EquivO Γ2 Γ3 -> EquivO Γ1 Γ3.
-Admitted.
-
-Lemma merge_cons_r : forall Γ1 o Γ2, EquivO (Γ1 ⋓ (cons_o o Γ2)) (cons_o o (Γ1 ⋓ Γ2)).
-Admitted.
-
-
-Lemma equiv_merge_empty : forall Γ1 Γ2, EmptyOCtx Γ1 -> EquivO (Γ1 ⋓ Γ2) Γ2.
-Proof.
-  intros Γ1 Γ2; destruct 1 as [Γ1 empty].
-  induction empty; simpl.
-  - destruct Γ2; apply equivO_refl.
-  - destruct Γ2; try apply equivO_refl.
-    destruct c. 
-    * apply EquivOEmpty; repeat (constructor; auto).
-    * assert (eq : EquivO (Γ ⋓ cons_o o (Valid c)) (cons_o o (Γ ⋓ Valid c))).
-        apply merge_cons_r.
-      simpl in eq. unfold cons_o in eq.
-      apply equivO_trans with (Γ ⋓ Valid (o :: c)); auto.
-      apply equivO_symm. auto.
-Qed.
-
-
-Inductive Merge_option : option WType -> option WType -> option WType -> Set :=
-| MergeNone : Merge_option None None None
-| MergeSomeL : forall a, Merge_option (Some a) None (Some a)
-| MergeSomeR : forall a, Merge_option None (Some a) (Some a)
-.
-
-Inductive Merge : Ctx -> Ctx -> Ctx -> Set :=
-| MergeEmptyL : forall Γ1 Γ2 Γ, 
-               EmptyCtx Γ1 -> Equiv Γ2 Γ -> Merge Γ1 Γ2 Γ
-| MergeEmptyR : forall Γ1 Γ2 Γ, 
-               EmptyCtx Γ2 -> Equiv Γ1 Γ -> Merge Γ1 Γ2 Γ
-| MergeCons : forall o1 o2 o Γ1 Γ2 Γ,
-              Merge_option o1 o2 o -> Merge Γ1 Γ2 Γ -> 
-              Merge (o1 :: Γ1) (o2 :: Γ2) (o :: Γ)
-.
-Inductive MergeO : OCtx -> OCtx -> OCtx -> Set :=
-| MergeInvalidL : forall Γ1 Γ, EquivO Γ1 Γ -> MergeO Γ1 Invalid Invalid
-| MergeInvalidR : forall Γ2 Γ, EquivO Γ2 Γ -> MergeO Invalid Γ2 Invalid
-| MergeValid : forall Γ1 Γ2 Γ, Merge Γ1 Γ2 Γ -> MergeO Γ1 Γ2 Γ
-.
-Definition Disjoint Γ1 Γ2 := {Γ : Ctx & Merge Γ1 Γ2 Γ}.
-
-Lemma MergeOEmptyL : forall Γ1 Γ2 Γ,
-      EmptyOCtx Γ1 -> EquivO Γ2 Γ -> MergeO Γ1 Γ2 Γ.
-Admitted.
-Lemma MergeOEmptyR : forall Γ1 Γ2 Γ,
-      EmptyOCtx Γ2 -> EquivO Γ1 Γ -> MergeO Γ1 Γ2 Γ.
-Admitted.
-Lemma MergeOCons : forall o1 o2 o Γ1 Γ2 Γ,
-                   Merge_option o1 o2 o -> 
-                   MergeO Γ1 Γ2 Γ ->
-                   MergeO (cons_o o1 Γ1) (cons_o o2 Γ2) (cons_o o Γ).
-Admitted.
-
-Lemma merge_merge : forall (Γ1 Γ2 Γ : Ctx), Γ1 ⋓ Γ2 = Valid Γ -> Merge Γ1 Γ2 Γ.
-Proof.
-  induction Γ1 as [ | o1 Γ1]; intros Γ2 Γ merge.
-  - inversion merge; subst. apply MergeEmptyL; [constructor | apply equiv_refl].
-  - destruct Γ2 as [ | o2 Γ2].
-    * inversion merge. apply MergeEmptyR; [constructor | apply equiv_refl].
-    * destruct o1 as [W1 | ]; destruct o2 as [W2 | ]; 
-      simpl in *; try (inversion merge; fail);
-      try (remember (merge' Γ1 Γ2) as Γ';
-        destruct Γ' as [ | Γ' ]; try (inversion merge; fail);
-        inversion merge; subst;
-        constructor; [constructor | apply IHΓ1; auto]).
-Qed.
-
-Lemma mergeO_merge' : forall Γ1 Γ2, MergeO Γ1 Γ2 (Γ1 ⋓ Γ2).
-Admitted.
-
-
-Lemma merge_merge_inv : forall (Γ1 Γ2 Γ : Ctx), Merge Γ1 Γ2 Γ -> Γ1 ⋓ Γ2 = Valid Γ.
-Admitted.
-
-Lemma equiv_split : forall Γ1 Γ2 Γ Γ',
-      Merge Γ1 Γ2 Γ ->
-      Equiv Γ Γ' ->
-      {Γ1' : Ctx & {Γ2' : Ctx & Merge Γ1' Γ2' Γ' * Equiv Γ1 Γ1' * Equiv Γ2 Γ2'}}%type.
-Admitted.
-
-Lemma equiv_merge_merge : forall Γ1 Γ2 Γ,
-      MergeO Γ1 Γ2 Γ -> EquivO (Γ1 ⋓ Γ2) Γ.
-Admitted.
-
-Lemma Ctx_nil_inversion' : forall (Γ1 Γ2 : Ctx), Γ1 ⋓ Γ2 = ∅ -> (Γ1 = []) * (Γ2 = []).
+Lemma merge_nil_inversion' : forall (Γ1 Γ2 : Ctx), Γ1 ⋓ Γ2 = ∅ -> (Γ1 = []) * (Γ2 = []).
 Proof.
   induction Γ1 as [ | o Γ1]; intros Γ2; try inversion 1; auto.
-  destruct Γ2 as [ | o' Γ2]; try inversion H1.
-  destruct o; destruct o'; simpl in *; try inversion H. 
-  remember (merge' Γ1 Γ2) as Γ0. destruct Γ0; try inversion H3.
-  remember (merge' Γ1 Γ2) as Γ0. destruct Γ0; try inversion H3.
-  remember (merge' Γ1 Γ2) as Γ0. destruct Γ0; try inversion H3.
+  destruct Γ2 as [ | o' Γ2]; try solve [inversion H1].
+  destruct o, o', (merge' Γ1 Γ2); inversion H1. 
 Qed.
 
-Lemma Ctx_nil_inversion : forall (Γ1 Γ2 : OCtx), Γ1 ⋓ Γ2 = ∅ -> (Γ1 = ∅) * (Γ2 = ∅).
+Lemma merge_nil_inversion : forall (Γ1 Γ2 : OCtx), Γ1 ⋓ Γ2 = ∅ -> (Γ1 = ∅) * (Γ2 = ∅).
 Proof.
   intros Γ1 Γ2 eq.
-  destruct Γ1 as [ | Γ1]; try (inversion eq; fail).
-  destruct Γ2 as [ | Γ2]; try (inversion eq; fail).
-  destruct Ctx_nil_inversion' with (Γ1 := Γ1) (Γ2 := Γ2) as [eq1 eq2]; auto.
-  inversion eq1; inversion eq2; auto.
+  destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try solve [inversion eq].
+  apply merge_nil_inversion' in eq.
+  intuition; congruence.
 Qed.
 
-
-Lemma Ctx_cons_inversion : forall Γ1 Γ2 o Γ,
+(* This is false. Needs an assumption that Γ1 ≠ ∅ ≠ Γ2 
+Lemma ctx_cons_inversion : forall Γ1 Γ2 o Γ,
       Γ1 ⋓ Γ2 = Valid (o :: Γ) ->
       {o1 : option WType & {o2 : option WType & {Γ1' : Ctx & {Γ2' : Ctx 
       & (Γ1 = Valid (o1 :: Γ1')) * (Γ2 = Valid (o2 :: Γ2')) * (Γ1' ⋓ Γ2' = Valid Γ)
         * (merge_wire o1 o2 = Valid [o])}}}}%type.
-Admitted.
+*)
 
-Lemma equiv_merge : forall Γ1 Γ2 Γ1' Γ2',
-      EquivO Γ1 Γ2 -> EquivO Γ1' Γ2' -> EquivO (Γ1 ⋓ Γ1') (Γ2 ⋓ Γ2').
+Lemma ctx_cons_inversion : forall (Γ Γ1 Γ2 : Ctx) o o1 o2,
+      Valid (o1 :: Γ1) ⋓ Valid (o2 :: Γ2) = Valid (o :: Γ) ->
+      (Γ1 ⋓ Γ2 = Valid Γ) * (merge_wire o1 o2 = Valid [o]).
 Proof.
-  do 4 intro; intro eq.
-  revert Γ1' Γ2'.
-  destruct eq; simpl; intros Γ1' Γ2' eq'; [ constructor | ].
-  destruct eq'; subst; [ constructor | ].
-  revert Γ0 Γ3 e0. 
-  induction e; intros Γ1' Γ2' eq'.
-  - apply equivO_trans with (Γ2 := Γ1').
-    admit.
-    apply equivO_trans with (Γ2 := Γ2').
-    constructor; auto. admit.
-  - admit.
-Admitted.
+  intros Γ Γ1 Γ2 o o1 o2 H.
+  inversion H.
+  destruct (merge_wire o1 o2) eqn:Eq1. inversion H1.
+  rewrite <- merge_merge' in H1.
+  destruct (Γ1 ⋓ Γ2) eqn:Eq2. inversion H1.
+  destruct o1, o2; simpl in Eq1. inversion Eq1.
+  - apply ctx_octx in Eq1. rewrite <- Eq1 in *.
+    simpl in H1.
+    inversion H1; subst; auto.
+  - apply ctx_octx in Eq1. rewrite <- Eq1 in *.
+    simpl in H1.
+    inversion H1; subst; auto.
+  - apply ctx_octx in Eq1. rewrite <- Eq1 in *.
+    simpl in H1.
+    inversion H1; subst; auto.
+Qed.
 
-Lemma EquivOCons : forall o Γ1 Γ2,
-      EquivO Γ1 Γ2 -> EquivO (cons_o o Γ1) (cons_o o Γ2).
-Admitted.
-
+(*
 Lemma mergeO_merge : forall Γ1 Γ1' Γ2 Γ2' Γ Γ',
   MergeO Γ1 Γ2 Γ -> MergeO Γ1' Γ2' Γ' ->
   MergeO (Γ1 ⋓ Γ1') (Γ2 ⋓ Γ2') (Γ ⋓ Γ').
 Admitted.
-
-
+*)
 
 Fixpoint lookup (Γ : Ctx) (x : nat) : option WType :=
   match Γ,x with
@@ -595,6 +449,7 @@ Fixpoint lookup (Γ : Ctx) (x : nat) : option WType :=
   | (_::Γ), S x => lookup Γ x
   | _,      _   => None
   end.
+
 Definition lookupO (Γ : OCtx) (x : nat) : option WType :=
   match Γ with
   | Valid Γ' => lookup Γ' x
