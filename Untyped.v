@@ -1,3 +1,11 @@
+Require Import Arith.
+Require Import List.
+Import ListNotations.
+Open Scope list_scope.
+Require Import Program.
+Require Import Contexts.
+Require Import Patterns.
+
 Inductive Gate : Set := 
   | H | σx | σy | σz | CNot 
   | init0 | init1 | new0 | new1 | meas | discard
@@ -46,135 +54,195 @@ Delimit Scope circ_scope with circ.
 
 (* Lift notation? *)
 
-
-Inductive WF_Circuit : Ctx -> Circuit -> WType -> Set :=
+Inductive WF_Circuit : OCtx -> Circuit -> WType -> Set :=
 | wf_output : forall ctx p w, WF_Pat ctx p w -> WF_Circuit ctx (output p) w
 | wf_gate   : forall ctx ctx1 ctx2 ctx1' ctx2' g p1 p2 c w1 w2 w,
-              MergeCtx ctx1 ctx ctx1'
-           -> MergeCtx ctx2 ctx ctx2'
+              MergeO ctx1 ctx ctx1'
+           -> MergeO ctx2 ctx ctx2'
            -> GateWType g w1 w2
            -> WF_Pat ctx1 p1 w1
            -> WF_Pat ctx2 p2 w2
            -> WF_Circuit ctx2' c w
            -> WF_Circuit ctx1' (gate g p1 p2 c) w
 | wf_lift   : forall ctx1 ctx2 ctx p w w' f,
-              MergeCtx ctx1 ctx2 ctx
+              MergeO ctx1 ctx2 ctx
            -> WF_Pat ctx1 p w
            -> (forall (x:interpret w), WF_Circuit ctx2 (f x) w')
            -> WF_Circuit ctx (lift p f) w'
 .
 
-
-
-
-
-
-
-Fixpoint subst σ (c : Circuit) : Circuit :=
-  match c with
-  | output p0 => output (subst_pat σ p0)
-  | gate g p1 p2 c' => gate g (subst_pat σ p1) p2 (subst σ c') 
-  | lift p0 f => lift (subst_pat σ p0) (fun x => subst σ (f x))
-  end.
-
-Inductive eq_pat : Pat -> Pat -> Set :=
-| eq_var : forall x, eq_pat (var x) (var x)
-| eq_unit : eq_pat unit unit
-| eq_pair : forall {p1 p2 p1' p2'},
-            eq_pat p1 p1' -> eq_pat p2 p2' -> eq_pat (p1,p2) (p1',p2')
-.
-Inductive eq_option : option Pat -> option Pat -> Set :=
-| eq_None : eq_option None None
-| eq_Some : forall {a1 a2}, eq_pat a1 a2 -> eq_option (Some a1) (Some a2)
-.
-Definition consistent_subst (σ : Substitution) w W : Set := 
-    {p0 : Pat & { Ω : Ctx & Datatypes.prod (eq_option (σ w) (Some p0)) 
-                                           (WF_Pat Ω p0 W) }}.
-
-Definition shift_down {a} (σ : Var -> a) (x : Var) : a := σ (x+1).
-
-
-(*    forall w W, index Ω w = Some W -> consistent_subst pf w W. *)
-Inductive consistent_ctx (σ : Substitution) : Ctx -> Set :=
-| consistent_nil  : consistent_ctx σ []
-| consistent_None : forall {Ω}, consistent_ctx (shift_down σ) Ω 
-                 -> consistent_ctx σ (None :: Ω)
-| consistent_Some : forall {W Ω}, 
-                    consistent_subst σ 0 W
-                 -> consistent_ctx (shift_down σ) Ω
-                 -> consistent_ctx σ (Some W :: Ω)
+Definition Consistent_Pat (σ : Substitution) (p : Pat) (W : WType) :=
+  Consistent_Ctx σ (get_ctx p W).
+Inductive Fresh_Pat (σ : Substitution) : Pat -> Set :=
+| Fresh_Var : forall x, σ x = None -> Fresh_Pat σ (var x)
+| Fresh_Unit : Fresh_Pat σ unit
+| Fresh_Pair : forall p1 p2, Fresh_Pat σ p1 -> Fresh_Pat σ p2 -> Fresh_Pat σ (p1,p2)
 .
 
-Fixpoint subst_ctx {σ} {Ω : Ctx} (pf : consistent_ctx σ Ω) : Ctx :=
-  match pf with
-  | consistent_nil _ => []
-  | consistent_None _ pf'   => None :: subst_ctx pf'
-  | consistent_Some _ (existT _ p (existT _ Ω _)) pf' => Ω ++ subst_ctx pf'
-  end.
-
-Open Scope default_scope.
-Lemma consistent_merge1 : forall σ Γ1 Γ2 Γ, MergeCtx Γ1 Γ2 Γ -> consistent_ctx σ Γ
-                     -> consistent_ctx σ Γ1.
-Admitted.
-Lemma consistent_merge2 : forall σ Γ1 Γ2 Γ, MergeCtx Γ1 Γ2 Γ -> consistent_ctx σ Γ
-                     -> consistent_ctx σ Γ2.
-Admitted.
-Lemma consistent_merge  : forall σ Γ1 Γ2 Γ
-                          (pf : consistent_ctx σ Γ)
-                          (pf1 : consistent_ctx σ Γ1)
-                          (pf2 : consistent_ctx σ Γ2),
-               MergeCtx Γ1 Γ2 Γ 
-            -> MergeCtx (subst_ctx pf1) (subst_ctx pf2) (subst_ctx pf).
-Admitted.
-Close Scope default_scope.
-
-
-Lemma consistent_var : forall σ Ω (pf : consistent_ctx σ Ω) x w,
-      SingletonCtx x w Ω
-   -> WF_Pat (subst_ctx pf) (subst_pat σ (var x)) w.
+Lemma get_ctx_WF : forall p W Γ, get_ctx p W = Valid Γ -> WF_Pat (get_ctx p W) p W.
 Proof.
-  intros σ Ω pf x w pfS; revert σ pf. induction pfS; intros σ pf; simpl.
-  - inversion pf; subst. unfold consistent_subst in H2.
-    destruct H2 as [p [Ω [H4 H5]]].
-    inversion H4; subst. admit.
-  - inversion pf; subst.
-    specialize IHpfS with (shift_down σ) H1.
-    simpl in IHpfS.
-    unfold shift_down in *.
-    admit.
-Admitted.
-
-Lemma wf_subst_pat : forall Ω p W,
-                     WF_Pat Ω p W
-                  -> forall σ {pf : consistent_ctx σ Ω},
-                     WF_Pat (subst_ctx pf) (subst_pat σ p) W.
-Proof.
-  induction 1; intros σ pf; simpl.
-  - apply consistent_var; auto.
-  - revert e; destruct pf; inversion 1. simpl. constructor. constructor.
-  - eapply wf_pair; [ | apply IHWF_Pat1 | apply IHWF_Pat2]; auto.
-    eapply consistent_merge; auto.
-    Unshelve. eapply consistent_merge1; eauto.
-    Unshelve. eapply consistent_merge2; eauto.
+  induction p; intros W Γ H.
+  - inversion H. apply wf_var. apply singleton_singleton.
+  - destruct W; inversion H. apply wf_unit. constructor.
+  - destruct W as [ | | | W1 W2]; inversion H.
+    remember (get_ctx p1 W1) as Γ1.
+    remember (get_ctx p2 W2) as Γ2.
+    destruct Γ1 as [ | Γ1]; inversion H1.
+    destruct Γ2 as [ | Γ2]; inversion H2.
+    econstructor.
+    * apply mergeO_merge'.
+    * fold get_ctx. eapply IHp1; eauto.
+    * fold get_ctx. eapply IHp2; eauto.
 Qed.
+
+
+(*
+Lemma fresh_singleton_consistent : forall x W Γ,
+      SingletonCtx x W Γ -> forall σ,
+      σ x = None ->
+      Consistent_Ctx σ Γ.
+Proof.
+  induction 1; intros σ eq; simpl.
+  - Print Consistent_Ctx.
+  -
+Admitted.
+
+Lemma fresh_consistent : forall σ p,
+      Fresh_Pat σ p -> forall W,
+      WF_Pat (get_ctx p W) p W ->
+      Consistent_Ctx σ (get_ctx p W).
+Proof.
+  induction 1; simpl in *; intros W wf_p.
+  - eapply fresh_singleton_consistent; eauto.
+    apply singleton_singleton.
+  - destruct W; inversion wf_p.
+    constructor.
+  - destruct W as [ | | | W1 W2]; inversion wf_p; subst.
+    remember (get_ctx p1 W1 ⋓ get_ctx p2 W2) as Γ.
+    destruct Γ as [ | Γ].
+    * assert False.
+        eapply wf_pat_not_invalid; eauto.
+      contradiction.
+    * eapply consistent_merge; eauto.
+      + apply IHFresh_Pat1; auto.
+        eapply wf_pat_equiv; eauto.
+        apply wf_pat_unique; auto.
+      + apply IHFresh_Pat2; auto.
+        eapply wf_pat_equiv; eauto.
+        apply wf_pat_unique; auto.
+Qed.
+*)
+
+Inductive Consistent_Circ : Substitution -> Circuit -> WType -> Set :=
+| consistent_output : forall σ p W, 
+    Consistent_Pat σ p W -> Consistent_Circ σ (output p) W
+| consistent_gate : forall g W1 W2 p1 p2 c σ W,
+    GateWType g W1 W2 ->
+    Consistent_Pat σ p1 W1 -> 
+    Fresh_Pat σ p2 ->
+    Consistent_Circ σ c W ->
+    Consistent_Circ σ (gate g p1 p2 c) W
+| consistent_lift : forall σ p W f W',
+    Consistent_Pat σ p W ->
+    (forall (x : interpret W), Consistent_Circ σ (f x) W') ->
+    Consistent_Circ σ (lift p f) W'
+.
+
+Fixpoint subst (σ : Substitution) (c : Circuit) : Circuit :=
+  match c with
+  | output p0 => output (subst_pat' σ p0)
+  | gate g p1 p2 c' => gate g (subst_pat' σ p1) p2 (subst σ (c'))
+  | lift p0 f => lift (subst_pat' σ p0) (fun x => subst σ (f x))
+  end.
+
+(*
+Inductive Consistent_Pat : option Pat -> WType -> Set :=
+| Consistent_Pat_None : forall W, Consistent_Pat None W
+| Consistent_Pat_Some : forall p W,
+    WF_Pat (get_ctx p W) p W ->
+    Consistent_Pat (Some p) W.
+
+Inductive Consistent_Ctx : Substitution -> OCtx -> Set :=
+(*| Consistent_Invalid : forall σ, Consistent_Ctx σ Invalid*)
+| Consistent_Nil  : forall σ, Consistent_Ctx σ ∅
+| Consistent_None : forall σ Γ,
+                    Consistent_Ctx (shift σ) (Valid Γ) -> 
+                    Consistent_Ctx σ (Valid (None :: Γ))
+| Consistent_Some : forall σ W (Γ : Ctx),
+                    Consistent_Pat (σ 0) W ->
+                    Consistent_Ctx (shift σ) (Valid Γ) ->
+                    Consistent_Ctx σ (Valid (Some W :: Γ))
+.
+*)
+
+
+
+Lemma consistent_circ_ctx : forall Γ c W σ,
+      WF_Circuit Γ c W ->
+      Consistent_Circ σ c W ->
+      Consistent_Ctx σ Γ.
+Admitted.
+
+Lemma fresh_subst : forall Γ p W,
+    WF_Pat Γ p W -> forall σ,
+    Fresh_Pat σ p ->
+    subst_ctx' σ Γ = Γ.
+Admitted.
+
+Lemma consistent_subst : forall Γ c W,
+      WF_Circuit Γ c W -> forall σ,
+      Consistent_Circ σ c W ->
+      WF_Circuit (subst_ctx' σ Γ) (subst σ c) W.
+Proof.
+  intros Γ c W wf_c σ consistent_c.
+  assert (consistent_Γ : Consistent_Ctx σ Γ).
+    eapply consistent_circ_ctx; eauto.
+  revert σ consistent_c consistent_Γ.
+  induction wf_c; intros σ consistent_c consistent_Γ; simpl.
+  - constructor. apply wf_subst_pat; auto.
+  - assert (consistent : Consistent_Ctx σ ctx1 * Consistent_Ctx σ ctx).
+      eapply consistentO_split; eauto.
+    destruct consistent as [consistent1 consistent].
+    eapply wf_gate with (w1 := w1) (w2 := w2);
+      [ | | auto | apply wf_subst_pat; eauto | eauto | ].
+    * apply subst_OCtx_split; eauto.
+    * inversion consistent_c; subst.
+      assert (consistent2' : Consistent_Ctx σ ctx2').
+        
+      rewrite <- fresh_subst with (Γ := ctx2) (σ := σ) (p := p2) (W := w2); auto.
+      apply subst_OCtx_split; eauto.
+      +
+      +
+    *
+  -
 
 Lemma wf_subst : forall Ω c W,
                  WF_Circuit Ω c W
-              -> forall σ (pf : consistent_ctx σ Ω),
-                 WF_Circuit (subst_ctx pf) (subst σ c) W.
+              -> forall σ,
+                 Consistent_Ctx σ Ω -> 
+                 WF_Circuit (subst_ctx' σ Ω) (subst σ c) W.
 Proof.
   induction 1 as [Ω p W | |]; intros σ pf; simpl.
-  - constructor. apply wf_subst_pat. auto.
-  - eapply wf_gate with (w1 := w1) (w2 := w2); auto.
-    Focus 3. apply wf_subst_pat. exact w0.
-    Focus 3. exact w3.
-    * apply consistent_merge. exact m.
+  - constructor. apply wf_subst_pat; auto.
+  - assert (consistent : Consistent_Ctx σ ctx1 * Consistent_Ctx σ ctx).
+      eapply consistentO_split; eauto.
+    (* The admits below depend on the fact that ctx2 is fresh for σ? 
+       i.e. we need capture avoiding substitution *)
+    destruct consistent as [consistent1 consistent].
+    eapply wf_gate with (w1 := w1) (w2 := w2); auto.
+    Focus 3. apply wf_subst_pat; eauto. 
+    Focus 3. eauto. 
+    * apply subst_OCtx_split; eauto.
     * admit.
-  - eapply wf_lift. 
-    Focus 2. apply wf_subst_pat. exact w0.
-    Focus 2. intro x. apply H0. apply consistent_merge. auto.
+    * apply IHWF_Circuit. admit.
+  - assert (consistent : Consistent_Ctx σ ctx1 * Consistent_Ctx σ ctx2).
+      eapply consistentO_split; eauto.
+    destruct consistent as [consistent1 consistent2].
+    eapply wf_lift. 
+    * apply subst_OCtx_split; eauto.
+    * apply wf_subst_pat; auto.
+    * intro x. apply H0; auto.
 Admitted.
-
 
 
 Inductive Boxed_Circ : WType -> WType -> Set := 
