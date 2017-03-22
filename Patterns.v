@@ -248,8 +248,11 @@ Definition subst_ctx_O (σ : Substitution) (Γ : OCtx) : OCtx :=
   | Valid Γ => subst_ctx σ Γ
   end.
 
+
 Lemma consistent_valid : forall σ Γ Γ',
       Consistent_Ctx σ Γ Γ' -> subst_ctx σ Γ = Valid Γ'.
+Admitted. 
+(*
 Proof.
   intros σ Γ Γ' H.
   induction H; auto.
@@ -260,14 +263,15 @@ Proof.
     destruct Γ' as [ | Γ']; auto.
   * simpl. rewrite merge_nil_l in *. rewrite <- e. auto.
   * simpl. rewrite <- H0. rewrite H1. rewrite IHConsistent_Ctx. auto.
-Qed.
+Qed. *)
 
 Lemma consistent_ctx_correct : forall σ Γ Γ',
       Consistent_Ctx σ Γ Γ' ->
       forall x p W, σ x = Some p -> 
                     lookup Γ x = Some W -> 
                     WF_Pat (get_ctx p W) p W.
-Proof.
+Admitted.
+(* Proof.
   induction 1; intros x p' W' eq_σ eq_Γ; [inversion eq_Γ | ].
   remember (σ 0) as p0.
   inversion c; subst.
@@ -289,28 +293,7 @@ Proof.
       rewrite <- H0 in H1; auto.
     * eapply IHConsistent_Ctx; [ | eauto].
       unfold shift; rewrite eq_σ; auto.
-Qed.
-
-(*
-  - inversion eq_Γ.
-  - destruct x; [ inversion eq_Γ | ].
-    simpl in eq_Γ.
-    eapply IHConsistent_Ctx; eauto.
-    unfold shift. rewrite eq_σ. auto.
-  - destruct x.
-    * inversion eq_Γ; subst.
-      rewrite e in eq_σ. inversion eq_σ; subst.
-    * simpl in eq_Γ.
-      eapply IHConsistent_Ctx; eauto.
-      unfold shift. rewrite eq_σ. auto.
-  - destruct x.
-    * inversion eq_Γ; subst.
-      rewrite e in eq_σ. inversion eq_σ; subst.
-      rewrite e0; auto.
-    * simpl in eq_Γ.
-      eapply IHConsistent_Ctx; eauto.
-      unfold shift. rewrite eq_σ. auto.
-Qed.*)
+Qed. *)
 
 Definition Consistent_Ctx' σ Γ := {Γ' : Ctx & Consistent_Ctx σ Γ Γ'}.
 
@@ -325,7 +308,8 @@ Lemma subst_ctx_split : forall (Γ Γ1 Γ2 : Ctx),
       Consistent_Ctx σ Γ1 Γ1' ->
       Consistent_Ctx σ Γ2 Γ2' ->
        Valid Γ' = Γ1' ⋓ Γ2'.
-Proof. 
+Admitted.
+(* Proof. 
   induction Γ as [|o Γ IHΓ] ; intros Γ1 Γ2 M σ Γ' Γ1' Γ2' C C1 C2.
   + inversion C; subst.
     destruct Γ1 as [ | o1 Γ1]; destruct Γ2 as [ | o2 Γ2]; try (inversion M; fail).
@@ -544,6 +528,7 @@ Proof.
   - edestruct singleton_consistent_lookup as [p pf]; eauto.
     rewrite pf in *. inversion Eq.
 Qed.
+*)
 
 (*
 Lemma consistent_valid : forall σ Ω, Consistent_Ctx σ Ω ->
@@ -562,10 +547,11 @@ Proof.
 *)
 
 Lemma wf_subst_pat : forall Ω p0 W, WF_Pat (Valid Ω) p0 W
-                  -> forall σ,
-                     Consistent_Ctx σ Ω ->
-                     WF_Pat (subst_ctx σ Ω) (subst_pat' σ p0) W.
-Proof.
+                  -> forall σ Ω',
+                     Consistent_Ctx σ Ω Ω'->
+                     WF_Pat Ω' (subst_pat' σ p0) W.
+Admitted.
+(*Proof.
   intros Ω p W WF.
   remember (Valid Ω) as Ω' eqn:Eq.
   revert Eq. 
@@ -619,7 +605,6 @@ econstructor; eauto.
     apply subst_OCtx_split; auto.
 Qed.
 
-
   induction 1; intros σ consistent.
   - apply consistent_singleton; auto. 
   - simpl. apply wf_pat_equiv with (Γ1 := ∅); try (constructor; constructor).
@@ -633,3 +618,4 @@ Qed.
     apply subst_OCtx_split; auto.
 Qed.
 
+*)
