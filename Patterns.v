@@ -251,8 +251,6 @@ Definition subst_ctx_O (σ : Substitution) (Γ : OCtx) : OCtx :=
 
 Lemma consistent_valid : forall σ Γ Γ',
       Consistent_Ctx σ Γ Γ' -> subst_ctx σ Γ = Valid Γ'.
-Admitted. 
-(*
 Proof.
   intros σ Γ Γ' H.
   induction H; auto.
@@ -261,17 +259,15 @@ Proof.
   * simpl. rewrite <- H1. rewrite <- e.
     rewrite IHConsistent_Ctx.
     destruct Γ' as [ | Γ']; auto.
-  * simpl. rewrite merge_nil_l in *. rewrite <- e. auto.
   * simpl. rewrite <- H0. rewrite H1. rewrite IHConsistent_Ctx. auto.
-Qed. *)
+Qed.
 
 Lemma consistent_ctx_correct : forall σ Γ Γ',
       Consistent_Ctx σ Γ Γ' ->
       forall x p W, σ x = Some p -> 
                     lookup Γ x = Some W -> 
                     WF_Pat (get_ctx p W) p W.
-Admitted.
-(* Proof.
+Proof.
   induction 1; intros x p' W' eq_σ eq_Γ; [inversion eq_Γ | ].
   remember (σ 0) as p0.
   inversion c; subst.
@@ -283,23 +279,40 @@ Admitted.
     * rewrite eq_σ in H0; inversion H0.
     * eapply IHConsistent_Ctx; [ | eauto].
       unfold shift; rewrite eq_σ; auto.
-  - destruct x as [ | x]; [inversion eq_Γ | ].
-    simpl in eq_Γ.
-    eapply IHConsistent_Ctx; [ | eauto].
-    unfold shift; rewrite eq_σ; auto.
   - destruct x as [ | x]; simpl in eq_Γ.
     * inversion eq_Γ; subst.
       rewrite eq_σ in H2; inversion H2; subst.
       rewrite <- H0 in H1; auto.
     * eapply IHConsistent_Ctx; [ | eauto].
       unfold shift; rewrite eq_σ; auto.
-Qed. *)
+Qed.
 
 Definition Consistent_Ctx' σ Γ := {Γ' : Ctx & Consistent_Ctx σ Γ Γ'}.
 
+Lemma consistent_pat_unique : forall σ p Γ1 Γ2, Consistent_Pat σ p Γ1 ->
+                                         Consistent_Pat σ p Γ2 ->
+                                         Γ1 = Γ2.
+
 Lemma consistent_ctx_unique : forall σ (Γ Γ1 Γ2 : Ctx),
       Consistent_Ctx σ Γ Γ1 -> Consistent_Ctx σ Γ Γ2 -> Γ1 = Γ2.
-Admitted.
+Proof.
+  intros σ Γ Γ1 Γ2 C.
+  revert Γ2.
+  induction C; intros Γ2 H.
+  + inversion H; reflexivity.
+  + apply ctx_octx. rewrite <- e.
+    inversion H; subst.
+    rewrite <- H6.
+    inversion c; subst.
+    
+
+    inversion c; subst; auto.
+    simpl in *.
+    rewrite (IHC.
+
+    
+
+    rewrite 
 
 Lemma subst_ctx_split : forall (Γ Γ1 Γ2 : Ctx),
       Valid Γ = Γ1 ⋓ Γ2 ->
