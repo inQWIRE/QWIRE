@@ -16,14 +16,13 @@ Inductive sigT23 (A:Type) (P Q R : A -> A -> Type) : Type :=
 Arguments existT23 {A} {P Q R} x y p1 p2 M.
 
 Program Definition wproj {Γ W1 W2} (p : Pat Γ (Tensor W1 W2)) : 
-  sigT23 OCtx (fun x y => Pat x W1) (fun x y => Pat y W2) (fun x y => Γ = x ⋓ y) :=
+  sigT23 Ctx (fun x y => Pat x W1) (fun x y => Pat y W2) (fun x y => Valid Γ = x ⋓ y) :=
   match p with 
   | unit => _
   | qubit _ _ _ => _
   | bit _ _ _ => _
   | pair Γ1 Γ2 Γ W1 W2 M p1 p2 => existT23 Γ1 Γ2 p1 p2 M  
   end.
-
 
 (*** Typechecking Tactic ***)
 
@@ -45,12 +44,63 @@ Ltac has_evars term :=
     | ?Γ1 ⋓ ?Γ2      => has_evars Γ2
   end.
 
+Ltac strict_rewrite Γ Eq :=
+  match goal with
+  | [H : context[Valid Γ ⋓ _] |- _ ] => rewrite Eq in H
+  | [H : context[_ ⋓ Valid Γ] |- _ ] => rewrite Eq in H
+  | [H : context[_ = Valid Γ] |- _ ] => rewrite Eq in H
+  | [|- context[Valid Γ]]        => rewrite Eq  
+  end.
+
+Ltac osubst :=
+  repeat match goal with
+  | [ Eq : Valid ?Γ = ?Γ' |- _] => strict_rewrite Γ Eq (* ; clear Eq *)
+  end.
+
+
+(* Rewrite only in goal
+Ltac osubst :=
+  repeat match goal with
+  | [ Eq : Valid ?Γ = ?Γ' |- context[Valid ?Γ]] => rewrite Eq (* ; clear Eq *)
+  end.
+*)
+
+(*
+Ltac osubst :=
+  repeat match goal with
+  | [ Eq : Valid ?Γ = ?Γ' |- _] => rewrite Eq in *
+  end.
+*)
+
+(*
+Ltac osubst :=
+  repeat match goal with
+  | [ H : Valid ?Γ = _ ⋓ _ |- _] => let Γ' := fresh "Γ" in
+                                  let eq := fresh "eq" in
+                                  remember (Valid Γ) as Γ' eqn:eq; clear eq; subst
+  end.
+*)
+
+
+Lemma test_osubst : forall Γ1 Γ, Valid Γ1 = Γ -> Γ = Valid Γ1.
+Proof.
+  intros Γ1 Γ H.
+  osubst.
+  reflexivity.
+Qed.
+
 Ltac type_check_once := 
   intros;
-  compute in *;
-  subst;
+  compute in *; 
+  try (apply -> ctx_octx);
+  subst; osubst;
   repeat match goal with 
-  | [ p : Pat _ One |- _ ] => inversion p; subst; clear p
+  | [ p : Pat _ One |- _ ]         => inversion p; subst; clear p
+  (* new and quite possibly dangerous *)  
+  | [ H : ?Γ = _  |- ?Γ = _ ]  => exact H 
+  | [ H : _ = ?Γ  |- _ = ?Γ ]  => exact H 
+  | [ H : ?Γ = _  |- _ = ?Γ ]  => symmetry; exact H  
+  | [ H : _ = ?Γ  |- ?Γ = _ ]  => symmetry; exact H  
   end; 
   (* Runs monoid iff a single evar appears in context *)
   match goal with
@@ -66,10 +116,12 @@ Ltac type_check_num :=
 
 (* Easiest solution *)
 
-Ltac type_check := let n := numgoals in do n [> type_check_once..].  
+Ltac type_check := let n := numgoals in do n [> type_check_once..].
 
 
 (*** Paper Examples ***)
+
+Set Printing Coercions.
 
 Tactic Notation (at level 0) "make_circ" uconstr(C) := refine C; type_check.
 Tactic Notation (at level 0) "box'" uconstr(C) := refine (box (fun _ => C)); type_check.
@@ -86,7 +138,7 @@ Notation bind' p1 p2 p C := (let 'existT23 _ _ p1 p2 _ := wproj p in C).
 Notation "p1 & p2 <-- p ;; C" := (bind' p1 p2 p C) (at level 10). 
 
 (* Future work:
-Notation gate' g p1 p2 c := (gate _ _ g p1 (fun _ _ _ z => match z with
+Notation gate' g p1 p2 c := (gate _ _ g p1 (fun _ _ _ z => match z (* w2? *) with
                                                         | p2 => c
                                                         end)). *)
 
@@ -98,11 +150,11 @@ Definition hadamard_measure : Box Qubit Bit.
   box' (fun q => 
    gate' H q q
   (gate' meas q b
-  (output' b))). 
+  (output' b))).
 Defined.
 
 Definition inSeq {W1 W2 W3} (c1 : Box W1 W2) (c2 : Box W2 W3) : Box W1 W3. 
-  box' (fun p1 => comp' p2 (unbox' c1 p1) (unbox' c2 p2)). 
+  box' (fun p1 => comp' p2 (unbox' c1 p1) (unbox' c2 p2)).
 Defined.
 
 Definition inPar {W1 W2 W1' W2'} (c1 : Box W1 W1') (c2 : Box W2 W2') : 
@@ -112,7 +164,7 @@ Definition inPar {W1 W2 W1' W2'} (c1 : Box W1 W1') (c2 : Box W2 W2') :
    (comp' p1' (unbox' c1 p1)
               (comp' p2' (unbox' c2 p2) (output' (p1'⊕p2'))))).
 Defined.
-   
+
 Definition init (b : bool) : Box One Qubit.
   make_circ (if b then (box (fun Γ p1 => gate' init1 p1 p2 (output' p2)))
                   else (box (fun Γ p1 => gate' init0 p1 p2 (output' p2)))).
@@ -125,6 +177,24 @@ Definition bell00 : Box One (Qubit ⊗ Qubit).
   (gate' H a a
   (gate' CNOT (a ⊕ b) ab
   (output' ab)))))).
+
+(*
+  (* inversion p1. subst. rewrite merge_nil_l. reflexivity. *)
+  type_check_once.
+  
+(*  rewrite merge_nil_l. reflexivity. *)
+  type_check_once.
+
+(*  osubst. monoid. *)
+  type_check_once.
+
+  Focus 3. type_check_once.
+
+  monoid. (* using osubst will make this unsolvable *)
+
+  type_check_once.
+*)
+
 Defined.
 
 Definition alice : Box (Qubit⊗Qubit) (Bit⊗Bit).
@@ -143,6 +213,24 @@ Definition bob' : Box (Bit⊗(Bit⊗Qubit)) Qubit.
   (gate' discard y u   
   (x&b <-- xb ;; (gate' discard x u'
   (output' b))))))))).
+
+(*
+symmetry in e0.
+rewrite <- merge_assoc in e0.
+apply merge_valid in e0 as [_ [Γ]].
+apply e0.
+
+
+Check projT1 (snd (merge_valid _ _ _ e0)).
+instantiate (1 := projT1 (snd (merge_valid _ _ _ e0))).
+
+instantiate (1 := let x := c in x).
+
+instantiate (1 := (let Γ := projT1 (snd (merge_valid _ _ _ e0)) in Γ)).
+
+apply (projT2 (snd (merge_valid _ _ _ e0))).
+*)
+
 Defined.
 
 Definition bob : Box (Bit⊗Bit⊗Qubit) Qubit.
