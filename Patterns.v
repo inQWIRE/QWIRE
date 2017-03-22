@@ -214,12 +214,12 @@ Qed.
 
 
 Inductive Consistent_Pat : option Pat -> option WType -> Ctx -> Set :=
-| Consistent_None_None : Consistent_Pat None None []
-| Consistent_None_Some : forall W, Consistent_Pat None (Some W) [Some W]
-| Consistent_Some_None : forall p, Consistent_Pat (Some p) None []
-| Consistent_Some_Some : forall W p Γ, 
-    get_ctx p W = Valid Γ -> WF_Pat Γ p W -> 
-    Consistent_Pat (Some p) (Some W) Γ
+| Consistent_No_WType : forall (p : option Pat), Consistent_Pat p None []
+| Consistent_No_Pat   : forall W, Consistent_Pat None (Some W) [Some W]
+| Consistent_Some     : forall W p Γ, 
+                        get_ctx p W = Valid Γ -> 
+                        WF_Pat Γ p W -> 
+                        Consistent_Pat (Some p) (Some W) Γ
 .
 Inductive Consistent_Ctx : Substitution -> Ctx -> Ctx -> Set :=
 | Consistent_Nil  : forall σ, Consistent_Ctx σ [] []
@@ -230,25 +230,6 @@ Inductive Consistent_Ctx : Substitution -> Ctx -> Ctx -> Set :=
                     Consistent_Ctx σ (w :: Γ) Γ0'
 .
 
-(* 
-Inductive Consistent_Ctx : Substitution -> Ctx -> Ctx -> Set :=
-| Consistent_Nil  : forall σ, Consistent_Ctx σ [] []
-| Consistent_Γ_None : forall σ Γ Γ',
-                    Consistent_Ctx (shift σ) Γ Γ' -> 
-                    Consistent_Ctx σ (None :: Γ) Γ'
-| Consistent_σ_None : forall σ Γ Γ' Γ'' (W : WType),
-                      σ 0 = None ->
-                      Consistent_Ctx (shift σ) Γ Γ' ->
-                      Valid [Some W] ⋓ Γ' = Valid Γ'' ->
-                      Consistent_Ctx σ (Some W :: Γ) Γ''
-| Consistent_Some : forall σ Γ Γ' p W Γ_p Γ_p',
-                    σ 0 = Some p ->
-                    Consistent_Ctx (shift σ) Γ Γ' ->
-                    get_ctx p W = Valid Γ_p ->
-                    WF_Pat Γ_p p W ->
-                    Γ' ⋓ Γ_p = Valid Γ_p' ->
-                    Consistent_Ctx σ (Some W :: Γ) Γ_p'.
-*)
 
 (* Previously lower down. Can move later. *)
 (* (cons_o None (get_ctx p W)) = (get_ctx (shift_pat p) W). *)
