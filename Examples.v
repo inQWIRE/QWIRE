@@ -16,14 +16,21 @@ Inductive sigT23 (A:Type) (P Q R : A -> A -> Type) : Type :=
 Arguments existT23 {A} {P Q R} x y p1 p2 M.
 
 Program Definition wproj {Γ W1 W2} (p : Pat Γ (Tensor W1 W2)) : 
-  sigT23 Ctx (fun x y => Pat x W1) (fun x y => Pat y W2) (fun x y => Valid Γ = x ⋓ y) :=
+  sigT23 OCtx (fun x y => Pat x W1) (fun x y => Pat y W2) (fun x y => Γ = x ⋓ y) :=
   match p with 
   | unit => _
   | qubit _ _ _ => _
   | bit _ _ _ => _
-  | pair Γ1 Γ2 Γ W1 W2 M p1 p2 => existT23 Γ1 Γ2 p1 p2 M  
+  | pair Γ1 Γ2 Γ W1 W2 v M p1 p2 => existT23 Γ1 Γ2 p1 p2 M  
   end.
 
+(** More Validity Lemmas **)
+
+Lemma valid_empty : valid ∅. Proof. unfold valid; eauto. Qed.
+
+Lemma pat_ctx_valid : forall Γ W, Pat Γ W -> valid Γ.
+Proof. intros Γ W p. unfold valid. inversion p; eauto. Qed.
+ 
 (*** Typechecking Tactic ***)
 
 Open Scope circ_scope.
@@ -32,6 +39,7 @@ Open Scope circ_scope.
 Opaque merge.
 Opaque wproj.
 Opaque Ctx.
+Opaque valid.
 
 (* Local check for multiple evars *)
 Ltac has_evars term := 
@@ -44,67 +52,32 @@ Ltac has_evars term :=
     | ?Γ1 ⋓ ?Γ2      => has_evars Γ2
   end.
 
-Ltac strict_rewrite Γ Eq :=
-  match goal with
-  | [H : context[Valid Γ ⋓ _] |- _ ] => rewrite Eq in H
-  | [H : context[_ ⋓ Valid Γ] |- _ ] => rewrite Eq in H
-  | [H : context[_ = Valid Γ] |- _ ] => rewrite Eq in H
-  | [|- context[Valid Γ]]        => rewrite Eq  
-  end.
-
-Ltac osubst :=
+Ltac validate :=
   repeat match goal with
-  | [ Eq : Valid ?Γ = ?Γ' |- _] => strict_rewrite Γ Eq (* ; clear Eq *)
-  end.
-
-
-(* Rewrite only in goal
-Ltac osubst :=
-  repeat match goal with
-  | [ Eq : Valid ?Γ = ?Γ' |- context[Valid ?Γ]] => rewrite Eq (* ; clear Eq *)
-  end.
-*)
-
-(*
-Ltac osubst :=
-  repeat match goal with
-  | [ Eq : Valid ?Γ = ?Γ' |- _] => rewrite Eq in *
-  end.
-*)
-
-(*
-Ltac osubst :=
-  repeat match goal with
-  | [ H : Valid ?Γ = _ ⋓ _ |- _] => let Γ' := fresh "Γ" in
-                                  let eq := fresh "eq" in
-                                  remember (Valid Γ) as Γ' eqn:eq; clear eq; subst
-  end.
-*)
-
-
-Lemma test_osubst : forall Γ1 Γ, Valid Γ1 = Γ -> Γ = Valid Γ1.
-Proof.
-  intros Γ1 Γ H.
-  osubst.
-  reflexivity.
-Qed.
+  | [p : Pat ?Γ ?W |- _ ]       => apply pat_ctx_valid in p
+  | [|- valid ∅ ]               => apply valid_empty
+  | [H : valid ?Γ |- valid ?Γ ] => exact H
+  | [H: valid (?Γ1 ⋓ ?Γ2) |- valid (?Γ2 ⋓ ?Γ1) ] => rewrite merge_comm;
+                                                   exact H
+  (* Reduce hypothesis to binary disjointness *)
+  | [H: valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) |- _ ] => rewrite merge_assoc in H
+  | [H: valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) |- _ ]   => apply valid_split in H as [? [? ?]]
+  (* Reduce goal to binary disjointness *)
+  | [|- valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) ] => rewrite merge_assoc
+  | [|- valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) ]   => apply valid_join; validate
+  end.  
 
 Ltac type_check_once := 
   intros;
   compute in *; 
-  try (apply -> ctx_octx);
-  subst; osubst;
+  subst; 
   repeat match goal with 
   | [ p : Pat _ One |- _ ]         => inversion p; subst; clear p
-  (* new and quite possibly dangerous *)  
-  | [ H : ?Γ = _  |- ?Γ = _ ]  => exact H 
-  | [ H : _ = ?Γ  |- _ = ?Γ ]  => exact H 
-  | [ H : ?Γ = _  |- _ = ?Γ ]  => symmetry; exact H  
-  | [ H : _ = ?Γ  |- ?Γ = _ ]  => symmetry; exact H  
   end; 
   (* Runs monoid iff a single evar appears in context *)
   match goal with
-  | [|- ?G ] => tryif (has_evars G) then idtac else monoid
+  | [|- ?A = ?B ] => tryif (has_evars (A = B)) then idtac else monoid
+  | [|- valid ?Γ] => tryif (has_evar Γ) then idtac else validate
   end.
 
 (* Useful for debugging *)
@@ -118,7 +91,6 @@ Ltac type_check_num :=
 
 Ltac type_check := let n := numgoals in do n [> type_check_once..].
 
-
 (*** Paper Examples ***)
 
 Set Printing Coercions.
@@ -126,12 +98,12 @@ Set Printing Coercions.
 Tactic Notation (at level 0) "make_circ" uconstr(C) := refine C; type_check.
 Tactic Notation (at level 0) "box'" uconstr(C) := refine (box (fun _ => C)); type_check.
 
-Notation "w1 ⊕ w2" := (pair _ _ _ _ _ _ w1 w2) (at level 10) : circ_scope.
+Notation "w1 ⊕ w2" := (pair _ _ _ _ _ _ _ w1 w2) (at level 10) : circ_scope.
 Notation "(())" := unit : circ_scope.
 
 Notation output' p := (output _ p). 
-Notation gate' g p1 p2 c := (gate _ _ g p1 (fun _ _ _ p2 => c)).
-Notation comp' p c1 c2 := (compose c1 _ (fun _ _ _ p => c2)).
+Notation gate' g p1 p2 c := (gate _ _ _ g p1 (fun _ _ _ _ p2 => c)).
+Notation comp' p c1 c2 := (compose c1 _ _ (fun _ _ _ _ p => c2)).
 Notation unbox' c p := (unbox c _ p).
 Notation bind' p1 p2 p C := (let 'existT23 _ _ p1 p2 _ := wproj p in C). 
 
@@ -177,24 +149,6 @@ Definition bell00 : Box One (Qubit ⊗ Qubit).
   (gate' H a a
   (gate' CNOT (a ⊕ b) ab
   (output' ab)))))).
-
-(*
-  (* inversion p1. subst. rewrite merge_nil_l. reflexivity. *)
-  type_check_once.
-  
-(*  rewrite merge_nil_l. reflexivity. *)
-  type_check_once.
-
-(*  osubst. monoid. *)
-  type_check_once.
-
-  Focus 3. type_check_once.
-
-  monoid. (* using osubst will make this unsolvable *)
-
-  type_check_once.
-*)
-
 Defined.
 
 Definition alice : Box (Qubit⊗Qubit) (Bit⊗Bit).
@@ -213,24 +167,6 @@ Definition bob' : Box (Bit⊗(Bit⊗Qubit)) Qubit.
   (gate' discard y u   
   (x&b <-- xb ;; (gate' discard x u'
   (output' b))))))))).
-
-(*
-symmetry in e0.
-rewrite <- merge_assoc in e0.
-apply merge_valid in e0 as [_ [Γ]].
-apply e0.
-
-
-Check projT1 (snd (merge_valid _ _ _ e0)).
-instantiate (1 := projT1 (snd (merge_valid _ _ _ e0))).
-
-instantiate (1 := let x := c in x).
-
-instantiate (1 := (let Γ := projT1 (snd (merge_valid _ _ _ e0)) in Γ)).
-
-apply (projT2 (snd (merge_valid _ _ _ e0))).
-*)
-
 Defined.
 
 Definition bob : Box (Bit⊗Bit⊗Qubit) Qubit.

@@ -295,6 +295,154 @@ Proof.
         reflexivity.
 Qed.
 
+Definition cons_o (o : option WType) (Γ : OCtx) : OCtx :=
+  match Γ with
+  | Invalid => Invalid
+  | Valid Γ' => Valid (o :: Γ')
+  end.
+
+Lemma cons_distr_merge : forall Γ1 Γ2,
+  cons_o None (Γ1 ⋓ Γ2) = cons_o None Γ1 ⋓ cons_o None Γ2.
+Proof. destruct Γ1; destruct Γ2; simpl; auto. Qed.
+
+Lemma merge_nil_inversion' : forall (Γ1 Γ2 : Ctx), Γ1 ⋓ Γ2 = ∅ -> (Γ1 = []) * (Γ2 = []).
+Proof.
+  induction Γ1 as [ | o Γ1]; intros Γ2; try inversion 1; auto.
+  destruct Γ2 as [ | o' Γ2]; try solve [inversion H1].
+  destruct o, o', (merge' Γ1 Γ2); inversion H1. 
+Qed.
+
+Lemma merge_nil_inversion : forall (Γ1 Γ2 : OCtx), Γ1 ⋓ Γ2 = ∅ -> (Γ1 = ∅) * (Γ2 = ∅).
+Proof.
+  intros Γ1 Γ2 eq.
+  destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try solve [inversion eq].
+  apply merge_nil_inversion' in eq.
+  intuition; congruence.
+Qed.
+
+(* This is false. Needs an assumption that Γ1 ≠ ∅ ≠ Γ2 
+Lemma ctx_cons_inversion : forall Γ1 Γ2 o Γ,
+      Γ1 ⋓ Γ2 = Valid (o :: Γ) ->
+      {o1 : option WType & {o2 : option WType & {Γ1' : Ctx & {Γ2' : Ctx 
+      & (Γ1 = Valid (o1 :: Γ1')) * (Γ2 = Valid (o2 :: Γ2')) * (Γ1' ⋓ Γ2' = Valid Γ)
+        * (merge_wire o1 o2 = Valid [o])}}}}%type.
+*)
+
+Lemma ctx_cons_inversion : forall (Γ Γ1 Γ2 : Ctx) o o1 o2,
+      Valid (o1 :: Γ1) ⋓ Valid (o2 :: Γ2) = Valid (o :: Γ) ->
+      (Γ1 ⋓ Γ2 = Valid Γ) * (merge_wire o1 o2 = Valid [o]).
+Proof.
+  intros Γ Γ1 Γ2 o o1 o2 H.
+  inversion H.
+  destruct (merge_wire o1 o2) eqn:Eq1. inversion H1.
+  rewrite <- merge_merge' in H1.
+  destruct (Γ1 ⋓ Γ2) eqn:Eq2. inversion H1.
+  destruct o1, o2; simpl in Eq1. inversion Eq1.
+  - apply ctx_octx in Eq1. rewrite <- Eq1 in *.
+    simpl in H1.
+    inversion H1; subst; auto.
+  - apply ctx_octx in Eq1. rewrite <- Eq1 in *.
+    simpl in H1.
+    inversion H1; subst; auto.
+  - apply ctx_octx in Eq1. rewrite <- Eq1 in *.
+    simpl in H1.
+    inversion H1; subst; auto.
+Qed.
+
+
+
+(*** Validity ***)
+
+Definition valid (Γ : OCtx) : Prop := exists Γ', Γ = Valid Γ'.
+
+Lemma not_valid : ~ valid Invalid. Proof. intros [Γ F]; inversion F. Qed.
+
+Lemma valid_split_basic : forall Γ1 Γ2, valid (Γ1 ⋓ Γ2) -> valid Γ1 /\ valid Γ2.
+Proof.
+  intros Γ1 Γ2 V.
+  unfold valid in *.
+  destruct V as [Γ' V].
+  apply merge_valid in V as [[Γ1'] [Γ2']].
+  eauto.
+Qed. 
+
+Lemma valid_cons : forall (o1 o2 : option WType) (Γ1 Γ2 : Ctx), 
+  valid (Valid (o1 :: Γ1) ⋓ Valid (o2 :: Γ2)) <-> 
+  (valid (merge_wire o1 o2) /\ valid (Γ1 ⋓ Γ2)).
+Proof.
+  intros o1 o2 Γ1 Γ2.
+  split.
+  + intros [Γ V].
+    inversion V.
+    destruct (merge_wire o1 o2). inversion H0.
+    simpl. destruct (merge' Γ1 Γ2). inversion H0.
+    unfold valid; split; eauto.
+  + intros [[W Vo] [Γ V]].
+    simpl in *.
+    rewrite Vo, V.
+    unfold valid; eauto.
+Qed.
+
+Lemma valid_join : forall Γ1 Γ2 Γ3, valid (Γ1 ⋓ Γ2) -> valid (Γ1 ⋓ Γ3) -> valid (Γ2 ⋓ Γ3) -> 
+                               valid (Γ1 ⋓ Γ2 ⋓ Γ3).
+Proof.
+  destruct Γ1 as [|Γ1]. intros Γ2 Γ3 [Γ12 V12]; inversion V12.
+  induction Γ1 as [|o1 Γ1].
+  + intros Γ2 Γ3 V12 V13 V23. rewrite merge_nil_l. assumption. 
+  + intros Γ2 Γ3 V12 V13 V23. 
+    destruct Γ2 as [|Γ2], Γ3 as [|Γ3]; try solve [inversion V23; inversion H].
+    destruct Γ2 as [|o2 Γ2], Γ3 as [|o3 Γ3]; try (rewrite merge_nil_r in *; auto).
+    destruct o1, o2, o3; try solve [inversion V12; inversion H];
+                         try solve [inversion V13; inversion H];    
+                         try solve [inversion V23; inversion H].
+    - apply valid_cons in V12 as [_ [Γ12 V12]].
+      apply valid_cons in V13 as [_ [Γ13 V13]].
+      apply valid_cons in V23 as [_ [Γ23 V23]].
+      destruct (IHΓ1 (Valid Γ2) (Valid Γ3)) as [Γ V123]; unfold valid; eauto.
+      exists (Some w :: Γ). 
+      simpl in *. rewrite V12.
+      simpl in *. rewrite V12 in V123. simpl in V123. rewrite V123.
+      reflexivity.
+    - apply valid_cons in V12 as [_ [Γ12 V12]].
+      apply valid_cons in V13 as [_ [Γ13 V13]].
+      apply valid_cons in V23 as [_ [Γ23 V23]].
+      destruct (IHΓ1 (Valid Γ2) (Valid Γ3)) as [Γ V123]; unfold valid; eauto.
+      exists (Some w :: Γ). 
+      simpl in *. rewrite V12.
+      simpl in *. rewrite V12 in V123. simpl in V123. rewrite V123.
+      reflexivity.
+    - apply valid_cons in V12 as [_ [Γ12 V12]].
+      apply valid_cons in V13 as [_ [Γ13 V13]].
+      apply valid_cons in V23 as [_ [Γ23 V23]].
+      destruct (IHΓ1 (Valid Γ2) (Valid Γ3)) as [Γ V123]; unfold valid; eauto.
+      exists (Some w :: Γ). 
+      simpl in *. rewrite V12.
+      simpl in *. rewrite V12 in V123. simpl in V123. rewrite V123.
+      reflexivity.
+    - apply valid_cons in V12 as [_ [Γ12 V12]].
+      apply valid_cons in V13 as [_ [Γ13 V13]].
+      apply valid_cons in V23 as [_ [Γ23 V23]].
+      destruct (IHΓ1 (Valid Γ2) (Valid Γ3)) as [Γ V123]; unfold valid; eauto.
+      exists (None :: Γ). 
+      simpl in *. rewrite V12.
+      simpl in *. rewrite V12 in V123. simpl in V123. rewrite V123.
+      reflexivity.
+Qed. 
+
+Lemma valid_split : forall Γ1 Γ2 Γ3, valid (Γ1 ⋓ Γ2 ⋓ Γ3) -> 
+                                valid (Γ1 ⋓ Γ2) /\ valid (Γ1 ⋓ Γ3) /\ valid (Γ2 ⋓ Γ3).
+Proof.
+  intros Γ1 Γ2 Γ3 [Γ V].
+  unfold valid.  
+  intuition.
+  + destruct (Γ1 ⋓ Γ2); [inversion V | eauto]. 
+  + rewrite (merge_comm Γ1 Γ2), <- merge_assoc in V.
+    destruct (Γ1 ⋓ Γ3); [rewrite merge_I_r in V; inversion V | eauto]. 
+  + rewrite <- merge_assoc in V.
+    destruct (Γ2 ⋓ Γ3); [rewrite merge_I_r in V; inversion V | eauto]. 
+Qed.  
+
+
 (*** Automation ***)
 
 (* Assumes at most one evar *)
@@ -307,16 +455,13 @@ Ltac monoid :=
   repeat (
   repeat (rewrite <- merge_assoc); 
   match goal with
-  | [ |- ?G ] => idtac G
-  end;
-  match goal with
   | [ |- ?Γ = ?Γ ]                  => reflexivity
-  | [ |- ?Γ1 = ?Γ2 ]                => has_evar Γ2; reflexivity
+  | [ |- ?Γ1 = ?Γ2 ]                => is_evar Γ2; reflexivity
   (* remove nils *)
   | [ |- context[?Γ ⋓ ∅] ]          => rewrite (merge_nil_r Γ)
   | [ |- context[∅ ⋓ ?Γ] ]          => rewrite (merge_nil_l Γ)
   (* move evar to far right *)
-  | [ |- _ = ?Γ ⋓ ?Γ' ]             => has_evar Γ; rewrite (merge_comm Γ Γ')
+  | [ |- _ = ?Γ ⋓ ?Γ' ]             => is_evar Γ; rewrite (merge_comm Γ Γ')
   (* solve nil evars *)
   | [ |- ?Γ = ?Γ ⋓ _ ]              => rewrite merge_nil_r; reflexivity  
   (* cycle and apply merge_cancel_l *)
@@ -366,15 +511,7 @@ Definition xor_option {a} (o1 : option a) (o2 : option a) : option a :=
   | _   , _       => None
   end.
 
-Definition cons_o (o : option WType) (Γ : OCtx) : OCtx :=
-  match Γ with
-  | Invalid => Invalid
-  | Valid Γ' => Valid (o :: Γ')
-  end.
 
-Lemma cons_distr_merge : forall Γ1 Γ2,
-  cons_o None (Γ1 ⋓ Γ2) = cons_o None Γ1 ⋓ cons_o None Γ2.
-Proof. destruct Γ1; destruct Γ2; simpl; auto. Qed.
 
 Fixpoint index (ls : OCtx) (i : nat) : option WType :=
   match ls with
@@ -392,49 +529,6 @@ Definition lengthO (ls : OCtx) : nat :=
   | Valid ls => length ls
   end.
 
-Lemma merge_nil_inversion' : forall (Γ1 Γ2 : Ctx), Γ1 ⋓ Γ2 = ∅ -> (Γ1 = []) * (Γ2 = []).
-Proof.
-  induction Γ1 as [ | o Γ1]; intros Γ2; try inversion 1; auto.
-  destruct Γ2 as [ | o' Γ2]; try solve [inversion H1].
-  destruct o, o', (merge' Γ1 Γ2); inversion H1. 
-Qed.
-
-Lemma merge_nil_inversion : forall (Γ1 Γ2 : OCtx), Γ1 ⋓ Γ2 = ∅ -> (Γ1 = ∅) * (Γ2 = ∅).
-Proof.
-  intros Γ1 Γ2 eq.
-  destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try solve [inversion eq].
-  apply merge_nil_inversion' in eq.
-  intuition; congruence.
-Qed.
-
-(* This is false. Needs an assumption that Γ1 ≠ ∅ ≠ Γ2 
-Lemma ctx_cons_inversion : forall Γ1 Γ2 o Γ,
-      Γ1 ⋓ Γ2 = Valid (o :: Γ) ->
-      {o1 : option WType & {o2 : option WType & {Γ1' : Ctx & {Γ2' : Ctx 
-      & (Γ1 = Valid (o1 :: Γ1')) * (Γ2 = Valid (o2 :: Γ2')) * (Γ1' ⋓ Γ2' = Valid Γ)
-        * (merge_wire o1 o2 = Valid [o])}}}}%type.
-*)
-
-Lemma ctx_cons_inversion : forall (Γ Γ1 Γ2 : Ctx) o o1 o2,
-      Valid (o1 :: Γ1) ⋓ Valid (o2 :: Γ2) = Valid (o :: Γ) ->
-      (Γ1 ⋓ Γ2 = Valid Γ) * (merge_wire o1 o2 = Valid [o]).
-Proof.
-  intros Γ Γ1 Γ2 o o1 o2 H.
-  inversion H.
-  destruct (merge_wire o1 o2) eqn:Eq1. inversion H1.
-  rewrite <- merge_merge' in H1.
-  destruct (Γ1 ⋓ Γ2) eqn:Eq2. inversion H1.
-  destruct o1, o2; simpl in Eq1. inversion Eq1.
-  - apply ctx_octx in Eq1. rewrite <- Eq1 in *.
-    simpl in H1.
-    inversion H1; subst; auto.
-  - apply ctx_octx in Eq1. rewrite <- Eq1 in *.
-    simpl in H1.
-    inversion H1; subst; auto.
-  - apply ctx_octx in Eq1. rewrite <- Eq1 in *.
-    simpl in H1.
-    inversion H1; subst; auto.
-Qed.
 
 (*
 Lemma mergeO_merge : forall Γ1 Γ1' Γ2 Γ2' Γ Γ',
