@@ -102,16 +102,22 @@ Notation comp' p c1 c2 := (compose c1 _ _ (fun _ _ _ _ p => c2)).
 Notation unbox' c p := (unbox c _ p).
 Notation bind' p1 p2 p c := (let 'existT23 _ _ p1 p2 _ := wproj p in c). 
 
-Notation "p1 & p2 <-- p ;; c" := (bind' p1 p2 p c) (at level 10). 
-Notation "() <-- p ;; c" := (let pf := elim_unit p in c) (at level 10).
-
 (* New Notations *)
 
+Notation "p1 & p2 <<- p ; c" := (bind' p1 p2 p c) (at level 10, right associativity).
+Notation "() <<- p ; c" := (let pf := elim_unit p in c) (at level 10).
+
 Notation out p := (output' p).
-Notation "p' <-- 'gate' g 'on' p ;; C" := (gate' g p p' C) (at level 10).   
-Notation "(p1',p2') <-- 'gate' g 'on' p ;; c" := 
+Notation "p' <-- 'gate' g 'on' p ; C" := (gate' g p p' C) 
+                                          (at level 10, right associativity).   
+
+(* Not quite there yet. Diff notation? *)
+Notation "p1' & p2' <<< 'gate' g 'on' p ; c" := 
   (gate _ _ _ g p (fun _ _ _ _ p12 => 
-                     (let 'existT23 _ _ p1' p2' _ := wproj p12 in c))) (at level 10).
+                     (let 'existT23 _ _ p1' p2' _ := wproj p12 in c)))
+    (at level 10, right associativity).   
+
+Notation "p <-- c1 ;; c2" := (comp' p c1 c2) (at level 10, right associativity).
 
 (* Future work:
 Notation gate' g p1 p2 c := (gate _ _ g p1 (fun _ _ _ z => match z (* w2? *) with
@@ -119,106 +125,128 @@ Notation gate' g p1 p2 c := (gate _ _ g p1 (fun _ _ _ z => match z (* w2? *) wit
                                                         end)). *)
 
 Definition id_circ {W} : Box W W. 
-  box' (fun p1 => output' p1).
+  box' (fun p1 => out p1).
 Defined.
 
 Definition new_discard : Box One One.
   box' (fun _ => 
-  (gate' new0 (()) b
-  (gate' discard b z
-  (output' z)))).
+    b <-- gate new0 on (()) ;
+    z <-- gate discard on b ;
+    out z).
 Defined.
 
 Definition init_discard : Box One One.
   box' (fun _ => 
-  (gate' init0 (()) q
-  (gate' meas q b
-  (gate' discard b z
-  (output' z))))).
+    q <-- gate init0 on (()) ;
+    b <-- gate meas on q ;
+    z <-- gate discard on b ;
+    out z).
 (* discuss with Jen 
-  (() <-- z ;;
-  (output' (()) )))))). *)
+  (() <-- z ;
+  (out (()) )))))). *)
 Defined.
 
 Definition hadamard_measure : Box Qubit Bit.
   box' (fun q => 
-   gate' H q q
-  (gate' meas q b
-  (output' b))).
+    q <-- gate H on q ;
+    b <-- gate meas on q ;
+    out b).
 Defined.
 
 (* TODO: Deutch algorithm *)
 
 Definition inSeq {W1 W2 W3} (c1 : Box W1 W2) (c2 : Box W2 W3) : Box W1 W3. 
-  box' (fun p1 => comp' p2 (unbox' c1 p1) (unbox' c2 p2)).
+  box' (fun p1 => 
+    p2 <-- unbox' c1 p1 ;; 
+    unbox' c2 p2).
 Defined.
 
 Definition inPar {W1 W2 W1' W2'} (c1 : Box W1 W1') (c2 : Box W2 W2') : 
   Box (W1⊗W2) (W1'⊗W2').
   box' (fun p12 => 
-   p1 & p2 <-- p12 ;; 
-   (comp' p1' (unbox' c1 p1)
-              (comp' p2' (unbox' c2 p2) (output' (p1' ⊕ p2'))))).
+    p1 & p2 <<- p12 ; 
+    p1' <-- unbox' c1 p1 ;;
+    p2' <-- unbox' c2 p2 ;; 
+    output' (p1' ⊕ p2')).
 Defined.
-
 
 Definition init (b : bool) : Box One Qubit.
-  make_circ (if b then (box (fun Γ p1 => gate' init1 p1 p2 (output' p2)))
-                  else (box (fun Γ p1 => gate' init0 p1 p2 (output' p2)))).
+  make_circ (if b then (box (fun Γ p1 => p2 <-- gate init1 on p1 ; (out p2)))
+                  else (box (fun Γ p1 => p2 <-- gate init0 on p1 ; (out p2)))).
 Defined.
 
-
 Definition bell00 : Box One (Qubit ⊗ Qubit).
- box' (fun p => 
-  (gate' init0 (()) a
-  (gate' init0 (()) b
-  (gate' H a a
-  (gate' CNOT (a ⊕ b) ab
-  (output' ab)))))).
+  box' (fun p => 
+    a <-- gate init0 on (()) ;
+    b <-- gate init0 on (()) ;
+    a <-- gate H on a ;
+    ab <-- gate CNOT on (a ⊕ b) ;
+    out ab).
 Defined.
 
 Definition alice : Box (Qubit⊗Qubit) (Bit⊗Bit).
   box' (fun qa => 
-  (gate' CNOT qa qa
-  (q&a <-- qa ;; (gate' H q q
-  (gate' meas q x
-  (gate' meas a y
-  (output' (x ⊕ y)))))))). 
+    qa <-- gate CNOT on qa ;
+    q & a <<- qa ;
+    q <-- gate H on q ;
+    x <-- gate meas on q ;
+    y <-- gate meas on a ;
+    out (x ⊕ y)).
 Defined.
+
+(* Also works
+Definition alice : Box (Qubit⊗Qubit) (Bit⊗Bit).
+  box' (fun qa => 
+    q & a <<< gate CNOT on qa ;
+    q <-- gate H on q ;
+    x <-- gate meas on q ;
+    y <-- gate meas on a ;
+    out (x ⊕ y)).
+Defined.
+*)
 
 Definition bob' : Box (Bit⊗(Bit⊗Qubit)) Qubit.
   box' (fun xyb =>
-  (x&yb <-- xyb ;; (gate' (bit_control σx) yb yb
-  (y&b <-- yb ;; (gate' (bit_control σz) (x⊕b) xb
-  (gate' discard y u   
-  (x&b <-- xb ;; (gate' discard x u'
-  (output' b))))))))).
+    x & yb <<- xyb ;
+    yb <-- gate (bit_control σx) on yb ;
+    y & b <<- yb ;
+    xb <-- gate (bit_control σx) on (x⊕b) ;
+    u <-- gate discard on y ;
+    x & b <<- xb ;
+    u' <-- gate discard on x ;
+    out b).   
 Defined.
 
 Definition bob : Box (Bit⊗Bit⊗Qubit) Qubit.
   box' (fun xyb =>
-  (xy&b <-- xyb ;; (x&y <-- xy ;; (gate' (bit_control σx) (y⊕b) yb
-  (y&b <-- yb ;; (gate' (bit_control σz) (x⊕b) xb
-  (gate' discard y u   
-  (x&b <-- xb ;; (gate' discard x u'
-  (output' b)))))))))).
+    xy & b <<- xyb ; 
+    x & y <<- xy ; 
+    yb <-- gate (bit_control σx) on (y⊕b) ;
+    y & b <<- yb ; 
+    xb <-- gate (bit_control σz) on (x⊕b) ;
+    u <-- gate discard on y ;   
+    x & b <<- xb ; 
+    u' <-- gate discard on x ;
+    out b).
 Defined.
-
 
 Definition teleport' : Box Qubit Qubit.
   box' (fun q =>
-  (comp' ab (unbox' bell00 (()))
-             (a&b <-- ab ;; (comp' xy (unbox' alice (q⊕a))
-                           (x&y <-- xy ;; (unbox' bob' (x⊕(y⊕b)))))))).
+    ab <-- unbox' bell00 (()) ;;
+    a & b <<- ab ; 
+    xy <-- unbox' alice (q⊕a) ;;
+    x & y <<- xy ; 
+    unbox' bob' (x⊕(y⊕b))).
 Defined.
 
 Definition teleport : Box Qubit Qubit.
   box' (fun q =>
-  (comp' ab (unbox' bell00 (()))
-             (a&b <-- ab ;; (comp' xy (unbox' alice (q⊕a))
-                           (x&y <-- xy ;; (unbox' bob (x⊕y⊕b))))))).
+    ab <-- unbox' bell00 (()) ;;
+    a & b <<- ab ; 
+    xy <-- unbox' alice (q⊕a) ;;
+    x&y <<- xy ; 
+    unbox' bob (x⊕y⊕b)).
 Defined.
-
 
 (* Right associative Tensor *)
 Fixpoint Tensor (n : nat) (W : WType) := 
@@ -264,10 +292,13 @@ make_circ (
   match n as n0 return n = n0 -> Box (S (S n0) ⨂ Qubit) (S (S n0) ⨂ Qubit) with
   | 0 => fun eq => id_circ 
   | S n' => fun eq => box (fun Γ w =>
-    c & qqs <-- w ;; (q & qs <-- qqs ;;  
-    (comp' cqs (unbox' (rotationsZ m n') (c ⊕ qs))
-               (c & qs <-- cqs ;; (gate' (control (RGate (1 + m - n'))) (c ⊕ q) cq
-               (c & q <-- cq ;; (output' (c ⊕ (q ⊕ qs)))))))))
+      c & qqs <<- w ;  
+      q & qs <<- qqs ;  
+      cqs <-- unbox' (rotationsZ m n') (c ⊕ qs) ;;
+      c & qs <<- cqs ; 
+      cq <-- gate (control (RGate (1 + m - n'))) on (c ⊕ q) ;
+      c & q <<- cq ; 
+      out (c ⊕ (q ⊕ qs)))
    end (eq_refl n)).
 Defined.
 
@@ -282,9 +313,9 @@ make_circ (
   match n as n0 return n = n0 -> Box (S n0 ⨂ Qubit) (S n0 ⨂ Qubit) with 
   | 0 => fun eq => box (fun Γ p1 =>  gate' H p1 p2 (output' p2))
   | S n' => fun eq => box (fun Γqw qw =>
-             q & w <-- qw ;; 
-             (comp' w (unbox' (qftZ n') w) 
-                         (unbox' (rotationsZ (S n') n') (q ⊕ w))))
+             q & w <<- qw ; 
+             w <-- unbox' (qftZ n') w ;; 
+             unbox' (rotationsZ (S n') n') (q ⊕ w))
   end (eq_refl n)).
 Defined.
 
@@ -294,19 +325,21 @@ Definition qft (n : nat) : Box (n ⨂ Qubit) (n ⨂ Qubit) :=
   | S n' => qftZ n'
   end.
 
+
+
 (** Invalid Circuits **)
 
 Definition absurd_circ : Box Qubit (Bit ⊗ Qubit).
   box' (fun w => 
-   gate' meas w x
-  (gate' H w w'
-  (output' (x ⊕ w')))).
+    x <-- gate meas on w ;
+    w' <-- gate H on w ;
+    out (x ⊕ w')).
 Admitted.
 
 Definition unused_qubit : Box Qubit One.
   box' (fun w => 
-   gate' H w w  
-  (output' (()))).
+   w <-- gate H on w ;
+  out (()) ).
 Admitted.
 
 Definition clone : Box Qubit (Qubit ⊗ Qubit).
@@ -316,10 +349,9 @@ Admitted.
 (* Caught by Coq's typechecker
 Definition split_qubit : Box Qubit (Qubit ⊗ Qubit).
   box' (fun w => 
-  (w1 & w2  <-- w;;
-  (gate' H w2 w2' 
-  (output' (w1 ⊕ w2'))))). *)
-
+    w1 & w2  <<- w ;
+    w2' <-- gate H on w2 ; 
+    out (w1 ⊕ w2')). *)
 
 
 
