@@ -23,13 +23,21 @@ Program Definition wproj {Γ W1 W2} (p : Pat Γ (Tensor W1 W2)) :
   | bit _ _ _ => _
   | pair Γ1 Γ2 Γ W1 W2 v M p1 p2 => existT23 Γ1 Γ2 p1 p2 M  
   end.
+Program Definition elim_unit {Γ} (p : Pat Γ One) : Γ = ∅ :=
+  match p with
+  | unit => _
+  | qubit _ _ _ => _
+  | bit _ _ _ => _
+  | pair Γ1 Γ2 Γ W1 W2 v M p1 p2 => _
+  end.
+  
 
 (** More Validity Lemmas **)
 
-Lemma valid_empty : valid ∅. Proof. unfold valid; eauto. Qed.
+Lemma valid_empty : Is_Valid ∅. Proof. unfold Is_Valid; eauto. Qed.
 
-Lemma pat_ctx_valid : forall Γ W, Pat Γ W -> valid Γ.
-Proof. intros Γ W p. unfold valid. inversion p; eauto. Qed.
+Lemma pat_ctx_valid : forall Γ W, Pat Γ W -> Is_Valid Γ.
+Proof. intros Γ W p. unfold Is_Valid. inversion p; eauto. Qed.
  
 (*** Typechecking Tactic ***)
 
@@ -39,7 +47,7 @@ Open Scope circ_scope.
 Opaque merge.
 Opaque wproj.
 Opaque Ctx.
-Opaque valid.
+Opaque Is_Valid.
 
 (* Local check for multiple evars *)
 Ltac has_evars term := 
@@ -55,16 +63,16 @@ Ltac has_evars term :=
 Ltac validate :=
   repeat match goal with
   | [p : Pat ?Γ ?W |- _ ]       => apply pat_ctx_valid in p
-  | [|- valid ∅ ]               => apply valid_empty
-  | [H : valid ?Γ |- valid ?Γ ] => exact H
-  | [H: valid (?Γ1 ⋓ ?Γ2) |- valid (?Γ2 ⋓ ?Γ1) ] => rewrite merge_comm;
+  | [|- Is_Valid ∅ ]               => apply valid_empty
+  | [H : Is_Valid ?Γ |- Is_Valid ?Γ ] => exact H
+  | [H: Is_Valid (?Γ1 ⋓ ?Γ2) |- Is_Valid (?Γ2 ⋓ ?Γ1) ] => rewrite merge_comm;
                                                    exact H
   (* Reduce hypothesis to binary disjointness *)
-  | [H: valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) |- _ ] => rewrite merge_assoc in H
-  | [H: valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) |- _ ]   => apply valid_split in H as [? [? ?]]
+  | [H: Is_Valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) |- _ ] => rewrite merge_assoc in H
+  | [H: Is_Valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) |- _ ]   => apply valid_split in H as [? [? ?]]
   (* Reduce goal to binary disjointness *)
-  | [|- valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) ] => rewrite merge_assoc
-  | [|- valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) ]   => apply valid_join; validate
+  | [|- Is_Valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) ] => rewrite merge_assoc
+  | [|- Is_Valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) ]   => apply valid_join; validate
   end.  
 
 Ltac type_check_once := 
@@ -77,7 +85,7 @@ Ltac type_check_once :=
   (* Runs monoid iff a single evar appears in context *)
   match goal with
   | [|- ?A = ?B ] => tryif (has_evars (A = B)) then idtac else monoid
-  | [|- valid ?Γ] => tryif (has_evar Γ) then idtac else validate
+  | [|- Is_Valid ?Γ] => tryif (has_evar Γ) then idtac else validate
   end.
 
 (* Useful for debugging *)
@@ -108,6 +116,7 @@ Notation unbox' c p := (unbox c _ p).
 Notation bind' p1 p2 p C := (let 'existT23 _ _ p1 p2 _ := wproj p in C). 
 
 Notation "p1 & p2 <-- p ;; C" := (bind' p1 p2 p C) (at level 10). 
+Notation "() <-- p ;; C" := (let pf := elim_unit p in C) (at level 10).
 
 (* Future work:
 Notation gate' g p1 p2 c := (gate _ _ g p1 (fun _ _ _ z => match z (* w2? *) with
@@ -124,6 +133,8 @@ Definition hadamard_measure : Box Qubit Bit.
   (gate' meas q b
   (output' b))).
 Defined.
+
+(* TODO: Deutch algorithm *)
 
 Definition inSeq {W1 W2 W3} (c1 : Box W1 W2) (c2 : Box W2 W3) : Box W1 W3. 
   box' (fun p1 => comp' p2 (unbox' c1 p1) (unbox' c2 p2)).
@@ -142,14 +153,6 @@ Definition init (b : bool) : Box One Qubit.
                   else (box (fun Γ p1 => gate' init0 p1 p2 (output' p2)))).
 Defined.
 
-Definition bell00 : Box One (Qubit ⊗ Qubit).
-  box' (fun p1 => 
-  (gate' init0 (()) a
-  (gate' init0 (()) b
-  (gate' H a a
-  (gate' CNOT (a ⊕ b) ab
-  (output' ab)))))).
-Defined.
 
 Definition alice : Box (Qubit⊗Qubit) (Bit⊗Bit).
   box' (fun qa => 
@@ -159,6 +162,8 @@ Definition alice : Box (Qubit⊗Qubit) (Bit⊗Bit).
   (gate' meas a y
   (output' (x ⊕ y)))))))). 
 Defined.
+
+
 
 Definition bob' : Box (Bit⊗(Bit⊗Qubit)) Qubit.
   box' (fun xyb =>
@@ -177,6 +182,16 @@ Definition bob : Box (Bit⊗Bit⊗Qubit) Qubit.
   (x&b <-- xb ;; (gate' discard x u'
   (output' b)))))))))).
 Defined.
+
+Definition bell00 : Box One (Qubit ⊗ Qubit).
+  box' (fun p1 => 
+  (gate' init0 (()) a
+  (gate' init0 (()) b
+  (gate' H a a
+  (gate' CNOT (a ⊕ b) ab
+  (output' ab)))))).
+Defined.
+
 
 Definition teleport' : Box Qubit Qubit.
   box' (fun q =>
