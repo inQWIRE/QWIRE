@@ -3,8 +3,8 @@ Require Import Psatz.
 Require Import Omega.
 Require Import Reals.
 Require Import Bool.
-Require Import Coquelicot.Complex.
-Require Import Matrix.
+Require Export Coquelicot.Complex.
+Require Export Matrix.
 
 (* Using our (complex, unbounded) matrices, their complex numbers *)
 
@@ -12,17 +12,17 @@ Open Scope R_scope.
 Open Scope C_scope.
 Open Scope matrix_scope.
 
-Definition ket0 : Matrix 1 2 := 
+Definition ket0 : Matrix 2 1:= 
   fun x y => match x, y with 
           | 0, 0 => 1
-          | 0, 1 => 0
+          | 1, 0 => 0
           | _, _ => 0
           end.
 
-Definition ket1 : Matrix 1 2 := 
+Definition ket1 : Matrix 2 1 := 
   fun x y => match x, y with 
           | 0, 0 => 0
-          | 0, 1 => 1
+          | 1, 0 => 1
           | _, _ => 0
           end.
 
@@ -78,16 +78,19 @@ Definition pauli_z : Matrix 2 2 :=
 
 Definition control {n : nat} (A : Matrix n n) : Matrix (2*n) (2*n) :=
   fun x y => if (x <? n) && (y <? n) then Id n x y 
-                                  else A (x-n)%nat (y-n)%nat.
+          else if (n <=? x) && (n <=? y) then A (x-n)%nat (y-n)%nat
+          else 0.
+
+Definition cnot := control pauli_x.
           
 Definition unitary_matrix {n: nat} (A : Matrix n n): Prop :=
-  A† × A = Id n. 
+  A† × A = Id n.
 
-
+(* More precise *)
+Definition unitary_matrix' {n: nat} (A : Matrix n n): Prop := Minv A A†.
 
 (* Would rather use something more basic than lra - but fourier and ring 
    aren't always up to the task *)
-
 Ltac Rsimpl := 
   simpl;
   unfold Rminus;
@@ -124,7 +127,7 @@ Ltac Csolve := eapply c_proj_eq; simpl; Rsolve.
 
 Lemma H_unitary : unitary_matrix hadamard.
 Proof.
-  unfold unitary_matrix.
+  unfold unitary_matrix, Minv.
   apply functional_extensionality; intros x.
   apply functional_extensionality; intros y.
   unfold conj_transpose, Mmult, Id.
@@ -188,6 +191,44 @@ Proof.
     - replace ((S (S x) <? 2)) with (false) by reflexivity.
       rewrite andb_false_r.
       clra.
+Qed.
+
+Lemma control_unitary : forall n (A : Matrix n n), 
+                          unitary_matrix A -> unitary_matrix (control A). 
+Proof.
+  induction n.
+  + intros A H.
+    unfold control, unitary_matrix, conj_transpose, Mmult, Id.
+    apply functional_extensionality; intros x.
+    apply functional_extensionality; intros y.
+    simpl.
+    replace (x <? 0) with false by reflexivity.
+    rewrite andb_false_r.
+    reflexivity.
+
+(*
+  intros.
+  unfold control.
+  apply functional_extensionality; intros x.
+  apply functional_extensionality; intros y.
+  unfold conj_transpose, Mmult, Id in *.
+  destruct (x <? n) eqn:Ltxn, (y <? n) eqn:Ltyn.
+  simpl.
+*)
+
+Admitted.
+
+Lemma cnot_unitary : unitary_matrix cnot.
+Proof.
+  unfold unitary_matrix.
+  apply functional_extensionality; intros x.
+  apply functional_extensionality; intros y.
+  unfold conj_transpose, Mmult, Id.
+  simpl.
+  do 4 (try destruct x; try destruct y; try clra).
+  replace ((S (S (S (S x))) <? 4)) with (false) by reflexivity.
+  rewrite andb_false_r.
+  clra.
 Qed.
 
 Lemma id_unitary : forall n, unitary_matrix (Id n). 

@@ -7,7 +7,7 @@ Open Scope list_scope.
 
 Inductive WType := Qubit | Bit | One | Tensor : WType -> WType -> WType.
 
-Notation "W1 ⊗ W2" := (Tensor W1 W2) (at level 1, left associativity): circ_scope.
+Notation "W1 ⊗ W2" := (Tensor W1 W2) (at level 40, left associativity): circ_scope.
  
 Open Scope circ_scope.
 

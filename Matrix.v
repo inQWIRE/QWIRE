@@ -246,7 +246,7 @@ Proof.
   apply functional_extensionality; intros y.
   clra.
 Qed.
-
+    
 Program Lemma Mmult_0_l : forall {m n o : nat} (A : Matrix n o), (Zero m n) × A = Zero m n.
 Proof.
   intros m n o A.
@@ -498,6 +498,50 @@ Proof.
   rewrite Cplus_assoc.
   reflexivity.
 Qed.
+
+Theorem Mmult_assoc : forall {m n o p : nat} (A : Matrix m n) (B : Matrix n o) 
+  (C: Matrix o p), A × B × C = A × (B × C).
+Proof.
+  intros m n o p A B C.
+  unfold Mmult.
+  apply functional_extensionality; intros x.
+  apply functional_extensionality; intros y.
+  induction n.
+  + simpl.
+    clear B.
+    induction o. reflexivity.
+    simpl. rewrite IHo. clra.
+  + simpl. 
+    rewrite <- IHn.
+    simpl.
+Admitted.
+
+(* Inverses *)
+
+Definition Minv {n} (A B : Matrix n n) := A × B = Id n /\ B × A = Id n.
+
+Lemma Minv_unique : forall {n} (A B C : Matrix n n), 
+                      WF_Matrix A -> WF_Matrix B -> WF_Matrix C ->
+                      Minv A B -> Minv A C -> B = C.
+Proof.
+  intros n A B C WFA WFB WFC [HAB HBA] [HAC HCA].
+  replace B with (B × Id n) by (apply Mmult_1_r; assumption).
+  rewrite <- HAC.  
+  replace C with (Id n × C) at 2 by (apply Mmult_1_l; assumption).
+  rewrite <- HBA.  
+  rewrite Mmult_assoc.
+  reflexivity.
+Qed.  
+  
+Lemma Minv_left : forall {n} (A B : Matrix n n), A × B = Id n -> Minv A B.
+Proof.
+  intros n A B H. 
+  unfold Minv. split; trivial.
+  + apply functional_extensionality; intros x.
+    apply functional_extensionality; intros y.
+    rewrite <- H.
+    unfold Mmult, Id.
+Admitted.
 
 (* Not generally true, just like sum_sum wasn't.
    A general sum_n_to_m function might have better properties. 
