@@ -538,14 +538,6 @@ Ltac print_goal :=
   | [ |- ?G ] => idtac G
   end.
 
-Ltac associate :=
-  repeat ((*idtac "associating";*) rewrite <- merge_assoc).
-(*
-  match goal with
-  | [ |- context[?Γ1 ⋓ ?Γ2 ⋓ ?Γ3] ] => rewrite <- merge_assoc
-(*    replace (Γ1 ⋓ Γ2 ⋓ Γ3) with (Γ1 ⋓ (Γ2 ⋓ Γ3)) by (rewrite merge_assoc; reflexivity)*)
-(*    rewrite <- merge_assoc with (Γ1 := Γ1) (Γ2 := Γ2) (Γ3 := Γ3) *)
-  end); print_goal. *)
 
 
 (* Assumes at most one evar *)
@@ -556,7 +548,7 @@ Ltac monoid :=
   | [ |- ?Γ1 = ?Γ2 ] => has_evar Γ1; symmetry
   end;
   repeat (
-  (*idtac "monoid";*) associate;
+  (*idtac "monoid";*) repeat (rewrite <- merge_assoc);
   match goal with
   | [ |- ?Γ = ?Γ ]                  => reflexivity
   | [ |- ?Γ1 = ?Γ2 ]                => is_evar Γ2; reflexivity

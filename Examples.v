@@ -32,13 +32,6 @@ Program Definition elim_unit {Γ} (p : Pat Γ One) : Γ = ∅ :=
   end.
   
 
-(** More Validity Lemmas **)
-
-Lemma valid_empty : is_valid ∅. Proof. unfold is_valid; eauto. Qed.
-
-Lemma pat_ctx_valid : forall Γ W, Pat Γ W -> is_valid Γ.
-Proof. intros Γ W p. unfold is_valid. inversion p; eauto. Qed.
- 
 (*** Typechecking Tactic ***)
 
 Open Scope circ_scope.
@@ -147,7 +140,7 @@ Defined.
 
 
 Definition bell00 : Box One (Qubit ⊗ Qubit).
- box' (fun _ => 
+ box' (fun p => 
   (gate' init0 (()) a
   (gate' init0 (()) b
   (gate' H a a
