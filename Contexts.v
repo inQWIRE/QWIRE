@@ -349,42 +349,44 @@ Proof.
     inversion H1; subst; auto.
 Qed.
 
-
-
 (*** Validity ***)
 
-Definition valid (Γ : OCtx) : Prop := exists Γ', Γ = Valid Γ'.
+Definition Is_Valid (Γ : OCtx) : Prop := exists Γ', Γ = Valid Γ'.
 
-Lemma not_valid : ~ valid Invalid. Proof. intros [Γ F]; inversion F. Qed.
 
-Lemma valid_split_basic : forall Γ1 Γ2, valid (Γ1 ⋓ Γ2) -> valid Γ1 /\ valid Γ2.
+Lemma valid_valid : forall Γ, Is_Valid (Valid Γ).
+Proof. intros. exists Γ. reflexivity.
+Qed.
+Lemma not_valid : not (Is_Valid Invalid). Proof. intros [Γ F]; inversion F. Qed.
+
+Lemma valid_split_basic : forall Γ1 Γ2, Is_Valid (Γ1 ⋓ Γ2) -> Is_Valid Γ1 /\ Is_Valid Γ2.
 Proof.
   intros Γ1 Γ2 V.
-  unfold valid in *.
+  unfold Is_Valid in *.
   destruct V as [Γ' V].
   apply merge_valid in V as [[Γ1'] [Γ2']].
   eauto.
 Qed. 
 
 Lemma valid_cons : forall (o1 o2 : option WType) (Γ1 Γ2 : Ctx), 
-  valid (Valid (o1 :: Γ1) ⋓ Valid (o2 :: Γ2)) <-> 
-  (valid (merge_wire o1 o2) /\ valid (Γ1 ⋓ Γ2)).
+  Is_Valid (Valid (o1 :: Γ1) ⋓ Valid (o2 :: Γ2)) <-> 
+  (Is_Valid (merge_wire o1 o2) /\ Is_Valid (Γ1 ⋓ Γ2)).
 Proof.
-  intros o1 o2 Γ1 Γ2.
-  split.
-  + intros [Γ V].
+  intros o1 o2 Γ1 Γ2. split.
+  - intros [Γ V].
     inversion V.
     destruct (merge_wire o1 o2). inversion H0.
     simpl. destruct (merge' Γ1 Γ2). inversion H0.
-    unfold valid; split; eauto.
-  + intros [[W Vo] [Γ V]].
+    unfold Is_Valid; split; eauto.
+  - intros [[W Vo] [Γ V]].
     simpl in *.
     rewrite Vo, V.
-    unfold valid; eauto.
+    unfold Is_Valid; eauto.
 Qed.
 
-Lemma valid_join : forall Γ1 Γ2 Γ3, valid (Γ1 ⋓ Γ2) -> valid (Γ1 ⋓ Γ3) -> valid (Γ2 ⋓ Γ3) -> 
-                               valid (Γ1 ⋓ Γ2 ⋓ Γ3).
+
+Lemma valid_join : forall Γ1 Γ2 Γ3, Is_Valid (Γ1 ⋓ Γ2) -> Is_Valid (Γ1 ⋓ Γ3) -> Is_Valid (Γ2 ⋓ Γ3) -> 
+                               Is_Valid (Γ1 ⋓ Γ2 ⋓ Γ3).
 Proof.
   destruct Γ1 as [|Γ1]. intros Γ2 Γ3 [Γ12 V12]; inversion V12.
   induction Γ1 as [|o1 Γ1].
@@ -398,7 +400,7 @@ Proof.
     - apply valid_cons in V12 as [_ [Γ12 V12]].
       apply valid_cons in V13 as [_ [Γ13 V13]].
       apply valid_cons in V23 as [_ [Γ23 V23]].
-      destruct (IHΓ1 (Valid Γ2) (Valid Γ3)) as [Γ V123]; unfold valid; eauto.
+      destruct (IHΓ1 (Valid Γ2) (Valid Γ3)) as [Γ V123]; unfold Is_Valid; eauto.
       exists (Some w :: Γ). 
       simpl in *. rewrite V12.
       simpl in *. rewrite V12 in V123. simpl in V123. rewrite V123.
@@ -406,7 +408,7 @@ Proof.
     - apply valid_cons in V12 as [_ [Γ12 V12]].
       apply valid_cons in V13 as [_ [Γ13 V13]].
       apply valid_cons in V23 as [_ [Γ23 V23]].
-      destruct (IHΓ1 (Valid Γ2) (Valid Γ3)) as [Γ V123]; unfold valid; eauto.
+      destruct (IHΓ1 (Valid Γ2) (Valid Γ3)) as [Γ V123]; unfold Is_Valid; eauto.
       exists (Some w :: Γ). 
       simpl in *. rewrite V12.
       simpl in *. rewrite V12 in V123. simpl in V123. rewrite V123.
@@ -414,7 +416,7 @@ Proof.
     - apply valid_cons in V12 as [_ [Γ12 V12]].
       apply valid_cons in V13 as [_ [Γ13 V13]].
       apply valid_cons in V23 as [_ [Γ23 V23]].
-      destruct (IHΓ1 (Valid Γ2) (Valid Γ3)) as [Γ V123]; unfold valid; eauto.
+      destruct (IHΓ1 (Valid Γ2) (Valid Γ3)) as [Γ V123]; unfold Is_Valid; eauto.
       exists (Some w :: Γ). 
       simpl in *. rewrite V12.
       simpl in *. rewrite V12 in V123. simpl in V123. rewrite V123.
@@ -422,18 +424,18 @@ Proof.
     - apply valid_cons in V12 as [_ [Γ12 V12]].
       apply valid_cons in V13 as [_ [Γ13 V13]].
       apply valid_cons in V23 as [_ [Γ23 V23]].
-      destruct (IHΓ1 (Valid Γ2) (Valid Γ3)) as [Γ V123]; unfold valid; eauto.
+      destruct (IHΓ1 (Valid Γ2) (Valid Γ3)) as [Γ V123]; unfold Is_Valid; eauto.
       exists (None :: Γ). 
       simpl in *. rewrite V12.
       simpl in *. rewrite V12 in V123. simpl in V123. rewrite V123.
       reflexivity.
 Qed. 
 
-Lemma valid_split : forall Γ1 Γ2 Γ3, valid (Γ1 ⋓ Γ2 ⋓ Γ3) -> 
-                                valid (Γ1 ⋓ Γ2) /\ valid (Γ1 ⋓ Γ3) /\ valid (Γ2 ⋓ Γ3).
+Lemma valid_split : forall Γ1 Γ2 Γ3, Is_Valid (Γ1 ⋓ Γ2 ⋓ Γ3) -> 
+                                Is_Valid (Γ1 ⋓ Γ2) /\ Is_Valid (Γ1 ⋓ Γ3) /\ Is_Valid (Γ2 ⋓ Γ3).
 Proof.
   intros Γ1 Γ2 Γ3 [Γ V].
-  unfold valid.  
+  unfold Is_Valid.  
   intuition.
   + destruct (Γ1 ⋓ Γ2); [inversion V | eauto]. 
   + rewrite (merge_comm Γ1 Γ2), <- merge_assoc in V.
@@ -441,6 +443,70 @@ Proof.
   + rewrite <- merge_assoc in V.
     destruct (Γ2 ⋓ Γ3); [rewrite merge_I_r in V; inversion V | eauto]. 
 Qed.  
+
+
+
+
+(*** Disjointness ***)
+
+
+Definition Disjoint Γ1 Γ2 : Prop := 
+  match Γ1, Γ2 with
+  | Invalid, _ => True
+  | _, Invalid => True
+  | Valid _, Valid _ => Is_Valid (Γ1 ⋓ Γ2)
+  end.
+Lemma disjoint_nil_r : forall Γ, Disjoint Γ ∅.
+Proof.
+  destruct Γ as [ | Γ]; [exact I | ].
+  unfold Disjoint. rewrite merge_nil_r. exists Γ. reflexivity.
+Qed.
+
+
+Lemma disjoint_valid : forall Γ1 Γ2, Disjoint Γ1 Γ2 -> Is_Valid Γ1 -> Is_Valid Γ2 -> Is_Valid (Γ1 ⋓ Γ2).
+Proof.
+  intros Γ1 Γ2 disj [Γ1' valid1] [Γ2' valid2].
+  rewrite valid1 in *; rewrite valid2 in *; auto. 
+Qed.
+
+Lemma disjoint_merge : forall Γ Γ1 Γ2,
+                       Disjoint Γ Γ1 -> Disjoint Γ Γ2 -> Disjoint Γ (Γ1 ⋓ Γ2).
+Proof.
+  intros Γ Γ1 Γ2 disj1 disj2.
+  remember (Γ1 ⋓ Γ2) as Γ'.
+  destruct Γ as [ | Γ]; [exact I | ].
+  destruct Γ' as [ | Γ']; [exact I | ].
+  assert (valid0 : Is_Valid Γ). { apply valid_valid. }
+  assert (valid1 : Is_Valid Γ1). 
+    { destruct Γ1 as [ | Γ1]; [inversion HeqΓ' | ]. apply valid_valid. }
+  assert (valid2 : Is_Valid Γ2).
+    { destruct Γ2 as [ | Γ2]; [rewrite merge_I_r in *; inversion HeqΓ' | ]. apply valid_valid. }
+  assert (valid1' : Is_Valid (Γ ⋓ Γ1)). { apply disjoint_valid; auto. }
+  assert (valid2' : Is_Valid (Γ ⋓ Γ2)). { apply disjoint_valid; auto. }
+  unfold Disjoint.
+  rewrite HeqΓ'.
+  rewrite merge_assoc.
+  apply valid_join; auto.
+  exists Γ'; auto.
+Qed.
+
+
+
+Lemma disjoint_split : forall Γ1 Γ2 Γ, Is_Valid Γ1 -> Is_Valid Γ2 -> Disjoint Γ1 Γ2 -> Disjoint (Γ1 ⋓ Γ2) Γ 
+                    -> Disjoint Γ1 Γ /\ Disjoint Γ2 Γ.
+Proof.
+  intros Γ1 Γ2 Γ [Γ1' valid1] [Γ2' valid2] disj disj'.
+  subst. unfold Disjoint in disj.
+  destruct Γ as [ | Γ]; [split; exact I | ].
+  unfold Disjoint.
+  destruct disj as [Γ' is_valid].
+  rewrite is_valid in disj'.
+  unfold Disjoint in disj'.
+  rewrite <- is_valid in disj'.
+  apply valid_split in disj'.
+  destruct disj' as [H1 [H2 H3]]; split; auto.
+Qed.
+
 
 
 (*** Automation ***)
