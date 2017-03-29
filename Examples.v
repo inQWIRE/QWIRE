@@ -69,6 +69,8 @@ Ltac type_check_once :=
   (* Runs monoid iff a single evar appears in context *)
   match goal with
   | [|- is_valid ?Γ] => tryif (has_evar Γ) then idtac (*"can't validate"*) else validate
+  | [|- ?Γ = ?Γ' ] => tryif (has_evars (Γ = Γ')) then idtac (*"can't monoid"*) else monoid
+
   | [|- ?G ] => tryif (has_evars G) then idtac (*"can't monoid"*) else monoid
   end.
 
@@ -91,16 +93,25 @@ Tactic Notation (at level 0) "make_circ" uconstr(C) := refine C; type_check.
 Tactic Notation (at level 0) "box'" uconstr(C) := refine (box (fun _ => C)); type_check.
 
 Notation "w1 ⊕ w2" := (pair _ _ _ _ _ _ _ w1 w2) (at level 10) : circ_scope.
+Notation "w1 , w2" := (pair w1 w2) (at level 11, left associativity) : circ_scope.
 Notation "(())" := unit : circ_scope.
 
 Notation output' p := (output _ p). 
-Notation gate' g p1 p2 c := (gate _ _ _ g p1 (fun _ _ _ _ p2 => c)).
+Notation gate' g p p' c := (gate _ _ _ g p (fun _ _ _ _ p' => c)).
 Notation comp' p c1 c2 := (compose c1 _ _ (fun _ _ _ _ p => c2)).
 Notation unbox' c p := (unbox c _ p).
-Notation bind' p1 p2 p C := (let 'existT23 _ _ p1 p2 _ := wproj p in C). 
+Notation bind' p1 p2 p c := (let 'existT23 _ _ p1 p2 _ := wproj p in c). 
 
-Notation "p1 & p2 <-- p ;; C" := (bind' p1 p2 p C) (at level 10). 
-Notation "() <-- p ;; C" := (let pf := elim_unit p in C) (at level 10).
+Notation "p1 & p2 <-- p ;; c" := (bind' p1 p2 p c) (at level 10). 
+Notation "() <-- p ;; c" := (let pf := elim_unit p in c) (at level 10).
+
+(* New Notations *)
+
+Notation out p := (output' p).
+Notation "p' <-- 'gate' g 'on' p ;; C" := (gate' g p p' C) (at level 10).   
+Notation "(p1',p2') <-- 'gate' g 'on' p ;; c" := 
+  (gate _ _ _ g p (fun _ _ _ _ p12 => 
+                     (let 'existT23 _ _ p1' p2' _ := wproj p12 in c))) (at level 10).
 
 (* Future work:
 Notation gate' g p1 p2 c := (gate _ _ g p1 (fun _ _ _ z => match z (* w2? *) with
@@ -109,6 +120,24 @@ Notation gate' g p1 p2 c := (gate _ _ g p1 (fun _ _ _ z => match z (* w2? *) wit
 
 Definition id_circ {W} : Box W W. 
   box' (fun p1 => output' p1).
+Defined.
+
+Definition new_discard : Box One One.
+  box' (fun _ => 
+  (gate' new0 (()) b
+  (gate' discard b z
+  (output' z)))).
+Defined.
+
+Definition init_discard : Box One One.
+  box' (fun _ => 
+  (gate' init0 (()) q
+  (gate' meas q b
+  (gate' discard b z
+  (output' z))))).
+(* discuss with Jen 
+  (() <-- z ;;
+  (output' (()) )))))). *)
 Defined.
 
 Definition hadamard_measure : Box Qubit Bit.
@@ -129,7 +158,7 @@ Definition inPar {W1 W2 W1' W2'} (c1 : Box W1 W1') (c2 : Box W2 W2') :
   box' (fun p12 => 
    p1 & p2 <-- p12 ;; 
    (comp' p1' (unbox' c1 p1)
-              (comp' p2' (unbox' c2 p2) (output' (p1'⊕p2'))))).
+              (comp' p2' (unbox' c2 p2) (output' (p1' ⊕ p2'))))).
 Defined.
 
 
@@ -264,5 +293,34 @@ Definition qft (n : nat) : Box (n ⨂ Qubit) (n ⨂ Qubit) :=
   | 0 => id_circ
   | S n' => qftZ n'
   end.
+
+(** Invalid Circuits **)
+
+Definition absurd_circ : Box Qubit (Bit ⊗ Qubit).
+  box' (fun w => 
+   gate' meas w x
+  (gate' H w w'
+  (output' (x ⊕ w')))).
+Admitted.
+
+Definition unused_qubit : Box Qubit One.
+  box' (fun w => 
+   gate' H w w  
+  (output' (()))).
+Admitted.
+
+Definition clone : Box Qubit (Qubit ⊗ Qubit).
+  box' (fun w => (output' ((w ⊕ w)))).
+Admitted.
+
+(* Caught by Coq's typechecker
+Definition split_qubit : Box Qubit (Qubit ⊗ Qubit).
+  box' (fun w => 
+  (w1 & w2  <-- w;;
+  (gate' H w2 w2' 
+  (output' (w1 ⊕ w2'))))). *)
+
+
+
 
 (* *)
