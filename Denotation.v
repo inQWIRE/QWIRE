@@ -17,16 +17,7 @@ Fixpoint num_wires (W : WType) : nat :=
   | W1 ⊗ W2 => num_wires W1 + num_wires W2
   end.
 
-Locate "^".
-
 Notation "# W" := (num_wires W) (at level 10).
-
-Check 2^3.
-Check #Qubit.
-Eval simpl in #(Qubit ⊗ Bit).
-
-Check control.
-Check TypedCircuits.control.
 
 Fixpoint denote_unitary {W} (U : Unitary W) : Matrix (2^(#W)) (2^(#W)) :=
   match U with  
@@ -40,6 +31,7 @@ Fixpoint denote_unitary {W} (U : Unitary W) : Matrix (2^(#W)) (2^(#W)) :=
   | TypedCircuits.transpose _ g => (denote_unitary g)†
   end. 
 
+(*
 Eval compute in (denote_unitary CNOT 0%nat 0%nat).
 Eval compute in (denote_unitary CNOT 0%nat 1%nat).
 Eval compute in (denote_unitary CNOT 1%nat 0%nat).
@@ -48,6 +40,7 @@ Eval compute in (denote_unitary CNOT 2%nat 2%nat).
 Eval compute in (denote_unitary CNOT 2%nat 3%nat).
 Eval compute in (denote_unitary CNOT 3%nat 2%nat).
 Eval compute in (denote_unitary CNOT 3%nat 3%nat).
+*)
 
 Lemma unitary_gate_unitary : forall {W} (U : Unitary W), unitary_matrix (denote_unitary U).
 Proof.

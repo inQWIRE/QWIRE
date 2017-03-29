@@ -12,11 +12,14 @@ Inductive Pat : OCtx -> WType -> Set :=
 | qubit : forall x ctx, (SingletonCtx x Qubit ctx) -> Pat ctx Qubit 
 | bit : forall x ctx, (SingletonCtx x Bit ctx) -> Pat ctx Bit 
 | pair : forall ctx1 ctx2 ctx w1 w2,
-        Is_Valid ctx 
+        is_valid ctx 
       -> ctx = ctx1 ⋓ ctx2
       -> Pat ctx1 w1
       -> Pat ctx2 w2
       -> Pat ctx (Tensor w1 w2).
+
+Lemma pat_ctx_valid : forall Γ W, Pat Γ W -> is_valid Γ.
+Proof. intros Γ W p. unfold is_valid. inversion p; eauto. Qed.
 
 Inductive Unitary : WType -> Set := 
   | H : Unitary Qubit 
@@ -42,17 +45,17 @@ Coercion U : Unitary >-> Gate.
 Inductive Circuit : OCtx -> WType -> Set :=
 | output : forall {ctx ctx' w}, ctx' = ctx -> Pat ctx w -> Circuit ctx' w
 | gate   : forall ctx {ctx1 ctx1'} {w1 w2 w}, 
-          Is_Valid ctx1'
+          is_valid ctx1'
         -> ctx1' = ctx1 ⋓ ctx            
         -> Gate w1 w2
         -> Pat ctx1 w1
         -> (forall {ctx2 ctx2'},
-              Is_Valid ctx2'
+              is_valid ctx2'
             -> ctx2' = ctx2 ⋓ ctx 
             -> Pat ctx2 w2 -> Circuit ctx2' w)
         -> Circuit ctx1' w
 | lift : forall {ctx1 ctx2 ctx w w'},
-         Is_Valid ctx -> ctx = ctx1 ⋓ ctx2
+         is_valid ctx -> ctx = ctx1 ⋓ ctx2
       -> Pat ctx1 w
       -> (interpret w -> Circuit ctx2 w')
       -> Circuit ctx w'
@@ -74,9 +77,10 @@ Import TC.
 (* A bit of a mess from attempting to reproduce Jen's code line by line. *)
 Fixpoint compose {Γ1} {W} (c : Circuit Γ1 W)
                  : forall {Γ Γ1' W'}, 
-                  Is_Valid Γ1' ->
+                  is_valid Γ1' ->
                   Γ1' = Γ1 ⋓ Γ ->
-                  (forall {Γ2 Γ2'}, Is_Valid Γ2' -> Γ2' = Γ2 ⋓ Γ -> Pat Γ2 W  -> Circuit Γ2' W') 
+                  (forall {Γ2 Γ2'}, is_valid Γ2' -> Γ2' = Γ2 ⋓ Γ -> Pat Γ2 W  -> 
+                               Circuit Γ2' W') 
                 -> Circuit Γ1' W'.
   refine (match c with
             output _ p1             => fun Γ Γ1' W' v pfM f => _ (* f _ _ pfM p1 *)
@@ -114,7 +118,7 @@ Fixpoint compose {Γ1} {W} (c : Circuit Γ1 W)
                                 (merge_comm Γ02), <- Merge_Γ0_Γ002_Γ02''; simpl.
                                 apply not_valid.
   refine (compose _ _ (h Γ02 Γ002 _ _ q) _ _ _ _ _ f); subst.
-  unfold Is_Valid; eauto.
+  unfold is_valid; eauto.
   rewrite merge_comm; assumption.
   assumption.
   rewrite Merge_Γ_Γ02_Γ002, Merge_Γ0_Γ_Γ0'. monoid.
