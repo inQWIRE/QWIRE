@@ -50,7 +50,13 @@ Inductive Circuit : OCtx -> WType -> Set :=
               Is_Valid ctx2'
             -> ctx2' = ctx2 ⋓ ctx 
             -> Pat ctx2 w2 -> Circuit ctx2' w)
-        -> Circuit ctx1' w.
+        -> Circuit ctx1' w
+| lift : forall {ctx1 ctx2 ctx w w'},
+         Is_Valid ctx -> ctx = ctx1 ⋓ ctx2
+      -> Pat ctx1 w
+      -> (interpret w -> Circuit ctx2 w')
+      -> Circuit ctx w'
+.
 
 Inductive Box : WType -> WType -> Set :=
 | box : forall {w1} {w2}, 
@@ -73,13 +79,14 @@ Fixpoint compose {Γ1} {W} (c : Circuit Γ1 W)
                   (forall {Γ2 Γ2'}, Is_Valid Γ2' -> Γ2' = Γ2 ⋓ Γ -> Pat Γ2 W  -> Circuit Γ2' W') 
                 -> Circuit Γ1' W'.
   refine (match c with
-            output _ p1 => fun Γ Γ1' W' v pfM f => _ (* f _ _ pfM p1 *)
+            output _ p1             => fun Γ Γ1' W' v pfM f => _ (* f _ _ pfM p1 *)
           | gate ctx v pfM' g p1 h  => fun Γ Γ1' W' v pfM f => _
+          | lift v m p h            => fun Γ Γ1' W' v pfM f => _
           end). 
-  (*output case*)
+- (*output case*)
   eapply f; eauto.
   subst; apply p1.
-  (* gate case*)
+- (* gate case*)
   clear W c Γ1;
   rename w into W1, w0 into W2, w1 into W.
   rename ctx into Γ0, o into Γ01, o0 into Γ1.
@@ -110,7 +117,13 @@ Fixpoint compose {Γ1} {W} (c : Circuit Γ1 W)
   unfold Is_Valid; eauto.
   rewrite merge_comm; assumption.
   assumption.
-  rewrite Merge_Γ_Γ02_Γ002, Merge_Γ0_Γ_Γ0'. monoid.  
+  rewrite Merge_Γ_Γ02_Γ002, Merge_Γ0_Γ_Γ0'. monoid.
+- clear W c Γ1.
+  rename w into W, w0 into W0, o into Γ0, o0 into Γ2, o1 into Γ1. 
+  refine (lift _ _ p (fun x => compose _ _ (h x) _ _ _ _ _ f)); auto.
+  * rewrite merge_assoc. subst. auto.
+  * subst.
+    destruct (valid_split _ _ _ v) as [H1 [H2 H3]]; auto.
 Qed.
 
 (* *)

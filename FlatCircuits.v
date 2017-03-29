@@ -11,9 +11,13 @@ Inductive Flat_Circuit : OCtx -> WType -> Set :=
         -> Pat ctx1 w1
         -> Pat ctx2 w2
         -> Flat_Circuit ctx2' w
-        -> Flat_Circuit ctx1' w.
-
-
+        -> Flat_Circuit ctx1' w
+| flat_lift  : forall {ctx1 ctx2 ctx w w'},
+         Is_Valid ctx -> ctx = ctx1 ⋓ ctx2
+      -> Pat ctx1 w
+      -> (interpret w -> Flat_Circuit ctx2 w')
+      -> Flat_Circuit ctx w'
+.
 
 
 Fixpoint fresh_var (Γ_in : Ctx) : nat :=
@@ -86,8 +90,9 @@ Defined.
 Definition from_HOAS {Γ W} (c : Circuit Γ W) : Flat_Circuit Γ W.
 Proof. 
   induction c as [ Γ Γ' W eq p 
-                 | Γ Γ1 Γ1' W1 W2 W valid1 eq1 g p1 f ].
-  - apply (flat_output eq p).
+                 | Γ Γ1 Γ1' W1 W2 W valid1 eq1 g p1 f 
+                 | Γ1 Γ2 Γ W W' valid eq p f ].
+  - refine (flat_output _ p); auto.
   - assert (valid0 : Is_Valid Γ). 
     {
       destruct valid1 as [Γ0' valid1]. subst.
@@ -105,4 +110,5 @@ Proof.
       apply H with (ctx2 := Γ2); auto.
     }
     refine (flat_gate _ _ _ _ _ g p1 p2 c'); auto. auto.
+  - refine (flat_lift _ _ p H); auto. 
 Defined.

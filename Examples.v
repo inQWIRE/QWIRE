@@ -23,6 +23,14 @@ Program Definition wproj {Γ W1 W2} (p : Pat Γ (Tensor W1 W2)) :
   | bit _ _ _ => _
   | pair Γ1 Γ2 Γ W1 W2 v M p1 p2 => existT23 Γ1 Γ2 p1 p2 M  
   end.
+Program Definition elim_unit {Γ} (p : Pat Γ One) : Γ = ∅ :=
+  match p with
+  | unit => _
+  | qubit _ _ _ => _
+  | bit _ _ _ => _
+  | pair Γ1 Γ2 Γ W1 W2 v M p1 p2 => _
+  end.
+  
 
 (** More Validity Lemmas **)
 
@@ -108,6 +116,7 @@ Notation unbox' c p := (unbox c _ p).
 Notation bind' p1 p2 p C := (let 'existT23 _ _ p1 p2 _ := wproj p in C). 
 
 Notation "p1 & p2 <-- p ;; C" := (bind' p1 p2 p C) (at level 10). 
+Notation "() <-- p ;; C" := (let pf := elim_unit p in C) (at level 10).
 
 (* Future work:
 Notation gate' g p1 p2 c := (gate _ _ g p1 (fun _ _ _ z => match z (* w2? *) with
@@ -124,6 +133,8 @@ Definition hadamard_measure : Box Qubit Bit.
   (gate' meas q b
   (output' b))).
 Defined.
+
+(* TODO: Deutch algorithm *)
 
 Definition inSeq {W1 W2 W3} (c1 : Box W1 W2) (c2 : Box W2 W3) : Box W1 W3. 
   box' (fun p1 => comp' p2 (unbox' c1 p1) (unbox' c2 p2)).
