@@ -508,6 +508,46 @@ Qed.
 
 (*** Automation ***)
 
+
+(*
+Lemma counter : forall x y z, x + z + y = x + (y + z).
+Proof.
+  intros. Check plus_assoc.
+  match goal with
+  | [ |- context[?n + ?m + ?p] ] => rewrite <- plus_assoc with (n := n) (m := m) (p := p)
+  end.
+  apply merge_cancel_l.
+Admitted.
+*)
+
+
+
+(* Local check for multiple evars *)
+Ltac has_evars term := 
+  match term with
+    | ?L = ?R        => has_evar L; has_evar R
+    | ?L = ?R        => has_evars L
+    | ?L = ?R        => has_evars R
+    | ?Γ1 ⋓ ?Γ2      => has_evar Γ1; has_evar Γ2
+    | ?Γ1 ⋓ ?Γ2      => has_evars Γ1
+    | ?Γ1 ⋓ ?Γ2      => has_evars Γ2
+  end.
+
+Ltac print_goal :=
+  match goal with
+  | [ |- ?G ] => idtac G
+  end.
+
+Ltac associate :=
+  repeat ((*idtac "associating";*) rewrite <- merge_assoc).
+(*
+  match goal with
+  | [ |- context[?Γ1 ⋓ ?Γ2 ⋓ ?Γ3] ] => rewrite <- merge_assoc
+(*    replace (Γ1 ⋓ Γ2 ⋓ Γ3) with (Γ1 ⋓ (Γ2 ⋓ Γ3)) by (rewrite merge_assoc; reflexivity)*)
+(*    rewrite <- merge_assoc with (Γ1 := Γ1) (Γ2 := Γ2) (Γ3 := Γ3) *)
+  end); print_goal. *)
+
+
 (* Assumes at most one evar *)
 (* Note: Changed is_evar to has_evar to deal with "Valid ?Goal". 
          Might make line two risky *)
@@ -516,7 +556,7 @@ Ltac monoid :=
   | [ |- ?Γ1 = ?Γ2 ] => has_evar Γ1; symmetry
   end;
   repeat (
-  repeat (rewrite <- merge_assoc); 
+  (*idtac "monoid";*) associate;
   match goal with
   | [ |- ?Γ = ?Γ ]                  => reflexivity
   | [ |- ?Γ1 = ?Γ2 ]                => is_evar Γ2; reflexivity

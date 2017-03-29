@@ -49,31 +49,22 @@ Opaque wproj.
 Opaque Ctx.
 Opaque is_valid.
 
-(* Local check for multiple evars *)
-Ltac has_evars term := 
-  match term with
-    | ?L = ?R        => has_evar L; has_evar R
-    | ?L = ?R        => has_evars L
-    | ?L = ?R        => has_evars R
-    | ?Γ1 ⋓ ?Γ2      => has_evar Γ1; has_evar Γ2
-    | ?Γ1 ⋓ ?Γ2      => has_evars Γ1
-    | ?Γ1 ⋓ ?Γ2      => has_evars Γ2
-  end.
-
 Ltac validate :=
-  repeat match goal with
-  | [p : Pat ?Γ ?W |- _ ]       => apply pat_ctx_valid in p
-  | [|- is_valid ∅ ]               => apply valid_empty
+  repeat ((*idtac "validate";*) match goal with
+  | [p : Pat ?Γ ?W |- _ ]             => apply pat_ctx_valid in p
+  | [|- is_valid ∅ ]                  => apply valid_empty
   | [H : is_valid ?Γ |- is_valid ?Γ ] => exact H
   | [H: is_valid (?Γ1 ⋓ ?Γ2) |- is_valid (?Γ2 ⋓ ?Γ1) ] => rewrite merge_comm;
                                                    exact H
   (* Reduce hypothesis to binary disjointness *)
   | [H: is_valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) |- _ ] => rewrite merge_assoc in H
+(*        replace (Γ1 ⋓ (Γ2 ⋓ Γ3)) with (Γ1 ⋓ Γ2 ⋓ Γ3) in H by (rewrite <- merge_assoc; reflexivity) *)
   | [H: is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) |- _ ]   => apply valid_split in H as [? [? ?]]
   (* Reduce goal to binary disjointness *)
   | [|- is_valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) ] => rewrite merge_assoc
+(*        replace (Γ1 ⋓ (Γ2 ⋓ Γ3)) with (Γ1 ⋓ Γ2 ⋓ Γ3) by (rewrite <- merge_assoc; reflexivity)*)
   | [|- is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) ]   => apply valid_join; validate
-  end.  
+  end).
 
 Ltac type_check_once := 
   intros;
@@ -84,8 +75,8 @@ Ltac type_check_once :=
   end; 
   (* Runs monoid iff a single evar appears in context *)
   match goal with
-  | [|- ?A = ?B ] => tryif (has_evars (A = B)) then idtac else monoid
-  | [|- is_valid ?Γ] => tryif (has_evar Γ) then idtac else validate
+  | [|- is_valid ?Γ] => tryif (has_evar Γ) then idtac (*"can't validate"*) else validate
+  | [|- ?G ] => tryif (has_evars G) then idtac (*"can't monoid"*) else monoid
   end.
 
 (* Useful for debugging *)
@@ -156,7 +147,7 @@ Defined.
 
 
 Definition bell00 : Box One (Qubit ⊗ Qubit).
-  box' (fun p1 => 
+ box' (fun _ => 
   (gate' init0 (()) a
   (gate' init0 (()) b
   (gate' H a a
