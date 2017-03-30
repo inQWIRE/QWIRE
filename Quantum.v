@@ -25,9 +25,14 @@ Definition ket1 : Matrix 2 1 :=
           | 1, 0 => 1
           | _, _ => 0
           end.
+Definition ket (x : nat) : Matrix 2 1 := if x =? 0 then ket0 else ket1.
 
 Notation "|0⟩" := ket0.
 Notation "|1⟩" := ket1.
+Notation "⟨0|" := ket0†.
+Notation "⟨1|" := ket1†.
+Notation "|0⟩⟨0|" := ( |0⟩×⟨0| ).
+Notation "|1⟩⟨1|" := (|1⟩×⟨1|).
 
 Notation "√ n" := (sqrt n) (at level 20).
 
@@ -272,5 +277,21 @@ Proof.
   apply Mmult_1_l.
   apply WF_Id.
 Qed.
+
+
+(* Density matrices and superoperators *)
+
+Definition Density (n : nat) := Matrix n n.
+Definition Superoperator m n := Density m -> Density n.
+
+Definition super {m n} (M : Matrix m n) : Superoperator m n := fun ρ => 
+  M × ρ × M†.
+
+(* To do: correctness conditions for density matrices and superoperators *)
+
+Definition new0 : Superoperator 2 2 := super |0⟩⟨0|.
+Definition new1 : Superoperator 2 2 := super |1⟩⟨1|.
+Definition meas : Superoperator 2 2 := fun ρ => super |0⟩⟨0| ρ .+ super |1⟩⟨1| ρ.
+Definition discard : Superoperator 2 1 := fun ρ => super ⟨0| ρ .+ super ⟨1| ρ.
 
 (* *)
