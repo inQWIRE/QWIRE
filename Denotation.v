@@ -4,10 +4,16 @@ Require Import TypedCircuits.
 Require Import Examples.
 Require Import List.
 Require Import Arith.
-Require Import Quantum.
-Import ListNotations.
 
-Open Scope circ_scope.
+
+Class Denote source target :=
+{
+    correctness : target -> Type;
+    denote : source -> target;
+    denote_correct : forall (x : source), correctness (denote x)
+}.
+Notation "〚 s 〛" := (denote s) (at level 10).
+
 
 Fixpoint num_wires (W : WType) : nat := 
   match W with
@@ -16,6 +22,33 @@ Fixpoint num_wires (W : WType) : nat :=
   | Bit => 1
   | W1 ⊗ W2 => num_wires W1 + num_wires W2
   end.
+
+Instance denote_WType : Denote WType nat :=
+{|
+    correctness := fun _ => True;
+    denote := num_wires;
+    denote_correct := fun _ => I
+|}.
+
+Parameter Matrix : nat -> nat -> Type.
+Parameter unitary_matrix : forall {n: nat} (A : Matrix n n), Prop.
+Parameter denote_unitary : forall {W} (U : Unitary W), Matrix (2^〚W〛) (2^〚W〛).
+Instance denote_Unitary {W} : Denote (Unitary W) (Matrix (2^〚W〛) (2^〚W〛)) :=
+{|
+    correctness := unitary_matrix;
+    denote := denote_unitary
+|}.
+Proof.
+Admitted.
+
+
+
+Require Import Quantum.
+Import ListNotations.
+
+Open Scope circ_scope.
+
+
 
 Notation "# W" := (num_wires W) (at level 10).
 
@@ -59,5 +92,11 @@ Proof.
     apply Minv_left in IHU as [_ S]. (* NB: Admitted lemma *)
     assumption.
 Qed.
+
+Parameter denote_gate {W1 W2} (g : Gate W1 W2) : Matrix (2^(#W1)) (2^(#W2)).
+
+
+Fixpoint denote_circuit {Γ : Ctx} {W : WType} (c : Flat_Circuit Γ W) : :=
+  match 
 
 (* *)
