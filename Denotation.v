@@ -45,11 +45,22 @@ Fixpoint denote_unitary {W} (U : Unitary W) : Matrix (2^〚W〛) (2^〚W〛) :=
   | TypedCircuits.bit_control _ g => control (denote_unitary g)  
   | TypedCircuits.transpose _ g => (denote_unitary g)†
   end. 
-Instance denote_Unitary {W} : Denote (Unitary W) (Matrix (2^〚W〛) (2^〚W〛)) :=
-{|
-    correctness := unitary_matrix;
-    denote := denote_unitary
-|}.
+
+(*Require Import omega.*)
+
+Lemma unitary_wf : forall {W} (U : Unitary W), WF_Matrix (denote_unitary U).
+Proof.
+  induction U.
+  + apply WF_hadamard.
+  + apply WF_pauli_x.
+  + apply WF_pauli_y.
+  + apply WF_pauli_z.
+  + apply WF_control. apply WF_pauli_x.
+  + simpl. apply WF_control. assumption.    
+  + simpl. apply WF_control. assumption.    
+  + simpl. apply WF_conj_transpose. assumption.    
+Qed.
+Lemma unitary_gate_unitary : forall {W} (U : Unitary W), unitary_matrix (denote_unitary U).
 Proof.
   induction x.
   + apply H_unitary.
@@ -65,6 +76,26 @@ Proof.
     apply Minv_left in IHx as [_ S]. (* NB: Admitted lemma *)
     assumption.
 Qed.
+
+Instance denote_Unitary {W} : Denote (Unitary W) (Matrix (2^〚W〛) (2^〚W〛)) :=
+{|
+    correctness := fun m => WF_Matrix m /\ unitary_matrix m;
+    denote := denote_unitary
+    denote_correct := fun U => (unitary_wf u, unitary_gate_unitary u)
+|}.
+
+
+
+(*
+Eval compute in (denote_unitary CNOT 0%nat 0%nat).
+Eval compute in (denote_unitary CNOT 0%nat 1%nat).
+Eval compute in (denote_unitary CNOT 1%nat 0%nat).
+Eval compute in (denote_unitary CNOT 1%nat 1%nat).
+Eval compute in (denote_unitary CNOT 2%nat 2%nat).
+Eval compute in (denote_unitary CNOT 2%nat 3%nat).
+Eval compute in (denote_unitary CNOT 3%nat 2%nat).
+Eval compute in (denote_unitary CNOT 3%nat 3%nat).
+*)
 
 
 (*Definition denote_gate {W1 W2} (g : Gate W1 W2) : Matrix (2^(#W1)) (2^(#W2)).*)
