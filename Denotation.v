@@ -62,7 +62,7 @@ Proof.
 Qed.
 Lemma unitary_gate_unitary : forall {W} (U : Unitary W), unitary_matrix (denote_unitary U).
 Proof.
-  induction x.
+  induction U.
   + apply H_unitary.
   + apply σx_unitary.
   + apply σy_unitary.
@@ -73,15 +73,15 @@ Proof.
   + simpl.
     unfold unitary_matrix in *.
     rewrite conj_transpose_involutive.
-    apply Minv_left in IHx as [_ S]. (* NB: Admitted lemma *)
+    apply Minv_left in IHU as [_ S]. (* NB: Admitted lemma *)
     assumption.
 Qed.
 
 Instance denote_Unitary {W} : Denote (Unitary W) (Matrix (2^〚W〛) (2^〚W〛)) :=
 {|
     correctness := fun m => WF_Matrix m /\ unitary_matrix m;
-    denote := denote_unitary
-    denote_correct := fun U => (unitary_wf u, unitary_gate_unitary u)
+    denote := denote_unitary;
+    denote_correct := fun U => conj (unitary_wf U) (unitary_gate_unitary U)
 |}.
 
 
