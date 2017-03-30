@@ -31,6 +31,21 @@ Fixpoint denote_unitary {W} (U : Unitary W) : Matrix (2^(#W)) (2^(#W)) :=
   | TypedCircuits.transpose _ g => (denote_unitary g)†
   end. 
 
+Require Import Omega.
+
+Lemma unitary_wf : forall {W} (U : Unitary W), WF_Matrix (denote_unitary U).
+Proof.
+  induction U.
+  + apply WF_hadamard.
+  + apply WF_pauli_x.
+  + apply WF_pauli_y.
+  + apply WF_pauli_z.
+  + apply WF_control. apply WF_pauli_x.
+  + simpl. apply WF_control. assumption.    
+  + simpl. apply WF_control. assumption.    
+  + simpl. apply WF_conj_transpose. assumption.    
+Qed.
+
 (*
 Eval compute in (denote_unitary CNOT 0%nat 0%nat).
 Eval compute in (denote_unitary CNOT 0%nat 1%nat).
