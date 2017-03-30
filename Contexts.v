@@ -5,9 +5,14 @@ Open Scope list_scope.
 
 (*** Context Definitions ***)
 
-Inductive WType := Qubit | Bit | One | Tensor : WType -> WType -> WType.
+Class Has_Tensor A :=
+{ 
+    tensor : A -> A -> A
+}.
+Notation "W1 ⊗ W2" := (tensor W1 W2) (at level 40, left associativity): circ_scope.
 
-Notation "W1 ⊗ W2" := (Tensor W1 W2) (at level 40, left associativity): circ_scope.
+Inductive WType := Qubit | Bit | One | Tensor : WType -> WType -> WType.
+Instance WType_tensor : Has_Tensor WType := { tensor := Tensor }.
  
 Open Scope circ_scope.
 
@@ -17,7 +22,7 @@ Fixpoint interpret (w:WType) : Set :=
     | Qubit => bool
     | Bit => bool 
     | One => Datatypes.unit
-    | w1 ⊗ w2 => (interpret w1) * (interpret w2)
+    | Tensor w1 w2 => (interpret w1) * (interpret w2)
   end.
 
 Definition Var := nat.

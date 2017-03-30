@@ -105,7 +105,7 @@ Notation bind' p1 p2 p c := (let 'existT23 _ _ p1 p2 _ := wproj p in c).
 (* New Notations *)
 
 Notation "p1 & p2 <<- p ; c" := (bind' p1 p2 p c) (at level 10, right associativity).
-Notation "() <<- p ; c" := (let pf := elim_unit p in c) (at level 10).
+Notation "() <<-- p ; c" := (match elim_unit p with eq_refl => c end) (at level 10).
 
 Notation out p := (output' p).
 Notation "p' <-- 'gate' g 'on' p ; C" := (gate' g p p' C) 
@@ -139,8 +139,9 @@ Definition init_discard : Box One One.
   box' (fun _ => 
     q <-- gate init0 on (()) ;
     b <-- gate meas on q ;
-    z <-- gate discard on b ;
-    out z).
+    _ <-- gate discard on b ;
+    () <<-- z;
+    output' (())).
 (* discuss with Jen 
   (() <-- z ;
   (out (()) )))))). *)

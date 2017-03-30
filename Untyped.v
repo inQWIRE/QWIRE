@@ -91,7 +91,7 @@ Fixpoint compose {Γ1} {W} (c : Typed_Circuit Γ1 W)
           | wf_gate _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ wf_p1 wf_p2 wf_c => _
           | wf_lift _ _ _ _ _ _ _ _ wf_p f => _
           end).
-  -
+  - 
   -
   -
   -
