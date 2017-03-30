@@ -83,11 +83,7 @@ Definition control {n : nat} (A : Matrix n n) : Matrix (2*n) (2*n) :=
 
 Definition cnot := control pauli_x.
           
-Definition unitary_matrix {n: nat} (A : Matrix n n): Prop :=
-  A† × A = Id n.
-
-(* More precise *)
-Definition unitary_matrix' {n: nat} (A : Matrix n n): Prop := Minv A A†.
+(* Tactics *)
 
 (* Would rather use something more basic than lra - but fourier and ring 
    aren't always up to the task *)
@@ -124,6 +120,43 @@ Ltac group_radicals :=
 Ltac Rsolve := repeat (try Rsimpl; try group_radicals); lra.
 
 Ltac Csolve := eapply c_proj_eq; simpl; Rsolve.
+
+Ltac well_formed N :=
+  unfold WF_Matrix, N;
+  intros x y [H | H];
+  repeat (destruct x; try reflexivity; try omega);
+  repeat (destruct y; try reflexivity; try omega).
+
+(** Unitaries are well-formed **)
+
+Lemma WF_hadamard : WF_Matrix hadamard. Proof. well_formed hadamard. Qed.
+Lemma WF_pauli_x : WF_Matrix pauli_x. Proof. well_formed hadamard. Qed.
+Lemma WF_pauli_y : WF_Matrix pauli_y. Proof. well_formed hadamard. Qed.
+Lemma WF_pauli_z : WF_Matrix pauli_z. Proof. well_formed hadamard. Qed.
+
+Lemma WF_control : forall {n} (U : Matrix n n), WF_Matrix U -> WF_Matrix (control U).
+Proof.
+  intros n U WFU.
+  unfold control, WF_Matrix in *.
+  intros x y [Hx | Hy].
+  + replace (x <? n) with false by (symmetry; apply Nat.ltb_ge; omega). simpl.
+    rewrite WFU.
+    destruct (n <=? x), (n <=? y); reflexivity.
+    left. omega.
+  + replace (y <? n) with false by (symmetry; apply Nat.ltb_ge; omega). 
+    rewrite andb_false_r.
+    rewrite WFU.
+    destruct (n <=? x), (n <=? y); reflexivity.
+    right. omega.
+Qed.
+
+(** Unitaries are unitary **)
+
+Definition unitary_matrix {n: nat} (A : Matrix n n): Prop :=
+  A† × A = Id n.
+
+(* More precise *)
+Definition unitary_matrix' {n: nat} (A : Matrix n n): Prop := Minv A A†.
 
 Lemma H_unitary : unitary_matrix hadamard.
 Proof.
