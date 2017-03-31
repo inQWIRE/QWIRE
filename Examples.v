@@ -187,7 +187,8 @@ Notation lift_compose x c1 c2 := (compose c1 _ _ (fun _ _ _ _ p' => lift _ _ p' 
 Notation lift_pat x p c := (lift _ _ p (fun x => c)).
 Notation "x ← 'lift' c1 ; c2" := (lift_pat x c1 c2) (at level 10, right associativity).
 
-Definition lift_deutsch (U_f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Qubit.  box (fun _ =>
+Definition lift_deutsch (U_f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Qubit.  
+  box (fun _ =>
     x     ← gate init0 ();
     x     ← gate H x;
     y     ← gate init1 ();
