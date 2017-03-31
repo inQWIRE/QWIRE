@@ -18,21 +18,23 @@ Definition ket0 : Matrix 2 1:=
           | 1, 0 => 0
           | _, _ => 0
           end.
-
 Definition ket1 : Matrix 2 1 := 
   fun x y => match x, y with 
           | 0, 0 => 0
           | 1, 0 => 1
           | _, _ => 0
           end.
+
 Definition ket (x : nat) : Matrix 2 1 := if x =? 0 then ket0 else ket1.
 
 Notation "|0⟩" := ket0.
 Notation "|1⟩" := ket1.
 Notation "⟨0|" := ket0†.
 Notation "⟨1|" := ket1†.
-Notation "|0⟩⟨0|" := ( |0⟩×⟨0| ).
+Notation "|0⟩⟨0|" := (|0⟩×⟨0|).
 Notation "|1⟩⟨1|" := (|1⟩×⟨1|).
+Notation "|1⟩⟨0|" := (|1⟩×⟨0|).
+Notation "|0⟩⟨1|" := (|0⟩×⟨1|).
 
 Notation "√ n" := (sqrt n) (at level 20).
 
@@ -126,6 +128,28 @@ Ltac Rsolve := repeat (try Rsimpl; try group_radicals); lra.
 
 Ltac Csolve := eapply c_proj_eq; simpl; Rsolve.
 
+(* I'd like a version of this that makes progress even if it doesn't succeed *)
+
+Ltac Msolve := 
+  compute;
+  repeat match goal with 
+  | [ |- (fun _ => _) = (fun _ => _) ]  => let x := fresh "x" in 
+                                   apply functional_extensionality; intros x
+  | [ |- _ = _ ]                  => Csolve 
+  | [ x : nat |- _ ]                => destruct x (* I'd rather bound this *)
+  end.
+
+(* Similar to Msolve but often faster *)
+Ltac mlra := 
+  compute;
+  repeat match goal with 
+  | [ |- (fun _ => _) = (fun _ => _) ]  => let x := fresh "x" in 
+                                   apply functional_extensionality; intros x
+  | [ |- _ = _ ]                  => clra 
+  | [ x : nat |- _ ]                => destruct x 
+  end.
+
+
 Ltac well_formed N :=
   unfold WF_Matrix, N;
   intros x y [H | H];
@@ -170,31 +194,23 @@ Proof.
   apply functional_extensionality; intros y.
   unfold conj_transpose, Mmult, Id.
   simpl.
-  destruct x as [|x]; destruct y as [|y].
-  + Csolve.
-  + destruct y; Csolve.
-  + destruct x; Csolve.
-  + destruct x, y; try Csolve.
-    - replace ((S (S x) <? 2)) with (false) by reflexivity.
-      rewrite andb_false_r.
-      clra.
+  destruct x as [| [|x]]; destruct y as [|[|y]]; try Csolve.
+  replace ((S (S x) <? 2)) with (false) by reflexivity.
+  rewrite andb_false_r.
+  clra.
 Qed.
 
 Lemma σx_unitary : unitary_matrix pauli_x.
-Proof.
+Proof. 
   unfold unitary_matrix.
   apply functional_extensionality; intros x.
   apply functional_extensionality; intros y.
   unfold conj_transpose, Mmult, Id.
   simpl.
-  destruct x as [|x]; destruct y as [|y].
-  + clra.
-  + destruct y; clra.
-  + destruct x; clra.
-  + destruct x, y; try clra.
-    - replace ((S (S x) <? 2)) with (false) by reflexivity.
-      rewrite andb_false_r.
-      clra.
+  destruct x as [| [|x]]; destruct y as [|[|y]]; try clra.
+  replace ((S (S x) <? 2)) with (false) by reflexivity.
+  rewrite andb_false_r.
+  clra.
 Qed.
 
 Lemma σy_unitary : unitary_matrix pauli_y.
@@ -204,14 +220,10 @@ Proof.
   apply functional_extensionality; intros y.
   unfold conj_transpose, Mmult, Id.
   simpl.
-  destruct x as [|x]; destruct y as [|y].
-  + clra.
-  + destruct y; clra.
-  + destruct x; clra.
-  + destruct x, y; try clra.
-    - replace ((S (S x) <? 2)) with (false) by reflexivity.
-      rewrite andb_false_r.
-      clra.
+  destruct x as [| [|x]]; destruct y as [|[|y]]; try clra.
+  replace ((S (S x) <? 2)) with (false) by reflexivity.
+  rewrite andb_false_r.
+  clra.
 Qed.
 
 Lemma σz_unitary : unitary_matrix pauli_z.
@@ -221,14 +233,10 @@ Proof.
   apply functional_extensionality; intros y.
   unfold conj_transpose, Mmult, Id.
   simpl.
-  destruct x as [|x]; destruct y as [|y].
-  + clra.
-  + destruct y; clra.
-  + destruct x; clra.
-  + destruct x, y; try clra.
-    - replace ((S (S x) <? 2)) with (false) by reflexivity.
-      rewrite andb_false_r.
-      clra.
+  destruct x as [| [|x]]; destruct y as [|[|y]]; try clra.
+  replace ((S (S x) <? 2)) with (false) by reflexivity.
+  rewrite andb_false_r.
+  clra.
 Qed.
 
 Lemma control_unitary : forall n (A : Matrix n n), 
@@ -279,7 +287,7 @@ Proof.
 Qed.
 
 
-(* Density matrices and superoperators *)
+(** Density matrices and superoperators **)
 
 Definition Density (n : nat) := Matrix n n.
 Definition Superoperator m n := Density m -> Density n.
@@ -289,9 +297,93 @@ Definition super {m n} (M : Matrix m n) : Superoperator m n := fun ρ =>
 
 (* To do: correctness conditions for density matrices and superoperators *)
 
-Definition new0 : Superoperator 2 2 := super |0⟩⟨0|.
-Definition new1 : Superoperator 2 2 := super |1⟩⟨1|.
-Definition meas : Superoperator 2 2 := fun ρ => super |0⟩⟨0| ρ .+ super |1⟩⟨1| ρ.
-Definition discard : Superoperator 2 1 := fun ρ => super ⟨0| ρ .+ super ⟨1| ρ.
+Definition new0_op : Superoperator 2 2 := super |0⟩⟨0|.
+Definition new1_op : Superoperator 2 2 := super |1⟩⟨1|.
+Definition meas_op : Superoperator 2 2 := fun ρ => super |0⟩⟨0| ρ .+ super |1⟩⟨1| ρ.
+Definition discard_op : Superoperator 2 1 := fun ρ => super ⟨0| ρ .+ super ⟨1| ρ.
+
+
+(* Pure and Mixed States *)
+
+(* Wiki:
+In operator language, a density operator is a positive semidefinite, hermitian 
+operator of trace 1 acting on the state space. A density operator describes 
+a pure state if it is a rank one projection. Equivalently, a density operator ρ 
+describes a pure state if and only if ρ = ρ ^ 2 *)
+
+Definition Pure_State {n} (ρ : Matrix n n) : Prop := ρ = ρ × ρ.
+
+Lemma pure0 : Pure_State |0⟩⟨0|. Proof. mlra. Qed.
+Lemma pure1 : Pure_State |1⟩⟨1|. Proof. mlra. Qed.
+
+(* Very simple version of a general lemma saying that all unitaries map pure states
+   to pure states *)
+(* Takes forever. Msolve *can* solve this, but it takes 2^forever. *)
+(*
+Lemma pure_hadamard_1 : @Pure_State 2 (super hadamard |0⟩⟨0|).
+Proof. 
+  unfold Pure_State, hadamard, ket0, conj_transpose, super, Mmult.
+  apply functional_extensionality; intros x.
+  apply functional_extensionality; intros y.
+  destruct x as [| [|x]]; destruct y as [|[|y]]; Csolve.
+Qed.
+*)
+  
+Lemma pure_σx_1 : @Pure_State 2 (super pauli_x |0⟩⟨0|). Proof. mlra. Qed.
+Lemma pure_σy_1 : @Pure_State 2 (super pauli_y |0⟩⟨0|). Proof. mlra. Qed.
+Lemma pure_σz_1 : @Pure_State 2 (super pauli_z |0⟩⟨0|). Proof. mlra. Qed.
+
+
+(* More general:
+Lemma pure_hadamard : forall {n} (ρ : Matrix n n), Pure_State ρ -> 
+                                              @Pure_State 2 (super hadamard ρ). *) 
+
+(* Most general:
+Lemma pure_unitary : forall {n} (U ρ : Matrix n n), 
+  unitary_matrix U -> Pure_State ρ -> @Pure_State 2 (super U ρ). *) 
+
+(* Wiki:
+For a finite-dimensional function space, the most general density operator 
+is of the form:
+
+  ρ =∑_j p_j |ψ_j⟩⟨ ψ_j| 
+
+where the coefficients p_j are non-negative and add up to one. *)
+
+Inductive Mixed_State {n} : (Matrix n n) -> Prop :=
+| Pure_S : forall ρ, Pure_State ρ -> Mixed_State ρ
+| Mix_S : forall (p : R) ρ1 ρ2, 0 < p < 1 -> Mixed_State ρ1 -> Mixed_State ρ2 ->
+                                        Mixed_State (p .* ρ1 .+ (1-p)%R .* ρ2).  
+
+Lemma mix_σx : @Mixed_State 2 (super pauli_x |0⟩⟨0|).
+Proof. apply Pure_S. apply pure_σx_1. Qed.
+
+Definition dm12 : Matrix 2 2 :=
+  fun x y => match x, y with
+          | 0, 0 => 1 / 2
+          | 0, 1 => 1 / 2
+          | 1, 0 => 1 / 2
+          | 1, 1 => 1 / 2
+          | _, _ => 0
+          end.
+
+Lemma pure_dm12 : Pure_State dm12. Proof.
+  unfold Pure_State, dm12, conj_transpose, super, Mmult.
+  apply functional_extensionality; intros x.
+  apply functional_extensionality; intros y.
+  destruct x as [| [|x]]; destruct y as [|[|y]]; clra.
+Qed.
+
+Lemma mix_meas_12 : @Mixed_State 2 (meas_op dm12).
+Proof. unfold meas_op. 
+       replace (super |0⟩⟨0| dm12) with ((1/2)%R .* |0⟩⟨0|) by mlra. 
+       replace (super |1⟩⟨1| dm12) with ((1 - 1/2)%R .* |1⟩⟨1|) by mlra. 
+       apply Mix_S.
+       lra.
+       constructor; mlra.
+       constructor; mlra.
+Qed.
+
+
 
 (* *)
