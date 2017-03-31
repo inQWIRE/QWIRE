@@ -9,9 +9,10 @@ Class Has_Tensor A :=
 { 
     tensor : A -> A -> A
 }.
-Notation "W1 ⊗ W2" := (tensor W1 W2) (at level 40, left associativity): circ_scope.
 
 Inductive WType := Qubit | Bit | One | Tensor : WType -> WType -> WType.
+Notation " W1 ⊗ W2 " := (Tensor W1 W2) (at level 40, left associativity): circ_scope.
+
 Instance WType_tensor : Has_Tensor WType := { tensor := Tensor }.
  
 Open Scope circ_scope.
