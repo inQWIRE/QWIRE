@@ -4,7 +4,6 @@ Require Import TypedCircuits.
 Require Import Examples.
 Require Import List.
 Require Import Arith.
-
 Require Import Quantum.
 Import ListNotations.
 
@@ -12,12 +11,13 @@ Open Scope circ_scope.
 
 Class Denote source target :=
 {
-    correctness : target -> Type;
+    correctness : target -> Prop;
     denote : source -> target;
     denote_correct : forall (x : source), correctness (denote x)
 }.
 Notation "〚 s 〛" := (denote s) (at level 10).
 
+(** Wire Denotation **)
 
 Fixpoint num_wires (W : WType) : nat := 
   match W with
@@ -34,6 +34,8 @@ Instance denote_WType : Denote WType nat :=
     denote_correct := fun _ => I
 |}.
 
+(** Unitary Denotation **)
+
 Fixpoint denote_unitary {W} (U : Unitary W) : Matrix (2^〚W〛) (2^〚W〛) :=
   match U with  
   | H => hadamard 
@@ -45,8 +47,6 @@ Fixpoint denote_unitary {W} (U : Unitary W) : Matrix (2^〚W〛) (2^〚W〛) :=
   | TypedCircuits.bit_control _ g => control (denote_unitary g)  
   | TypedCircuits.transpose _ g => (denote_unitary g)†
   end. 
-
-(*Require Import omega.*)
 
 Lemma unitary_wf : forall {W} (U : Unitary W), WF_Matrix (denote_unitary U).
 Proof.
@@ -60,6 +60,7 @@ Proof.
   + simpl. apply WF_control. assumption.    
   + simpl. apply WF_conj_transpose. assumption.    
 Qed.
+
 Lemma unitary_gate_unitary : forall {W} (U : Unitary W), unitary_matrix (denote_unitary U).
 Proof.
   induction U.
@@ -84,7 +85,33 @@ Instance denote_Unitary {W} : Denote (Unitary W) (Matrix (2^〚W〛) (2^〚W〛)
     denote_correct := fun U => conj (unitary_wf U) (unitary_gate_unitary U)
 |}.
 
+(** Gate Denotation *)
 
+Definition denote_gate {W1 W2} (g : Gate W1 W2) : 
+  Superoperator (2^〚W1〛) (2^〚W2〛) :=
+  match g with
+  | U _ u  => super (〚u〛)
+  | init0 => new0_op 
+  | init1 => new1_op
+  | new0 => new0_op
+  | new1 => new1_op 
+  | meas => meas_op
+  | discard => discard_op
+  end.
+
+Definition super_op_correctness {m n} (f : Superoperator m n) := 
+  (forall ρ, @Mixed_State m ρ -> @Mixed_State n (f ρ)).   
+
+Lemma denote_gate_correct : forall {W1} {W2} (g : Gate W1 W2), 
+                            super_op_correctness (denote_gate g). 
+Admitted.
+
+Instance denote_Gate {W1 W2} : Denote (Gate W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
+{|
+    correctness := super_op_correctness;
+    denote := denote_gate;
+    denote_correct := denote_gate_correct
+|}.
 
 (*
 Eval compute in (denote_unitary CNOT 0%nat 0%nat).
