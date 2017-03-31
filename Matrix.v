@@ -133,7 +133,7 @@ Definition conj_transpose {m n} (A : Matrix m n) : Matrix n m :=
 
 Infix "∘" := dot (at level 40, left associativity) : matrix_scope.
 Infix ".+" := Mplus (at level 50, left associativity) : matrix_scope.
-Infix ".*" := scale (at level 50, left associativity) : matrix_scope.
+Infix ".*" := scale (at level 40, left associativity) : matrix_scope.
 Infix "×" := Mmult (at level 40, left associativity) : matrix_scope.
 Infix "⊗" := kron (at level 40, left associativity) : matrix_scope.
 Infix "≡" := mat_equiv (at level 100) : matrix_scope.
