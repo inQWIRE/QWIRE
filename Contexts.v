@@ -547,15 +547,14 @@ Ltac print_goal :=
 
 
 (* Assumes at most one evar *)
-(* Note: Changed is_evar to has_evar to deal with "Valid ?Goal". 
-         Might make line two risky *)
 Ltac monoid := 
   try match goal with
   | [ |- ?Γ1 = ?Γ2 ] => has_evar Γ1; symmetry
   end;
-  repeat (
-  (*idtac "monoid";*) repeat (rewrite <- merge_assoc);
-  match goal with
+  repeat match goal with
+  (* reassociate *)
+  | [ |- context[?Γ1 ⋓ ?Γ2 ⋓ ?Γ3 ]] => rewrite <- (merge_assoc Γ1 Γ2 Γ3)
+  (* solve *)                                            
   | [ |- ?Γ = ?Γ ]                  => reflexivity
   | [ |- ?Γ1 = ?Γ2 ]                => is_evar Γ2; reflexivity
   (* remove nils *)
@@ -569,7 +568,7 @@ Ltac monoid :=
   | [ |- ?Γ ⋓ _ = ?Γ ⋓ _ ]          => apply merge_cancel_l
   | [ |- ?Γ1 ⋓ ?Γ1' = ?Γ ⋓ _ ]      => rewrite (merge_comm Γ1 Γ1')
 (*| [ |- context[?Γ] = ?Γ ⋓ _ ]     => move_left Γ *)
-  end).
+  end.
 
 (*
 Ltac move_left Γ :=
