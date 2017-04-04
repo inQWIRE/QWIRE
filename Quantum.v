@@ -289,8 +289,10 @@ Qed.
 
 (** Density matrices and superoperators **)
 
-Definition Density (n : nat) := Matrix n n.
+Notation Density n := (Matrix n n) (only parsing). 
 Definition Superoperator m n := Density m -> Density n.
+
+(* Transparent Density. *)
 
 Definition super {m n} (M : Matrix m n) : Superoperator m n := fun ρ => 
   M × ρ × M†.
@@ -302,7 +304,6 @@ Definition new1_op : Superoperator 2 2 := super |1⟩⟨1|.
 Definition meas_op : Superoperator 2 2 := fun ρ => super |0⟩⟨0| ρ .+ super |1⟩⟨1| ρ.
 Definition discard_op : Superoperator 2 1 := fun ρ => super ⟨0| ρ .+ super ⟨1| ρ.
 
-
 (* Pure and Mixed States *)
 
 (* Wiki:
@@ -311,7 +312,7 @@ operator of trace 1 acting on the state space. A density operator describes
 a pure state if it is a rank one projection. Equivalently, a density operator ρ 
 describes a pure state if and only if ρ = ρ ^ 2 *)
 
-Definition Pure_State {n} (ρ : Matrix n n) : Prop := ρ = ρ × ρ.
+Definition Pure_State {n} (ρ : Density n) : Prop := ρ = ρ × ρ.
 
 Lemma pure0 : Pure_State |0⟩⟨0|. Proof. mlra. Qed.
 Lemma pure1 : Pure_State |1⟩⟨1|. Proof. mlra. Qed.
@@ -320,7 +321,7 @@ Lemma pure1 : Pure_State |1⟩⟨1|. Proof. mlra. Qed.
    to pure states *)
 (* Takes forever. Msolve *can* solve this, but it takes 2^forever. *)
 (*
-Lemma pure_hadamard_1 : @Pure_State 2 (super hadamard |0⟩⟨0|).
+Lemma pure_hadamard_1 : Pure_State (super hadamard |0⟩⟨0|).
 Proof. 
   unfold Pure_State, hadamard, ket0, conj_transpose, super, Mmult.
   apply functional_extensionality; intros x.
@@ -329,18 +330,17 @@ Proof.
 Qed.
 *)
   
-Lemma pure_σx_1 : @Pure_State 2 (super pauli_x |0⟩⟨0|). Proof. mlra. Qed.
-Lemma pure_σy_1 : @Pure_State 2 (super pauli_y |0⟩⟨0|). Proof. mlra. Qed.
-Lemma pure_σz_1 : @Pure_State 2 (super pauli_z |0⟩⟨0|). Proof. mlra. Qed.
-
+Lemma pure_σx_1 : Pure_State (super pauli_x |0⟩⟨0|). Proof. mlra. Qed.
+Lemma pure_σy_1 : Pure_State (super pauli_y |0⟩⟨0|). Proof. mlra. Qed.
+Lemma pure_σz_1 : Pure_State (super pauli_z |0⟩⟨0|). Proof. mlra. Qed.
 
 (* More general:
 Lemma pure_hadamard : forall {n} (ρ : Matrix n n), Pure_State ρ -> 
-                                              @Pure_State 2 (super hadamard ρ). *) 
+                                              Pure_State  (super hadamard ρ). *) 
 
 (* Most general:
 Lemma pure_unitary : forall {n} (U ρ : Matrix n n), 
-  unitary_matrix U -> Pure_State ρ -> @Pure_State 2 (super U ρ). *) 
+  unitary_matrix U -> Pure_State ρ -> Pure_State (super U ρ). *) 
 
 (* Wiki:
 For a finite-dimensional function space, the most general density operator 
@@ -355,7 +355,7 @@ Inductive Mixed_State {n} : (Matrix n n) -> Prop :=
 | Mix_S : forall (p : R) ρ1 ρ2, 0 < p < 1 -> Mixed_State ρ1 -> Mixed_State ρ2 ->
                                         Mixed_State (p .* ρ1 .+ (1-p)%R .* ρ2).  
 
-Lemma mix_σx : @Mixed_State 2 (super pauli_x |0⟩⟨0|).
+Lemma mix_σx : Mixed_State (super pauli_x |0⟩⟨0|).
 Proof. apply Pure_S. apply pure_σx_1. Qed.
 
 Definition dm12 : Matrix 2 2 :=
@@ -374,7 +374,7 @@ Lemma pure_dm12 : Pure_State dm12. Proof.
   destruct x as [| [|x]]; destruct y as [|[|y]]; clra.
 Qed.
 
-Lemma mix_meas_12 : @Mixed_State 2 (meas_op dm12).
+Lemma mix_meas_12 : Mixed_State (meas_op dm12).
 Proof. unfold meas_op. 
        replace (super |0⟩⟨0| dm12) with ((1/2)%R .* |0⟩⟨0|) by mlra. 
        replace (super |1⟩⟨1| dm12) with ((1 - 1/2)%R .* |1⟩⟨1|) by mlra. 
