@@ -32,7 +32,7 @@ Program Definition elim_unit {Γ} (p : Pat Γ One) : Γ = ∅ :=
   | pair Γ1 Γ2 Γ W1 W2 v M p1 p2 => _
   end.
 *)
-  
+
 
 (*** Typechecking Tactic ***)
 
@@ -105,42 +105,48 @@ Tactic Notation (at level 0) "box" uconstr(C) := refine (box (fun _ => C)); type
 
 Notation "()" := unit : circ_scope.
 
-(*
-Notation "w1 ⊕ w2" := (pair _ _ _ _ _ _ _ w1 w2) (at level 11, left associativity) : circ_scope.
-Notation "⟨ w1 , w2 ⟩" := (pair _ _ _ _ _ _ _ w1 w2) (at level 9, no associativity) : circ_scope. 
-Notation "⟨ w1 , w2 , w3 ⟩" := (pair _ _ _ _ _ _ _ (pair _ _ _ _ _ _ _ w1 w2) w3) (at level 9, no associativity) : circ_scope. 
-*)
-
-(*
-Definition pat_id {Γ W} (p: Pat Γ W) := p.
-Notation "⟨ w ⟩" := (pat_id w).
-Notation "w1,w2" := (pair _ _ _ _ _ _ _ w1 w2) (at level 9, no associativity) : circ_scope. 
-*)
-
-Notation "w1 ,, w2" := (pair _ _ _ _ _ _ _ w1 w2) (at level 10, right associativity) : circ_scope.
-Notation "⟨ x , y , .. , z ⟩" := (pair _ _ _ _ _ _ _ .. (pair _ _ _ _ _ _ _ x y) .. z) (at level 0) : circ_scope.
+Notation "( x , y , .. , z )" := (pair _ _ _ _ _ _ _ .. (pair _ _ _ _ _ _ _ x y) .. z) (at level 0) : circ_scope.
 
 
 Notation output p := (output _ p).
 Notation gate g p1 := (gate _ _ _ g p1 (fun _ _ _ _ p' => output p')).
 Notation comp p c1 c2 := (compose c1 _ _ (fun _ _ _ _ p => c2)).
-
-Notation "p ← c1 ; c2" := (comp p c1 c2) 
-                            (at level 10, right associativity) : circ_scope.
-
 Notation letpair p1 p2 p c := (let 'existT23 _ _ p1 p2 _ := wproj p in c).
 
-(* Breaks a lot!
-Notation "( p1 ; p2 ) ← c1 ; c2" := (compose c1 _ _ (fun _ _ _ _ x => letpair p1 p2 x c2)) (at level 10, right associativity) : circ_scope. *)
 
-Notation "⟨ p1 , p2 ⟩ ← c1 ; c2" := (compose c1 _ _ (fun _ _ _ _ x => letpair p1 p2 x c2)) (at level 10, right associativity) : circ_scope.
+Notation "'letC' p ← c1 ; c2" := (comp p c1 c2)
+                            (at level 10, right associativity) : circ_scope.
+Notation "'letC' ( p1 , p2 ) ← c1 ; c2" := (compose c1 _ _ (fun _ _ _ _ x => letpair p1 p2 x c2)) 
+                            (at level 10, right associativity) : circ_scope.
+Notation "'letC' ( p1 , p2 , p3 ) ← c1 ; c2" :=
+    (compose c1 _ _ (fun _ _ _ _ x => let 'existT23 _ _ y  p3 _ := wproj x in
+                                      let 'existT23 _ _ p1 p2 _ := wproj y in
+                                      c2))
+                            (at level 10, right associativity) : circ_scope.
+Notation "'letC' ( ( p1 , p2 ) , p3 ) ← c1 ; c2" := 
+    (compose c1 _ _ (fun _ _ _ _ x => let 'existT23 _ _ y  p3 _ := wproj x in
+                                      let 'existT23 _ _ p1 p2 _ := wproj y in
+                                      c2))
+                            (at level 10, right associativity) : circ_scope.
+Notation "'letC' ( p1 , ( p2 , p3 ) ) ← c1 ; c2" :=
+    (compose c1 _ _ (fun _ _ _ _ x => let 'existT23 _ _ p1 y  _ := wproj x in
+                                      let 'existT23 _ _ p2 p3 _ := wproj y in
+                                      c2))
+                            (at level 10, right associativity) : circ_scope.
+Notation "'letC' ( ( p1 , p2 ) , ( p3 , p4 ) ) ← c1 ; c2" :=
+    (compose c1 _ _ (fun _ _ _ _ x => let 'existT23 _ _ y  z  _ := wproj x in
+                                      let 'existT23 _ _ p1 p2 _ := wproj y in
+                                      let 'existT23 _ _ p3 p4 _ := wproj z in
+                                      c2))
+                            (at level 10, right associativity) : circ_scope.
 
 
 Notation unbox c p := (unbox c _ p).
 
 Notation lift_compose x c1 c2 := (compose c1 _ _ (fun _ _ _ _ p' => lift _ _ p' (fun x => c2))).
 Notation lift_pat x p c := (lift _ _ p (fun x => c)).
-Notation "x ← 'lift' c1 ; c2" := (lift_pat x c1 c2) (at level 10, right associativity) : circ_scope.
+Notation "'lift' x ← c1 ; c2" := (lift_pat x c1 c2) (at level 10, right associativity) : circ_scope.
+
 
 
 (* Alternative Notations:
@@ -166,7 +172,7 @@ Defined.
 
 Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Box W1 W2.
   box (fun p => 
-    p' ← gate g p;
+    letC p' ← gate g p;
     output p'
   ). 
 Defined.
@@ -174,49 +180,49 @@ Defined.
 (* TODO: fix these bugs! *)
 Definition new_discard : Box One One.
   box (fun _ => 
-    b ← gate new0 ();
-    _ ← gate discard b;
+    letC b ← gate new0 ();
+    letC _ ← gate discard b;
     output ()). 
   all: type_check_once.
 Defined.
 
 Definition init_discard : Box One One.
   box (fun _ => 
-    q ← gate init0 ();
-    b ← gate meas q;
-    _ ← gate discard b;
+    letC q ← gate init0 ();
+    letC b ← gate meas q;
+    letC _ ← gate discard b;
     output () ). 
   all:type_check_once.
 Defined.
 
 Definition hadamard_measure : Box Qubit Bit.
   box (fun q => 
-    q ← gate H q;
-    b ← gate meas q;
+    letC q ← gate H q;
+    letC b ← gate meas q;
     output b).
 Defined.
 
 
 Definition lift_deutsch (U_f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Qubit.  
   box (fun _ =>
-    x     ← gate init0 ();
-    x     ← gate H x;
-    y     ← gate init1 ();
-    y     ← gate H y;
-    ⟨x,y⟩ ← unbox U_f ⟨x,y⟩;
-    _     ← lift x;
+    letC x     ← gate init0 ();
+    letC x     ← gate H x;
+    letC y     ← gate init1 ();
+    letC y     ← gate H y;
+    letC (x,y) ← unbox U_f (x,y);
+    lift _     ← x;
     output y).
 Defined.
 
 Definition deutsch (U_f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Qubit.
   box (fun _ =>
-    x ← gate init0 ();
-    x ← gate H x;
-    y ← gate init1 ();
-    y ← gate H y;
-    ⟨x,y⟩ ← unbox U_f ⟨x,y⟩;
-    x ← gate meas x;
-    x ← gate discard x;
+    letC x ← gate init0 ();
+    letC x ← gate H x;
+    letC y ← gate init1 ();
+    letC y ← gate H y;
+    letC (x,y) ← unbox U_f (x,y);
+    letC x ← gate meas x;
+    letC x ← gate discard x;
     output y).
 Defined.
 
@@ -226,17 +232,17 @@ Definition init (b : bool) : Box One Qubit :=
 
 Definition inSeq {W1 W2 W3} (c1 : Box W1 W2) (c2 : Box W2 W3) : Box W1 W3. 
   box (fun p1 => 
-    p2 ← unbox c1 p1;
+    letC p2 ← unbox c1 p1;
     unbox c2 p2).
 Defined.
 
 Definition inPar {W1 W2 W1' W2'} (c1 : Box W1 W1') (c2 : Box W2 W2') 
                                  : Box (W1⊗W2) (W1'⊗W2').
   box (fun p12 => 
-    ⟨p1,p2⟩ ← output p12; 
-    p1'     ← unbox c1 p1;
-    p2'     ← unbox c2 p2; 
-    output ⟨p1',p2'⟩).
+    letC (p1,p2) ← output p12; 
+    letC p1'     ← unbox c1 p1;
+    letC p2'     ← unbox c2 p2; 
+    output (p1',p2')).
 Defined. 
 
 
@@ -244,20 +250,19 @@ Defined.
 
 Definition bell00 : Box One (Qubit ⊗ Qubit).
   box (fun _ =>  
-(*  refine (box (fun _ _ => *)
-    a ← gate init0 ();
-    b ← gate init0 ();
-    a ← gate H a;
-    gate CNOT ⟨a,b⟩).
+    letC a ← gate init0 ();
+    letC b ← gate init0 ();
+    letC a ← gate H a;
+    gate CNOT (a,b)).
 Defined.
 
 Definition alice : Box (Qubit⊗Qubit) (Bit⊗Bit).
   box (fun qa => 
-    ⟨q,a⟩ ← gate CNOT qa;
-    q     ← gate H q;
-    x     ← gate meas q;
-    y     ← gate meas a;
-    output ⟨x,y⟩).
+    letC (q,a) ← gate CNOT qa;
+    letC q     ← gate H q;
+    letC x     ← gate meas q;
+    letC y     ← gate meas a;
+    output (x,y)).
 Defined.
 
 (* Also works
@@ -273,38 +278,38 @@ Defined.
 
 Definition bob' : Box (Bit ⊗ (Bit ⊗ Qubit)) Qubit.
   box (fun xyb =>
-    ⟨x,yb⟩  ← output xyb;
-    ⟨y,b⟩   ← gate (bit_control σx) yb;
-    ⟨x,b⟩   ← gate (bit_control σx) ⟨x,b⟩;
-    _       ← gate discard y;
-    _       ← gate discard x;
+    letC (x,yb)  ← output xyb;
+    letC (y,b)   ← gate (bit_control σx) yb;
+    letC (x,b)   ← gate (bit_control σx) (x,b);
+    letC _       ← gate discard y;
+    letC _       ← gate discard x;
     output b).
 Defined.
 
 Definition bob : Box (Bit⊗Bit⊗Qubit) Qubit.
 (*  refine (box (fun _ xyb =>*)
   box (fun xyb => 
-    ⟨xy,b⟩ ← output xyb ; 
-    ⟨x,y⟩  ← output xy ; 
-    ⟨y,b⟩  ← gate (bit_control σx) ⟨y,b⟩;
-    ⟨x,b⟩  ← gate (bit_control σz) ⟨x,b⟩;
-    _      ← gate discard y ;   
-    _      ← gate discard x ;
+    letC ((x,y),b) ← output xyb ; 
+(*    letC (x,y)  ← output xy ; *)
+    letC (y,b)  ← gate (bit_control σx) (y,b);
+    letC (x,b)  ← gate (bit_control σz) (x,b);
+    letC _      ← gate discard y ;   
+    letC _      ← gate discard x ;
     output b).
 Defined.
 
 Definition teleport' : Box Qubit Qubit.
   box (fun q =>
-    ⟨a,b⟩ ← unbox bell00 () ;
-    ⟨x,y⟩ ← unbox alice ⟨q,a⟩ ;
-    unbox bob' ⟨x,(y,,b)⟩).
+    letC (a,b) ← unbox bell00 () ;
+    letC (x,y) ← unbox alice (q,a) ;
+    unbox bob' (x,(y,b))).
 Defined.
 
 Definition teleport : Box Qubit Qubit.
   box (fun q =>
-    ⟨a,b⟩ ← unbox bell00 () ;
-    ⟨x,y⟩ ← unbox alice ⟨q,a⟩ ;
-    unbox bob ⟨x,y,b⟩).
+    letC (a,b) ← unbox bell00 () ;
+    letC (x,y) ← unbox alice (q,a) ;
+    unbox bob (x,y,b)).
 Defined.
 
 (* Right associative Tensor *)
@@ -351,13 +356,14 @@ make_circ (
   match n as n0 return n = n0 -> Box (S (S n0) ⨂ Qubit) (S (S n0) ⨂ Qubit) with
   | 0    => fun _ => id_circ 
   | S n' => fun _ => box (fun _ w =>
-      ⟨c, qqs⟩ ← output w;  
-      ⟨q, qs⟩  ← output qqs;  
-      ⟨c,qs⟩   ← unbox (rotationsZ m n') ⟨c,qs⟩ ;
-      ⟨c,q⟩    ← gate (control (RGate (1 + m - n'))) ⟨c,q⟩;
-      output ⟨c,q,,qs⟩)
+      letC (c, qqs) ← output w;  
+      letC (q, qs)  ← output qqs;  
+      letC (c,qs)   ← unbox (rotationsZ m n') (c,qs) ;
+      letC (c,q)    ← gate (control (RGate (1 + m - n'))) (c,q);
+      output (c,(q,qs)))
    end (eq_refl n)).
 Defined.
+
 
 Definition rotations (m : nat) (n : nat) : Box (S n ⨂ Qubit) (S n ⨂ Qubit) :=
   match n with 
@@ -370,9 +376,9 @@ make_circ (
   match n as n0 return n = n0 -> Box (S n0 ⨂ Qubit) (S n0 ⨂ Qubit) with 
   | 0 => fun eq => box (fun _ p1 => gate H p1)
   | S n' => fun eq => box (fun _ qw =>
-             ⟨q,w⟩ ← output qw; 
-             w ← unbox (qftZ n') w; 
-             unbox (rotationsZ (S n') n') ⟨q,w⟩)
+             letC (q,w) ← output qw; 
+             letC w ← unbox (qftZ n') w; 
+             unbox (rotationsZ (S n') n') (q,w))
   end (eq_refl n)).
 Defined.
 
@@ -383,23 +389,24 @@ Definition qft (n : nat) : Box (n ⨂ Qubit) (n ⨂ Qubit) :=
   end.
 
 
+
 (** Invalid Circuits **)
 
 Definition absurd_circ : Box Qubit (Bit ⊗ Qubit).
   box (fun w => 
-    x  ← gate meas w ;
-    w' ← gate H w ;
-    output ⟨x,w'⟩).
+    letC x  ← gate meas w ;
+    letC w' ← gate H w ;
+    output (x,w')).
 Admitted.
 
 Definition unused_qubit : Box Qubit One.
   box (fun w => 
-   w ← gate H w ;
+   letC w ← gate H w ;
    output () ).
 Admitted.
 
 Definition clone : Box Qubit (Qubit ⊗ Qubit).
-  box (fun w => output ⟨w,w⟩).
+  box (fun w => output (w,w)).
 Admitted.
 
 
