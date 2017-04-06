@@ -113,21 +113,6 @@ Proof.
   - refine (flat_lift _ _ p H); auto. 
 Defined.
 
-(*
-Fixpoint wire_context (W : WType) : Ctx :=
-  match W with
-  | Qubit => [Some Qubit]
-  | Bit   => [Some Bit]
-  | One   => []
-  | Tensor W1 W2 => (wire_context W1) ++ wire_context (W2)
-  end.
-
-Definition from_HOAS_box {W1} {W2} (b : Box W1 W2) : 
-  Flat_Circuit (wire_context W1) W2 := 
-  let Γ := wire_context W1 in
-  unbox b eq_refl (fresh_pat Γ.
-  
-*)
 
 Inductive Flat_Box : WType -> WType -> Set :=
 | flat_box : forall {w1 w2} {ctx},
