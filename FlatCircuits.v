@@ -129,4 +129,14 @@ Definition from_HOAS_box {W1} {W2} (b : Box W1 W2) :
   
 *)
 
+Inductive Flat_Box : WType -> WType -> Set :=
+| flat_box : forall {w1 w2} {ctx},
+             Pat ctx w1 -> Flat_Circuit ctx w2 -> Flat_Box w1 w2
+.
+Definition from_HOAS_Box {W1 W2} (b : Box W1 W2) : Flat_Box W1 W2.
+  destruct b as [W1 W2 b].
+  destruct (fresh_pat ∅ W1) as [Γ [[valid_Γ _] p]]; [apply valid_valid | ].
+  apply (flat_box p (from_HOAS (b Γ p))).
+Defined.
+
 (* *)
