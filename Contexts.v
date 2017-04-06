@@ -539,13 +539,6 @@ Ltac has_evars term :=
     | ?Γ1 ⋓ ?Γ2      => has_evars Γ2
   end.
 
-Ltac print_goal :=
-  match goal with
-  | [ |- ?G ] => idtac G
-  end.
-
-
-
 (* Assumes at most one evar *)
 Ltac monoid := 
   try match goal with
@@ -570,6 +563,7 @@ Ltac monoid :=
 (*| [ |- context[?Γ] = ?Γ ⋓ _ ]     => move_left Γ *)
   end.
 
+
 (*
 Ltac move_left Γ :=
   try match goal with
@@ -577,6 +571,20 @@ Ltac move_left Γ :=
       | [ |- context[Γ] ⋓ _ = _ ] => 
       | [ |- _ ⋓ context[Γ] = _ ] => 
 *)
+
+(*
+Require Import Monoid. Print Monoid.
+Instance ctx_monoid : Monoid merge ∅ := 
+{
+    assoc := merge_assoc;
+    unit_l := merge_nil_l;
+    unit_r := merge_nil_r
+}.
+Instance ctx_cmonoid : CMonoid merge ∅ :=
+{
+    comm := merge_comm
+}.
+*) 
 
 Lemma test1 : forall x y z, x ⋓ y ⋓ z = z ⋓ x ⋓ y.
 Proof. intros. monoid. Qed.
