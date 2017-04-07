@@ -1,13 +1,12 @@
 Require Import Program. 
 Require Import Contexts.
 Require Import TypedCircuits.
+Require Import FlatCircuits.
 Require Import Examples.
 Require Import List.
 Require Import Arith.
 Require Import Quantum.
 Import ListNotations.
-
-Open Scope circ_scope.
 
 Class Denote source target :=
 {
@@ -19,6 +18,8 @@ Notation "〚 s 〛" := (denote s) (at level 10).
 
 (** Wire Denotation **)
 
+Open Scope circ_scope.
+
 Fixpoint num_wires (W : WType) : nat := 
   match W with
   | One => 0
@@ -26,6 +27,8 @@ Fixpoint num_wires (W : WType) : nat :=
   | Bit => 1
   | W1 ⊗ W2 => num_wires W1 + num_wires W2
   end.
+
+Close Scope circ_scope.
 
 Instance denote_WType : Denote WType nat :=
 {|
@@ -36,7 +39,7 @@ Instance denote_WType : Denote WType nat :=
 
 (** Unitary Denotation **)
 
-Fixpoint denote_unitary {W} (U : Unitary W) : Matrix (2^〚W〛) (2^〚W〛) :=
+Fixpoint denote_unitary {W} (U : Unitary W) : Square (2^〚W〛) :=
   match U with  
   | H => hadamard 
   | σx => pauli_x
@@ -78,7 +81,7 @@ Proof.
     assumption.
 Qed.
 
-Instance denote_Unitary {W} : Denote (Unitary W) (Matrix (2^〚W〛) (2^〚W〛)) :=
+Instance denote_Unitary {W} : Denote (Unitary W) (Square (2^〚W〛)) :=
 {|
     correctness := fun m => WF_Matrix m /\ unitary_matrix m;
     denote := denote_unitary;
@@ -100,10 +103,12 @@ Definition denote_gate {W1 W2} (g : Gate W1 W2) :
   end.
 
 Definition super_op_correctness {m n} (f : Superoperator m n) := 
-  (forall ρ, @Mixed_State m ρ -> @Mixed_State n (f ρ)).   
+  (forall ρ, Mixed_State ρ -> Mixed_State (f ρ)).   
 
 Lemma denote_gate_correct : forall {W1} {W2} (g : Gate W1 W2), 
                             super_op_correctness (denote_gate g). 
+Proof.
+  unfold super_op_correctness.
 Admitted.
 
 Instance denote_Gate {W1 W2} : Denote (Gate W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
@@ -124,8 +129,39 @@ Eval compute in (denote_unitary CNOT 3%nat 2%nat).
 Eval compute in (denote_unitary CNOT 3%nat 3%nat).
 *)
 
+Require Import Coq.Vectors.Vector.
 
-(*Definition denote_gate {W1 W2} (g : Gate W1 W2) : Matrix (2^(#W1)) (2^(#W2)).*)
+Definition LList := t.
+
+(*
+Eval simpl in (from_HOAS_Box hadamard_measure).
+Eval compute in (from_HOAS_Box hadamard_measure).
+Eval vm_compute in (from_HOAS_Box hadamard_measure).
+*)
+
+Require Import Omega.
+
+(* Right now, assuming a unitary is applied to some larger density matrix *)
+
+Program Fixpoint swap_list {m n} (v : LList {i : nat | i < n} m) : Square (2^n) :=
+  match v with 
+  | nil => Id 1
+  | cons i _ v' => (swap_to_0 n i) × ((Id 2) ⊗ (swap_list v'))
+  end.
+
+Definition pad {m} n (pf: m <= n) (A : Square (2^m)) : Square (2^n) :=
+  (A ⊗ Id (2^n / 2^m)).
+
+Definition apply {m n} (U : Square (2^m)) (ρ : Density (2^n)) (l : LList {i : nat | i < n} m) {pf : m <= n} : Density (2^n) := 
+  let S := swap_list l in 
+  let SU := S × (pad n pf U) × S† in  
+  SU × ρ × SU†.
+   
+(* Or?
+  let S := swap_list l in 
+  S × (pad n pf U)  × S† × ρ × S† × (pad n pf U)† × S. (* Can we remove Ss? *)
+*)
+
 
 
 (*Fixpoint denote_circuit {Γ : Ctx} {W : WType} (c : Flat_Circuit Γ W)*)
