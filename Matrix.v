@@ -28,6 +28,7 @@ Ltac clra := eapply c_proj_eq; simpl; lra.
 (** Matrix Definitions **)
 
 Definition Matrix (m n : nat) := nat -> nat -> C. 
+Notation Square n := (Matrix n n).
 
 Definition WF_Matrix {m n: nat} (A : Matrix m n) : Prop := 
   forall x y, x >= m \/ y >= n -> A x y = C0. 
@@ -95,7 +96,7 @@ Qed.
 
 Definition Zero (m n : nat) : Matrix m n := fun x y => 0%R.
 
-Definition Id (n : nat) : Matrix n n := 
+Definition Id (n : nat) : Square n := 
   fun x y => if (x =? y) && (x <? n) then C1 else C0.
 (*if (x =? y) then 1%R else 0%R. *)
 
@@ -106,7 +107,7 @@ Fixpoint Rsum_to_n (f : nat -> C) (n : nat) : C :=
   | S n' => (Rsum_to_n f n' +  f n')%C
   end.
 
-Definition trace {n : nat} (A : Matrix n n) := 
+Definition trace {n : nat} (A : Square n) := 
   Rsum_to_n (fun x => A x x) n.
 
 Definition scale {m n : nat} (r : C) (A : Matrix m n) : Matrix m n := 
@@ -516,11 +517,64 @@ Proof.
     simpl.
 Admitted.
 
+Lemma Rsum_eq : forall f g k, f = g -> Rsum_to_n f k = Rsum_to_n g k.
+Proof. intros f g k H. subst. reflexivity. Qed.
+
+Lemma Rsum_add : forall f g k, 
+                   (Rsum_to_n (fun x => f x + g x) k = Rsum_to_n f k + Rsum_to_n g k)%C.
+Proof.
+  intros f g k.
+  induction k.
+  + simpl. clra.
+  + simpl. rewrite IHk. clra.
+Qed.
+
+Lemma Mmult_plus_distr_l : forall {m n o} (A : Matrix m n) (B C : Matrix n o), 
+                           A × (B .+ C) = A × B .+ A × C.
+Proof. 
+  intros m n o A B C.
+  unfold Mplus, Mmult.
+  apply functional_extensionality. intros x.
+  apply functional_extensionality. intros y.
+  rewrite <- Rsum_add.
+  apply Rsum_eq.
+  apply functional_extensionality. intros z.
+  rewrite Cmult_plus_distr_l. 
+  reflexivity.
+Qed.
+
+Lemma Mmult_plus_distr_r : forall {m n o} (A B : Matrix m n) (C : Matrix n o), 
+                           (A .+ B) × C = A × C .+ B × C.
+Proof. 
+  intros m n o A B C.
+  unfold Mplus, Mmult.
+  apply functional_extensionality. intros x.
+  apply functional_extensionality. intros y.
+  rewrite <- Rsum_add.
+  apply Rsum_eq.
+  apply functional_extensionality. intros z.
+  rewrite Cmult_plus_distr_r. 
+  reflexivity.
+Qed.
+
+(* These are easy - just haven't done them *)
+Lemma Mscale_mult_dist_l : forall {m n o} x (A : Matrix m n) (B : Matrix n o), 
+                             ((x .* A) × B) = x .* (A × B).
+Proof.
+  intros m n o x A B.
+  unfold scale, Mmult.
+Admitted.
+
+Lemma Mscale_mult_dist_r : forall {m n o} x (A : Matrix m n) (B : Matrix n o), 
+                             (A × (x .* B)) = x .* (A × B).
+Admitted.
+
+
 (* Inverses *)
 
-Definition Minv {n} (A B : Matrix n n) := A × B = Id n /\ B × A = Id n.
+Definition Minv {n} (A B : Square n) := A × B = Id n /\ B × A = Id n.
 
-Lemma Minv_unique : forall {n} (A B C : Matrix n n), 
+Lemma Minv_unique : forall {n} (A B C : Square n), 
                       WF_Matrix A -> WF_Matrix B -> WF_Matrix C ->
                       Minv A B -> Minv A C -> B = C.
 Proof.
@@ -532,8 +586,11 @@ Proof.
   rewrite Mmult_assoc.
   reflexivity.
 Qed.  
+
+Lemma Minv_flip : forall {n} (A B : Square n), A × B = Id n -> B × A = Id n.
+Admitted.
   
-Lemma Minv_left : forall {n} (A B : Matrix n n), A × B = Id n -> Minv A B.
+Lemma Minv_left : forall {n} (A B : Square n), A × B = Id n -> Minv A B.
 Proof.
   intros n A B H. 
   unfold Minv. split; trivial.
@@ -554,18 +611,88 @@ Proof.
   *)
 
 
-(*    
-Theorem kron_mixed_product : forall {m n o p q r : nat} (A : Matrix m n) (B : Matrix p q ) 
+Lemma kron_mixed_product : forall {m n o p q r : nat} (A : Matrix m n) (B : Matrix p q ) 
   (C : Matrix n o) (D : Matrix q r), (A ⊗ B) × (C ⊗ D) = (A × C) ⊗ (B × D).
 Proof.
   intros m n o p q r A B C D.
   unfold kron, Mmult.
   apply functional_extensionality; intros x.
   apply functional_extensionality; intros y.
-  induction n. simpl. lra.
-  simpl.
+  induction n. simpl. 
+Admitted.
+
+Theorem kron_transpose : forall {m n o p : nat} (A : Matrix m n) (B : Matrix o p ),
+  (A ⊗ B)⊤ = A⊤ ⊗ B⊤.
+Proof. reflexivity. Qed.
+
+Lemma conj_mult_dist : forall (x y : C), Cconj (x * y) = (Cconj x * Cconj y)%C.
+Proof. intros x y. clra. Qed.
   
+Lemma kron_conj_transpose : forall {m n o p : nat} (A : Matrix m n) (B : Matrix o p ),
+  (A ⊗ B)† = A† ⊗ B†.
+Proof. 
+  intros. unfold conj_transpose, kron. 
+  apply functional_extensionality; intros x.
+  apply functional_extensionality; intros y.
+  setoid_rewrite conj_mult_dist.
+  reflexivity.
+Qed.
+
+Lemma id_kron : forall m n,  Id m ⊗ Id n = Id (m * n).
+Proof.
+  intros.
+  unfold Id, kron.
+  apply functional_extensionality; intros x.
+  apply functional_extensionality; intros y.
+  destruct (x =? y) eqn:Eq.
+  + apply beq_nat_true in Eq; subst.
+    repeat rewrite <- beq_nat_refl; simpl.
+    destruct n.
+    - simpl.
+      rewrite mult_0_r.
+      replace (y <? O) with false. clra.
+      symmetry; apply Nat.ltb_nlt. omega.
+    - replace (y mod S n <? S n) with true.
+      Focus 2. symmetry. apply Nat.ltb_lt.
+               apply Nat.mod_upper_bound. 
+               omega.      
+      rewrite Cmult_1_r.
+      destruct (y / S n <? m) eqn:L1, (y <? m * S n) eqn:L2; trivial.
+      * apply Nat.ltb_lt in L1. 
+        apply Nat.ltb_nlt in L2. 
+        contradict L2. 
+        (* Why doesn't this lemma exist??? *)
+        destruct m.
+        omega.
+        apply Nat.div_small_iff; try omega.
+        simpl. apply Nat.neq_succ_0. 
+        apply Nat.div_small in L1.
+        rewrite Nat.div_div in L1; try omega.
+        rewrite mult_comm.
+        assumption.
+      * apply Nat.ltb_nlt in L1. 
+        apply Nat.ltb_lt in L2. 
+        contradict L1. 
+        apply Nat.div_lt_upper_bound. omega.
+        rewrite mult_comm.
+        assumption.
+  + simpl.
+    destruct (x / n =? y / n) eqn:Eq1;
+    destruct (x mod n =? y mod n) eqn:Eq2; simpl; try clra.
+    destruct n; try clra.    
+    apply beq_nat_false in Eq.
+    apply beq_nat_true in Eq1. 
+    apply beq_nat_true in Eq2. 
+    contradict Eq.
+    assert (S n <> 0) as H by omega.
+    specialize (Nat.div_mod x (S n) H). intros H1.
+    specialize (Nat.div_mod y (S n) H). intros H2.    
+    rewrite Eq1, Eq2 in H1.
+    rewrite <- H2 in H1.
+    assumption.
+Qed.
   
+(*  
 Theorem Mmult_assoc : forall {m n o p : nat} (A : Matrix m n) (B : Matrix n o) 
   (C: Matrix o p), A × B × C = A × (B × C).
 Proof.
@@ -581,7 +708,7 @@ Proof.
   + simpl. 
     rewrite <- IHn.
     simpl.
+Admitted.
 *)
-
 
 (* *)
