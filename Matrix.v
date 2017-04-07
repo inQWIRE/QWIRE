@@ -3,6 +3,7 @@ Require Import Reals.
 Require Import Coquelicot.Complex.
 Require Import Psatz.
 Require Import Omega.
+Require Import Coq.Strings.String.
 Require Import List.
 Require Import Bool.
 Import ListNotations.
@@ -27,17 +28,53 @@ Ltac clra := eapply c_proj_eq; simpl; lra.
 
 (** Matrix Definitions **)
 
-Definition Matrix (m n : nat) := nat -> nat -> C. 
+Definition UntypedMatrix := nat -> nat -> C.
+Inductive Matrix : nat -> nat -> Set :=
+  | Mat : forall {m n}, UntypedMatrix -> Matrix m n.
+Definition UnMat {m n} (M : Matrix m n) : UntypedMatrix :=
+  match M with
+  | Mat _ _ f => f
+  end.
+Coercion UnMat : Matrix >-> UntypedMatrix.
+
+Ltac prep_matrix_equality x y :=
+  repeat (simpl; match goal with
+  | [ A : Matrix ?m ?n |- _ ] => destruct A as [m n A]
+  | [ |- Mat _ = Mat _ ] => f_equal; 
+                            apply functional_extensionality; intros x;
+                            apply functional_extensionality; intros y
+  end).
+
+(*Coercion Mat : UntypedMatrix >-> Matrix.*)
+(* Warning: M does not respect the uniform inheritance condition *)
+
+Notation "M { i , j }" := (UnMat M i j) (at level 10).
+
+Parameter print_C : C -> string.
+Fixpoint print_row i n (f : UntypedMatrix) : string :=
+  match n with
+  | 0   => "\n"
+  | S j => print_C (f i j) ++ ", " ++ print_row i j f
+  end.
+Fixpoint print_untyped m n (f : UntypedMatrix) : string :=
+  match m with
+  | 0   => ""
+  | S i => print_row i n f ++ print_untyped i n f
+  end.
+Definition print_Matrix {m n} (A : Matrix m n) : string :=
+  match A with
+  | Mat _ _ f => print_untyped m n f
+  end.
 
 Definition WF_Matrix {m n: nat} (A : Matrix m n) : Prop := 
-  forall x y, x >= m \/ y >= n -> A x y = C0. 
+  forall x y, x >= m \/ y >= n -> A{x,y} = C0. 
 
 (* I won't be using this much, but it can ensure the matrix bounds *)
 Definition get {m n} (A : Matrix m n) (a : nat | a < m) (b : nat | b < n) := 
-  A (`a) (`b).
+  A{`a,`b}.
 
 Definition mat_equiv {m n : nat} (A B : Matrix m n) : Prop := 
-  forall (x : nat | x < m) (y : nat | y < n), (A (`x) (`y)) = (B (`x) (`y)).
+  forall (x : nat | x < m) (y : nat | y < n), (A{`x,`y}) = (B{`x,`y}).
 
 Lemma mat_equiv_eq : forall {m n : nat} (A B : Matrix m n),
   WF_Matrix A -> 
@@ -45,28 +82,27 @@ Lemma mat_equiv_eq : forall {m n : nat} (A B : Matrix m n),
   mat_equiv A B ->
   A = B.
 Proof.
-  intros m n A B WFA WFB Eq.
-  apply functional_extensionality; intros x.
-  apply functional_extensionality; intros y.
+  intros m n A' B' WFA WFB Eq.
+  prep_matrix_equality x y.
   unfold mat_equiv in Eq.
   destruct (x <? m) eqn:Hx.
   destruct (y <? n) eqn:Hy.
   + apply Nat.ltb_lt in Hx.
-    apply Nat.ltb_lt in Hy.    
+    apply Nat.ltb_lt in Hy.
     specialize (Eq (exist _ x Hx) (exist _ y Hy)).
     apply Eq.
   + apply Nat.ltb_nlt in Hy.    
     rewrite WFA, WFB; trivial; right; try omega.
   + apply Nat.ltb_nlt in Hx.    
     rewrite WFA, WFB; trivial; left; try omega.
-Qed.    
+Qed.
     
 Definition list2D_to_matrix (l : list (list R)) : 
   Matrix (length l) (length (hd [] l)) :=
-  fun x y => nth y (nth x l []) 0%R.
+  Mat (fun x y => nth y (nth x l []) 0%R).
 
 Definition M23 : Matrix 2 3 :=
-fun x y => 
+  Mat (fun x y => 
   match (x, y) with
   | (0, 0) => 1%R
   | (0, 1) => 2%R
@@ -75,7 +111,7 @@ fun x y =>
   | (1, 1) => 5%R
   | (1, 2) => 6%R
   | _ => C0
-  end.
+  end).
 
 Definition M23' : Matrix 2 3 := 
   list2D_to_matrix  
@@ -86,17 +122,16 @@ Lemma M23eq : M23 = M23'.
 Proof.
   unfold M23'.
   compute.
-  apply functional_extensionality; intros x.
-  apply functional_extensionality; intros y.
+  prep_matrix_equality x y.
   do 4 (try destruct x; try destruct y; simpl; trivial).
 Qed.
 
 (** Operands and Operations **)
 
-Definition Zero (m n : nat) : Matrix m n := fun x y => 0%R.
+Definition Zero (m n : nat) : Matrix m n := Mat (fun x y => 0%R).
 
 Definition Id (n : nat) : Matrix n n := 
-  fun x y => if (x =? y) && (x <? n) then C1 else C0.
+  Mat (fun x y => if (x =? y) && (x <? n) then C1 else C0).
 (*if (x =? y) then 1%R else 0%R. *)
 
 (* sum to n exclusive *)
@@ -107,29 +142,32 @@ Fixpoint Rsum_to_n (f : nat -> C) (n : nat) : C :=
   end.
 
 Definition trace {n : nat} (A : Matrix n n) := 
-  Rsum_to_n (fun x => A x x) n.
+  Rsum_to_n (fun x => A{x,x}) n.
 
 Definition scale {m n : nat} (r : C) (A : Matrix m n) : Matrix m n := 
-  fun x y => (r * A x y)%C.
+  Mat (fun x y => (r * A{x,y})%C).
 
 Definition dot {n : nat} (A : Matrix 1 n) (B : Matrix n 1) : C :=
-  Rsum_to_n (fun x => A O x * B x O)%C n.
+  Rsum_to_n (fun x => A{O,x} * B{x,O})%C n.
 
 Definition Mplus {m n : nat} (A B : Matrix m n) : Matrix m n :=
-  fun x y => (A x y + B x y)%C.
+  Mat (fun x y => (A{x,y} + B{x,y})%C).
+
 
 Definition Mmult {m n o : nat} (A : Matrix m n) (B : Matrix n o) : Matrix m o := 
-  fun x z => Rsum_to_n (fun y => A x y * B y z )%C n.
+  Mat (fun x z => Rsum_to_n (fun y => A{x,y} * B{y,z} )%C n).
+
 
 (* Only well-defined when o and p are non-zero *)
 Definition kron {m n o p : nat} (A : Matrix m n) (B : Matrix o p) : 
   Matrix (m*o) (n*p) :=
-  fun x y => Cmult (A (x / o) (y / p)) (B (x mod o) (y mod p)).
+  Mat (fun x y => Cmult (A{x / o,y / p}) (B{x mod o,y mod p})).
 
-Definition transpose {m n} (A : Matrix m n) : Matrix n m := fun x y => A y x. 
+Definition transpose {m n} (A : Matrix m n) : Matrix n m := 
+    Mat (fun x y => A{y,x}).
 
 Definition conj_transpose {m n} (A : Matrix m n) : Matrix n m := 
-  fun x y => Cconj (A y x). 
+  Mat (fun x y => Cconj (A{y,x})).
 
 Infix "∘" := dot (at level 40, left associativity) : matrix_scope.
 Infix ".+" := Mplus (at level 50, left associativity) : matrix_scope.
@@ -150,6 +188,7 @@ Proof. intros m n. unfold WF_Matrix. reflexivity. Qed.
 Lemma WF_Id : forall {n : nat}, WF_Matrix (Id n). 
 Proof. 
   unfold WF_Matrix, Id. intros n x y H.
+  simpl.
   destruct H. 
   + replace (x <? n) with false by (symmetry; rewrite Nat.ltb_nlt; omega).
     destruct (x =? y); simpl; reflexivity.
@@ -164,7 +203,7 @@ Lemma WF_scale : forall {m n : nat} (r : C) (A : Matrix m n),
   WF_Matrix A -> WF_Matrix (scale r A).
 Proof.
   unfold WF_Matrix, scale.
-  intros m n r A H x y H0.
+  intros m n r A H x y H0. simpl.
   rewrite H; trivial.
   rewrite Cmult_0_r.
   reflexivity.
@@ -174,7 +213,7 @@ Lemma WF_plus : forall {m n} (A B : Matrix m n),
   WF_Matrix A -> WF_Matrix B -> WF_Matrix (A .+ B).
 Proof.
   unfold WF_Matrix, Mplus.
-  intros m n A B H H0 x y H1.
+  intros m n A B H H0 x y H1. simpl.
   rewrite H, H0; trivial.
   rewrite Cplus_0_l.
   reflexivity.
@@ -184,20 +223,26 @@ Lemma WF_mult : forall {m n o : nat} (A : Matrix m n) (B : Matrix n o),
   WF_Matrix A -> WF_Matrix B -> WF_Matrix (A × B).
 Proof.
   unfold WF_Matrix, Mmult.
-  intros m n o A B H H0 x y H1.
+  intros m n o A B H H0 x y H1. simpl.
+  destruct A as [m n A].
+  destruct B as [n o B].
   destruct H1.
-  + assert (forall y, A x y = 0%R) as H'. intros. apply H. auto. clear H H0 H1.
+  + assert (forall y, A x y = 0%R) as H'. {intros. apply H. auto. } clear H H0 H1.
     induction n.
-    simpl. reflexivity.
-    simpl.
-    rewrite IHn, H'; auto.
-    rewrite Cplus_0_l, Cmult_0_l; reflexivity.
-  + assert (forall x, B x y = 0%R) as H'. intros. apply H0. auto. clear H H0 H1.
+    * simpl. reflexivity.
+    * simpl. rewrite H'. 
+      rewrite Cmult_0_l.
+      rewrite Cplus_0_r.    
+      apply IHn.
+  + assert (forall x, B x y = 0%R) as H'. { intros. apply H0. auto. } 
+    clear H H0 H1.
     induction n.
-    simpl. reflexivity.
-    simpl.
-    rewrite IHn, H'; auto.
-    rewrite Cplus_0_l, Cmult_0_r; reflexivity.
+    * simpl. reflexivity.
+    * simpl. 
+      rewrite H'.
+      rewrite Cmult_0_r.
+      rewrite Cplus_0_r.
+      apply IHn.
 Qed.
 
 (* Should the non-zero assumptions be here? *)
@@ -206,7 +251,7 @@ Lemma WF_kron : forall {m n o : nat} (A : Matrix m n) (B : Matrix n o),
                   WF_Matrix A -> WF_Matrix B -> WF_Matrix (A ⊗ B).
 Proof.
   unfold WF_Matrix, kron.
-  intros m n o A B Nn No H H0 x y H1.
+  intros m n o A B Nn No H H0 x y H1. simpl.
   rewrite H.
   rewrite Cmult_0_l; reflexivity.
   destruct H1.
@@ -226,88 +271,85 @@ Proof. unfold WF_Matrix, transpose. intros m n A H x y H0. apply H.
        destruct H0; auto. Qed.
 
 Lemma WF_conj_transpose : forall {m n : nat} (A : Matrix m n), WF_Matrix A -> WF_Matrix A†. 
-Proof. unfold WF_Matrix, conj_transpose, Cconj. intros m n A H x y H0. rewrite H. 
+Proof. unfold WF_Matrix, conj_transpose, Cconj. intros m n A H x y H0. simpl. rewrite H. 
        clra. omega. Qed.
 
 (** Basic Matrix Lemmas **)
 
 Lemma Mplus_0_l : forall {m n : nat} (A : Matrix m n), Zero m n .+ A = A.
 Proof.
-  intros m n A.
-  apply functional_extensionality; intros x.
-  apply functional_extensionality; intros y.
+  intros m n A. 
+  unfold Mplus. prep_matrix_equality x y.
   clra.
 Qed.
 
 Lemma Mplus_0_r : forall {m n : nat} (A : Matrix m n), A .+ Zero m n = A.
 Proof.
-  intros m n A.
-  apply functional_extensionality; intros x.
-  apply functional_extensionality; intros y.
+  intros m n A. unfold Mplus. prep_matrix_equality x y.
   clra.
 Qed.
     
-Program Lemma Mmult_0_l : forall {m n o : nat} (A : Matrix n o), (Zero m n) × A = Zero m n.
+Program Lemma Mmult_0_l : forall {m n o : nat} (A : Matrix n o), 
+       (Zero m n) × A = Zero m o.
 Proof.
-  intros m n o A.
-  apply functional_extensionality; intros x.
-  apply functional_extensionality; intros y.
-  unfold Zero, Mmult.
+  intros m n o A. unfold Mmult, Zero.
+  prep_matrix_equality x y.
   induction n.
   + simpl. reflexivity.
-  + simpl. 
+  + simpl in *.
     rewrite Cmult_0_l.
     rewrite Cplus_0_r.
     apply IHn.
 Qed.    
 
-Program Lemma Mmult_0_r : forall {m n o : nat} (A : Matrix m n), A × Zero n o = Zero n o.
+Program Lemma Mmult_0_r : forall {m n o : nat} (A : Matrix m n), 
+              A × Zero n o = Zero m o.
 Proof.
-  intros m n o A.
-  apply functional_extensionality; intros x.
-  apply functional_extensionality; intros y.
+  intros m n o A. 
   unfold Zero, Mmult.
+  prep_matrix_equality x y.
   induction n.
   + simpl. reflexivity.
   + simpl. 
     rewrite Cmult_0_r.
     rewrite Cplus_0_r.
     apply IHn.
-Qed.    
+Qed.
 
 (* using <= because our form Rsum_to_n is exclusive. *)
 Lemma Mmult_1_l_gen: forall {m n : nat} (A : Matrix m n) (x z k : nat), 
   k <= m ->
-  (k <= x -> Rsum_to_n (fun y : nat => (Id m x y * A y z)%C) k = C0) /\
-  (k > x -> Rsum_to_n (fun y : nat => (Id m x y * A y z)%C) k = A x z).
+  (k <= x -> Rsum_to_n (fun y : nat => ((Id m) {x,y} * A{y,z})%C) k = C0) /\
+  (k > x -> Rsum_to_n (fun y : nat => ((Id m) {x,y} * A{y,z})%C) k = A{x,z}).
 Proof.  
   intros m n A x z k B.
+  prep_matrix_equality x y.
   induction k.
-  simpl. split. reflexivity. omega.
-  destruct IHk as [IHl IHr]. omega.  
-  split.
-  + intros leSkx.
-    simpl.
-    unfold Id.
-    replace (x =? k) with false by (symmetry; apply Nat.eqb_neq; omega).
-    rewrite Cmult_0_l, Cplus_0_r.
-    apply IHl.
-    omega.
-  + intros gtSkx.
-    simpl. 
-    unfold Id in *.
-    destruct (x =? k) eqn:Eqxk.
-    - apply Nat.eqb_eq in Eqxk; subst.
-      replace (k <? m) with true in * by (symmetry; apply Nat.ltb_lt; omega).
-      rewrite Cmult_1_l.
-      rewrite IHl; try omega.
-      rewrite Cplus_0_l.     
-      reflexivity.
-    - apply Nat.eqb_neq in Eqxk; subst.
-      rewrite Cmult_0_l.
-      rewrite Cplus_0_r.
-      apply IHr.
+  * simpl. split. reflexivity. omega.
+  * destruct IHk as [IHl IHr]. omega.  
+    split.
+    + intros leSkx.
+      simpl.
+      unfold Id.
+      replace (x =? k) with false by (symmetry; apply Nat.eqb_neq; omega).
+      rewrite Cmult_0_l, Cplus_0_r.
+      apply IHl.
       omega.
+    + intros gtSkx.
+      simpl in *.
+      unfold Id in *.
+      destruct (x =? k) eqn:Eqxk.
+      - apply Nat.eqb_eq in Eqxk; subst.
+        replace (k <? m) with true in * by (symmetry; apply Nat.ltb_lt; omega).
+        rewrite Cmult_1_l.
+        rewrite IHl; try omega.
+        rewrite Cplus_0_l.     
+        reflexivity.
+      - apply Nat.eqb_neq in Eqxk; subst.
+        rewrite Cmult_0_l.
+        rewrite Cplus_0_r.
+        apply IHr.
+        omega.
 Qed.
 
 Lemma Mmult_1_l_mat_eq : forall {m n : nat} (A : Matrix m n), Id m × A ≡ A.
@@ -334,24 +376,25 @@ Qed.
 
 Lemma Mmult_1_r_gen: forall {m n : nat} (A : Matrix m n) (x z k : nat), 
   k <= n ->
-  (k <= z -> Rsum_to_n (fun y : nat => (A x y * Id n y z)%C) k = C0) /\
-  (k > z -> Rsum_to_n (fun y : nat => (A x y * Id n y z)%C) k = A x z).
+  (k <= z -> Rsum_to_n (fun y : nat => (A{x,y} * (Id n){y,z})%C) k = C0) /\
+  (k > z -> Rsum_to_n (fun y : nat => (A{x,y} * (Id n){y,z})%C) k = A{x,z}).
 Proof.  
   intros m n A x z k B.
+  destruct A as [m n A].
   induction k.
   simpl. split. reflexivity. omega.
   destruct IHk as [IHl IHr].
   omega.
   split.
   + intros leSkz.
-    simpl.
+    simpl in *.
     unfold Id.
     replace (k =? z) with false by (symmetry; apply Nat.eqb_neq; omega).
     rewrite Cmult_0_r, Cplus_0_r.
     apply IHl.
     omega.
   + intros gtSkz.
-    simpl. 
+    simpl in *.
     unfold Id in *.
     destruct (k =? z) eqn:Eqxk.
     - apply Nat.eqb_eq in Eqxk; subst.
@@ -389,9 +432,34 @@ Proof.
   apply Mmult_1_r_mat_eq.
 Qed.
 
-Lemma kron_1_r : forall {m n : nat} (A : Matrix m n), A ⊗ Id 1 = A.
+Definition Kron_by_1 {m n : nat} (A : Matrix m n) : Matrix m n.
+  set  (A' := A ⊗ Id 1).
+  rewrite mult_1_r in A'. 
+  rewrite mult_1_r in A'.
+  exact A'.
+Defined.
+Print Kron_by_1.
+
+(*
+(* This no longer type checks: *)
+(*Program Lemma kron_1_r : forall {m n : nat} (A : Matrix m n), A ⊗ Id 1 = A.*)
+Lemma kron_1_r : forall {m n : nat} (A : Matrix m n), Kron_by_1 A = A.
 Proof.
   intros m n A.
+  destruct A as [m n A].
+  unfold Kron_by_1.
+  destruct (Nat.mul_1_r n).
+  destruct (Nat.mul_1_r m).
+  f_equal.
+(*  apply functional_extensionality; intros x.
+  apply functional_extensionality; intros y.
+  unfold Id, kron.
+  rewrite 2 Nat.div_1_r.
+  rewrite 2 Nat.mod_1_r.*)
+
+(*
+Proof.
+  intros m n A. destruct A as [m n A].
   apply functional_extensionality; intros x.
   apply functional_extensionality; intros y.
   unfold Id, kron.
@@ -399,9 +467,11 @@ Proof.
   rewrite 2 Nat.mod_1_r.
   simpl.
   clra.
-Qed.
+Qed.*)
+*)
 
 (* This side is much more limited/annoying *)
+(*
 Lemma kron_1_l : forall {m n : nat} (A : Matrix m n), 
   m > 0 -> n > 0 -> WF_Matrix A -> Id 1 ⊗ A = A.
 Proof.
@@ -435,10 +505,15 @@ Proof.
     rewrite Nat.div_small_iff in H by omega.
     rewrite WF with (x := x) (y := y) by omega.
     clra.
-Qed.
+Qed. *)
 
 Theorem transpose_involutive : forall {m n : nat} (A : Matrix m n), (A⊤)⊤ = A.
-Proof. reflexivity. Qed. (* Wow *)
+Proof. 
+  intros m n A.
+  destruct A as [m n A].
+  unfold transpose. simpl.
+  f_equal.
+Qed.
 
 Lemma conj_involutive : forall (c : C), Cconj (Cconj c) = c.
 Proof. intros c. clra. Qed.
@@ -446,17 +521,15 @@ Proof. intros c. clra. Qed.
 Theorem conj_transpose_involutive : forall {m n : nat} (A : Matrix m n), (A†)† = A.
 Proof. 
   intros m n A. unfold conj_transpose. 
-  apply functional_extensionality; intros x.
-  apply functional_extensionality; intros y.       
+  prep_matrix_equality x y.
   apply conj_involutive.
 Qed.  
 
+
 Lemma id_transpose_eq : forall n, (Id n)⊤ = (Id n).
 Proof.
-  intros n.
-  apply functional_extensionality; intros x.
-  apply functional_extensionality; intros y.
-  unfold Id, transpose; simpl.
+  intros n. unfold transpose, Id.
+  prep_matrix_equality x y.
   destruct (y =? x) eqn:Eq.
   + apply Nat.eqb_eq in Eq; subst.
     rewrite Nat.eqb_refl.
@@ -468,9 +541,8 @@ Qed.
 Lemma id_conj_transpose_eq : forall n, (Id n)† = (Id n).
 Proof.
   intros n.
-  apply functional_extensionality; intros x.
-  apply functional_extensionality; intros y.
-  unfold Id, conj_transpose; simpl.
+  unfold conj_transpose, Id.
+  prep_matrix_equality x y.
   destruct (y =? x) eqn:Eq.
   + apply Nat.eqb_eq in Eq; subst.
     rewrite Nat.eqb_refl.
@@ -484,17 +556,16 @@ Theorem Mplus_comm : forall {m n : nat} (A B : Matrix m n), A .+ B = B .+ A.
 Proof.
   unfold Mplus. 
   intros m n A B.
-  apply functional_extensionality; intros x.
-  apply functional_extensionality; intros y.
+  prep_matrix_equality x y.
   apply Cplus_comm.
 Qed.
+
 
 Theorem Mplus_assoc : forall {m n : nat} (A B C : Matrix m n), A .+ B .+ C = A .+ (B .+ C).
 Proof.
   unfold Mplus. 
   intros m n A B C.
-  apply functional_extensionality; intros x.
-  apply functional_extensionality; intros y.
+  prep_matrix_equality x y.
   rewrite Cplus_assoc.
   reflexivity.
 Qed.
@@ -504,8 +575,7 @@ Theorem Mmult_assoc : forall {m n o p : nat} (A : Matrix m n) (B : Matrix n o)
 Proof.
   intros m n o p A B C.
   unfold Mmult.
-  apply functional_extensionality; intros x.
-  apply functional_extensionality; intros y.
+  prep_matrix_equality x y.
   induction n.
   + simpl.
     clear B.
@@ -531,16 +601,13 @@ Proof.
   rewrite <- HBA.  
   rewrite Mmult_assoc.
   reflexivity.
-Qed.  
+Qed.
   
 Lemma Minv_left : forall {n} (A B : Matrix n n), A × B = Id n -> Minv A B.
 Proof.
   intros n A B H. 
   unfold Minv. split; trivial.
-  + apply functional_extensionality; intros x.
-    apply functional_extensionality; intros y.
-    rewrite <- H.
-    unfold Mmult, Id.
+  + unfold Id, Mmult in *. prep_matrix_equality x y. 
 Admitted.
 
 (* Not generally true, just like sum_sum wasn't.
