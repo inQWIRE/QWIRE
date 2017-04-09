@@ -63,7 +63,7 @@ Fixpoint print_untyped m n (f : UntypedMatrix) : string :=
   | 0   => ""
   | S i => print_row i n f ++ print_untyped i n f
   end.
-Definition print_Matrix {m n} (A : Matrix m n) : string :=
+Definition print_matrix {m n} (A : Matrix m n) : string :=
   match A with
   | Mat _ _ f => print_untyped m n f
   end.
@@ -435,32 +435,36 @@ Proof.
   apply Mmult_1_r_mat_eq.
 Qed.
 
-Definition Kron_by_1 {m n : nat} (A : Matrix m n) : Matrix m n.
-  set  (A' := A ⊗ Id 1).
-  rewrite mult_1_r in A'. 
-  rewrite mult_1_r in A'.
-  exact A'.
-Defined.
-Print Kron_by_1.
+Program Definition kron_r {m n : nat} (A : Matrix m n) : Matrix m n := A ⊗ Id 1.
+Next Obligation. omega. Defined.
+Next Obligation. omega. Defined.
+Transparent kron_r.
 
-(*
-(* This no longer type checks: *)
-(*Program Lemma kron_1_r : forall {m n : nat} (A : Matrix m n), A ⊗ Id 1 = A.*)
-Lemma kron_1_r : forall {m n : nat} (A : Matrix m n), Kron_by_1 A = A.
+(* Print kron_l. *)
+
+Ltac strip_matrix_proofs :=
+  repeat match goal with
+    | [ |- context[eq_rect ?x ?P ?Px ?y ?eq]] => destruct eq; simpl
+  end. 
+
+Lemma kron_1_r : forall {m n : nat} (A : Matrix m n), kron_r A = A.
 Proof.
   intros m n A.
   destruct A as [m n A].
-  unfold Kron_by_1.
-  destruct (Nat.mul_1_r n).
-  destruct (Nat.mul_1_r m).
+  unfold kron_r.
+  strip_matrix_proofs.
+  unfold kron.
   f_equal.
-(*  apply functional_extensionality; intros x.
+  apply functional_extensionality; intros x.
   apply functional_extensionality; intros y.
-  unfold Id, kron.
   rewrite 2 Nat.div_1_r.
-  rewrite 2 Nat.mod_1_r.*)
+  rewrite 2 Nat.mod_1_r.
+  simpl.
+  clra.
+Qed.
 
 (*
+Lemma kron_1_r : forall {m n : nat} (A : Matrix m n), A ⊗ Id 1 = A.
 Proof.
   intros m n A. destruct A as [m n A].
   apply functional_extensionality; intros x.
@@ -471,17 +475,23 @@ Proof.
   simpl.
   clra.
 Qed.*)
-*)
+
+Program Definition kron_l {m n} (A : Matrix m n) : Matrix m n := Id 1 ⊗ A.
+Transparent kron_l.
 
 (* This side is much more limited/annoying *)
-(*
 Lemma kron_1_l : forall {m n : nat} (A : Matrix m n), 
-  m > 0 -> n > 0 -> WF_Matrix A -> Id 1 ⊗ A = A.
+  m > 0 -> n > 0 -> WF_Matrix A -> kron_l A = A.
 Proof.
   intros m n A H1 H2 WF.
+  destruct A as [m n A].
+  unfold kron_l.
+  strip_matrix_proofs.
+  unfold Id, kron.
+  f_equal.
   apply functional_extensionality; intros x.
   apply functional_extensionality; intros y.
-  unfold Id, kron.
+  simpl.
   destruct (x / m <? 1) eqn:Eq1. 
   destruct (x / m =? y / n) eqn:Eq2. 
   all: simpl.
@@ -500,15 +510,17 @@ Proof.
     rewrite H in Eq2. clear H.
     assert (y / n <> 0) by omega. clear Eq2.
     rewrite Nat.div_small_iff in H by omega.
-    rewrite WF with (x := x) (y := y) by omega. 
-    clra.
+    rewrite Cmult_0_l.
+    destruct WF with (x := x) (y := y). omega.
+    reflexivity.
   + rewrite andb_false_r.
     apply Nat.ltb_nlt in Eq1.
     assert (x / m <> 0) by omega. clear Eq1.
     rewrite Nat.div_small_iff in H by omega.
-    rewrite WF with (x := x) (y := y) by omega.
-    clra.
-Qed. *)
+    rewrite Cmult_0_l.
+    destruct WF with (x := x) (y := y). omega.
+    reflexivity.
+Qed.
 
 Theorem transpose_involutive : forall {m n : nat} (A : Matrix m n), (A⊤)⊤ = A.
 Proof. 
@@ -638,7 +650,6 @@ Admitted.
 Lemma Mscale_mult_dist_r : forall {m n o} x (A : Matrix m n) (B : Matrix n o), 
                              (A × (x .* B)) = x .* (A × B).
 Admitted.
-
 
 (* Inverses *)
 

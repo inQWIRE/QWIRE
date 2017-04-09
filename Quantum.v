@@ -100,24 +100,41 @@ Definition swap : Matrix 4 4 :=
           | _, _ => 0
           end).
 
-Local Obligation Tactic := program_simpl; try omega.
+Lemma double_mult : forall (n : nat), (n + n = 2 * n)%nat. Proof. intros. omega. Qed.
+Lemma double_pow : forall (n : nat), (2^n + 2^n = 2^(n+1))%nat. 
+Proof. intros. rewrite double_mult. rewrite <- Nat.pow_succ_r'.
+       rewrite plus_comm. reflexivity. Qed.
+Lemma pow_components : forall (a b m n : nat), a = b -> m = n -> (a^m = b^n)%nat.
+Proof. intuition. Qed.
+
+Ltac unify_pows_two :=
+  repeat match goal with
+  | [ |- context[ 4%nat ]]                  => replace 4%nat with (2^2)%nat by reflexivity
+  | [ |- context[ (0 + ?a)%nat]]            => rewrite plus_0_l 
+  | [ |- context[ (?a + 0)%nat]]            => rewrite plus_0_r 
+  | [ |- context[ (2^?x + 2^?x)%nat]]       => rewrite double_pow 
+  | [ |- context[ (2^?x * 2^?y)%nat]]       => rewrite <- Nat.pow_add_r 
+  | [ |- context[ (?a + (?b + ?c))%nat ]]   => rewrite plus_assoc 
+  | [ |- (2^?x = 2^?y)%nat ]                => apply pow_components; try omega 
+  end.
+
+Local Obligation Tactic := program_simpl; unify_pows_two; try omega.
 
 (* The input k is really k+1, to appease to Coq termination gods *)
+(* NOTE: Check that the offsets are right *)
 Program Fixpoint swap_to_0' (n i : nat) {pf : lt (i+1) n} {struct i}
         : Matrix (2^n) (2^n) := 
   match i with
   | O => swap ⊗ Id (2^(n-2))
-  | S i' =>  (Id (2^i'-1) ⊗ swap ⊗ Id (2^(n-i'-2))) × (* swap i-1 with i *)
+  | S i' =>  (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2))) × (* swap i-1 with i *)
             swap_to_0' n i' × 
-            (Id (2^(i'-1)) ⊗ swap ⊗ Id (2^(n-i'-2))) (* swap i-1 with 0 *)
+            (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2))) (* swap i-1 with 0 *)
   end.
-Next Obligation. simpl in pf. Admitted.
-Next Obligation. Admitted.
-Next Obligation. rewrite mult_comm. rewrite mult_assoc. Admitted.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
-
+(* Next Obligation. rewrite plus_0_r. rewrite double_pow. rewrite plus_assoc. 
+                 rewrite double_pow. rewrite double_pow. 
+                 apply pow_components; omega. Defined. 
+Next Obligation. simpl. omega. replace 4%nat with (2^2)%nat by (simpl; reflexivity). 
+                 rewrite <- Nat.pow_add_r. rewrite <- Nat.pow_add_r. *)
 
 Program Definition swap_to_0 (n i : nat) {pf : lt i n} : Matrix (2^n) (2^n) := 
   match i with 
@@ -131,8 +148,6 @@ Program Fixpoint swap_two' (n i j : nat) {ltij : lt i j} {ltjn : lt j n} : Matri
   | O => swap_to_0 n j 
   | S i' => Id 2 ⊗ swap_two' (n-1) (i') (j-1)
   end.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
 
 Definition swap_two (n i j : nat) {ltin : lt i n} {ltjn : lt j n} : Matrix (2^n) (2^n).
   destruct (lt_eq_lt_dec i j) as [[ltij | eq] | ltji].
@@ -145,12 +160,8 @@ Defined.
 Program Fixpoint move_to_0' (n i : nat) {pf : lt (i+1) n} {struct i}: Matrix (2^n) (2^n) := 
   match i with
   | O => swap ⊗ Id (2^(n-2))
-  | S i' =>  (Id (2^i'-1) ⊗ swap ⊗ Id (2^(n-i'-2))) × swap_to_0' n i
+  | S i' =>  (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2))) × swap_to_0' n i
   end.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
 
 Program Definition move_to_0 (n i : nat) {pf : lt i n} : Matrix (2^n) (2^n) := 
   match i with 
@@ -164,8 +175,49 @@ Program Fixpoint move_to (n i k : nat) {ltij : lt k i} {ltjn : lt i n} : Matrix 
   | O => move_to_0 n i 
   | S k' => Id 2 ⊗ move_to (n-1) (i-1) (k')
   end.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
+
+Program Definition lt02 : (0 < 2)%nat := _. 
+Program Definition lt12 : (1 < 2)%nat := _. 
+Program Definition lt13 : (1 < 3)%nat := _. 
+Program Definition lt23 : (2 < 3)%nat := _. 
+
+(*
+Lemma swap_two_base : @swap_two 2 1 0 lt12 lt02 = swap.
+Proof. unfold swap_two.
+       simpl.
+       compute.
+       destruct (Nat.add_0_r 1).
+       strip_matrix_proofs.
+       apply functional_extensionality.
+       mlra. reflexivity.
+       destruct (dec_eq_nat 2 2).
+       match goal with
+         | [ |- context[eq_rect ?x ?P ?Px ?y ?eq]] => rewrite (proof_irrelevance P)
+       end. 
+
+
+       rewrite proof_irrelevance.
+
+       match goal with
+         | [ |- context[eq_rect ?x ?P ?Px ?y ?eq]] => destruct eq; simpl
+       end. 
+       destruct 
+       rewrite kron_1_r.
+       reflexivity.
+Qed.
+
+Lemma swap_second_two : @swap_two 3 1 2 lt13 lt23 = Id 2 ⊗ swap.
+Proof. unfold swap_two.
+       simpl.
+       rewrite kron_1_r.
+       reflexivity.
+Qed.
+*)
+
+(*
+Eval compute in ((swap_two 1 0 1) {0, 0})%nat.
+Eval compute in (print_matrix (swap_two 1 0 2)).
+*)
 
 (* Tactics *)
 
@@ -218,30 +270,35 @@ Ltac Msolve :=
 
 
 
-Ltac well_formed N :=
-  try unfold N;
+Ltac show_wf :=
+  repeat match goal with
+  | [ |- WF_Matrix (?A × ?B) ]  => apply WF_mult 
+  | [ |- WF_Matrix (?A .+ ?B) ] => apply WF_plus 
+  | [ |- WF_Matrix (?A ⊗ ?B) ]  => apply WF_kron
+  | [ |- WF_Matrix (?A⊤) ]      => apply WF_transpose 
+  | [ |- WF_Matrix (?A†) ]      => apply WF_conj_transpose 
+  end;
+  trivial;
   unfold WF_Matrix;
   intros x y [H | H];
   repeat (destruct x; try reflexivity; try omega);
   repeat (destruct y; try reflexivity; try omega).
-
 
 (* Similar to Msolve but often faster *)
 Ltac mlra := 
   compute;
   prep_matrix_equality;
   repeat match goal with
-  | [ |- WF_Matrix ?M ] => well_formed M
   | [ |- _ = _]  => clra
   | [ x : nat |- _ ] => destruct x
   end.
 
 (** Unitaries are well-formed **)
 
-Lemma WF_hadamard : WF_Matrix hadamard. Proof. well_formed hadamard. Qed.
-Lemma WF_pauli_x : WF_Matrix pauli_x. Proof. well_formed hadamard. Qed.
-Lemma WF_pauli_y : WF_Matrix pauli_y. Proof. well_formed hadamard. Qed.
-Lemma WF_pauli_z : WF_Matrix pauli_z. Proof. well_formed hadamard. Qed.
+Lemma WF_hadamard : WF_Matrix hadamard. Proof. show_wf. Qed.
+Lemma WF_pauli_x : WF_Matrix pauli_x. Proof. show_wf. Qed.
+Lemma WF_pauli_y : WF_Matrix pauli_y. Proof. show_wf. Qed.
+Lemma WF_pauli_z : WF_Matrix pauli_z. Proof. show_wf. Qed.
 
 Lemma WF_control : forall {n} (U : Matrix n n), WF_Matrix U -> WF_Matrix (control U).
 Proof.
@@ -456,10 +513,10 @@ operator of trace 1 acting on the state space. A density operator describes
 a pure state if it is a rank one projection. Equivalently, a density operator ρ 
 describes a pure state if and only if ρ = ρ ^ 2 *)
 
-Definition Pure_State {n} (ρ : Density n) : Prop := ρ = ρ × ρ.
+Definition Pure_State {n} (ρ : Density n) : Prop := WF_Matrix ρ /\ ρ = ρ × ρ.
 
-Lemma pure0 : Pure_State |0⟩⟨0|. Proof. mlra. Qed.
-Lemma pure1 : Pure_State |1⟩⟨1|. Proof. mlra. Qed.
+Lemma pure0 : Pure_State |0⟩⟨0|. Proof. split; [show_wf|mlra]. Qed.
+Lemma pure1 : Pure_State |1⟩⟨1|. Proof. split; [show_wf|mlra]. Qed.
 
 (* Very simple version of a general lemma saying that all unitaries map pure states
    to pure states *)
@@ -481,10 +538,12 @@ Lemma pure_σz_1 : Pure_State (super pauli_z |0⟩⟨0|). Proof. mlra. Qed.
 *)
 
 Lemma pure_unitary : forall {n} (U ρ : Matrix n n), 
-  WF_Matrix ρ -> unitary_matrix U -> Pure_State ρ -> Pure_State (super U ρ).
+  WF_Matrix U -> unitary_matrix U -> Pure_State ρ -> Pure_State (super U ρ).
 Proof.
-  intros n U ρ WF H P.
+  intros n U ρ WFU H [WFρ P].
   unfold Pure_State, unitary_matrix, super in *.
+  split.
+  show_wf.
   remember (U × ρ × (U) † × (U × ρ × (U) †)) as rhs.
   rewrite P.
   replace (ρ × ρ) with (ρ × Id n × ρ) by (rewrite Mmult_1_r; trivial).
@@ -496,11 +555,10 @@ Qed.
 
 Lemma pure_hadamard_1 : Pure_State (super hadamard |1⟩⟨1|).
 Proof. apply pure_unitary. 
-       + unfold ket1, Mmult. simpl. unfold Cconj.
-         mlra. intros. mlra. admit.
+       + apply WF_hadamard.       
        + apply H_unitary.
-       + apply pure1.
-Admitted.
+       + apply pure1. 
+Qed.
 
 (* Wiki:
 For a finite-dimensional function space, the most general density operator 
@@ -525,7 +583,9 @@ Definition dm12 : Matrix 2 2 :=
           end).
 
 Lemma pure_dm12 : Pure_State dm12. Proof.
-  unfold Pure_State, dm12, conj_transpose, super, Mmult.
+  split.
+  show_wf.
+  unfold dm12, conj_transpose, super, Mmult.
   prep_matrix_equality.
   destruct x as [| [|x]]; destruct y as [|[|y]]; clra.
 Qed.
@@ -536,25 +596,15 @@ Proof. unfold meas_op.
        replace (super |1⟩⟨1| dm12) with ((1 - 1/2)%R .* |1⟩⟨1|) by mlra. 
        apply Mix_S.
        lra.
-       constructor; mlra.
-       constructor; mlra.
+       constructor; split; [show_wf|mlra].
+       constructor; split; [show_wf|mlra].
 Qed.
 
-Lemma Mscale_mult_dist_l : forall {m n o} x (A : Matrix m n) (B : Matrix n o), 
-                             ((x .* A) × B) = x .* (A × B).
-Admitted.
-
-Lemma Mscale_mult_dist_r : forall {m n o} x (A : Matrix m n) (B : Matrix n o), 
-                             (A × (x .* B)) = x .* (A × B).
-Admitted.
-
-
 Lemma mixed_unitary : forall {n} (U ρ : Matrix n n), 
-  WF_Matrix ρ -> unitary_matrix U -> Mixed_State ρ -> Mixed_State (super U ρ).
+  WF_Matrix U -> unitary_matrix U -> Mixed_State ρ -> Mixed_State (super U ρ).
 Proof.
-  intros n U ρ WF H M.
-  generalize dependent WF.
-  induction M; intros WF.
+  intros n U ρ WFU H M.
+  induction M.
   + apply Pure_S.
     apply pure_unitary; trivial.
   + unfold unitary_matrix, super in *.
@@ -563,10 +613,8 @@ Proof.
     rewrite 2 Mscale_mult_dist_r.
     rewrite 2 Mscale_mult_dist_l.
     apply Mix_S; trivial.
-    apply IHM1. 
-    (* ... and there's your compelling argument for 
-           "all pure states must be well_formed". *)
-Admitted.
+Qed.
 
+*)
 
 (* *)
