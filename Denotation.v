@@ -194,7 +194,7 @@ Local Obligation Tactic := program_simpl; unify_pows_two; try omega.
 Program Definition pad {m} n (pf: m <= n) (A : Square (2^m)) : Square (2^n) :=
   (A ⊗ Id (2^ (n - m))).
 
-Definition apply {m n} (U : Square (2^m)) (ρ : Density (2^n)) 
+Definition apply_U {m n} (U : Square (2^m)) (ρ : Density (2^n)) 
   (l : list (sig (fun i => i < n))) {pf : m <= n} : Density (2^n) := 
   let S := swap_list n l in 
   let SU := S × (pad n pf U) × S† in  
@@ -208,18 +208,18 @@ Program Definition pad_b1 n : Matrix (2^n) (2^(S n)) := (⟨1| ⊗ Id (2^n)).
 *)
 
 Program Definition apply_new0 {n} (ρ : Density (2^n)) (k : sig (fun i => i < n)) : 
-  Square (2^(n+1)) := super (|0⟩ ⊗ Id (2^n)) ρ.
+  Density (2^(n+1)) := super (|0⟩ ⊗ Id (2^n)) ρ.
 
 Program Definition apply_new1 {n} (ρ : Density (2^n)) (k : sig (fun i => i < n)) : 
-  Square (2^(n+1)) := super (|1⟩ ⊗ Id (2^n)) ρ.
+  Density (2^(n+1)) := super (|1⟩ ⊗ Id (2^n)) ρ.
 
 Program Definition apply_discard {n} (ρ : Density (2^n)) (k : sig (fun i => i < n)) : 
-  Square (2^(n-1)) := 
+  Density (2^(n-1)) := 
   let S := @swap_two n 0 k _ _ in 
   super ((⟨0| ⊗ Id (2^(n-1))) × S) ρ .+ super ((⟨1| ⊗ Id (2^(n-1))) × S) ρ.
 
 Program Definition apply_meas {n} (ρ : Density (2^n)) (k : sig (fun i => i < n)) : 
-  Square (2^n) := 
+  Density (2^n) := 
   let S := @swap_two n 0 k _ _ in 
   super (S† × (|0⟩⟨0| ⊗ Id (2^(n-1))) × S) ρ .+ 
   super (S† × (|1⟩⟨1| ⊗ Id (2^(n-1))) × S) ρ.
