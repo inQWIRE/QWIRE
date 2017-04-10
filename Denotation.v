@@ -164,7 +164,7 @@ Proof.
   simpl.
   unfold swap_list, swap_list_aux.
   simpl.
-  rewrite Mmult_1_r.
+  rewrite Mmult_1_r. 
   apply swap_two_base.
   (* .. and we're done here *)
 Admitted.

@@ -181,8 +181,9 @@ Program Definition lt12 : (1 < 2)%nat := _.
 Program Definition lt13 : (1 < 3)%nat := _. 
 Program Definition lt23 : (2 < 3)%nat := _. 
 
-(*
 Lemma swap_two_base : @swap_two 2 1 0 lt12 lt02 = swap.
+Admitted.
+(*
 Proof. unfold swap_two.
        simpl.
        compute.
@@ -615,6 +616,6 @@ Proof.
     apply Mix_S; trivial.
 Qed.
 
-*)
+
 
 (* *)
