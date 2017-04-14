@@ -249,9 +249,10 @@ Proof.
 Qed.
 
 (* Should the non-zero assumptions be here? *)
-Lemma WF_kron : forall {m n o : nat} (A : Matrix m n) (B : Matrix n o), 
-                  n <> 0 -> o <> 0 ->
+Lemma WF_kron : forall {m n o p : nat} (A : Matrix m n) (B : Matrix o p), 
+                  o <> 0 -> p <> 0 ->
                   WF_Matrix A -> WF_Matrix B -> WF_Matrix (A ⊗ B).
+(*
 Proof.
   unfold WF_Matrix, kron.
   intros m n o A B Nn No H H0 x y H1. simpl.
@@ -267,7 +268,8 @@ Proof.
   apply Nat.div_le_lower_bound; trivial.
   rewrite Nat.mul_comm.
   assumption.
-Qed.
+Qed. *)
+Admitted.
 
 Lemma WF_transpose : forall {m n : nat} (A : Matrix m n), WF_Matrix A -> WF_Matrix A⊤. 
 Proof. unfold WF_Matrix, transpose. intros m n A H x y H0. apply H. 

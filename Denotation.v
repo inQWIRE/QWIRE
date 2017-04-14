@@ -70,6 +70,8 @@ Notation bnat n := (sig (fun i => i < n)).
 (* The second argument is the length of the list *)
 Definition env n m := sig (fun (ls : list (bnat n)) => length ls <= m).
 Hint Unfold env.
+Program Definition empty_env m n : env m n := [].
+Next Obligation. omega. Defined.
 
 
 (** Unitary Denotation **)
@@ -142,22 +144,43 @@ Definition denote_gate {W1 W2} n (g : Gate W1 W2) :
   | meas => super_plus (super (|0⟩⟨0| ⊗ Id n)) (super (|1⟩⟨1| ⊗ Id n))
   | discard => super_plus (super (⟨0| ⊗ Id n)) (super (⟨1| ⊗ Id n))
   end.
+Definition denote_gate1 {W1 W2} (g : Gate W1 W2) : Superoperator (2^〚W1〛) (2^〚W2〛).
+Proof.
+  rewrite <- (Nat.mul_1_r (2^〚W1〛)).
+  rewrite <- (Nat.mul_1_r (2^〚W2〛)).
+  exact (denote_gate 1 g).
+Defined.
+
+
  
 Definition super_op_correctness {m n} (f : Superoperator m n) := 
   (forall ρ, Mixed_State ρ -> Mixed_State (f ρ)).   
 
-Lemma denote_gate_correct : forall {W1} {W2} n (g : Gate W1 W2), 
+(*
+Lemma denote_gate_correct : forall {W1} {W2} n (g : Gate W1 W2), n <> 0 ->
                             super_op_correctness (denote_gate n g). 
 Proof.
-  unfold super_op_correctness.
+  intros W1 W2 n g.
+  destruct g; unfold super_op_correctness; intros ρ mixed.
+  - simpl. apply mixed_unitary; auto.
+    apply (WF_kron (denote_unitary u) (Id n)).
+apply unitary_wf.
+  -
+  -
+  -
+  -
+  -
+  -
 Admitted.
-
+*)
+Check denote_gate.
 Instance denote_Gate {W1 W2} : Denote (Gate W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
 {|
     correctness := super_op_correctness;
-(*    denote := denote_gate; *)
+    denote := denote_gate1
 (*    denote_correct := denote_gate_correct *)
 |}.
+Proof.
 Admitted.
 
 (*
@@ -203,19 +226,20 @@ Definition swap_list {n m : nat} (η : env n m) :=
   swap_list_aux n (zip_to 0 n ls). 
 Definition mk_bnat i n {pf : i < n} : bnat n :=
   exist _ i pf.
-Program Definition mk_env {n} m (ls : list (bnat n)) {pf : length ls <= m} 
-                   : env n m :=
-  exist _ ls pf.
+Definition mk_env n m {p} (ls : list (bnat n)) {pf : length ls <= m}
+                   {eq : n = p} : env p m.
+  subst. exact (exist _ ls pf).
+Defined.
 
 
 Program Definition my_one : bnat 2 := S O.
-Program Lemma swap_list_swap : swap_list (mk_env 2 [mk_bnat 1 2]) = swap.
+(*Program Lemma swap_list_swap : swap_list (mk_env 2 _ [mk_bnat 1 2]) = swap.
 (*Proof.
   simpl.
   rewrite Mmult_1_r.  
   rewrite swap_two_base.
   (* .. and we're done here *) *)
-Admitted.
+Admitted.*)
 
 (*
 
@@ -238,6 +262,7 @@ Next Obligation. rewrite Nat.sub_0_r. reflexivity. Defined.
 *)
 
 Local Obligation Tactic := program_simpl; unify_pows_two; try omega.
+
 
 Program Definition pad {m} n (pf: m <= n) (A : Square (2^m)) : Square (2^n) :=
   (A ⊗ Id (2^ (n - m))).
@@ -351,12 +376,52 @@ Inductive Disjoint : Ctx -> Ctx -> Set :=
 Inductive DisjointO : OCtx -> OCtx -> Set :=
 | DisjointValid : forall Γ1 Γ2, Disjoint Γ1 Γ2 -> DisjointO Γ1 Γ2
 .
+
+Lemma valid_disjoint : forall Γ1 Γ2, is_valid (Γ1 ⋓ Γ2) -> DisjointO Γ1 Γ2.
+Proof.
+  intros Γ1 Γ2 valid.
+  assert (not_invalid :  ~ (is_valid Invalid)). { inversion 1. inversion H0. }
+  destruct Γ1 as [ | Γ1]; [ absurd (is_valid Invalid); auto | ].
+  destruct Γ2 as [ | Γ2]; [ absurd (is_valid Invalid); auto | ].
+  constructor.
+  revert Γ2 valid.
+  induction Γ1 as [ | o1 Γ1]; intros Γ2 v; [constructor | ].
+  destruct Γ2 as [ | o2 Γ2]; [constructor | ].
+  destruct o1 as [ | W1]; destruct o2 as [ | W2];
+    [absurd (is_valid Invalid); auto | | | ];
+  constructor; apply IHΓ1; eapply valid_cons; eauto.
+Qed.
+
+(*
 Lemma disjoint_dec Γ1 Γ2 : DisjointO Γ1 Γ2 + {Γ1 ⋓ Γ2 = Invalid}.
 Admitted.
+*)
+
+Lemma merge_dec Γ1 Γ2 : is_valid (Γ1 ⋓ Γ2) + {Γ1 ⋓ Γ2 = Invalid}.
+Proof.
+  induction Γ1 as [ | Γ1]; [ right; auto | ].
+  destruct  Γ2 as [ | Γ2]; [ right; auto | ].
+  revert Γ2; induction Γ1 as [ | o1 Γ1]; intros Γ2.
+  { simpl. left. apply valid_valid. }
+  destruct Γ2 as [ | o2 Γ2]. 
+  { simpl. left. apply valid_valid. }
+  destruct (IHΓ1 Γ2) as [IH | IH].
+  - destruct o1 as [ | W1]; destruct o2 as [ | W2]; simpl in *. 
+    { right; auto. }
+    { left; destruct (merge' Γ1 Γ2); auto. apply valid_valid. }
+    { left; destruct (merge' Γ1 Γ2); auto. apply valid_valid. }
+    { left; destruct (merge' Γ1 Γ2); auto. apply valid_valid. }    
+  - right. simpl in *. rewrite IH. destruct (merge_wire o1 o2); auto.
+Qed.
 
 Lemma num_elts_o_cons_None : forall Γ1 Γ2, 〚Valid (None :: Γ1) ⋓ Valid (None :: Γ2)〛 = 〚Valid Γ1 ⋓ Valid Γ2〛.
-Admitted.
-
+Proof.
+  induction Γ1 as [ | o1 Γ1]; intros Γ2; auto. 
+  destruct Γ2 as [ | o2 Γ2]; auto.
+  destruct o1; destruct o2; auto;
+  simpl in *;
+    destruct (merge' Γ1 Γ2) eqn:H; auto.
+Qed.
 
 
 Definition coerce_bnat {m n} (pf_m_n : m <= n) (b : bnat m) : bnat n.
@@ -381,16 +446,18 @@ Defined.
 
 Lemma num_elts_merge : forall (Γ1 Γ2 : OCtx) (Γ : OCtx), Γ1 ⋓ Γ2 = Γ -> is_valid Γ->
                        num_elts_o Γ = (num_elts_o Γ1 + num_elts_o Γ2)%nat.
+Proof.
 Admitted.
 
 (* Don't do anything to the values of ls1 and ls2 *)
-Definition interleave {n} {Γ1 Γ2 : OCtx} (disj : DisjointO Γ1 Γ2)
+Definition interleave {n} {Γ1 Γ2 : OCtx} (disj : is_valid (Γ1 ⋓ Γ2))
                       (ls1 : env n (〚Γ1〛)) (ls2 : env n (〚Γ2〛)) :
                       〚Γ1〛 + 〚Γ2〛 <= n -> env n (〚Γ1 ⋓ Γ2〛).
 Proof.
     destruct ls1 as [ls1 pf_ls1].
     destruct ls2 as [ls2 pf_ls2].
     revert ls1 ls2 pf_ls1 pf_ls2.
+    apply valid_disjoint in disj.
     destruct disj as [Γ1 Γ2 disj].
     induction disj; intros ls1 ls2 pf_ls1 pf_ls2 pf_n.
     { rewrite merge_nil_l. exists ls2; auto. }
@@ -442,32 +509,21 @@ Lemma disjoint_merge_valid : forall Γ1 Γ2, DisjointO Γ1 Γ2 -> is_valid (Γ1 
 Admitted.
 
 Locate "{ _ } + { _ }". Print sumor. About coerce_env. About Tensor.
-Program Definition merge_env (Γ1 Γ2 : OCtx) (W1 W2 : WType)
-                             (ls1 : env (〚W1〛) (〚Γ1〛)) (ls2 : env (〚W2〛) (〚Γ2〛)) 
-                             (eq1 : 〚W1〛=〚Γ1〛) (eq2 : 〚W2〛 = 〚Γ2〛)
-                            : env (〚Tensor W1 W2〛) (〚Γ1 ⋓ Γ2〛) :=
-  match disjoint_dec Γ1 Γ2 with
+Program Definition merge_env (Γ1 Γ2 : OCtx) {n1 n2}
+                             (ls1 : env n1 (〚Γ1〛)) (ls2 : env n2 (〚Γ2〛)) 
+                             (pf1 : n1 = 〚Γ1〛) (pf2 : n2 = 〚Γ2〛)
+                            : env (〚Γ1 ⋓ Γ2〛) (〚Γ1 ⋓ Γ2〛) :=
+  match merge_dec Γ1 Γ2 with
   | inleft disj => let ls2' := shift_map_up_by (num_elts_o Γ1) ls2 in
                  interleave disj (coerce_env _ _ ls1) (coerce_env _ _ ls2') _
   | inright _   => []
   end.
-(*
-Next Obligation.
-  destruct ls1. destruct ls2. simpl.
-  destruct (disjoint_merge_valid _ _ disj) as [Γ H].
-  rewrite H.
-  rewrite (num_elts_merge Γ1 Γ2 Γ); auto.
-  destruct Γ1; [ inversion H | unfold num_elts_o; omega ].
-Qed.
-Next Obligation.
-  destruct (disjoint_merge_valid _ _ disj) as [Γ H].
-  erewrite <- num_elts_merge; eauto. rewrite <- H. omega.
-Qed.
-Next Obligation.
-  destruct (disjoint_merge_valid _ _ disj) as [Γ H].
-  erewrite <- num_elts_merge; eauto. rewrite <- H. omega.
-Qed.
-*)
+Next Obligation. rewrite (num_elts_merge Γ1 Γ2 (Γ1 ⋓ Γ2)); [omega | auto | auto].
+Defined.
+Next Obligation. rewrite (num_elts_merge Γ1 Γ2 (Γ1 ⋓ Γ2)); [omega | auto | auto].
+Defined.
+Next Obligation. rewrite (num_elts_merge Γ1 Γ2 (Γ1 ⋓ Γ2)); [omega | auto | auto].
+Defined.
 
 
 Definition singleton_env {Γ x W} (pf : SingletonCtx x W Γ) 
@@ -477,11 +533,6 @@ Proof.
   assert (my_zero : bnat 1). exists (0%nat). omega.
   intros; subst. rewrite H. simpl. rewrite pf.
   exists [my_zero]. simpl. omega.
-Defined.
-
-Definition empty_env : env (〚One〛) (〚∅〛).
-Proof.
-  exists []. simpl. omega.
 Defined.
 
 
@@ -494,26 +545,26 @@ Proof.
     erewrite num_elts_merge; [ | eauto | apply valid_valid].
     simpl in *.
     omega.
-Qed.
+Qed. 
+About merge_env.
 
-Fixpoint make_env {Γ : OCtx} {W} (p : Pat Γ W) : env (〚W〛) (〚Γ〛).
-  refine (
+
+Program Fixpoint make_env {Γ : OCtx} {W} (p : Pat Γ W) : env (〚W〛) (〚Γ〛) :=
   match p with
-  | unit => empty_env
   | pair Γ1 Γ2 Γ0 W1 W2 valid merge p1 p2 => 
-      let ls1 := make_env Γ1 W1 p1 in
-      let ls2 := make_env Γ2 W2 p2 in 
-      let ls' := merge_env _ _ _ _ ls1 ls2 _ _ in
-      _
+      let ls1 := make_env p1 in
+      let ls2 := make_env p2 in 
+      let (ls',pf) := merge_env _ _ ls1 ls2 _ _ in
+      mk_env _ _ ls'
   | qubit x Γ sing => singleton_env sing _
   | bit   x Γ sing => singleton_env sing _
-  end); simpl; auto.
-  rewrite merge. exact ls'.
-  Unshelve.
-  erewrite pat_square; auto.
-  erewrite pat_square; auto.
+  | unit => empty_env _ _
+  end. 
+Next Obligation. erewrite pat_square; eauto. Defined.
+Next Obligation. erewrite pat_square; eauto. Defined.
+Next Obligation. erewrite num_elts_merge; eauto.
+    erewrite pat_square; eauto. erewrite pat_square; eauto.
 Defined.
-
 
 (* A pattern Γ |- p : W will result in a nxn matrix, where
    n is the number of non-zero elements in Γ
@@ -523,46 +574,101 @@ Definition denote_pat {Γ W} (p : Pat Γ W) : Matrix (2^〚W〛) (2^〚Γ〛).
   exact (swap_list (make_env p)).
 Defined.
 
-(*
-Lemma denote_pat_WF : forall Γ W (p : Pat Γ W),
-      WF_Matrix (denote_pat p).
-Admitted.
+Program Definition unitary_correctness {m n} (A : Matrix m n) := 
+          forall (pf : m = n),
+           WF_Matrix A /\ unitary_matrix A.
 
-Lemma denote_pat_unitary : forall Γ W (p : Pat Γ W),
-      unitary_matrix (denote_pat p).
-Proof.
-Admitted.
-
-
-Lemma denote_pat_correct : forall Γ W (p : Pat Γ W),
-      WF_Matrix (denote_pat p) /\ unitary_matrix (denote_pat p).
-Proof.
-  intros. split; [apply denote_pat_WF | apply denote_pat_unitary].
-Qed.
-
-Instance denote_Pat {Γ W} : Denote (Pat Γ W) (Square (2 ^ (num_elts_o Γ))) :=
+Instance Denote_Pat {Γ W} : Denote (Pat Γ W) (Matrix (2^〚W〛) (2^〚Γ〛)) :=
 {|
-    correctness := fun m => WF_Matrix m /\ unitary_matrix m;
-    denote := denote_pat;
-    denote_correct := denote_pat_correct Γ W
+    correctness := unitary_correctness;
+    denote := denote_pat
 |}.
-*)
-
-Definition denote_order_gates {Γ1 W1 Γ2 W2}
-                              (p1 : Pat Γ1 W1) (g : Gate W1 W2) (p2 : Pat Γ2 W2)
-                              : Superoperator (2 ^ 〚W2〛) (2 ^ 〚W1〛).
+Proof.
 Admitted.
 
-Definition super_tensor : forall n1 n2 m1 m2,
-                          Superoperator n1 n2 -> Superoperator m1 m2
-                        -> Superoperator (n1 * m1) (n2 * m2).
-Proof.
-  intros n1 n2 m1 m2 s1 s2 ρ.
 
 
+
+
+Program Definition get_Ctx (Γ : OCtx) : is_valid Γ -> Ctx :=
+  match Γ with
+  | Invalid => _
+  | Valid Γ' => fun _ => Γ'
+  end.
+Next Obligation.
+  absurd (is_valid Invalid); auto. intros _. destruct H. inversion H.
+Defined.
+
+Fixpoint Ctx_to_WType (Γ : Ctx) : WType :=
+  match Γ with 
+  | [] => One
+  | None :: Γ' => Ctx_to_WType Γ'
+  | Some W :: Γ' => Tensor W (Ctx_to_WType Γ')
+  end.
+Definition OCtx_to_WType (Γ : OCtx) (pf : is_valid Γ) : WType :=
+  Ctx_to_WType (get_Ctx Γ pf).
+
+Program Definition inc {n} (i : bnat n) : bnat (S n) := S i.
+
+Program Fixpoint id_env' n : list (bnat n) :=
+  match n with
+  | 0 => []
+  | S n' => 0%nat :: map inc (id_env' n')
+  end.
+Program Definition id_env n : env n n := id_env' n.
+Next Obligation.
+  induction n; simpl; auto.
+  rewrite map_length. omega.
+Defined.
+
+(* This might need to be transposed?? *)
+Program Definition apply_pat_in {Γ W} (p : Pat Γ W) Γ'
+                        (pf : is_valid (Γ ⋓ Γ')) 
+                        : Matrix (2 ^ (〚W〛 + 〚Γ'〛)) (2 ^ (〚Γ〛 + 〚Γ'〛)) :=
+  let e := merge_env _ _ (make_env p) (id_env (〚Γ'〛)) _ _
+  in swap_list e.
+Next Obligation.
+  set (sq := pat_square _ _ p). simpl in sq. auto. 
+Defined.
+Next Obligation.
+  erewrite num_elts_merge; eauto.
+  set (sq := pat_square _ _ p). simpl in sq. auto.
+Defined.
+Next Obligation.
+  erewrite num_elts_merge; eauto.
+Defined.
+
+
+Definition compose_super {m n p} (g : Superoperator n p) (f : Superoperator m n)
+                      : Superoperator m p :=
+  fun ρ => g (f ρ).
+
+Definition apply_gate {Γ1 Γ2 Γ : OCtx} {W1 W2} (g : Gate W1 W2) 
+                   (p1 : Pat Γ1 W1) (p2 : Pat Γ2 W2) 
+                   (pf1 : is_valid (Γ1 ⋓ Γ)) (pf2 : is_valid (Γ2 ⋓ Γ))
+                   : Superoperator (2^〚Γ1 ⋓ Γ〛) (2^〚Γ2 ⋓ Γ〛).
+  set (p1' := super (apply_pat_in p1 Γ pf1)).
+  set (p2' := super ((apply_pat_in p2 Γ pf2)†)).
+  set (g' := denote_gate (2^〚Γ〛) g).
+  assert (H : forall Γ0 Γ0', is_valid (Γ0 ⋓ Γ0') ->
+                             2^〚Γ0 ⋓ Γ0'〛 = (2^〚Γ0〛 * 2^〚Γ0'〛)%nat). 
+    intros.
+    erewrite num_elts_merge; eauto.
+    rewrite Nat.pow_add_r; auto.
+  repeat rewrite H; auto.
+  repeat rewrite Nat.pow_add_r in *. 
+  exact (compose_super (compose_super (compose_super (super (Id _)) p2') g') p1').
+Defined.
+
+
+
+SearchAbout (_ ^ (_ + _)).
+(*
 Lemma pow_distr : forall (m n p : nat), p ^ (m + n) = ((p ^ m) * (p ^ n))%nat.
 Admitted.
+*)
 
+Close Scope circ_scope.
 Definition cross_list {A B} (ls1 : list A) (ls2 : list B) : list (A * B) :=
   let f := fun ls0 a => fold_left (fun ls0' b => (a,b)::ls0') ls2 ls0 in
   fold_left f ls1 [].
@@ -607,12 +713,12 @@ Fixpoint get_interpretations (W : WType) : list (interpret W) :=
 Definition discard_left : forall m n, Superoperator (2 ^ m * 2 ^ n) (2 ^ n).
   induction m; intros n ρ.
   - simpl in ρ. rewrite plus_0_r in ρ. exact ρ.
-  - rewrite <- pow_distr in ρ.
+  - rewrite <- Nat.pow_add_r in ρ.
     apply apply_discard in ρ; [ | exists 0%nat; omega].
     apply IHm.
     simpl in ρ. 
     rewrite <- minus_n_O in ρ.
-    rewrite pow_distr in ρ.
+    rewrite Nat.pow_add_r in ρ.
     exact ρ.
 Defined.
 
@@ -653,25 +759,89 @@ Definition denote_lift {w m n}
 Fixpoint denote_circuit {Γ W} (c : Flat_Circuit Γ W) 
                         : Superoperator (2 ^ 〚Γ〛) (2^〚W〛).
   destruct c; subst.
-  - refine (super (denote_pat p)).
+  - exact (super (denote_pat p)).
   - intros ρ.
-    apply (denote_circuit _ _ c).
-    rewrite (num_elts_merge ctx2 ctx); auto.
-    rewrite (num_elts_merge ctx1 ctx) in ρ; auto.
-    rewrite pow_distr in *.
-    apply (denote_gate (2 ^ (num_elts_o ctx))) in g.
-    rewrite <- (pat_square _ _ p) in g.
-    rewrite <- (pat_square _ _ p0) in g.
-    exact (g ρ).
+    exact (denote_circuit _ _ c (apply_gate g p p0 i i0 ρ)).
   - intros ρ.
-    rewrite (num_elts_merge ctx1 ctx2) in ρ; auto.
-    rewrite pow_distr in ρ.
-    set (f'  := fun w => denote_circuit _ _ (f w)).
-    apply (denote_lift f'). 
-    rewrite <- (pat_square _ _ p). exact ρ.
+    rewrite (num_elts_merge ctx1 ctx2) in *; auto.
+    set (p' := super (apply_pat_in p ctx2 i)).
+    repeat rewrite Nat.pow_add_r in *.
+    exact (denote_lift (fun w => denote_circuit _ _ (f w)) (p' ρ)).
 Defined.
 
 
-(*Fixpoint denote_circuit {Γ : Ctx} {W : WType} (c : Flat_Circuit Γ W)*)
+Instance denote_Flat_Circuit Γ W 
+        : Denote (Flat_Circuit Γ W) (Superoperator (2^〚Γ〛) (2^〚W〛)) :=
+{|
+    correctness := super_op_correctness;
+    denote := denote_circuit
+|}.
+Proof.
+  intros C.
+  induction C. 
+  - simpl. subst. unfold eq_rec_r. simpl.
+    admit.
+  - subst. simpl. unfold eq_rec_r. simpl.
+    intros ρ pf.
+    apply IHC.
+    admit.
+  - subst. simpl. unfold eq_rec_r. simpl. Check Nat.pow_add_r.
+    destruct (Nat.pow_add_r (num_elts_o ctx1) (num_elts_o ctx2) 2); simpl.
+    unfold super_op_correctness.
+    intros ρ mixed.
+    admit.
+Admitted.
+  
 
-(* *)
+Instance denote_Circuit Γ W : Denote (Circuit Γ W) (Superoperator (2^〚Γ〛) (2^〚W〛)) :=
+{|
+    correctness := super_op_correctness;
+    denote := fun c => 〚from_HOAS c〛
+|}.
+Admitted.
+
+Definition denote_box {W1 W2} (b : Flat_Box W1 W2) 
+                      : Superoperator (2^〚W1〛) (2^〚W2〛).
+  intros ρ.
+  destruct b as [W1 W2 Γ p c].
+  set (p' := super ((denote_pat p)†)).
+  exact (denote_circuit c (p' ρ)).
+Defined.
+
+Instance denote_Flat_Box W1 W2 
+        : Denote (Flat_Box W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
+{|
+    correctness := super_op_correctness;
+    denote := denote_box
+|}.
+Admitted.
+
+
+Instance denote_Box W1 W2 
+        : Denote (Box W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
+{|
+    correctness := super_op_correctness;
+    denote := fun b => 〚from_HOAS_Box b〛
+|}.
+Admitted.
+
+
+(* Examples *)
+
+Require Import Examples.
+Definition Sup := 〚bell00〛. Check Sup.
+Definition Mat := (Sup (Id (2 ^ 〚One〛))). Check Mat.
+(* M is a 2^4 x 2^4 square *) 
+Fixpoint nats_to n : list nat :=
+  match n with
+  | 0 => [] 
+  | S n' => 0%nat :: map S (nats_to n')
+  end.
+Definition idx := let ls := nats_to 16 in
+                  cross_list ls ls.
+
+Close Scope circ_scope.
+Definition Mat' := map (fun (x : nat * nat) => match x with (i,j) => Mat{i,j} end) idx.
+Open Scope circ_scope.
+
+Eval compute in (Mat{0,0})%nat. (* not computing still :( *)

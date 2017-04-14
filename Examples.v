@@ -245,6 +245,10 @@ Definition inPar {W1 W2 W1' W2'} (c1 : Box W1 W1') (c2 : Box W2 W2')
     output (p1',p2')).
 Defined. 
 
+(* Flip *)
+
+Definition flip : Box Qubit Qubit :=
+
 
 (** Teleport **)
 
