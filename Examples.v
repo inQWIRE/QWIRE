@@ -37,31 +37,13 @@ Program Definition elim_unit {Γ} (p : Pat Γ One) : Γ = ∅ :=
 (*** Typechecking Tactic ***)
 
 Open Scope circ_scope.
+Opaque wproj.
+
 
 (* Prevent compute from unfolding important fixpoints *)
 Opaque merge.
-Opaque wproj.
 Opaque Ctx.
 Opaque is_valid.
-
-Ltac validate :=
-  repeat ((*idtac "validate";*) match goal with
-  (* Pattern contexts are valid *)
-  | [p : Pat ?Γ ?W |- _ ]             => apply pat_ctx_valid in p
-  (* Solve trivial *)
-  | [|- is_valid ∅ ]                  => apply valid_empty
-  | [H : is_valid ?Γ |- is_valid ?Γ ] => exact H
-  | [H: is_valid (?Γ1 ⋓ ?Γ2) |- is_valid (?Γ2 ⋓ ?Γ1) ] => rewrite merge_comm; exact H
-  (* Remove nils *)
-  | [|- context [∅ ⋓ ?Γ] ]             => rewrite (merge_nil_l Γ)
-  | [|- context [?Γ ⋓ ∅] ]             => rewrite (merge_nil_r Γ)
-  (* Reduce hypothesis to binary disjointness *)
-  | [H: is_valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) |- _ ] => rewrite (merge_assoc Γ1 Γ2 Γ3) in H
-  | [H: is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) |- _ ]   => apply valid_split in H as [? [? ?]]
-  (* Reduce goal to binary disjointness *)
-  | [|- is_valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) ] => rewrite (merge_assoc Γ1 Γ2 Γ3)
-  | [|- is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) ]   => apply valid_join; validate
-  end).
 
 Ltac goal_has_evars := 
   match goal with 
@@ -170,6 +152,7 @@ Definition id_circ {W} : Box W W.
   box (fun p1 => output p1).
 Defined.
 
+
 Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Box W1 W2.
   box (fun p => 
     letC p' ← gate g p;
@@ -247,7 +230,7 @@ Defined.
 
 (* Flip *)
 
-Definition flip : Box Qubit Qubit :=
+
 
 
 (** Teleport **)

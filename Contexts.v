@@ -35,7 +35,7 @@ Inductive OCtx :=
 | Valid : Ctx -> OCtx.
 
 Lemma ctx_octx : forall Γ Γ', Valid Γ = Valid Γ' <-> Γ = Γ'.
-Proof. intuition; congruence. Qed.
+Proof. intuition; congruence. Defined.
 
 Inductive SingletonCtx : Var -> WType -> Ctx -> Set :=
 | SingletonHere : forall w, SingletonCtx 0 w [Some w]
@@ -54,14 +54,14 @@ Proof.
   induction x; intros W.
   - constructor. 
   - simpl. constructor. apply IHx.
-Qed.   
+Defined.   
 
 Lemma singleton_equiv : forall x W Γ,
       SingletonCtx x W Γ -> Γ = singleton x W.
 Proof.
   induction 1; trivial.
   simpl. rewrite IHSingletonCtx. reflexivity.
-Qed.
+Defined.
 
 
 Definition merge_wire (o1 o2 : option WType) : OCtx :=
@@ -98,19 +98,20 @@ Coercion Valid : Ctx >-> OCtx.
 
 
 Lemma merge_merge' : forall (Γ1 Γ2 : Ctx), Γ1 ⋓ Γ2 = (merge' Γ1 Γ2).
-Proof. reflexivity. Qed.
+Proof. reflexivity. Defined.
 
 (* Note that the reverse is not always true - we would need to 
    check validity and not-emptyness of the contexts *)
 Lemma merge_cancel_l : forall Γ Γ1 Γ2 , Γ1 = Γ2 -> Γ ⋓ Γ1 = Γ ⋓ Γ2.
-Proof. intros; subst; reflexivity. Qed.
+Proof. intros; subst; reflexivity. Defined.
 
 Lemma merge_cancel_r : forall Γ Γ1 Γ2 , Γ1 = Γ2 -> Γ1 ⋓ Γ = Γ2 ⋓ Γ.
-Proof. intros; subst; reflexivity. Qed.
+Proof. intros; subst; reflexivity. Defined.
 
-Lemma merge_I_l : forall Γ, Invalid ⋓ Γ = Invalid. Proof. reflexivity. Qed.
+Lemma merge_I_l : forall Γ, Invalid ⋓ Γ = Invalid. Proof. reflexivity. Defined.
 
-Lemma merge_I_r : forall Γ, Γ ⋓ Invalid = Invalid. Proof. destruct Γ; reflexivity. Qed.
+Lemma merge_I_r : forall Γ, Γ ⋓ Invalid = Invalid. Proof. destruct Γ; reflexivity.
+Defined.
 
 (*
 Lemma merge_valid : forall (Γ1 Γ2 : OCtx) (Γ : Ctx), 
@@ -130,7 +131,7 @@ Proof.
   intros Γ1 Γ2 Γ M.
   destruct Γ1 as [|Γ1'], Γ2 as [|Γ2']; inversion M.
   eauto.
-Qed.
+Defined.
 
 Lemma merge_invalid_iff : forall (o1 o2 : option WType) (Γ1 Γ2 : Ctx), 
   Valid (o1 :: Γ1) ⋓ Valid (o2 :: Γ2) = Invalid <-> 
@@ -157,12 +158,12 @@ Proof.
     rewrite merge_merge' in H0.
     rewrite H0.
     reflexivity.
-Qed.
+Defined.
 
-Lemma merge_nil_l : forall Γ, ∅ ⋓ Γ = Γ. Proof. destruct Γ; reflexivity. Qed.
+Lemma merge_nil_l : forall Γ, ∅ ⋓ Γ = Γ. Proof. destruct Γ; reflexivity. Defined.
 
 Lemma merge_nil_r : forall Γ, Γ ⋓ ∅ = Γ. 
-Proof. destruct Γ; trivial. destruct c; trivial. Qed. 
+Proof. destruct Γ; trivial. destruct c; trivial. Defined. 
 
 Lemma merge_comm : forall Γ1 Γ2, Γ1 ⋓ Γ2 = Γ2 ⋓ Γ1. 
 Proof.
@@ -176,7 +177,7 @@ Proof.
     unfold merge in IHΓ1. 
     rewrite IHΓ1.
     destruct a, o; reflexivity.
-Qed.    
+Defined.    
 
 Lemma merge_assoc : forall Γ1 Γ2 Γ3, Γ1 ⋓ (Γ2 ⋓ Γ3) = Γ1 ⋓ Γ2 ⋓ Γ3. 
 Proof.
@@ -299,7 +300,7 @@ Proof.
         rewrite <- IHΓ2'.
         rewrite M23, M123.
         reflexivity.
-Qed.
+Defined.
 
 Definition cons_o (o : option WType) (Γ : OCtx) : OCtx :=
   match Γ with
@@ -309,14 +310,14 @@ Definition cons_o (o : option WType) (Γ : OCtx) : OCtx :=
 
 Lemma cons_distr_merge : forall Γ1 Γ2,
   cons_o None (Γ1 ⋓ Γ2) = cons_o None Γ1 ⋓ cons_o None Γ2.
-Proof. destruct Γ1; destruct Γ2; simpl; auto. Qed.
+Proof. destruct Γ1; destruct Γ2; simpl; auto. Defined.
 
 Lemma merge_nil_inversion' : forall (Γ1 Γ2 : Ctx), Γ1 ⋓ Γ2 = ∅ -> (Γ1 = []) * (Γ2 = []).
 Proof.
   induction Γ1 as [ | o Γ1]; intros Γ2; try inversion 1; auto.
   destruct Γ2 as [ | o' Γ2]; try solve [inversion H1].
   destruct o, o', (merge' Γ1 Γ2); inversion H1. 
-Qed.
+Defined.
 
 Lemma merge_nil_inversion : forall (Γ1 Γ2 : OCtx), Γ1 ⋓ Γ2 = ∅ -> (Γ1 = ∅) * (Γ2 = ∅).
 Proof.
@@ -324,7 +325,7 @@ Proof.
   destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try solve [inversion eq].
   apply merge_nil_inversion' in eq.
   intuition; congruence.
-Qed.
+Defined.
 
 (* This is false. Needs an assumption that Γ1 ≠ ∅ ≠ Γ2 
 Lemma ctx_cons_inversion : forall Γ1 Γ2 o Γ,
@@ -353,17 +354,17 @@ Proof.
   - apply ctx_octx in Eq1. rewrite <- Eq1 in *.
     simpl in H1.
     inversion H1; subst; auto.
-Qed.
+Defined.
 
 (*** Validity ***)
 
 Definition is_valid (Γ : OCtx) : Prop := exists Γ', Γ = Valid Γ'.
 
-Lemma valid_valid : forall Γ, is_valid (Valid Γ). Proof. intros. exists Γ. reflexivity. Qed.
+Lemma valid_valid : forall Γ, is_valid (Valid Γ). Proof. intros. exists Γ. reflexivity. Defined.
 
-Lemma valid_empty : is_valid ∅. Proof. unfold is_valid; eauto. Qed.
+Lemma valid_empty : is_valid ∅. Proof. unfold is_valid; eauto. Defined.
 
-Lemma not_valid : not (is_valid Invalid). Proof. intros [Γ F]; inversion F. Qed.
+Lemma not_valid : not (is_valid Invalid). Proof. intros [Γ F]; inversion F. Defined.
 
 Lemma valid_split_basic : forall Γ1 Γ2, is_valid (Γ1 ⋓ Γ2) -> is_valid Γ1 /\ is_valid Γ2.
 Proof.
@@ -372,7 +373,7 @@ Proof.
   destruct V as [Γ' V].
   apply merge_valid in V as [[Γ1'] [Γ2']].
   eauto.
-Qed. 
+Defined.
 
 Lemma valid_cons : forall (o1 o2 : option WType) (Γ1 Γ2 : Ctx), 
   is_valid (Valid (o1 :: Γ1) ⋓ Valid (o2 :: Γ2)) <-> 
@@ -388,7 +389,7 @@ Proof.
     simpl in *.
     rewrite Vo, V.
     unfold is_valid; eauto.
-Qed.
+Defined.
 
 
 Lemma valid_join : forall Γ1 Γ2 Γ3, is_valid (Γ1 ⋓ Γ2) -> is_valid (Γ1 ⋓ Γ3) -> is_valid (Γ2 ⋓ Γ3) -> 
@@ -435,7 +436,7 @@ Proof.
       simpl in *. rewrite V12.
       simpl in *. rewrite V12 in V123. simpl in V123. rewrite V123.
       reflexivity.
-Qed. 
+Defined.
 
 Lemma valid_split : forall Γ1 Γ2 Γ3, is_valid (Γ1 ⋓ Γ2 ⋓ Γ3) -> 
                                 is_valid (Γ1 ⋓ Γ2) /\ is_valid (Γ1 ⋓ Γ3) /\ is_valid (Γ2 ⋓ Γ3).
@@ -448,7 +449,7 @@ Proof.
     destruct (Γ1 ⋓ Γ3); [rewrite merge_I_r in V; inversion V | eauto]. 
   + rewrite <- merge_assoc in V.
     destruct (Γ2 ⋓ Γ3); [rewrite merge_I_r in V; inversion V | eauto]. 
-Qed.  
+Defined. 
 
 (*** Disjointness ***)
 
@@ -463,14 +464,14 @@ Lemma disjoint_nil_r : forall Γ, Disjoint Γ ∅.
 Proof.
   destruct Γ as [ | Γ]; [exact I | ].
   unfold Disjoint. rewrite merge_nil_r. exists Γ. reflexivity.
-Qed.
+Defined.
 
 
 Lemma disjoint_valid : forall Γ1 Γ2, Disjoint Γ1 Γ2 -> is_valid Γ1 -> is_valid Γ2 -> is_valid (Γ1 ⋓ Γ2).
 Proof.
   intros Γ1 Γ2 disj [Γ1' valid1] [Γ2' valid2].
   rewrite valid1 in *; rewrite valid2 in *; auto. 
-Qed.
+Defined.
 
 Lemma disjoint_merge : forall Γ Γ1 Γ2,
                        Disjoint Γ Γ1 -> Disjoint Γ Γ2 -> Disjoint Γ (Γ1 ⋓ Γ2).
@@ -491,7 +492,7 @@ Proof.
   rewrite merge_assoc.
   apply valid_join; auto.
   exists Γ'; auto.
-Qed.
+Defined.
 
 
 Lemma disjoint_split : forall Γ1 Γ2 Γ, is_valid Γ1 -> is_valid Γ2 -> 
@@ -508,7 +509,7 @@ Proof.
   rewrite <- is_valid in disj'.
   apply valid_split in disj'.
   destruct disj' as [H1 [H2 H3]]; split; auto.
-Qed.
+Defined.
 
 
 
@@ -657,3 +658,20 @@ Definition lookupO (Γ : OCtx) (x : nat) : option WType :=
   | Valid Γ' => lookup Γ' x
   | Invalid  => None
   end.
+
+Lemma merge_dec Γ1 Γ2 : is_valid (Γ1 ⋓ Γ2) + {Γ1 ⋓ Γ2 = Invalid}.
+Proof.
+  induction Γ1 as [ | Γ1]; [ right; auto | ].
+  destruct  Γ2 as [ | Γ2]; [ right; auto | ].
+  revert Γ2; induction Γ1 as [ | o1 Γ1]; intros Γ2.
+  { simpl. left. apply valid_valid. }
+  destruct Γ2 as [ | o2 Γ2]. 
+  { simpl. left. apply valid_valid. }
+  destruct (IHΓ1 Γ2) as [IH | IH].
+  - destruct o1 as [ | W1]; destruct o2 as [ | W2]; simpl in *. 
+    { right; auto. }
+    { left; destruct (merge' Γ1 Γ2); auto. apply valid_valid. }
+    { left; destruct (merge' Γ1 Γ2); auto. apply valid_valid. }
+    { left; destruct (merge' Γ1 Γ2); auto. apply valid_valid. }    
+  - right. simpl in *. rewrite IH. destruct (merge_wire o1 o2); auto.
+Defined.
