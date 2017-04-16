@@ -26,6 +26,9 @@ Definition ket1 : Matrix 2 1 :=
           end).
 
 Definition ket (x : nat) : Matrix 2 1 := if x =? 0 then ket0 else ket1.
+Transparent ket0.
+Transparent ket1.
+Transparent ket.
 
 Notation "|0⟩" := ket0.
 Notation "|1⟩" := ket1.
@@ -35,8 +38,6 @@ Notation "|0⟩⟨0|" := (|0⟩×⟨0|).
 Notation "|1⟩⟨1|" := (|1⟩×⟨1|).
 Notation "|1⟩⟨0|" := (|1⟩×⟨0|).
 Notation "|0⟩⟨1|" := (|0⟩×⟨1|).
-
-Notation "√ n" := (sqrt n) (at level 20).
 
 Definition hadamard : Matrix 2 2 := 
   Mat (fun x y => match x, y with
@@ -219,80 +220,6 @@ Qed.
 Eval compute in ((swap_two 1 0 1) {0, 0})%nat.
 Eval compute in (print_matrix (swap_two 1 0 2)).
 *)
-
-(* Tactics *)
-
-(* Would rather use something more basic than lra - but fourier and ring 
-   aren't always up to the task *)
-Ltac Rsimpl := 
-  simpl;
-  unfold Rminus;
-  unfold Rdiv;
-  repeat (
-    try rewrite Ropp_0;
-    try rewrite Ropp_involutive;
-    try rewrite Rplus_0_l;
-    try rewrite Rplus_0_r;
-    try rewrite Rmult_0_l;
-    try rewrite Rmult_0_r;
-    try rewrite Rmult_1_l;
-    try rewrite Rmult_1_r;
-    try rewrite <- Ropp_mult_distr_l;
-    try rewrite <- Ropp_mult_distr_r;
-    try (rewrite Rinv_l; [|lra]);
-    try (rewrite Rinv_r; [|lra]);
-    try (rewrite sqrt_sqrt; [|lra])        
-).
-
-(* Seems like this could loop forever *)
-Ltac group_radicals := 
-  repeat (
-  match goal with
-    | [ |- context[(?r1 * √ ?r2)%R] ] => rewrite (Rmult_comm r1 (√r2)) 
-    | [ |- context[(?r1 * (√ ?r2 * ?r3))%R] ] => rewrite <- (Rmult_assoc _ (√ r2) _)
-    | [ |- context[((√?r * ?r1) + (√?r * ?r2))%R ] ] => 
-        rewrite <- (Rmult_plus_distr_l r r1 r2)
-  end).
-
-Ltac Rsolve := repeat (try Rsimpl; try group_radicals); lra.
-
-Ltac Csolve := eapply c_proj_eq; simpl; Rsolve.
-
-(* I'd like a version of this that makes progress even if it doesn't succeed *)
-
-Ltac Msolve := 
-  compute;
-  repeat match goal with 
-  | [ |- (fun _ => _) = (fun _ => _) ]  => let x := fresh "x" in 
-                                   apply functional_extensionality; intros x
-  | [ |- _ = _ ]                  => Csolve 
-  | [ x : nat |- _ ]                => destruct x (* I'd rather bound this *)
-  end.
-
-
-
-Ltac show_wf :=
-  repeat match goal with
-  | [ |- WF_Matrix (?A × ?B) ]  => apply WF_mult 
-  | [ |- WF_Matrix (?A .+ ?B) ] => apply WF_plus 
-  | [ |- WF_Matrix (?A ⊗ ?B) ]  => apply WF_kron
-  | [ |- WF_Matrix (?A⊤) ]      => apply WF_transpose 
-  | [ |- WF_Matrix (?A†) ]      => apply WF_conj_transpose 
-  end;
-  trivial;
-  unfold WF_Matrix;
-  intros x y [H | H];
-  repeat (destruct x; try reflexivity; try omega);
-  repeat (destruct y; try reflexivity; try omega).
-
-(* Similar to Msolve but often faster *)
-Ltac mlra := 
-  compute;
-  prep_matrix_equality;
-  repeat match goal with
-  | [ |- _ = _]  => clra
-  | [ x : nat |- _ ] => destruct x
-  end.
 
 (** Unitaries are well-formed **)
 
@@ -593,8 +520,10 @@ Qed.
 
 Lemma mixed_meas_12 : Mixed_State (meas_op dm12).
 Proof. unfold meas_op. 
-       replace (super |0⟩⟨0| dm12) with ((1/2)%R .* |0⟩⟨0|) by mlra. 
-       replace (super |1⟩⟨1| dm12) with ((1 - 1/2)%R .* |1⟩⟨1|) by mlra. 
+       replace (super |0⟩⟨0| dm12) with ((1/2)%R .* |0⟩⟨0|) 
+         by (unfold dm12, super; mlra).
+       replace (super |1⟩⟨1| dm12) with ((1 - 1/2)%R .* |1⟩⟨1|) 
+         by (unfold dm12, super; mlra).
        apply Mix_S.
        lra.
        constructor; split; [show_wf|mlra].

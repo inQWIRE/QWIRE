@@ -20,6 +20,7 @@ Bind Scope nat_scope with nat.
 
 Notation C0 := (RtoC 0). 
 Notation C1 := (RtoC 1).
+Notation "√ n" := (sqrt n) (at level 20).
 
 Lemma c_proj_eq : forall (c1 c2 : C), fst c1 = fst c2 -> snd c1 = snd c2 -> c1 = c2.  
 Proof. intros c1 c2 H1 H2. destruct c1, c2. simpl in *. subst. reflexivity. Qed.
@@ -183,6 +184,66 @@ Notation "A †" := (conj_transpose A) (at level 0) : matrix_scope.
 Notation "Σ^ n f" := (Rsum_to_n f n) (at level 90) : matrix_scope.
 Open Scope matrix_scope.
 
+(** Matrix Tactics **)
+
+(* Would rather use something more basic than lra - but fourier and ring 
+   aren't always up to the task *)
+Ltac Rsimpl := 
+  simpl;
+  unfold Rminus;
+  unfold Rdiv;
+  repeat (
+    try rewrite Ropp_0;
+    try rewrite Ropp_involutive;
+    try rewrite Rplus_0_l;
+    try rewrite Rplus_0_r;
+    try rewrite Rmult_0_l;
+    try rewrite Rmult_0_r;
+    try rewrite Rmult_1_l;
+    try rewrite Rmult_1_r;
+    try rewrite <- Ropp_mult_distr_l;
+    try rewrite <- Ropp_mult_distr_r;
+    try (rewrite Rinv_l; [|lra]);
+    try (rewrite Rinv_r; [|lra]);
+    try (rewrite sqrt_sqrt; [|lra])        
+).
+
+(* Seems like this could loop forever *)
+Ltac group_radicals := 
+  repeat (
+  match goal with
+    | [ |- context[(?r1 * √ ?r2)%R] ] => rewrite (Rmult_comm r1 (√r2)) 
+    | [ |- context[(?r1 * (√ ?r2 * ?r3))%R] ] => rewrite <- (Rmult_assoc _ (√ r2) _)
+    | [ |- context[((√?r * ?r1) + (√?r * ?r2))%R ] ] => 
+        rewrite <- (Rmult_plus_distr_l r r1 r2)
+  end).
+
+Ltac Rsolve := repeat (try Rsimpl; try group_radicals); lra.
+
+Ltac Csolve := eapply c_proj_eq; simpl; Rsolve.
+
+(* I'd like a version of this that makes progress even if it doesn't succeed *)
+Ltac Msolve := 
+  compute;
+  repeat match goal with 
+  | [ |- (fun _ => _) = (fun _ => _) ]  => let x := fresh "x" in 
+                                   apply functional_extensionality; intros x
+  | [ |- _ = _ ]                  => Csolve 
+  | [ x : nat |- _ ]                => destruct x (* I'd rather bound this *)
+  end.
+
+(* Similar to Msolve but often faster *)
+(* I'd rather not use compute. *)
+Ltac mlra := 
+(*  compute; *)
+  unfold Mplus, Mmult, dot, scale, kron, transpose, conj_transpose, mat_equiv;  
+  prep_matrix_equality;
+  repeat match goal with
+  | [ |- _ = _]  => clra
+  | [ x : nat |- _ ] => destruct x
+  end.
+
+
 (** Well-Formedness **)
 
 Lemma WF_Zero : forall {m n : nat}, WF_Matrix (Zero m n).
@@ -276,23 +337,32 @@ Proof. unfold WF_Matrix, transpose. intros m n A H x y H0. apply H.
        destruct H0; auto. Qed.
 
 Lemma WF_conj_transpose : forall {m n : nat} (A : Matrix m n), WF_Matrix A -> WF_Matrix A†. 
-Proof. unfold WF_Matrix, conj_transpose, Cconj. intros m n A H x y H0. simpl. rewrite H. 
-       clra. omega. Qed.
+Proof. unfold WF_Matrix, conj_transpose, Cconj. intros m n A H x y H0. simpl. 
+rewrite H. clra. omega. Qed.
+
+(* Well-formedness tactic *)
+Ltac show_wf :=
+  repeat match goal with
+  | [ |- WF_Matrix (?A × ?B) ]  => apply WF_mult 
+  | [ |- WF_Matrix (?A .+ ?B) ] => apply WF_plus 
+  | [ |- WF_Matrix (?A ⊗ ?B) ]  => apply WF_kron
+  | [ |- WF_Matrix (?A⊤) ]      => apply WF_transpose 
+  | [ |- WF_Matrix (?A†) ]      => apply WF_conj_transpose 
+  end;
+  trivial;
+  unfold WF_Matrix;
+  intros x y [H | H];
+  repeat (destruct x; try reflexivity; try omega);
+  repeat (destruct y; try reflexivity; try omega).
+
 
 (** Basic Matrix Lemmas **)
 
 Lemma Mplus_0_l : forall {m n : nat} (A : Matrix m n), Zero m n .+ A = A.
-Proof.
-  intros m n A. 
-  unfold Mplus. prep_matrix_equality.
-  clra.
-Qed.
+Proof. intros. mlra. Qed.
 
 Lemma Mplus_0_r : forall {m n : nat} (A : Matrix m n), A .+ Zero m n = A.
-Proof.
-  intros m n A. unfold Mplus. prep_matrix_equality.
-  clra.
-Qed.
+Proof. intros. mlra. Qed.
     
 Program Lemma Mmult_0_l : forall {m n o : nat} (A : Matrix n o), 
        (Zero m n) × A = Zero m o.
@@ -525,23 +595,13 @@ Proof.
 Qed.
 
 Theorem transpose_involutive : forall {m n : nat} (A : Matrix m n), (A⊤)⊤ = A.
-Proof. 
-  intros m n A.
-  destruct A as [m n A].
-  unfold transpose. simpl.
-  f_equal.
-Qed.
+Proof. intros m n [A]. intuition. Qed.
 
 Lemma conj_involutive : forall (c : C), Cconj (Cconj c) = c.
 Proof. intros c. clra. Qed.
 
 Theorem conj_transpose_involutive : forall {m n : nat} (A : Matrix m n), (A†)† = A.
-Proof. 
-  intros m n A. unfold conj_transpose. 
-  prep_matrix_equality.
-  apply conj_involutive.
-Qed.  
-
+Proof. intros. mlra. Qed.  
 
 Lemma id_transpose_eq : forall n, (Id n)⊤ = (Id n).
 Proof.
