@@ -882,6 +882,66 @@ Instance denote_Box W1 W2
 |}.
 
 
+(* Tactic for circuit analysis *)
+
+Require Import Reals.
+
+Lemma Cconj_real : forall r : R, Cconj r = r.
+Proof. intros. clra. Qed.
+
+Ltac Csimpl := 
+  simpl;
+  unfold Cminus;
+  unfold Cdiv;
+  repeat (
+    try rewrite Cconj_real;
+    try rewrite Copp_0;
+    try rewrite Cplus_0_l;
+    try rewrite Cplus_0_r;
+    try rewrite Cmult_0_l;
+    try rewrite Cmult_0_r;
+    try rewrite Cmult_1_l;
+    try rewrite Cmult_1_r;
+    try (rewrite Cinv_l; [|clra]);
+    try (rewrite Cinv_r; [|clra])
+).
+
+(* Flat Examples *)
+(*
+Require Import FlatExamples.
+Definition Sup := 〚init true〛. Check Sup.
+Definition Mat := (Sup (Id (2 ^ 〚One〛))). Check Mat.
+(* Mat is a 2^2 x 2^2 square *) 
+Fixpoint nats_to n : list nat :=
+  match n with
+  | 0 => [] 
+  | S n' => 0%nat :: map S (nats_to n')
+  end.
+Definition idx := let ls := nats_to 4 in
+                  cross_list ls ls.
+
+Lemma Ex : Mat{0,0}%nat = 0.
+Proof.
+  unfold Mat. simpl. Csimpl. 
+  unfold denote_pat, eq_ind_r, eq_rec_r. simpl.
+  unfold dec_eq_nat. simpl. 
+  assert (eq_irrelevance : forall {A} (a : A) (pf : a = a), eq_sym pf = eq_refl) 
+    by (intros; apply proof_irrelevance).
+  repeat rewrite eq_irrelevance. simpl.
+
+  unfold swap_list. simpl.
+  unfold FlatCircuits.fresh_pat_obligation_3. simpl.
+  unfold singleton_env. simpl.
+  destruct (eq_rec_r (fun n : nat => env n 1)). simpl.
+  destruct x. 
+  + simpl. 
+    Csimpl.
+    destruct (pat_ctx_valid ∅ One ()). simpl.
+    destruct (pat_ctx_valid (Valid [Some Qubit]) Qubit
+        (qubit 0%nat [Some Qubit] (SingletonHere Qubit))); simpl.
+*)
+
+(*
 (* Examples *)
 
 Require Import Examples.
@@ -897,9 +957,19 @@ Definition idx := let ls := nats_to 4 in
                   cross_list ls ls.
 
 (*
+Eval compute in (Mat{0,0})%nat.
 
 Eval compute in (Mat)%nat.
+*)
 
+(*
+Eval simpl in (from_HOAS_Box (init true)).
+Eval compute in (from_HOAS_Box (init true)).
+*)
+
+*)
+
+(*
 
 Lemma Ex : Mat{0,0}%nat = 0.
 Proof.
@@ -909,6 +979,61 @@ Proof.
   assert (eq_irrelevance : forall {A} (a : A) (pf : a = a), eq_sym pf = eq_refl) 
     by (intros; apply proof_irrelevance).
   repeat rewrite eq_irrelevance. simpl.
+
+  unfold swap_list. simpl.
+  unfold FlatCircuits.fresh_pat_obligation_3. simpl.
+  unfold singleton_env. simpl.
+  destruct (eq_rec_r (fun n : nat => env n 1)). simpl.
+  destruct x. 
+  + simpl. 
+    Csimpl.
+    destruct (pat_ctx_valid ∅ One ()). simpl.
+    destruct (disjoint_fresh_var_o ∅ Qubit).
+
+    unfold apply_gate. simpl.
+    clra.
+
+
+    replace (fun Γ2 : OCtx =>
+            is_valid
+              match Γ2 with
+              | Invalid => Invalid
+              | Valid Γ2' => Γ2'
+              end) with (fun Γ2 : OCtx => is_valid Γ2).
+
+    destruct (fun Γ2 : OCtx =>
+            is_valid
+              match Γ2 with
+              | Invalid => Invalid
+              | Valid Γ2' => Γ2'
+              end).
+           (ex_intro
+              (fun Γ' : Ctx => ∅ ⋓ singleton (fresh_var_o ∅) Qubit = Γ') x0
+              e0) eq_refl).
+    destruct (eq_ind_r
+           (fun Γ2 : OCtx =>
+            is_valid
+              match Γ2 with
+              | Invalid => Invalid
+              | Valid Γ2' => Γ2'
+              end) (disjoint_fresh_var_o ∅ Qubit) eq_refl).
+
+    unfold apply_gate. simpl.
+
+    compute.
+
+
+    subst.
+    destruct (ex_intro (fun Γ' : Ctx => [] = Γ') [] eq_refl).
+
+
+Focus 2. inversion l. inversion H0.
+  unfold zip_to. simpl.
+  
+  unfold swap_list_aux.
+  simpl.
+  simpl (swap_list_aux 1 (zip_to 0 1 ls)).
+  unfold zip_to.
   
  
 
