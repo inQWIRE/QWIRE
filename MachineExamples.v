@@ -40,7 +40,19 @@ Program Definition hadamard_measure : Machine_Circuit 1 1 :=
   gate meas on [0];
   out [0].
 
-Parameter U_f : Gate (Qubit ⊗ Qubit) (Qubit ⊗ Qubit).
+Program Definition repeat_hadamard : Machine_Circuit 1 1 :=
+  [0] ↦
+  gate H on [0];
+  gate H on [0];
+  out [0].
+
+Program Definition U_U_trans (U : Unitary Qubit): Machine_Circuit 1 1 :=
+  [0] ↦
+  gate U on [0];
+  gate (transpose U) on [0];
+  out [0].
+
+Parameter U_f : Unitary (Qubit ⊗ Qubit).
 Program Definition deutsch : Machine_Circuit 0 1 :=
   [] ↦ 
   gate init0 on [];
@@ -102,6 +114,13 @@ Program Definition teleport : Machine_Circuit 1 1 :=
   gate discard on [1];
   gate discard on [0]; 
   out [2].
+
+Program Definition coin_flip : Machine_Circuit 0 1 :=
+  [] ↦
+  gate init0 on [];
+  gate H on [0];
+  gate meas on [0];
+  out [0].
 
 
 (* Old teleport for IO-less circuits.

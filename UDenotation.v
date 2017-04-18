@@ -16,12 +16,38 @@ Class Denote source target :=
 }.
 Notation "〚 s 〛" := (denote s) (at level 10).
 
-(** Wire Denotation **)
+(** Wire and Context Denotation **)
 
 Instance denote_WType : Denote WType nat :=
 {|
     correctness := fun _ => True;
     denote := num_wires;
+    denote_correct := fun _ => I
+|}.
+
+Fixpoint num_elts (Γ : Ctx) : nat :=
+  match Γ with
+  | [] => 0
+  | None :: Γ' => num_elts Γ'
+  | Some _ :: Γ' => S (num_elts Γ')
+  end.
+Definition num_elts_o (Γ : OCtx) : nat :=
+  match Γ with
+  | Invalid => 0
+  | Valid Γ' => num_elts Γ'
+  end.
+
+
+Instance denote_Ctx : Denote Ctx nat :=
+{|
+    correctness := fun _ => True;
+    denote := num_elts;
+    denote_correct := fun _ => I
+|}.
+Instance denote_OCtx : Denote OCtx nat :=
+{|
+    correctness := fun _ => True;
+    denote := num_elts_o;
     denote_correct := fun _ => I
 |}.
 
@@ -177,11 +203,12 @@ Program Definition apply_discard {n} (ρ : Density (2^n)) (k : nat) :
   let S := swap_two n 0 k in 
   super ((⟨0| ⊗ Id (2^(n-1))) × S) ρ .+ super ((⟨1| ⊗ Id (2^(n-1))) × S) ρ.
 
+(* Confirm tranposes are in the right place *)
 Program Definition apply_meas {n} (ρ : Density (2^n)) (k : nat) : 
   Square (2^n) := 
   let S := swap_two n 0 k in 
-  super (S† × (|0⟩⟨0| ⊗ Id (2^(n-1))) × S) ρ .+ 
-  super (S† × (|1⟩⟨1| ⊗ Id (2^(n-1))) × S) ρ.
+  super (S × (|0⟩⟨0| ⊗ Id (2^(n-1))) × S†) ρ .+ 
+  super (S × (|1⟩⟨1| ⊗ Id (2^(n-1))) × S†) ρ.
 
 Definition apply_gate {n w1 w2} (g : Gate w1 w2) (ρ : Density (2^n)) (l : list nat) : 
   Density (2 ^ (n + 〚w2〛 - 〚w1〛)) :=
@@ -229,18 +256,19 @@ Instance denote_Machine_Circuit {m n} : Denote (Machine_Circuit m n) (Superopera
     denote_correct := fun _ => I
 |}.
 
-(* Checking example circuits *)
+(** Checking example circuits **)
 
 Require Import MachineExamples.
 
+Definition I1 := Id (2^0).
+
 (* Why can't I compose these? *)
-Definition Sup := 〚init true〛.
-Definition InitT := Sup (Id (2 ^ 〚One〛)). Check InitT. 
+Definition InitT := 〚init true〛 I1. Check InitT. 
 
 Lemma Ex : InitT = |1⟩⟨1|.
 Proof.
   intros.
-  unfold InitT, Sup. simpl.
+  unfold InitT, I1. simpl.
   unfold apply_new1. simpl.
   unfold super. 
   rewrite kron_1_l; try omega; try show_wf.
@@ -262,14 +290,6 @@ Lemma Ex2 : InitT ≡ |1⟩⟨1|.
 Qed.
 *)
 
-Definition even_toss : Matrix 2 2 :=
-  fun x y => match x, y with
-          | 0, 0 => 1/2
-          | 1, 1 => 1/2
-          | _, _ => 0
-          end.
-
-
 Lemma WF_k0 : WF_Matrix |0⟩. Proof. show_wf. Qed.
 Lemma WF_k1 : WF_Matrix |1⟩. Proof. show_wf. Qed.
 Search WF_Matrix.
@@ -286,27 +306,53 @@ Ltac show_wf_safe :=
   | [ |- WF_Matrix (?A ⊗ ?B) ]    => apply WF_kron
   | [ |- WF_Matrix (?A⊤) ]        => apply WF_transpose 
   | [ |- WF_Matrix (?A†) ]        => apply WF_conj_transpose 
+  (* specialize and simpl to make the types line up. Maybe for kron too? *)
+  | [ |- WF_Matrix (denote_unitary ?U) ] => specialize (unitary_wf U); simpl; auto
   end; trivial.
 
-Lemma had_meas : 〚hadamard_measure〛 |0⟩⟨0| = even_toss.
+Require Import Reals.
+
+Lemma Cconj_R : forall r : R, Cconj r = r. Proof. intros. clra. Qed.
+
+(* More basic for the moment *)
+Ltac Csimpl := 
+  simpl;
+  repeat (
+    try rewrite Cconj_R;
+    try rewrite Cplus_0_l;
+    try rewrite Cplus_0_r;
+    try rewrite Cmult_0_l;
+    try rewrite Cmult_0_r;
+    try rewrite Cmult_1_l;
+    try rewrite Cmult_1_r
+).
+
+Ltac Msimpl := 
+  simpl; 
+  repeat (
+  try rewrite kron_1_l;
+  try rewrite kron_1_r;
+  try rewrite Mmult_1_l; 
+  try rewrite Mmult_1_r; 
+  try rewrite id_conj_transpose_eq;
+  try rewrite id_conj_transpose_eq); 
+  try show_wf_safe; try omega.
+
+Definition even_toss : Matrix 2 2 :=
+  fun x y => match x, y with
+          | 0, 0 => 1/2
+          | 1, 1 => 1/2
+          | _, _ => 0
+          end.
+
+Lemma had_meas_toss : 〚hadamard_measure〛 |0⟩⟨0| = even_toss.
 Proof.
   simpl.
-  unfold apply_U. simpl.
-  unfold apply_meas. 
-  unfold swap_list; simpl.
-  unfold swap_two; simpl.
-  unfold pad. simpl.
-  rewrite 3 kron_1_r.
-  rewrite id_conj_transpose_eq.
-  rewrite 4 Mmult_1_l. 
-  rewrite id_conj_transpose_eq.
-  rewrite 3 Mmult_1_r. 
-  unfold super.
-  all: show_wf_safe.
-
+  repeat (unfold apply_U, apply_meas, swap_list, swap_two, pad; simpl).
+  Msimpl.
   prep_matrix_equality.
-  unfold ket0, ket1.
-  unfold Mplus, Mmult, conj_transpose.
+  unfold super, ket0, ket1, Mplus, Mmult, conj_transpose. simpl.
+  Csimpl.
   destruct x, y; simpl.
   + Csolve.
   + destruct y; Csolve.
@@ -315,7 +361,70 @@ Proof.
     Csolve.
 Qed.
 
+Check InitT.
+Check flip.
+Definition FLIP : Square (2^1) := 〚coin_flip〛 I1.
+Lemma flip_toss : 〚coin_flip〛 I1  = even_toss.
+Proof.
+  simpl.
+  repeat (unfold apply_U, apply_meas, apply_new0, swap_list, swap_two, pad; simpl).
+  Msimpl. 
+  prep_matrix_equality.
+  unfold super, ket0, ket1, Mplus, Mmult, conj_transpose. simpl.
+  Csimpl.
+  destruct x, y; simpl.
+  + Csolve.
+  + destruct y; Csolve.
+  + destruct x; Csolve.
+  + destruct x. destruct y; Csolve. 
+    Csolve.
+Qed.
 
-(*Fixpoint denote_circuit {Γ : Ctx} {W : WType} (c : Flat_Circuit Γ W)*)
+Lemma unitary_trans_id : forall (U : Unitary Qubit) (ρ : Density (2^1)), 
+  WF_Matrix ρ -> 〚U_U_trans U〛 ρ = ρ.
+Proof.
+  intros U ρ WF.
+  simpl.
+  repeat (unfold apply_U, swap_list, swap_two, pad; simpl).
+  Msimpl. 
+  unfold super.
+  rewrite conj_transpose_involutive.
+  specialize (unitary_gate_unitary U). unfold unitary_matrix. simpl. intros H.
+  repeat rewrite <- Mmult_assoc.
+  rewrite H.
+  repeat rewrite Mmult_assoc.
+  rewrite H.
+  Msimpl. 
+Qed.  
+  
+(* Corresponds to f(0) = 1, f(1) = 0. See Watrous p25. *)
+Definition f10 : Matrix 2 2 := fun x y => 
+  match x, y with
+  | 0, 1 => 1 
+  | 1, 0 => 1
+  | 2, 2 => 1
+  | 3, 3 => 1
+  | _, _ => 0
+  end.
 
-(* *)
+(*
+Lemma deutsch_odd : denote_unitary U_f = f10 -> 〚deutsch〛(Id 1) = |1⟩⟨1| .
+Proof.
+  intros H.
+  simpl.
+  rewrite H. clear H.
+  repeat (unfold apply_U, apply_discard, apply_meas, apply_new1, swap_list, swap_two, pad; simpl).
+  Msimpl. 
+  prep_matrix_equality.
+  unfold super, ket0, ket1. simpl.
+  unfold Mplus, conj_transpose. simpl.
+  unfold Mmult. 
+  simpl. (* Hangs *)
+  destruct x, y; simpl.
+  + Csolve.
+  + destruct y; Csolve.
+  + destruct x; Csolve.
+  + destruct x. destruct y; Csolve. 
+    Csolve.
+*)
+  
