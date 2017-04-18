@@ -208,20 +208,34 @@ Definition apply_gate {n w1 w2} (g : Gate w1 w2) (ρ : Density (2^n)) (l : list 
 
 Require Import MachineCircuits.
 
-Fixpoint denote_machine_circuit (m n : nat) (c : Machine_Circuit) 
+Fixpoint denote_machine_circuit_tail (m : nat) {n : nat} (c : Tail_Circuit n) 
   : Superoperator (2^m) (2^n) :=
   match c with 
-  | m_output => fun ρ => ρ (* resize ρ (2^n) (2^n) ? *)
-  | m_gate l w1 w2 eq g c => fun ρ => let ρ' := apply_gate g ρ l in
-                                  (denote_machine_circuit (m + 〚w2〛 - 〚w1〛) n c ρ')
+  | m_output l => fun ρ => ρ (* resize ρ (2^n) (2^n) ? *)
+  | m_gate l w1 w2 n' eq g c => fun ρ => let ρ' := apply_gate g ρ l in
+                            (denote_machine_circuit_tail (m + 〚w2〛 - 〚w1〛) c ρ')
   end.
+
+Fixpoint denote_machine_circuit {m n : nat} (c : Machine_Circuit m n) 
+  : Superoperator (2^m) (2^n) :=
+  match c with 
+  | m_input l n' c => denote_machine_circuit_tail m c
+  end.
+
+Instance denote_Machine_Circuit {m n} : Denote (Machine_Circuit m n) (Superoperator (2^m) (2^n)) :=
+{|
+    correctness := fun _ => True;
+    denote := denote_machine_circuit;
+    denote_correct := fun _ => I
+|}.
 
 (* Checking example circuits *)
 
 Require Import MachineExamples.
 
-Definition Sup := (denote_machine_circuit 0 1 (init true)).
-Definition InitT := (Sup (Id (2 ^ 〚One〛))). Check InitT.
+(* Why can't I compose these? *)
+Definition Sup := 〚init true〛.
+Definition InitT := Sup (Id (2 ^ 〚One〛)). Check InitT. 
 
 Lemma Ex : InitT = |1⟩⟨1|.
 Proof.
@@ -274,9 +288,9 @@ Ltac show_wf_safe :=
   | [ |- WF_Matrix (?A†) ]        => apply WF_conj_transpose 
   end; trivial.
 
-Lemma had_meas : denote_machine_circuit 1 1 (hadamard_measure) |0⟩⟨0| = even_toss.
+Lemma had_meas : 〚hadamard_measure〛 |0⟩⟨0| = even_toss.
 Proof.
-  unfold denote_machine_circuit. simpl.
+  simpl.
   unfold apply_U. simpl.
   unfold apply_meas. 
   unfold swap_list; simpl.
