@@ -124,11 +124,8 @@ Eval compute in (from_HOAS_Box hadamard_measure).
 Eval vm_compute in (from_HOAS_Box hadamard_measure).
 *)
 
-
-Notation bnat n := (sig (fun i => i < n)).
-
-Program Fixpoint zip_to (m n: nat) (l : list (bnat n)) :
-  list (bnat n * bnat n) :=
+Fixpoint zip_to (m n: nat) (l : list nat) :
+  list (nat * nat) :=
   match l with
   | nil => nil 
   | x :: xs => match m <? n with 
@@ -136,80 +133,62 @@ Program Fixpoint zip_to (m n: nat) (l : list (bnat n)) :
               | false => nil
               end
   end.
-Next Obligation. apply Nat.ltb_lt. auto. Defined. 
 
-Program Fixpoint swap_list_aux 
-  (n : nat) (l : list (bnat n * bnat n)) : Square  (2^n) :=
+Fixpoint swap_list_aux (n : nat) (l : list (nat * nat)) : Square  (2^n) :=
   match l with
   | nil => Id (2^n)
   | cons (a,b) xs => swap_two n a b × swap_list_aux n xs
   end. 
 
-Definition swap_list (n : nat) (l : list (bnat n)) :=
-  swap_list_aux n (zip_to 0 n l). 
+Definition swap_list (n : nat) (l : list nat) := swap_list_aux n (zip_to 0 n l). 
 
-Program Definition my_one : {i : nat | i < 2} := S O.
-Lemma swap_list_swap : swap_list 2 [my_one] = swap.
+Lemma swap_list_swap : swap_list 2 [S O] = swap.
 Proof.
   simpl.
   unfold swap_list, swap_list_aux.
   simpl.
   rewrite Mmult_1_r.
-  apply swap_two_base.
-  (* .. and we're done here *)
-Admitted.
-
-(*
-(*
-Require Import Coq.Vectors.Vector.
-Definition LList := t.
-*)
-Program Fixpoint swap_list {m n} (v : LList (sig (fun i => i < n)) m) : Square (2^n) :=
-  match v with 
-  | nil => Id (2^(n-m))
-  | cons i _ v' => (swap_to_0 n i) × ((Id 2) ⊗ (@swap_list (m-1) (n-1) v'))
-  end.
-Next Obligation. rewrite Nat.sub_0_r. reflexivity. Defined.
-Next Obligation. rewrite Nat.sub_0_r. reflexivity. Defined.
-Next Obligation. rewrite plus_0_r.  reflexivity. Defined.
-Next Obligation. rewrite Nat.sub_0_r. reflexivity. Defined.
-*)
+  apply swap_two_base. 
+  unfold swap_two. simpl.
+  rewrite kron_1_r.
+  show_wf.
+Qed.
 
 Local Obligation Tactic := program_simpl; unify_pows_two; try omega.
 
-Program Definition pad {m} n (pf: m <= n) (A : Square (2^m)) : Square (2^n) :=
-  (A ⊗ Id (2^ (n - m))).
+(* Requires m < n *)
+Definition pad {m} n (A : Square (2^m)) : Square (2^n) := (A ⊗ Id (2^ (n - m))).
 
 Definition apply_U {m n} (U : Square (2^m)) (ρ : Density (2^n)) 
-  (l : list (bnat n)) {pf : m <= n} : Density (2^n) := 
+  (l : list nat) : Density (2^n) := 
   let S := swap_list n l in 
-  let SU := S × (pad n pf U) × S† in  
+  let SU := S × (pad n U) × S† in  
   super SU ρ.
 
 (* Moving new qubits to the end *)
-Program Definition apply_new0 {n} (ρ : Density (2^n)) : Square (2^(n+1)) := 
+Definition apply_new0 {n} (ρ : Density (2^n)) : Square (2^(n+1)) := 
   super (Id (2^n) ⊗ |0⟩) ρ.
 
 Program Definition apply_new1 {n} (ρ : Density (2^n)) : Square (2^(n+1)) := 
   super (Id (2^n) ⊗ |1⟩) ρ.
 
-Program Definition apply_discard {n} (ρ : Density (2^n)) (k : bnat n) : 
+Program Definition apply_discard {n} (ρ : Density (2^n)) (k : nat) : 
   Square (2^(n-1)) := 
-  let S := @swap_two n 0 k _ _ in 
+  let S := swap_two n 0 k in 
   super ((⟨0| ⊗ Id (2^(n-1))) × S) ρ .+ super ((⟨1| ⊗ Id (2^(n-1))) × S) ρ.
 
-Program Definition apply_meas {n} (ρ : Density (2^n)) (k : bnat n) : 
+Program Definition apply_meas {n} (ρ : Density (2^n)) (k : nat) : 
   Square (2^n) := 
-  let S := @swap_two n 0 k _ _ in 
+  let S := swap_two n 0 k in 
   super (S† × (|0⟩⟨0| ⊗ Id (2^(n-1))) × S) ρ .+ 
   super (S† × (|1⟩⟨1| ⊗ Id (2^(n-1))) × S) ρ.
 
-Program Definition apply_gate {n w1 w2} (g : Gate w1 w2) (ρ : Density (2^n)) 
-  (l : list (bnat n)) : Density (2 ^ (n + 〚w2〛 - 〚w1〛)) :=
+Definition apply_gate {n w1 w2} (g : Gate w1 w2) (ρ : Density (2^n)) (l : list nat) : 
+  Density (2 ^ (n + 〚w2〛 - 〚w1〛)) :=
   match g with 
   | U _ u   => match 〚w1〛 <=? n with
-              | true => @apply_U _ _ (denote_unitary u) ρ l _
-              | false => Zero (2 ^ (n + 〚w2〛 - 〚w1〛)) (2 ^ (n + 〚w2〛 - 〚w1〛))
+              | true => apply_U (denote_unitary u) ρ l
+              | false => Zero _ _
               end
   | init0   => apply_new0 ρ  
   | init1   => apply_new1 ρ
@@ -217,37 +196,23 @@ Program Definition apply_gate {n w1 w2} (g : Gate w1 w2) (ρ : Density (2^n))
   | new1    => apply_new1 ρ
   | meas    => match l with 
               | x :: _ => apply_meas ρ x
-              | _      => Zero (2 ^ (n + 〚w2〛 - 〚w1〛)) (2 ^ (n + 〚w2〛 - 〚w1〛))
+              | _      => Zero _ _
               end                               
   | discard => match l with 
               | x :: _ => apply_discard ρ x
-              | _      => Zero (2 ^ (n + 〚w2〛 - 〚w1〛)) (2 ^ (n + 〚w2〛 - 〚w1〛))
+              | _      => Zero _ _
               end
   end.
-Next Obligation. apply Nat.leb_le. auto. Defined.
 
 (* Denoting Machine Circuits *)
 
 Require Import MachineCircuits.
 
-(* Now easy! *)
-Definition resize {m1 n1 : nat} (A : Matrix m1 n1) (m n : nat) : Matrix m n := A.
-
-Program Fixpoint bound_list (l : list nat) (n: nat) : list (bnat n) :=
-  match l with
-  | [] => []
-  | x :: xs => match x <? n with 
-              | true => x :: bound_list xs n
-              | false => bound_list xs n
-              end
-  end.
-Next Obligation. apply Nat.ltb_lt. auto. Defined.
-
 Fixpoint denote_machine_circuit (m n : nat) (c : Machine_Circuit) 
   : Superoperator (2^m) (2^n) :=
   match c with 
   | m_output => fun ρ => ρ (* resize ρ (2^n) (2^n) ? *)
-  | m_gate l w1 w2 eq g c => fun ρ => let ρ' := apply_gate g ρ (bound_list l m) in
+  | m_gate l w1 w2 eq g c => fun ρ => let ρ' := apply_gate g ρ l in
                                   (denote_machine_circuit (m + 〚w2〛 - 〚w1〛) n c ρ')
   end.
 
@@ -258,17 +223,18 @@ Require Import MachineExamples.
 Definition Sup := (denote_machine_circuit 0 1 (init true)).
 Definition InitT := (Sup (Id (2 ^ 〚One〛))). Check InitT.
 
-Lemma Ex : InitT ≡ |1⟩ × ⟨1|.
+Lemma Ex : InitT = |1⟩⟨1|.
 Proof.
-  unfold mat_equiv.
   intros.
-  destruct x as [x lx], y as [y ly]. simpl.
-  unfold InitT. unfold Sup. simpl.
+  unfold InitT, Sup. simpl.
   unfold apply_new1. simpl.
-  unfold super. simpl.
-  rewrite kron_1_l; try omega. 2: show_wf.
-  
+  unfold super. 
+  rewrite kron_1_l; try omega; try show_wf.
+  rewrite Mmult_1_r; try show_wf.
+Qed.
 
+(*
+Lemma Ex2 : InitT ≡ |1⟩⟨1|.
   unfold mat_equiv.
   simpl.
   intros.
@@ -280,25 +246,60 @@ Proof.
   + destruct x,y. Msolve.
     all : omega.
 Qed.
+*)
+
+Definition even_toss : Matrix 2 2 :=
+  fun x y => match x, y with
+          | 0, 0 => 1/2
+          | 1, 1 => 1/2
+          | _, _ => 0
+          end.
 
 
+Lemma WF_k0 : WF_Matrix |0⟩. Proof. show_wf. Qed.
+Lemma WF_k1 : WF_Matrix |1⟩. Proof. show_wf. Qed.
+Search WF_Matrix.
 
-Lemma Ex : Mat ≡ |1⟩ × ⟨1|.
+Ltac show_wf_safe :=
+  repeat match goal with
+  | [ |- WF_Matrix hadamard ]     => apply WF_hadamard
+  | [ |- WF_Matrix |0⟩ ]          => apply WF_k0 
+  | [ |- WF_Matrix |1⟩ ]          => apply WF_k1 
+  | [ |- WF_Matrix (Zero ?m ?n) ] => apply WF_Zero
+  | [ |- WF_Matrix (Id ?n) ]      => apply WF_Id 
+  | [ |- WF_Matrix (?A × ?B) ]    => apply WF_mult 
+  | [ |- WF_Matrix (?A .+ ?B) ]   => apply WF_plus 
+  | [ |- WF_Matrix (?A ⊗ ?B) ]    => apply WF_kron
+  | [ |- WF_Matrix (?A⊤) ]        => apply WF_transpose 
+  | [ |- WF_Matrix (?A†) ]        => apply WF_conj_transpose 
+  end; trivial.
+
+Lemma had_meas : denote_machine_circuit 1 1 (hadamard_measure) |0⟩⟨0| = even_toss.
 Proof.
-  unfold mat_equiv.
-  simpl.
-  intros.
-  destruct x as [x lx], y as [y ly]. simpl.
-  destruct x,y.
-  + Msolve.
-  + Msolve.
-  + Msolve.
-  + destruct x,y. Msolve.
-    all : omega.
+  unfold denote_machine_circuit. simpl.
+  unfold apply_U. simpl.
+  unfold apply_meas. 
+  unfold swap_list; simpl.
+  unfold swap_two; simpl.
+  unfold pad. simpl.
+  rewrite 3 kron_1_r.
+  rewrite id_conj_transpose_eq.
+  rewrite 4 Mmult_1_l. 
+  rewrite id_conj_transpose_eq.
+  rewrite 3 Mmult_1_r. 
+  unfold super.
+  all: show_wf_safe.
+
+  prep_matrix_equality.
+  unfold ket0, ket1.
+  unfold Mplus, Mmult, conj_transpose.
+  destruct x, y; simpl.
+  + Csolve.
+  + destruct y; Csolve.
+  + destruct x; Csolve.
+  + destruct x. destruct y; Csolve. 
+    Csolve.
 Qed.
-
-
-
 
 
 (*Fixpoint denote_circuit {Γ : Ctx} {W : WType} (c : Flat_Circuit Γ W)*)

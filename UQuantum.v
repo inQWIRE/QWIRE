@@ -12,6 +12,12 @@ Open Scope R_scope.
 Open Scope C_scope.
 Open Scope matrix_scope.
 
+(* WARNING: Resize should only be used where m = m' and n = n'.
+   It should be followed with a proof of this: resize_safe. *) 
+Definition resize (m n m' n' : nat) (A : Matrix m n) : Matrix m' n' := A.
+Definition resize_safe (m n m' n' : nat) : Prop := m = m' /\ n = n'.
+Transparent resize.
+
 Definition ket0 : Matrix 2 1:= 
   fun x y => match x, y with 
           | 0, 0 => 1
@@ -125,75 +131,76 @@ Ltac unify_pows_two :=
   | [ |- (2^?x = 2^?y)%nat ]                => apply pow_components; try omega 
   end.
 
-Local Obligation Tactic := program_simpl; unify_pows_two; try omega.
-
 (* The input k is really k+1, to appease to Coq termination gods *)
 (* NOTE: Check that the offsets are right *)
-Program Fixpoint swap_to_0' (n i : nat) {pf : lt (i+1) n} {struct i}
-        : Matrix (2^n) (2^n) := 
+(* Requires: i + 1 < n *)
+Fixpoint swap_to_0_aux (n i : nat) {struct i} : Matrix (2^n) (2^n) := 
   match i with
   | O => swap ⊗ Id (2^(n-2))
   | S i' =>  (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2))) × (* swap i-1 with i *)
-            swap_to_0' n i' × 
+            swap_to_0_aux n i' × 
             (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2))) (* swap i-1 with 0 *)
   end.
 
-Program Definition swap_to_0 (n i : nat) {pf : lt i n} : Matrix (2^n) (2^n) := 
+(* Requires: i < n *)
+Definition swap_to_0 (n i : nat) : Matrix (2^n) (2^n) := 
   match i with 
   | O => Id (2^n) 
-  | S i' => @swap_to_0' n i' _
+  | S i' => swap_to_0_aux n i'
   end.
  
-(* Requires i < j *)
-Program Fixpoint swap_two' (n i j : nat) {ltij : lt i j} {ltjn : lt j n} : Matrix (2^n) (2^n) := 
+(* Requires i < j, j < n *)
+Fixpoint swap_two_aux (n i j : nat) : Matrix (2^n) (2^n) := 
   match i with 
   | O => swap_to_0 n j 
-  | S i' => Id 2 ⊗ swap_two' (n-1) (i') (j-1)
+  | S i' => Id 2 ⊗ swap_two_aux (n-1) (i') (j-1)
   end.
 
-Definition swap_two (n i j : nat) {ltin : lt i n} {ltjn : lt j n} : Matrix (2^n) (2^n).
-  destruct (lt_eq_lt_dec i j) as [[ltij | eq] | ltji].
-  exact (@swap_two' n i j ltij ltjn).
-  exact (Id (2^n)).
-  exact (@swap_two' n j i ltji ltin).
-Defined.
+(* Requires i < n, j < n *)
+Definition swap_two (n i j : nat) : Matrix (2^n) (2^n) :=
+  if i =? j then Id (2^n) 
+  else if i <? j then swap_two_aux n i j
+  else swap_two_aux n j i.
 
 (* Simpler version of swap_to_0 that shifts other elements *)
-Program Fixpoint move_to_0' (n i : nat) {pf : lt (i+1) n} {struct i}: Matrix (2^n) (2^n) := 
+(* Requires: i+1 < n *)
+Fixpoint move_to_0_aux (n i : nat) {struct i}: Matrix (2^n) (2^n) := 
   match i with
   | O => swap ⊗ Id (2^(n-2))
-  | S i' =>  (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2))) × swap_to_0' n i
+  | S i' =>  (resize (2^i' * 4 * 2^(n-i'-2)) (2^i' * 4 * 2^(n-i'-2)) (2^n) (2^n) 
+             (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2)))) × swap_to_0_aux n i
   end.
 
-Program Definition move_to_0 (n i : nat) {pf : lt i n} : Matrix (2^n) (2^n) := 
+Lemma move_to_0_aux_safe : forall (i' n : nat), (i'+2 < n)%nat -> 
+  resize_safe (2^i' * 4 * 2^(n-i'-2)) (2^i' * 4 * 2^(n-i'-2)) (2^n) (2^n).
+Proof. intros. unfold resize_safe. split; unify_pows_two. Qed.
+             
+(* Requires: i < n *)
+Definition move_to_0 (n i : nat) : Matrix (2^n) (2^n) := 
   match i with 
   | O => Id (2^n) 
-  | S i' => @move_to_0' n i' _
+  | S i' => move_to_0_aux n i'
   end.
  
 (* Always moves up in the matrix from i to k *)
-Program Fixpoint move_to (n i k : nat) {ltij : lt k i} {ltjn : lt i n} : Matrix (2^n) (2^n) := 
+(* Requires: k < i < n *)
+Fixpoint move_to (n i k : nat) : Matrix (2^n) (2^n) := 
   match k with 
   | O => move_to_0 n i 
   | S k' => Id 2 ⊗ move_to (n-1) (i-1) (k')
   end.
 
-Program Definition lt02 : (0 < 2)%nat := _. 
-Program Definition lt12 : (1 < 2)%nat := _. 
-Program Definition lt13 : (1 < 3)%nat := _. 
-Program Definition lt23 : (2 < 3)%nat := _. 
-
-Lemma swap_two_base : @swap_two 2 1 0 lt12 lt02 = swap.
+Lemma swap_two_base : swap_two 2 1 0 = swap.
 Proof. unfold swap_two. simpl. apply kron_1_r. Qed.
 
-Lemma swap_second_two : @swap_two 3 1 2 lt13 lt23 = Id 2 ⊗ swap.
+Lemma swap_second_two : swap_two 3 1 2 = Id 2 ⊗ swap.
 Proof. unfold swap_two.
        simpl.
        rewrite kron_1_r.
        reflexivity.
 Qed.
 
-(* Works!
+(*
 Eval compute in ((swap_two 1 0 1) 0 0)%nat.
 Eval compute in (print_matrix (swap_two 1 0 2)).
 *)
@@ -331,9 +338,9 @@ Lemma kron_unitary : forall {m n} (A : Matrix m m) (B : Matrix n n),
   unitary_matrix A -> unitary_matrix B -> unitary_matrix (A ⊗ B).
 Admitted.
 
-Lemma unitary_swap_to_0 : forall n i P, unitary_matrix (@swap_to_0 n i P).
+Lemma unitary_swap_to_0 : forall n i, (i < n)%nat -> unitary_matrix (swap_to_0 n i).
 Proof.
-  intros n i P.
+  intros n i.
   generalize dependent n.
   unfold unitary_matrix.
   induction i; intros n P; simpl.
@@ -343,9 +350,11 @@ Proof.
     - simpl.
       remember ( Id (2 ^ (n - 2))) as A.
       remember swap as B.
-
-      setoid_rewrite (kron_conj_transpose B A).
+      setoid_rewrite (kron_conj_transpose B A).            
+    
 (*    rewrite (kron_mixed_product B† A† B A). *)
+
+
 
       specialize (kron_mixed_product B† A† B A); intros H.
       assert (unitary_matrix B). subst. apply swap_unitary.
@@ -356,28 +365,18 @@ Proof.
       (* apply H doesn't work. 
          Surprisingly, that's the matrix types failing to line up *)
       rewrite <- H.
-      replace (Init.Nat.mul (S (S (S (S O))))
-       (Nat.pow (S (S O)) (Init.Nat.sub n (S (S O))))) 
-              with
-              (Nat.pow (S (S O)) n).
+      replace (4 * (2 ^ (n - 2)))%nat with (2 ^ n)%nat.
       reflexivity.
-
-      destruct n; try omega.
-      destruct n; try omega.
-      simpl. repeat rewrite plus_0_r, Nat.sub_0_r. omega.
-
-      replace (2 ^ n)%nat with (4 * 2^(n-2))%nat.
-      apply id_kron.
-      
-      specialize (id_kron 4 (2 ^ (n - 2))); intros Eq.
-      destruct n; try omega.
-      destruct n; try omega.
-      simpl. repeat rewrite plus_0_r, Nat.sub_0_r. omega.
-    - 
-      simpl.
+      unify_pows_two.
+      unify_pows_two.
+      replace (2^n)%nat with (2^2 * 2^(n-2))%nat by unify_pows_two.
+      rewrite id_kron.
+      reflexivity.
+    - simpl.
 Admitted.
 
-Lemma unitary_swap_two : forall n i j P1 P2, unitary_matrix (@swap_two n i j P1 P2).
+Lemma unitary_swap_two : forall n i j, (i < n)%nat -> (j < n)%nat ->
+                                  unitary_matrix (swap_two n i j).
 Proof.
   intros n i j P1 P2.
   unfold unitary_matrix.
@@ -433,7 +432,7 @@ Proof.
 Qed.
 *)
 
-(*  Less slow, but slow:
+(* These no longer work
 Lemma pure_σx_1 : Pure_State (super pauli_x |0⟩⟨0|). Proof. mlra. Qed.
 Lemma pure_σy_1 : Pure_State (super pauli_y |0⟩⟨0|). Proof. mlra. Qed.
 Lemma pure_σz_1 : Pure_State (super pauli_z |0⟩⟨0|). Proof. mlra. Qed.
