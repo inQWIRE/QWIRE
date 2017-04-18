@@ -110,6 +110,7 @@ Ltac new_pat p W Γ v :=
     let Γ' := fresh "Γ" in
     let v' := fresh "v" in
     let v'' := fresh "v" in
+(*    let Eq := fresh "Eq" in *)
     destruct (fresh_pat Γ W v) as [Γ' [[v' v''] p]];
     apply disjoint_valid in v''; trivial; try apply valid_empty.
 
@@ -203,7 +204,14 @@ Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Flat_Box W1 W2.
 Defined.
 
 Definition new_discard : Flat_Box One One.
+  destruct (fresh_pat ∅ Bit valid_empty) as [Γ' [[v' v''] p]] eqn:Eq.
+  simpl in Eq.
+  inversion Eq; subst.
+
   new_pat p Bit ∅ valid_empty.
+  inversion p; subst.
+  
+
   box unit (
     p ← gate new0 on (); 
     unit ← gate discard on p;
