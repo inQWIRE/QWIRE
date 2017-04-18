@@ -102,17 +102,23 @@ Definition swap : Matrix 4 4 :=
           end).
 
 Lemma double_mult : forall (n : nat), (n + n = 2 * n)%nat. Proof. intros. omega. Qed.
+Lemma pow_two_succ_l : forall x, (2^x * 2 = 2 ^ (x + 1))%nat.
+Proof. intros. rewrite mult_comm. rewrite <- Nat.pow_succ_r'. intuition. Qed.
+Lemma pow_two_succ_r : forall x, (2 * 2^x = 2 ^ (x + 1))%nat.
+Proof. intros. rewrite <- Nat.pow_succ_r'. intuition. Qed.
 Lemma double_pow : forall (n : nat), (2^n + 2^n = 2^(n+1))%nat. 
-Proof. intros. rewrite double_mult. rewrite <- Nat.pow_succ_r'.
-       rewrite plus_comm. reflexivity. Qed.
+Proof. intros. rewrite double_mult. rewrite pow_two_succ_r. reflexivity. Qed.
 Lemma pow_components : forall (a b m n : nat), a = b -> m = n -> (a^m = b^n)%nat.
 Proof. intuition. Qed.
 
 Ltac unify_pows_two :=
   repeat match goal with
+  (* NB: this first thing is potentially a bad idea, do not do with 2^1 *)
   | [ |- context[ 4%nat ]]                  => replace 4%nat with (2^2)%nat by reflexivity
   | [ |- context[ (0 + ?a)%nat]]            => rewrite plus_0_l 
   | [ |- context[ (?a + 0)%nat]]            => rewrite plus_0_r 
+  | [ |- context[ (2 * 2^?x)%nat]]          => rewrite <- Nat.pow_succ_r'
+  | [ |- context[ (2^?x * 2)%nat]]          => rewrite pow_two_succ_l
   | [ |- context[ (2^?x + 2^?x)%nat]]       => rewrite double_pow 
   | [ |- context[ (2^?x * 2^?y)%nat]]       => rewrite <- Nat.pow_add_r 
   | [ |- context[ (?a + (?b + ?c))%nat ]]   => rewrite plus_assoc 

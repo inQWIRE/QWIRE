@@ -17,17 +17,9 @@ Class Denote source target :=
 }.
 Notation "〚 s 〛" := (denote s) (at level 10).
 
-(** Wire Denotation **)
+(** Wire and Context Denotation **)
 
 Open Scope circ_scope.
-
-Fixpoint num_wires (W : WType) : nat := 
-  match W with
-  | One => 0
-  | Qubit => 1
-  | Bit => 1
-  | W1 ⊗ W2 => num_wires W1 + num_wires W2
-  end.
 
 Fixpoint num_elts (Γ : Ctx) : nat :=
   match Γ with
@@ -40,7 +32,6 @@ Definition num_elts_o (Γ : OCtx) : nat :=
   | Invalid => 0
   | Valid Γ' => num_elts Γ'
   end.
-
 
 
 Close Scope circ_scope.
@@ -289,11 +280,11 @@ Proof.
 Defined.
 
 (* Jennifer: What is the point of k here? *)
-Program Definition apply_new0 {n} (ρ : Density (2^n)) (k : bnat n) : 
-  Density (2^(n+1)) := super (|0⟩ ⊗ Id (2^n)) ρ.
+Program Definition apply_new0 {n} (ρ : Density (2^n)) : Density (2^(n+1)) := 
+  super (|0⟩ ⊗ Id (2^n)) ρ.
 
-Program Definition apply_new1 {n} (ρ : Density (2^n)) (k : bnat n) : 
-  Density (2^(n+1)) := super (|1⟩ ⊗ Id (2^n)) ρ.
+Program Definition apply_new1 {n} (ρ : Density (2^n)) : Density (2^(n+1)) := 
+  super (|1⟩ ⊗ Id (2^n)) ρ.
 
 Program Definition apply_discard {n} (ρ : Density (2^n)) (k : bnat n) : 
   Density (2^(n-1)) := 

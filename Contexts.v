@@ -17,6 +17,14 @@ Instance WType_tensor : Has_Tensor WType := { tensor := Tensor }.
  
 Open Scope circ_scope.
 
+Fixpoint num_wires (W : WType) : nat := 
+  match W with
+  | One => 0
+  | Qubit => 1
+  | Bit => 1
+  | W1 ⊗ W2 => num_wires W1 + num_wires W2
+  end.
+
 (* Coq interpretations of wire types *)
 Fixpoint interpret (w:WType) : Set :=
   match w with

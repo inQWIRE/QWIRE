@@ -51,9 +51,6 @@ Proof.
   * exact I.
   * unfold Disjoint. apply valid_fresh_var.
 Qed.
-
-
-
  
 Program Fixpoint fresh_pat (Γ_in : OCtx) (W : WType) (pf : is_valid Γ_in)
                          : {Γ_out : OCtx & is_valid Γ_out * Disjoint Γ_in Γ_out * Pat Γ_out W}%type :=
@@ -86,7 +83,44 @@ Next Obligation. rename x0 into Γ1. rename x into Γ2.
                  apply disjoint_split with (Γ1 := Γ_in); auto.
 Defined.
 
- 
+(* Simpler modular version of fresh_pat *)
+Fixpoint fresh_ctx (Γ_in : OCtx) (W : WType) : OCtx :=
+  match W with
+  | One => ∅
+  | Qubit => singleton (fresh_var_o Γ_in) Qubit
+  | Bit => singleton (fresh_var_o Γ_in) Bit
+  | W1 ⊗ W2 => let Γ_in' := fresh_ctx Γ_in W1 in
+              Γ_in' ⋓ fresh_ctx (Γ_in ⋓ Γ_in') W2
+  end.
+
+(* TODO
+Eval simpl in (fresh_ctx ∅ Bit).
+Eval simpl in (fresh_ctx ∅ (Qubit ⊗ Bit)).
+
+Lemma fresh_ctx_disjoint : forall Γ W, is_valid Γ -> is_valid (Γ ⋓ fresh_ctx Γ W).
+Proof.
+  intros Γ W.
+  generalize dependent Γ.
+  induction W; intros Γ V.
+  + apply disjoint_valid; trivial.
+    apply disjoint_fresh_var_o. 
+    simpl. 
+    apply valid_valid.
+  + apply disjoint_valid; trivial.
+    apply disjoint_fresh_var_o. 
+    simpl. 
+    apply valid_valid.
+  + rewrite merge_nil_r.
+    assumption.
+  + simpl.
+    rewrite merge_assoc.
+    apply valid_join.
+    - apply IHW1. assumption.
+    - admit.
+    - apply IHW2. 
+      apply valid_split_basic with (Γ1:=Γ) in IHW1; intuition.
+*)
+
 Definition from_HOAS {Γ W} (c : Circuit Γ W) : Flat_Circuit Γ W.
 Proof. 
   induction c as [ Γ Γ' W eq p 
