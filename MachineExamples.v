@@ -19,6 +19,8 @@ Notation In l c := (m_input l c).
 Notation out l := (m_output l). 
 
 
+(* Basic Circuits *)
+
 Definition id_circ l : Machine_Circuit #l #l := l ↦ out l.
 
 Program Definition new_discard : Machine_Circuit 0 0 := 
@@ -40,17 +42,35 @@ Program Definition hadamard_measure : Machine_Circuit 1 1 :=
   gate meas on [0];
   out [0].
 
+
+(* Repeated Unitaries *)
+
 Program Definition repeat_hadamard : Machine_Circuit 1 1 :=
   [0] ↦
   gate H on [0];
   gate H on [0];
   out [0].
 
-Program Definition U_U_trans (U : Unitary Qubit): Machine_Circuit 1 1 :=
+Program Definition U_U_trans_qubit (U : Unitary Qubit): Machine_Circuit 1 1 :=
   [0] ↦
   gate U on [0];
   gate (transpose U) on [0];
   out [0].
+
+Program Definition U_U_trans {W} (U : Unitary W): 
+  Machine_Circuit (num_wires W) (num_wires W) :=
+  let l := seq 0 (num_wires W) in  
+  l ↦
+  gate U on l;
+  gate (transpose U) on l;
+  out l.
+Next Obligation. apply seq_length. Defined.
+Next Obligation. apply seq_length. Defined.
+Next Obligation. apply seq_length. Defined.
+Next Obligation. apply seq_length. Defined.
+
+
+(* Deutch's Algorithm *)
 
 Parameter U_f : Unitary (Qubit ⊗ Qubit).
 Program Definition deutsch : Machine_Circuit 0 1 :=
@@ -63,6 +83,9 @@ Program Definition deutsch : Machine_Circuit 0 1 :=
   gate meas on [0];
   gate discard on [0];
   out [1].
+
+
+(* Teleport *)
 
 Program Definition init (b : bool) : Machine_Circuit 0 1:=
   if b then ([] ↦ gate init1 on []; out [0]) 
@@ -114,6 +137,9 @@ Program Definition teleport : Machine_Circuit 1 1 :=
   gate discard on [1];
   gate discard on [0]; 
   out [2].
+
+
+(* Coin Flip *)
 
 Program Definition coin_flip : Machine_Circuit 0 1 :=
   [] ↦

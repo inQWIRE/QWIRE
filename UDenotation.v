@@ -150,6 +150,7 @@ Eval compute in (from_HOAS_Box hadamard_measure).
 Eval vm_compute in (from_HOAS_Box hadamard_measure).
 *)
 
+(*
 Fixpoint zip_to (m n: nat) (l : list nat) :
   list (nat * nat) :=
   match l with
@@ -159,6 +160,10 @@ Fixpoint zip_to (m n: nat) (l : list nat) :
               | false => nil
               end
   end.
+*)
+
+(* Let's try using Coq's combine (zip) function instead *)
+Definition zip_to (m n : nat) (l : list nat) := combine (seq m n) l.
 
 Fixpoint swap_list_aux (n : nat) (l : list (nat * nat)) : Square  (2^n) :=
   match l with
@@ -243,7 +248,7 @@ Fixpoint denote_machine_circuit_tail (m : nat) {n : nat} (c : Tail_Circuit n)
                             (denote_machine_circuit_tail (m + 〚w2〛 - 〚w1〛) c ρ')
   end.
 
-Fixpoint denote_machine_circuit {m n : nat} (c : Machine_Circuit m n) 
+Definition denote_machine_circuit {m n : nat} (c : Machine_Circuit m n) 
   : Superoperator (2^m) (2^n) :=
   match c with 
   | m_input l n' c => denote_machine_circuit_tail m c
@@ -380,8 +385,8 @@ Proof.
     Csolve.
 Qed.
 
-Lemma unitary_trans_id : forall (U : Unitary Qubit) (ρ : Density (2^1)), 
-  WF_Matrix ρ -> 〚U_U_trans U〛 ρ = ρ.
+Lemma unitary_trans_qubit_id : forall (U : Unitary Qubit) (ρ : Density (2^1)), 
+  WF_Matrix ρ -> 〚U_U_trans_qubit U〛 ρ = ρ.
 Proof.
   intros U ρ WF.
   simpl.
@@ -396,7 +401,52 @@ Proof.
   rewrite H.
   Msimpl. 
 Qed.  
-  
+
+
+Lemma swap_list_aux_id : forall n l, swap_list_aux n (combine l l) = Id (2 ^ n).
+Proof.
+  intros n l.
+  induction l.
+  + simpl. reflexivity.
+  + simpl. rewrite IHl. unfold swap_two. rewrite <- beq_nat_refl. Msimpl.
+Qed.
+
+Lemma swap_list_n_id : forall n, swap_list n (seq 0 n) = Id (2^n).
+Proof.
+  intros.
+  unfold swap_list.
+  unfold zip_to.
+  apply swap_list_aux_id.
+Qed.
+
+Lemma unitary_trans_id : forall W (U : Unitary W) (ρ : Density (2^〚W〛 )), 
+  WF_Matrix ρ -> 〚U_U_trans U〛 ρ = ρ.
+Proof.
+  intros W U ρ WF.
+  simpl.
+  unfold U_U_trans. 
+  destruct (MachineExamples.U_U_trans_obligation_3 W U); simpl.
+  destruct (MachineExamples.U_U_trans_obligation_4 W U); simpl.
+  rewrite 2 seq_length.
+  rewrite leb_correct; try omega.
+  rewrite leb_correct; try omega.
+  unfold apply_U.
+  replace (num_wires W + num_wires W - num_wires W)%nat with (num_wires W) by omega.
+  rewrite swap_list_n_id.
+  unfold pad.
+  replace (num_wires W - num_wires W)%nat with O by omega.   
+  Msimpl.
+  unfold super.
+  rewrite conj_transpose_involutive.
+  specialize (unitary_gate_unitary U). unfold unitary_matrix. simpl. intros H.
+  repeat rewrite <- Mmult_assoc.
+  rewrite H.
+  repeat rewrite Mmult_assoc.
+  rewrite H.
+  Msimpl.
+Qed.  
+
+
 (* Corresponds to f(0) = 1, f(1) = 0. See Watrous p25. *)
 Definition f10 : Matrix 2 2 := fun x y => 
   match x, y with
