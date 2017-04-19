@@ -240,21 +240,21 @@ Definition apply_gate {n w1 w2} (g : Gate w1 w2) (ρ : Density (2^n)) (l : list 
 
 Require Import MachineCircuits.
 
-Fixpoint denote_machine_circuit_tail (m : nat) {n : nat} (c : Tail_Circuit n) 
+Fixpoint denote_machine_circuit_aux (m : nat) {n : nat} (c : Machine_Circuit n) 
   : Superoperator (2^m) (2^n) :=
   match c with 
   | m_output l => fun ρ => ρ (* resize ρ (2^n) (2^n) ? *)
   | m_gate l w1 w2 n' eq g c => fun ρ => let ρ' := apply_gate g ρ l in
-                            (denote_machine_circuit_tail (m + 〚w2〛 - 〚w1〛) c ρ')
+                            (denote_machine_circuit_aux (m + 〚w2〛 - 〚w1〛) c ρ')
   end.
 
-Definition denote_machine_circuit {m n : nat} (c : Machine_Circuit m n) 
+Definition denote_machine_circuit {m n : nat} (c : Machine_Box m n) 
   : Superoperator (2^m) (2^n) :=
   match c with 
-  | m_input l n' c => denote_machine_circuit_tail m c
+  | m_box l n' c => denote_machine_circuit_aux m c
   end.
 
-Instance denote_Machine_Circuit {m n} : Denote (Machine_Circuit m n) (Superoperator (2^m) (2^n)) :=
+Instance denote_Machine_Circuit {m n} : Denote (Machine_Box m n) (Superoperator (2^m) (2^n)) :=
 {|
     correctness := fun _ => True;
     denote := denote_machine_circuit;
@@ -426,8 +426,6 @@ Proof.
   simpl.
   unfold U_U_trans. 
   destruct (MachineExamples.U_U_trans_obligation_3 W U); simpl.
-  destruct (MachineExamples.U_U_trans_obligation_4 W U); simpl.
-  rewrite 2 seq_length.
   rewrite leb_correct; try omega.
   rewrite leb_correct; try omega.
   unfold apply_U.
