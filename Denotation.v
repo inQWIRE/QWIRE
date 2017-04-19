@@ -417,28 +417,6 @@ Proof.
 Defined.
 
 
-Lemma num_elts_merge : forall (Γ1 Γ2 : OCtx) (Γ : OCtx), Γ1 ⋓ Γ2 = Γ -> is_valid Γ->
-                       num_elts_o Γ = (num_elts_o Γ1 + num_elts_o Γ2)%nat.
-Proof.
-  intros Γ1 Γ2 Γ merge valid.
-  destruct Γ1 as [ | Γ1];
-  destruct Γ2 as [ | Γ2];
-  destruct Γ  as [ | Γ ];
-    try (inversion merge; 
-          absurd (is_valid Invalid); auto; apply absurd_valid_Invalid).
-  rewrite <- merge in *. clear Γ merge.
-  apply valid_disjoint in valid. 
-  destruct valid as [Γ1' Γ2' valid]; clear Γ1 Γ2; rename Γ1' into Γ1, Γ2' into Γ2.
-  induction valid; auto.
-  - rewrite merge_nil_r. simpl. omega.
-  - simpl in *. destruct (merge' Γ1 Γ2); auto.
-  - simpl in *. destruct (merge' Γ1 Γ2) as [| Γ] eqn:merge; simpl; auto.
-    absurd (is_valid (Γ1 ⋓ Γ2)); [ | apply disjoint_valid; auto].
-      simpl. rewrite merge. apply absurd_valid_Invalid. 
-  - simpl in *. destruct (merge' Γ1 Γ2) as [| Γ] eqn:merge; simpl in *; try omega.
-    absurd (is_valid (Γ1 ⋓ Γ2)); [ | apply disjoint_valid; auto].
-      simpl. rewrite merge. apply absurd_valid_Invalid. 
-Defined.
 
 
 (* Don't do anything to the values of ls1 and ls2 *)

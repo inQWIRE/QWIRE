@@ -324,6 +324,8 @@ Proof.
         reflexivity.
 Defined.
 
+
+
 Definition cons_o (o : option WType) (Γ : OCtx) : OCtx :=
   match Γ with
   | Invalid => Invalid
@@ -472,6 +474,39 @@ Proof.
   + rewrite <- merge_assoc in V.
     destruct (Γ2 ⋓ Γ3); [rewrite merge_I_r in V; inversion V | eauto]. 
 Defined. 
+
+Lemma num_elts_merge : forall (Γ1 Γ2 : OCtx) (Γ : OCtx), Γ1 ⋓ Γ2 = Γ -> is_valid Γ->
+                       num_elts_o Γ = (num_elts_o Γ1 + num_elts_o Γ2)%nat.
+Proof.
+  intros Γ1 Γ2 Γ merge valid.
+  destruct Γ1 as [ | Γ1];
+  destruct Γ2 as [ | Γ2];
+  destruct Γ  as [ | Γ ];
+    try (inversion merge; 
+          absurd (is_valid Invalid); auto; apply not_valid).
+  rewrite <- merge in *. clear Γ merge.
+  revert Γ2 valid.
+  induction Γ1 as [ | [W1 | ] Γ1]; intros Γ2 valid; 
+    [rewrite merge_nil_l; auto | | ];
+  (destruct Γ2 as [ | [W2 | ] Γ2]; [rewrite merge_nil_r; auto | |]);
+  [ absurd (is_valid Invalid); auto; apply not_valid | | |].
+  - specialize IHΓ1 with Γ2.
+    simpl in *.
+    destruct (merge' Γ1 Γ2) as [ | Γ] eqn:H; 
+      [absurd (is_valid Invalid); auto; apply not_valid | ].
+    simpl in *. rewrite IHΓ1; auto. apply valid_valid.
+  - specialize IHΓ1 with Γ2.
+    simpl in *.
+    destruct (merge' Γ1 Γ2) as [ | Γ] eqn:H; 
+      [absurd (is_valid Invalid); auto; apply not_valid | ].
+    simpl in *. rewrite IHΓ1; auto. apply valid_valid.
+  - specialize IHΓ1 with Γ2.
+    simpl in *.
+    destruct (merge' Γ1 Γ2) as [ | Γ] eqn:H; 
+      [absurd (is_valid Invalid); auto; apply not_valid | ].
+    simpl in *. rewrite IHΓ1; auto. apply valid_valid.
+Defined.
+
 
 (*** Disjointness ***)
 

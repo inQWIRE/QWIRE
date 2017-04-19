@@ -4,7 +4,7 @@ Require Import TypedCircuits.
 Require Import Program.
 Require Import List.
 Require Import PeanoNat.
-
+Require Import Omega.
 
 
 (* No input, output length 
@@ -27,17 +27,21 @@ Inductive Machine_Circuit : list nat -> Set :=
              -> Machine_Circuit l'.
 *)
 
-Inductive Machine_Circuit : nat -> Set :=
-| m_output : forall (l : list nat), Machine_Circuit (length l)
-| m_gate   : forall (l : list nat) {w1 w2 n}, 
+(* Machine_Circuit m n : m is the number of input wires, n is the number of output wires *)
+
+Inductive Machine_Circuit : nat -> nat -> Set :=
+| m_output : forall (l : list nat), Machine_Circuit (length l) (length l)
+| m_gate   : forall (l : list nat) {w1 w2 m n}, 
                length l = num_wires w1
              -> Gate w1 w2
-             -> Machine_Circuit n
-             -> Machine_Circuit n.
+             -> Machine_Circuit (m + num_wires w2 - num_wires w1) n
+             -> Machine_Circuit m n.
 
+(*
 (* morally, a Machine_Box m n should only use variables less than m*)
 Inductive Machine_Box : nat -> nat -> Set := 
-| m_box : forall m {n}, Machine_Circuit n -> Machine_Box m n.
+| m_box : forall m {n}, Machine_Circuit m n -> Machine_Box m n.
+*)
 
 (* Naivest possible composition: 
   only makes sense for circuits without input/output
@@ -47,7 +51,6 @@ Fixpoint m_compose (c1 c2 : Machine_Circuit) : Machine_Circuit :=
   | m_gate l eq g c1' => m_gate l eq g (m_compose c1' c2)
   end.
 *)
-
 
 
 Fixpoint pat_to_list {Γ W} (p : Pat Γ W) : list nat :=
@@ -102,7 +105,7 @@ Definition subst_with_gate {W1 W2} (bound : nat) (g : Gate W1 W2) (p1 p2 : list 
   | discard => subst_remove_1 p1
   end.
 
-Definition apply_substitution {n} (f : nat -> nat) (C : Machine_Circuit n) : Machine_Circuit n.
+Definition apply_substitution {m n} (f : nat -> nat) (C : Machine_Circuit m n) : Machine_Circuit m n.
 Proof.
   induction C.
   - set (c' := m_output (map f l)). rewrite map_length in c'. exact c'.
@@ -110,8 +113,25 @@ Proof.
     apply (m_gate (map f l) e' g IHC).
 Defined.
 
+Lemma singleton_num_elts : forall x Γ W, SingletonCtx x W Γ -> num_elts Γ = 1.
+Proof.
+  induction x; intros Γ W H; inversion H; subst; simpl; auto.
+  erewrite IHx; eauto.
+Qed.
+
+Lemma pat_square : forall Γ W (p : Pat Γ W), num_elts_o Γ = num_wires W.
+Proof.
+  induction 1; simpl; auto.
+  - eapply singleton_num_elts; eauto.
+  - eapply singleton_num_elts; eauto.
+  - inversion i. rename x into Γ. inversion H; subst.
+    erewrite num_elts_merge; [ | eauto | apply valid_valid].
+    rewrite IHp1, IHp2; auto.
+Defined.
+
+
 Program Fixpoint Flat_to_Machine_Circuit {Γ W} (C : Flat_Circuit Γ W)  
-                 : Machine_Circuit (num_wires W) :=
+                 : Machine_Circuit (num_elts_o Γ) (num_wires W) :=
   match C with
   | @flat_output Γ Γ' W eq p => m_output (pat_to_list p)
   | @flat_gate Γ Γ1 Γ1' Γ2 Γ2' W1 W2 W v1 v2 m1 m2 g p1 p2 C' => 
@@ -121,13 +141,19 @@ Program Fixpoint Flat_to_Machine_Circuit {Γ W} (C : Flat_Circuit Γ W)
     m_gate (pat_to_list p1) _ g (apply_substitution f (Flat_to_Machine_Circuit C'))
   | @flat_lift Γ1 Γ2 Γ W W' v m p f => _
   end.
+Next Obligation. rewrite pat_to_list_length. rewrite (pat_square _ _ p); auto.
+Defined.
 Next Obligation. apply pat_to_list_length. Defined.
 Next Obligation. apply pat_to_list_length. Defined.
+Next Obligation. 
+  rewrite (num_elts_merge Γ2 Γ (Γ2 ⋓ Γ)); auto.
+  rewrite (num_elts_merge Γ1 Γ (Γ1 ⋓ Γ)); auto.
+  rewrite (pat_square _ _ p1).
+  rewrite (pat_square _ _ p2).
+  apply eq_trans with (num_wires W2 + num_elts_o Γ + num_wires W1 - num_wires W1); 
+    omega.
+Defined.
 Next Obligation. (* No correspondence for lift *) Admitted.
-
-
-
-
 
 
 (* *)
