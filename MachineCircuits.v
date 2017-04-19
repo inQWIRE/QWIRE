@@ -153,12 +153,12 @@ Fixpoint Flat_to_Machine_Circuit {Γ W} (C : Flat_Circuit Γ W)
                  : Machine_Circuit (num_elts_o Γ) (num_wires W) :=
   match C with
   | flat_output _ p => m_output (pat_to_list p)
-  | @flat_gate Γ Γ1 Γ1' Γ2 Γ2' W1 W2 W v1 v2 m1 m2 g p1 p2 C' => 
+  | @flat_gate Γ Γ1 _ _ _ _ _ _ _ _ _ _ g p1 p2 C' => 
     let ls1 := pat_to_list p1 in
     let ls2 := pat_to_list p2 in
     let f := subst_with_gate (num_elts_o (Γ ⋓ Γ1)) g ls1 ls2 in
-    m_gate (pat_to_list p1) g (apply_substitution f (Flat_to_Machine_Circuit C'))
-  | @flat_lift Γ1 Γ2 Γ W W' v m p f => lift_undefined
+    m_gate ls1 g (apply_substitution f (Flat_to_Machine_Circuit C'))
+  | flat_lift _ _ _ _ => lift_undefined
   end.
 
 (*

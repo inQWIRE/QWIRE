@@ -242,7 +242,7 @@ Require Import MachineCircuits.
 
 Fixpoint denote_machine_circuit m n (c : Machine_Circuit m n) : Superoperator (2^m) (2^n) :=
   match c with 
-  | m_output l => fun ρ => ρ (* resize ρ (2^n) (2^n) ? *)
+  | m_output l => super (swap_list n l) (*fun ρ => ρ*) (* resize ρ (2^n) (2^n) ? *)
   | m_gate w1 w2 l g c => fun ρ => let ρ' := apply_gate g ρ l in
                             (denote_machine_circuit (m + 〚w2〛 - 〚w1〛) n c ρ')
   end.
@@ -257,41 +257,7 @@ Instance Denote_Machine_Circuit {m n} : Denote (Machine_Circuit m n) (Superopera
     denote_correct := fun _ => I
 |}.
 
-
-
-(** Checking example circuits **)
-
-Require Import MachineExamples.
-
-Definition I1 := Id (2^0).
-
-(* Why can't I compose these? *)
-Definition InitT := 〚init true〛 I1. Check InitT. 
-
-Lemma Ex : InitT = |1⟩⟨1|.
-Proof.
-  intros.
-  unfold InitT, I1. simpl.
-  unfold apply_new1. simpl.
-  unfold super. 
-  rewrite kron_1_l; try omega; try show_wf.
-  rewrite Mmult_1_r; try show_wf.
-Qed.
-
-(*
-Lemma Ex2 : InitT ≡ |1⟩⟨1|.
-  unfold mat_equiv.
-  simpl.
-  intros.
-  destruct x as [x lx], y as [y ly]. simpl.
-  destruct x,y.
-  + Msolve.
-  + Msolve.
-  + Msolve.
-  + destruct x,y. Msolve.
-    all : omega.
-Qed.
-*)
+Require Import Reals.
 
 Lemma WF_k0 : WF_Matrix |0⟩. Proof. show_wf. Qed.
 Lemma WF_k1 : WF_Matrix |1⟩. Proof. show_wf. Qed.
@@ -313,7 +279,6 @@ Ltac show_wf_safe :=
   | [ |- WF_Matrix (denote_unitary ?U) ] => specialize (unitary_wf U); simpl; auto
   end; trivial.
 
-Require Import Reals.
 
 Lemma Cconj_R : forall r : R, Cconj r = r. Proof. intros. clra. Qed.
 
@@ -340,6 +305,42 @@ Ltac Msimpl :=
   try rewrite id_conj_transpose_eq;
   try rewrite id_conj_transpose_eq); 
   try show_wf_safe; try omega.
+
+
+(** Checking example circuits **)
+
+Require Import MachineExamples.
+
+Definition I1 := Id (2^0).
+
+(* Why can't I compose these? *)
+Definition InitT := 〚init true〛 I1. Check InitT. 
+
+Lemma Ex : InitT = |1⟩⟨1|.
+Proof.
+  intros.
+  unfold InitT, I1. simpl.
+  unfold apply_new1. simpl.
+  unfold super.
+  unfold swap_list, swap_list_aux, swap_two. simpl.
+  Msimpl.
+Qed.
+
+(*
+Lemma Ex2 : InitT ≡ |1⟩⟨1|.
+  unfold mat_equiv.
+  simpl.
+  intros.
+  destruct x as [x lx], y as [y ly]. simpl.
+  destruct x,y.
+  + Msolve.
+  + Msolve.
+  + Msolve.
+  + destruct x,y. Msolve.
+    all : omega.
+Qed.
+*)
+
 
 Definition even_toss : Matrix 2 2 :=
   fun x y => match x, y with
@@ -393,7 +394,7 @@ Proof.
   unfold super.
   rewrite conj_transpose_involutive.
   specialize (unitary_gate_unitary U). unfold unitary_matrix. simpl. intros H.
-  repeat rewrite <- Mmult_assoc.
+  repeat rewrite <- Mmult_assoc. Msimpl.
   rewrite H.
   repeat rewrite Mmult_assoc.
   rewrite H.
@@ -433,8 +434,9 @@ Proof.
   Msimpl.
   unfold super.
   rewrite conj_transpose_involutive.
-  specialize (unitary_gate_unitary U). unfold unitary_matrix. simpl. intros H.
-  repeat rewrite <- Mmult_assoc.
+  specialize (unitary_gate_unitary U). unfold unitary_matrix. simpl. intros H. 
+  Msimpl.
+  repeat rewrite <- Mmult_assoc. 
   rewrite H.
   repeat rewrite Mmult_assoc.
   rewrite H.
