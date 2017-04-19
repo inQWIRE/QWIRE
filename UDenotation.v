@@ -235,6 +235,7 @@ Definition apply_gate {n w1 w2} (g : Gate w1 w2) (ρ : Density (2^n)) (l : list 
 
 Require Import MachineCircuits.
 
+(* Jennifer: m_output should be super (swap_matrix l?) *)
 Fixpoint denote_machine_circuit_tail (m : nat) {n : nat} (c : Tail_Circuit n) 
   : Superoperator (2^m) (2^n) :=
   match c with 
