@@ -240,60 +240,24 @@ Definition apply_gate {n w1 w2} (g : Gate w1 w2) (ρ : Density (2^n)) (l : list 
 
 Require Import MachineCircuits.
 
-Fixpoint denote_machine_circuit_aux (m : nat) {n : nat} (c : Machine_Circuit n) 
-  : Superoperator (2^m) (2^n) :=
+Fixpoint denote_machine_circuit m n (c : Machine_Circuit m n) : Superoperator (2^m) (2^n) :=
   match c with 
-  | m_output l => fun ρ => ρ (* resize ρ (2^n) (2^n) ? *)
-  | m_gate l w1 w2 n' eq g c => fun ρ => let ρ' := apply_gate g ρ l in
-                            (denote_machine_circuit_aux (m + 〚w2〛 - 〚w1〛) c ρ')
+  | m_output l => super (swap_list n l) (*fun ρ => ρ*) (* resize ρ (2^n) (2^n) ? *)
+  | m_gate w1 w2 l g c => fun ρ => let ρ' := apply_gate g ρ l in
+                            (denote_machine_circuit (m + 〚w2〛 - 〚w1〛) n c ρ')
   end.
 
-Definition denote_machine_circuit {m n : nat} (c : Machine_Box m n) 
-  : Superoperator (2^m) (2^n) :=
-  match c with 
-  | m_box l n' c => denote_machine_circuit_aux m c
-  end.
+(* Need a richer description of correctness because we need to refer to the
+circuit in the condition, and we also need a stronger condition thatn WF_Machie_Circuit *)
 
-Instance denote_Machine_Circuit {m n} : Denote (Machine_Box m n) (Superoperator (2^m) (2^n)) :=
-{|
+Instance Denote_Machine_Circuit {m n} : Denote (Machine_Circuit m n) (Superoperator (2^m) (2^n)) :=
+{| 
+    denote      := fun C => denote_machine_circuit m n C;
     correctness := fun _ => True;
-    denote := denote_machine_circuit;
     denote_correct := fun _ => I
 |}.
 
-(** Checking example circuits **)
-
-Require Import MachineExamples.
-
-Definition I1 := Id (2^0).
-
-(* Why can't I compose these? *)
-Definition InitT := 〚init true〛 I1. Check InitT. 
-
-Lemma Ex : InitT = |1⟩⟨1|.
-Proof.
-  intros.
-  unfold InitT, I1. simpl.
-  unfold apply_new1. simpl.
-  unfold super. 
-  rewrite kron_1_l; try omega; try show_wf.
-  rewrite Mmult_1_r; try show_wf.
-Qed.
-
-(*
-Lemma Ex2 : InitT ≡ |1⟩⟨1|.
-  unfold mat_equiv.
-  simpl.
-  intros.
-  destruct x as [x lx], y as [y ly]. simpl.
-  destruct x,y.
-  + Msolve.
-  + Msolve.
-  + Msolve.
-  + destruct x,y. Msolve.
-    all : omega.
-Qed.
-*)
+Require Import Reals.
 
 Lemma WF_k0 : WF_Matrix |0⟩. Proof. show_wf. Qed.
 Lemma WF_k1 : WF_Matrix |1⟩. Proof. show_wf. Qed.
@@ -315,7 +279,6 @@ Ltac show_wf_safe :=
   | [ |- WF_Matrix (denote_unitary ?U) ] => specialize (unitary_wf U); simpl; auto
   end; trivial.
 
-Require Import Reals.
 
 Lemma Cconj_R : forall r : R, Cconj r = r. Proof. intros. clra. Qed.
 
@@ -342,6 +305,42 @@ Ltac Msimpl :=
   try rewrite id_conj_transpose_eq;
   try rewrite id_conj_transpose_eq); 
   try show_wf_safe; try omega.
+
+
+(** Checking example circuits **)
+
+Require Import MachineExamples.
+
+Definition I1 := Id (2^0).
+
+(* Why can't I compose these? *)
+Definition InitT := 〚init true〛 I1. Check InitT. 
+
+Lemma Ex : InitT = |1⟩⟨1|.
+Proof.
+  intros.
+  unfold InitT, I1. simpl.
+  unfold apply_new1. simpl.
+  unfold super.
+  unfold swap_list, swap_list_aux, swap_two. simpl.
+  Msimpl.
+Qed.
+
+(*
+Lemma Ex2 : InitT ≡ |1⟩⟨1|.
+  unfold mat_equiv.
+  simpl.
+  intros.
+  destruct x as [x lx], y as [y ly]. simpl.
+  destruct x,y.
+  + Msolve.
+  + Msolve.
+  + Msolve.
+  + destruct x,y. Msolve.
+    all : omega.
+Qed.
+*)
+
 
 Definition even_toss : Matrix 2 2 :=
   fun x y => match x, y with
@@ -395,7 +394,7 @@ Proof.
   unfold super.
   rewrite conj_transpose_involutive.
   specialize (unitary_gate_unitary U). unfold unitary_matrix. simpl. intros H.
-  repeat rewrite <- Mmult_assoc.
+  repeat rewrite <- Mmult_assoc. Msimpl.
   rewrite H.
   repeat rewrite Mmult_assoc.
   rewrite H.
@@ -425,7 +424,6 @@ Proof.
   intros W U ρ WF.
   simpl.
   unfold U_U_trans. 
-  destruct (MachineExamples.U_U_trans_obligation_3 W U); simpl.
   rewrite leb_correct; try omega.
   rewrite leb_correct; try omega.
   unfold apply_U.
@@ -436,8 +434,9 @@ Proof.
   Msimpl.
   unfold super.
   rewrite conj_transpose_involutive.
-  specialize (unitary_gate_unitary U). unfold unitary_matrix. simpl. intros H.
-  repeat rewrite <- Mmult_assoc.
+  specialize (unitary_gate_unitary U). unfold unitary_matrix. simpl. intros H. 
+  Msimpl.
+  repeat rewrite <- Mmult_assoc. 
   rewrite H.
   repeat rewrite Mmult_assoc.
   rewrite H.
@@ -475,4 +474,21 @@ Proof.
   + destruct x. destruct y; Csolve. 
     Csolve.
 *)
-  
+
+(* Flat Circuits *)  
+
+Instance Denote_Flat_Circuit {Γ W} : Denote (Flat_Circuit Γ W) (Superoperator (2^〚Γ〛) (2^〚W〛)) :=
+{| 
+    denote      := fun C => 〚Flat_to_Machine_Circuit C〛;
+    correctness := fun _ => True;
+    denote_correct := fun _ => I
+|}.
+(*
+Instance Denote_Flat_Box {W1 W2} : Denote (Flat_Box W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
+{|
+    denote := fun b => 〚Flat_Box_to_Machine_Circuit b〛.
+|}
+
+Require Import FlatExamples.
+*)
+
