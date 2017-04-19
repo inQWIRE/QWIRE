@@ -384,6 +384,18 @@ Definition qft (n : nat) : Box (n ⨂ Qubit) (n ⨂ Qubit) :=
   end.
 
 
+(** Coin flip **)
+
+Definition coin_flip : Box One Bit.
+  box (fun _ =>
+    letC q  ← gate init0 ();
+    letC q  ← gate H q;
+    letC b  ← gate meas q;
+    output b).
+Defined.
+
+
+
 
 (** Invalid Circuits **)
 
