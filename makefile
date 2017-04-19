@@ -1,5 +1,8 @@
 all: Denotation.vo
 
+MachineCircuits.vo : MachineCircuits.v Contexts.vo FlatCircuits.vo TypedCircuits.vo
+	coqc MachineCircuits.v
+
 Denotation.vo: Denotation.v Quantum.vo Examples.vo FlatCircuits.vo
 	coqc Denotation.v
 

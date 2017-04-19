@@ -42,6 +42,20 @@ Inductive OCtx :=
 | Invalid : OCtx 
 | Valid : Ctx -> OCtx.
 
+
+Fixpoint num_elts (Γ : Ctx) : nat :=
+  match Γ with
+  | [] => 0
+  | None :: Γ' => num_elts Γ'
+  | Some _ :: Γ' => S (num_elts Γ')
+  end.
+Definition num_elts_o (Γ : OCtx) : nat :=
+  match Γ with
+  | Invalid => 0
+  | Valid Γ' => num_elts Γ'
+  end.
+
+
 Lemma ctx_octx : forall Γ Γ', Valid Γ = Valid Γ' <-> Γ = Γ'.
 Proof. intuition; congruence. Defined.
 

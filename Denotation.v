@@ -19,22 +19,6 @@ Notation "〚 s 〛" := (denote s) (at level 10).
 
 (** Wire and Context Denotation **)
 
-Open Scope circ_scope.
-
-Fixpoint num_elts (Γ : Ctx) : nat :=
-  match Γ with
-  | [] => 0
-  | None :: Γ' => num_elts Γ'
-  | Some _ :: Γ' => S (num_elts Γ')
-  end.
-Definition num_elts_o (Γ : OCtx) : nat :=
-  match Γ with
-  | Invalid => 0
-  | Valid Γ' => num_elts Γ'
-  end.
-
-
-Close Scope circ_scope.
 
 Instance denote_WType : Denote WType nat :=
 {|
