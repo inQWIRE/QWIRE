@@ -240,26 +240,24 @@ Definition apply_gate {n w1 w2} (g : Gate w1 w2) (ρ : Density (2^n)) (l : list 
 
 Require Import MachineCircuits.
 
-Fixpoint denote_machine_circuit_aux (m : nat) {n : nat} (c : Machine_Circuit n) 
-  : Superoperator (2^m) (2^n) :=
+Fixpoint denote_machine_circuit m n (c : Machine_Circuit m n) : Superoperator (2^m) (2^n) :=
   match c with 
   | m_output l => fun ρ => ρ (* resize ρ (2^n) (2^n) ? *)
-  | m_gate l w1 w2 n' eq g c => fun ρ => let ρ' := apply_gate g ρ l in
-                            (denote_machine_circuit_aux (m + 〚w2〛 - 〚w1〛) c ρ')
+  | m_gate w1 w2 l g c => fun ρ => let ρ' := apply_gate g ρ l in
+                            (denote_machine_circuit (m + 〚w2〛 - 〚w1〛) n c ρ')
   end.
 
-Definition denote_machine_circuit {m n : nat} (c : Machine_Box m n) 
-  : Superoperator (2^m) (2^n) :=
-  match c with 
-  | m_box l n' c => denote_machine_circuit_aux m c
-  end.
+(* Need a richer description of correctness because we need to refer to the
+circuit in the condition, and we also need a stronger condition thatn WF_Machie_Circuit *)
 
-Instance denote_Machine_Circuit {m n} : Denote (Machine_Box m n) (Superoperator (2^m) (2^n)) :=
-{|
+Instance Denote_Machine_Circuit {m n} : Denote (Machine_Circuit m n) (Superoperator (2^m) (2^n)) :=
+{| 
+    denote      := fun C => denote_machine_circuit m n C;
     correctness := fun _ => True;
-    denote := denote_machine_circuit;
     denote_correct := fun _ => I
 |}.
+
+
 
 (** Checking example circuits **)
 
@@ -425,7 +423,6 @@ Proof.
   intros W U ρ WF.
   simpl.
   unfold U_U_trans. 
-  destruct (MachineExamples.U_U_trans_obligation_3 W U); simpl.
   rewrite leb_correct; try omega.
   rewrite leb_correct; try omega.
   unfold apply_U.
@@ -475,4 +472,21 @@ Proof.
   + destruct x. destruct y; Csolve. 
     Csolve.
 *)
-  
+
+(* Flat Circuits *)  
+
+Instance Denote_Flat_Circuit {Γ W} : Denote (Flat_Circuit Γ W) (Superoperator (2^〚Γ〛) (2^〚W〛)) :=
+{| 
+    denote      := fun C => 〚Flat_to_Machine_Circuit C〛;
+    correctness := fun _ => True;
+    denote_correct := fun _ => I
+|}.
+(*
+Instance Denote_Flat_Box {W1 W2} : Denote (Flat_Box W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
+{|
+    denote := fun b => 〚Flat_Box_to_Machine_Circuit b〛.
+|}
+
+Require Import FlatExamples.
+*)
+

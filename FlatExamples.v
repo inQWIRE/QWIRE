@@ -204,14 +204,7 @@ Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Flat_Box W1 W2.
 Defined.
 
 Definition new_discard : Flat_Box One One.
-  destruct (fresh_pat ∅ Bit valid_empty) as [Γ' [[v' v''] p]] eqn:Eq.
-  simpl in Eq.
-  inversion Eq; subst.
-
   new_pat p Bit ∅ valid_empty.
-  inversion p; subst.
-  
-
   box unit (
     p ← gate new0 on (); 
     unit ← gate discard on p;

@@ -13,7 +13,7 @@ Open Scope list_scope.
 (*** Paper Examples ***)
 
 (* Infix "↦" := m_box (at level 12, left associativity). *)
-Notation "'gate' g 'on' l ; C" := (m_gate l _ g C) (at level 10, right associativity).
+Notation "'gate' g 'on' l ; C" := (m_gate l g C) (at level 10, right associativity).
 Notation "# l " := (length l) (at level 0).
 
 Notation out l := (m_output l). 
@@ -23,18 +23,18 @@ Notation out l := (m_output l).
 
 Definition id_circ l : Machine_Circuit #l #l := out l.
 
-Program Definition new_discard : Machine_Circuit 0 0 := 
+Definition new_discard : Machine_Circuit 0 0 := 
   gate new0 on [];
   gate discard on [0];
   out [].
 
-Program Definition init_discard : Machine_Circuit 0 0 :=
+Definition init_discard : Machine_Circuit 0 0 :=
   gate init0 on [];
   gate meas on [0];
   gate discard on [0];
   out [].
 
-Program Definition hadamard_measure : Machine_Circuit 1 1 :=
+Definition hadamard_measure : Machine_Circuit 1 1 :=
   gate H on [0];
   gate meas on [0];
   out [0].
@@ -42,32 +42,27 @@ Program Definition hadamard_measure : Machine_Circuit 1 1 :=
 
 (* Repeated Unitaries *)
 
-Program Definition repeat_hadamard : Machine_Circuit 1 1 :=
+Definition repeat_hadamard : Machine_Circuit 1 1 :=
   gate H on [0];
   gate H on [0];
   out [0].
 
-Program Definition U_U_trans_qubit (U : Unitary Qubit): Machine_Circuit 1 1 :=
+Definition U_U_trans_qubit (U : Unitary Qubit): Machine_Circuit 1 1 :=
   gate U on [0];
   gate (transpose U) on [0];
   out [0].
 
-Program Definition U_U_trans {W} (U : Unitary W): 
-  Machine_Circuit (num_wires W) (num_wires W) :=
+Definition U_U_trans {W} (U : Unitary W): Machine_Circuit (num_wires W) (num_wires W) :=
   let l := seq 0 (num_wires W) in  
   gate U on l;
   gate (transpose U) on l;
   out l.
-Next Obligation. apply seq_length. Defined.
-Next Obligation. apply seq_length. Defined.
-Next Obligation. rewrite seq_length. omega. Defined.
-Next Obligation. apply seq_length. Defined.
 
 
 (* Deutsch's Algorithm *)
 
 Parameter U_f : Unitary (Qubit ⊗ Qubit).
-Program Definition deutsch : Machine_Circuit 0 1 :=
+Definition deutsch : Machine_Circuit 0 1 :=
   gate init0 on [];
   gate H on [0];
   gate init1 on [];
@@ -80,35 +75,35 @@ Program Definition deutsch : Machine_Circuit 0 1 :=
 
 (* Teleport *)
 
-Program Definition init (b : bool) : Machine_Circuit 0 1:=
+Definition init (b : bool) : Machine_Circuit 0 1:=
   if b then (gate init1 on []; out [0]) 
        else (gate init0 on []; out [0]).
 
 (** Teleport **)
 
-Program Definition bell00 : Machine_Circuit 0 2 :=
+Definition bell00 : Machine_Circuit 0 2 :=
   gate init0 on [];
   gate init0 on [];
-  gate H on [1];
-  gate CNOT on [1;2];
-  out [1;2].
+  gate H on [0];
+  gate CNOT on [0;1];
+  out [0;1].
 
-Program Definition alice : Machine_Circuit 2 2 :=
+Definition alice : Machine_Circuit 2 2 :=
   gate CNOT on [0;1];
   gate H on [0];
   gate meas on [0];
   gate meas on [1];
   out [0;1].
 
-Program Definition bob : Machine_Circuit 3 1 :=
+Definition bob : Machine_Circuit 3 1 :=
   gate (bit_control σx) on [1;2];
   gate (bit_control σz) on [0;2];
   gate discard on [1];
   gate discard on [0]; 
   out [2].
 
-Program Definition teleport : Machine_Circuit 1 1 :=
-  (* bell00 *)
+Definition teleport : Machine_Circuit 1 1 :=
+  (* bell00 *) (* shifted from above *)
   gate init0 on [];
   gate init0 on [];
   gate H on [1];
@@ -125,12 +120,12 @@ Program Definition teleport : Machine_Circuit 1 1 :=
   gate (bit_control σz) on [0;2];
   gate discard on [1];
   gate discard on [0]; 
-  out [2].
+  out [0].
 
 
 (* Coin Flip *)
 
-Program Definition coin_flip : Machine_Circuit 0 1 :=
+Definition coin_flip : Machine_Circuit 0 1 :=
   gate init0 on [];
   gate H on [0];
   gate meas on [0];
