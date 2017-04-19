@@ -394,7 +394,17 @@ Definition coin_flip : Box One Bit.
     output b).
 Defined.
 
-
+Fixpoint flips (n : nat) : Box One Bit.
+box (fun _ =>
+  match n with
+  | 0    => gate new1 ()
+  | S n' => letC c ← unbox (flips n') ();
+           letC q ← gate init1 ();
+           letC (c,q) ← gate (bit_control H) (c,q);
+           letC _ ← gate discard c;
+           letC b ← gate meas q;
+           output b
+  end).
 
 
 (** Invalid Circuits **)
