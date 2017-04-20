@@ -392,6 +392,7 @@ Definition coin_flip : Box One Bit.
     letC q  ← gate H q;
     letC b  ← gate meas q;
     output b).
+  all:type_check.
 Defined.
 
 

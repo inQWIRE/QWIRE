@@ -1,0 +1,17 @@
+-R . Top
+./MachineExamples.v
+./Monoid.v
+./Quantum.v
+./TypedCircuits.v
+./Denotation.v
+./UMatrix.v
+./RelationalContexts.v
+./Monad.v
+./UQuantum.v
+./UDenotation.v
+./MachineCircuits.v
+./Contexts.v
+./FlatCircuits.v
+./Examples.v
+./Matrix.v
+./FlatExamples.v
