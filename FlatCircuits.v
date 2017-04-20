@@ -4,22 +4,22 @@ Require Import Program.
 
 Open Scope circ_scope.
 Inductive Flat_Circuit : OCtx -> WType -> Set :=
-| flat_output : forall {ctx ctx' w}, ctx' = ctx -> Pat ctx w -> Flat_Circuit ctx' w
-| flat_gate   : forall ctx {ctx1 ctx1' ctx2 ctx2'} {w1 w2 w}, 
-          is_valid ctx1' -> is_valid ctx2'
-        -> ctx1' = ctx1 ⋓ ctx -> ctx2' = ctx2 ⋓ ctx     
-        -> Gate w1 w2
+| flat_output : forall {ctx ctx' w} {pf : ctx' = ctx}, 
+                Pat ctx w -> Flat_Circuit ctx' w
+| flat_gate   : forall {ctx ctx1 ctx1' ctx2 ctx2'} {w1 w2 w}
+           {m1 : ctx1' = ctx1 ⋓ ctx} {m2 : ctx2' = ctx2 ⋓ ctx}
+           {v1 : is_valid ctx1'} {v2 : is_valid ctx2'},
+           Gate w1 w2
         -> Pat ctx1 w1
         -> Pat ctx2 w2
         -> Flat_Circuit ctx2' w
         -> Flat_Circuit ctx1' w
-| flat_lift  : forall {ctx1 ctx2 ctx w w'},
-         is_valid ctx -> ctx = ctx1 ⋓ ctx2
-      -> Pat ctx1 w
+| flat_lift  : forall {ctx1 ctx2 ctx w w'}
+         {m : ctx = ctx1 ⋓ ctx2} {v : is_valid ctx},
+         Pat ctx1 w
       -> (interpret w -> Flat_Circuit ctx2 w')
       -> Flat_Circuit ctx w'
 .
-
 
 Fixpoint fresh_var (Γ_in : Ctx) : nat :=
   match Γ_in with
@@ -33,8 +33,8 @@ Definition fresh_var_o (Γ_in : OCtx) : nat :=
   | Valid Γ' => fresh_var Γ'
   end.
 
-
-Lemma valid_fresh_var : forall (Γ : Ctx) W, is_valid (Γ ⋓ singleton (fresh_var Γ) W).
+Lemma valid_fresh_var : forall (Γ : Ctx) W, 
+      is_valid (Γ ⋓ singleton (fresh_var Γ) W).
 Proof.
   induction Γ as [ | o Γ]; intros W.
   - apply valid_valid.
@@ -94,40 +94,12 @@ Fixpoint fresh_ctx (Γ_in : OCtx) (W : WType) : OCtx :=
               Γ_in' ⋓ fresh_ctx (Γ_in ⋓ Γ_in') W2
   end.
 
-(* TODO
-Eval simpl in (fresh_ctx ∅ Bit).
-Eval simpl in (fresh_ctx ∅ (Qubit ⊗ Bit)).
-
-Lemma fresh_ctx_disjoint : forall Γ W, is_valid Γ -> is_valid (Γ ⋓ fresh_ctx Γ W).
-Proof.
-  intros Γ W.
-  generalize dependent Γ.
-  induction W; intros Γ V.
-  + apply disjoint_valid; trivial.
-    apply disjoint_fresh_var_o. 
-    simpl. 
-    apply valid_valid.
-  + apply disjoint_valid; trivial.
-    apply disjoint_fresh_var_o. 
-    simpl. 
-    apply valid_valid.
-  + rewrite merge_nil_r.
-    assumption.
-  + simpl.
-    rewrite merge_assoc.
-    apply valid_join.
-    - apply IHW1. assumption.
-    - admit.
-    - apply IHW2. 
-      apply valid_split_basic with (Γ1:=Γ) in IHW1; intuition.
-*)
-
 Definition from_HOAS {Γ W} (c : Circuit Γ W) : Flat_Circuit Γ W.
 Proof. 
   induction c as [ Γ Γ' W eq p 
                  | Γ Γ1 Γ1' W1 W2 W valid1 eq1 g p1 f 
                  | Γ1 Γ2 Γ W W' valid eq p f ].
-  - refine (flat_output _ p); auto.
+  - refine (flat_output p); auto.
   - assert (valid0 : is_valid Γ). 
     {
       destruct valid1 as [Γ0' valid1]. subst.
@@ -142,10 +114,10 @@ Proof.
     }
     assert (c' : Flat_Circuit (Γ2 ⋓ Γ) W).
     {
-      apply H with (ctx2 := Γ2); auto.
+      apply H with (Γ2 := Γ2); auto.
     }
-    refine (flat_gate _ _ _ _ _ g p1 p2 c'); auto. auto.
-  - refine (flat_lift _ _ p H); auto. 
+    refine (flat_gate g p1 p2 c'); auto. auto.
+  - refine (flat_lift p H); auto. 
 Defined.
 
 

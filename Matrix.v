@@ -54,7 +54,7 @@ Definition print_matrix {m n} (A : Matrix m n) : string :=
 
 Notation Square n := (Matrix n n).
 
-Definition WF_Matrix {m n: nat} (A : Matrix m n) : Prop := 
+Definition WF_Matrix (m n: nat) (A : Matrix m n) : Prop := 
   forall x y, x >= m \/ y >= n -> A x y = C0. 
 
 (* I won't be using this much, but it can ensure the matrix bounds *)
@@ -65,8 +65,8 @@ Definition mat_equiv {m n : nat} (A B : Matrix m n) : Prop :=
   forall (x : nat | x < m) (y : nat | y < n), A (`x) (`y) = B (`x) (`y).
 
 Lemma mat_equiv_eq : forall {m n : nat} (A B : Matrix m n),
-  WF_Matrix A -> 
-  WF_Matrix B -> 
+  WF_Matrix m n A -> 
+  WF_Matrix m n B -> 
   mat_equiv A B ->
   A = B.
 Proof.
@@ -229,10 +229,10 @@ Ltac mlra :=
 
 (** Well-Formedness **)
 
-Lemma WF_Zero : forall {m n : nat}, WF_Matrix (Zero m n).
+Lemma WF_Zero : forall {m n : nat}, WF_Matrix m n (Zero m n).
 Proof. intros m n. unfold WF_Matrix. reflexivity. Qed.
 
-Lemma WF_Id : forall {n : nat}, WF_Matrix (Id n). 
+Lemma WF_Id : forall {n : nat}, WF_Matrix n n (Id n). 
 Proof. 
   unfold WF_Matrix, Id. intros n x y H.
   simpl.
@@ -247,7 +247,7 @@ Proof.
 Qed.
 
 Lemma WF_scale : forall {m n : nat} (r : C) (A : Matrix m n), 
-  WF_Matrix A -> WF_Matrix (scale r A).
+  WF_Matrix m n A -> WF_Matrix m n (scale r A).
 Proof.
   unfold WF_Matrix, scale.
   intros m n r A H x y H0. simpl.
@@ -257,7 +257,7 @@ Proof.
 Qed.
 
 Lemma WF_plus : forall {m n} (A B : Matrix m n), 
-  WF_Matrix A -> WF_Matrix B -> WF_Matrix (A .+ B).
+  WF_Matrix m n A -> WF_Matrix m n B -> WF_Matrix m n (A .+ B).
 Proof.
   unfold WF_Matrix, Mplus.
   intros m n A B H H0 x y H1. simpl.
@@ -267,7 +267,7 @@ Proof.
 Qed.
 
 Lemma WF_mult : forall {m n o : nat} (A : Matrix m n) (B : Matrix n o), 
-  WF_Matrix A -> WF_Matrix B -> WF_Matrix (A × B).
+  WF_Matrix m n A -> WF_Matrix n o B -> WF_Matrix m o (A × B).
 Proof.
   unfold WF_Matrix, Mmult.
   intros m n o A B H H0 x y H1. simpl.
@@ -293,7 +293,7 @@ Qed.
 (* Should the non-zero assumptions be here? *)
 Lemma WF_kron : forall {m n o p : nat} (A : Matrix m n) (B : Matrix o p), 
                   o <> 0 -> p <> 0 ->
-                  WF_Matrix A -> WF_Matrix B -> WF_Matrix (A ⊗ B).
+                  WF_Matrix m n A -> WF_Matrix o p B -> WF_Matrix (m*o) (n*p) (A ⊗ B).
 Proof.
   unfold WF_Matrix, kron.
   intros m n o p A B Nn No H H0 x y H1. simpl.
@@ -311,11 +311,13 @@ Proof.
   assumption.
 Qed. 
 
-Lemma WF_transpose : forall {m n : nat} (A : Matrix m n), WF_Matrix A -> WF_Matrix A⊤. 
+Lemma WF_transpose : forall {m n : nat} (A : Matrix m n), 
+                     WF_Matrix m n A -> WF_Matrix n m A⊤. 
 Proof. unfold WF_Matrix, transpose. intros m n A H x y H0. apply H. 
        destruct H0; auto. Qed.
 
-Lemma WF_conj_transpose : forall {m n : nat} (A : Matrix m n), WF_Matrix A -> WF_Matrix A†. 
+Lemma WF_conj_transpose : forall {m n : nat} (A : Matrix m n), 
+      WF_Matrix m n A -> WF_Matrix n m A†. 
 Proof. unfold WF_Matrix, conj_transpose, Cconj. intros m n A H x y H0. simpl. 
 rewrite H. clra. omega. Qed.
 
@@ -323,12 +325,12 @@ rewrite H. clra. omega. Qed.
 (* Well-formedness tactic *)
 Ltac show_wf :=
   repeat match goal with
-  | [ |- WF_Matrix (?A × ?B) ]  => apply WF_mult 
-  | [ |- WF_Matrix (?A .+ ?B) ] => apply WF_plus 
-  | [ |- WF_Matrix (?p .* ?B) ] => apply WF_scale
-  | [ |- WF_Matrix (?A ⊗ ?B) ]  => apply WF_kron
-  | [ |- WF_Matrix (?A⊤) ]      => apply WF_transpose 
-  | [ |- WF_Matrix (?A†) ]      => apply WF_conj_transpose 
+  | [ |- WF_Matrix _ _ (?A × ?B) ]  => apply WF_mult 
+  | [ |- WF_Matrix _ _ (?A .+ ?B) ] => apply WF_plus 
+  | [ |- WF_Matrix _ _ (?p .* ?B) ] => apply WF_scale
+  | [ |- WF_Matrix _ _ (?A ⊗ ?B) ]  => apply WF_kron
+  | [ |- WF_Matrix _ _ (?A⊤) ]      => apply WF_transpose 
+  | [ |- WF_Matrix _ _ (?A†) ]      => apply WF_conj_transpose 
   end;
   trivial;
   unfold WF_Matrix;
@@ -341,14 +343,14 @@ Ltac show_wf :=
 
 Ltac show_wf_safe :=
   repeat match goal with
-  | [ |- WF_Matrix (Zero ?m ?n) ] => apply WF_Zero
-  | [ |- WF_Matrix (Id ?n) ]      => apply WF_Id 
-  | [ |- WF_Matrix (?A × ?B) ]    => apply WF_mult 
-  | [ |- WF_Matrix (?A .+ ?B) ]   => apply WF_plus 
-  | [ |- WF_Matrix (?p .* ?B) ]   => apply WF_scale
-  | [ |- WF_Matrix (?A ⊗ ?B) ]    => apply WF_kron
-  | [ |- WF_Matrix (?A⊤) ]        => apply WF_transpose 
-  | [ |- WF_Matrix (?A†) ]        => apply WF_conj_transpose 
+  | [ |- WF_Matrix _ _  (Zero ?m ?n) ] => apply WF_Zero
+  | [ |- WF_Matrix _ _ (Id ?n) ]      => apply WF_Id 
+  | [ |- WF_Matrix _ _ (?A × ?B) ]    => apply WF_mult 
+  | [ |- WF_Matrix _ _ (?A .+ ?B) ]   => apply WF_plus 
+  | [ |- WF_Matrix _ _ (?p .* ?B) ]   => apply WF_scale
+  | [ |- WF_Matrix _ _ (?A ⊗ ?B) ]    => apply WF_kron
+  | [ |- WF_Matrix _ _ (?A⊤) ]        => apply WF_transpose 
+  | [ |- WF_Matrix _ _ (?A†) ]        => apply WF_conj_transpose 
   end; trivial.
 
 
@@ -451,7 +453,7 @@ Proof.
 Qed.  
 
 Lemma Mmult_1_l: forall {m n : nat} (A : Matrix m n), 
-  WF_Matrix A -> Id m × A = A.
+  WF_Matrix m n A -> Id m × A = A.
 Proof.
   intros m n A H.
   apply mat_equiv_eq; trivial.
@@ -508,7 +510,7 @@ Proof.
 Qed.  
 
 Lemma Mmult_1_r: forall {m n : nat} (A : Matrix m n), 
-  WF_Matrix A -> A × Id n = A.
+  WF_Matrix m n A -> A × Id n = A.
 Proof.
   intros m n A H.
   apply mat_equiv_eq; trivial.
@@ -535,7 +537,7 @@ Qed.
 
 (* This side is much more limited/annoying *)
 Lemma kron_1_l : forall {m n : nat} (A : Matrix m n), 
-  m > 0 -> n > 0 -> WF_Matrix A -> Id 1 ⊗ A = A.
+  m > 0 -> n > 0 -> WF_Matrix m n A -> Id 1 ⊗ A = A.
 Proof.
   intros m n A H1 H2 WF.
   unfold Id, kron.
@@ -694,7 +696,7 @@ Admitted.
 Definition Minv {n} (A B : Square n) := A × B = Id n /\ B × A = Id n.
 
 Lemma Minv_unique : forall {n} (A B C : Square n), 
-                      WF_Matrix A -> WF_Matrix B -> WF_Matrix C ->
+                      WF_Matrix n n A -> WF_Matrix n n B -> WF_Matrix n n C ->
                       Minv A B -> Minv A C -> B = C.
 Proof.
   intros n A B C WFA WFB WFC [HAB HBA] [HAC HCA].

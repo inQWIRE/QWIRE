@@ -207,12 +207,25 @@ Eval compute in (print_matrix (swap_two 1 0 2)).
 
 (** Unitaries are well-formed **)
 
-Lemma WF_hadamard : WF_Matrix hadamard. Proof. show_wf. Qed.
-Lemma WF_pauli_x : WF_Matrix pauli_x. Proof. show_wf. Qed.
-Lemma WF_pauli_y : WF_Matrix pauli_y. Proof. show_wf. Qed.
-Lemma WF_pauli_z : WF_Matrix pauli_z. Proof. show_wf. Qed.
+Lemma WF_hadamard : WF_Matrix 2 2 hadamard. Proof. show_wf. Qed.
+Lemma WF_pauli_x : WF_Matrix 2 2 pauli_x. Proof. show_wf. Qed.
+Lemma WF_pauli_y : WF_Matrix 2 2 pauli_y. Proof. show_wf. Qed.
+Lemma WF_pauli_z : WF_Matrix 2 2 pauli_z. Proof. show_wf. Qed.
 
-Lemma WF_control : forall {n} (U : Matrix n n), WF_Matrix U -> WF_Matrix (control U).
+Hint Resolve WF_hadamard.
+Hint Resolve WF_pauli_x.
+Hint Resolve WF_pauli_y.
+Hint Resolve WF_pauli_z.
+
+Lemma WF_braket1 : WF_Matrix 2 2 |1⟩⟨1|.
+Proof. show_wf. Qed.
+Lemma WF_braket0 : WF_Matrix 2 2 |0⟩⟨0|.
+Proof. show_wf. Qed.
+Hint Resolve WF_braket1.
+Hint Resolve WF_braket0.
+
+Lemma WF_control : forall {n} (U : Matrix n n), 
+      WF_Matrix n n U -> WF_Matrix (2* n) (2*n) (control U).
 Proof.
   intros n U WFU.
   unfold control, WF_Matrix in *.
@@ -220,13 +233,14 @@ Proof.
   + replace (x <? n) with false by (symmetry; apply Nat.ltb_ge; omega). simpl.
     rewrite WFU.
     * destruct (n <=? x), (n <=? y); reflexivity.
-    * left. omega.
+    * left. omega. 
   + replace (y <? n) with false by (symmetry; apply Nat.ltb_ge; omega). 
     rewrite andb_false_r.
     rewrite WFU.
     * destruct (n <=? x), (n <=? y); reflexivity.
     * right. omega.
 Qed.
+Hint Resolve WF_control.
 
 (** Unitaries are unitary **)
 
@@ -396,7 +410,7 @@ describes a pure state if and only if ρ = ρ ^ 2 *)
 
 Notation Density n := (Matrix n n) (only parsing). 
 
-Definition Pure_State {n} (ρ : Density n) : Prop := WF_Matrix ρ /\ ρ = ρ × ρ.
+Definition Pure_State {n} (ρ : Density n) : Prop := WF_Matrix n n ρ /\ ρ = ρ × ρ.
 
 Lemma pure0 : Pure_State |0⟩⟨0|. Proof. split; [show_wf|mlra]. Qed.
 Lemma pure1 : Pure_State |1⟩⟨1|. Proof. split; [show_wf|mlra]. Qed.
@@ -414,12 +428,12 @@ Inductive Mixed_State {n} : (Matrix n n) -> Prop :=
 | Mix_S : forall (p : R) ρ1 ρ2, 0 < p < 1 -> Mixed_State ρ1 -> Mixed_State ρ2 ->
                                         Mixed_State (p .* ρ1 .+ (1-p)%R .* ρ2).  
 
-Lemma WF_Pure : forall {n} (ρ : Density n), Pure_State ρ -> WF_Matrix ρ.
+Lemma WF_Pure : forall {n} (ρ : Density n), Pure_State ρ -> WF_Matrix n n ρ.
 Proof.
   unfold Pure_State. intuition.
 Qed.
 Hint Resolve WF_Pure.
-Lemma WF_Mixed : forall {n} (ρ : Density n), Mixed_State ρ -> WF_Matrix ρ.
+Lemma WF_Mixed : forall {n} (ρ : Density n), Mixed_State ρ -> WF_Matrix n n ρ.
 Proof.
   induction 1; auto.
   show_wf_safe. 
@@ -454,6 +468,19 @@ Proof.
   apply pf_g. apply pf_f. auto.
 Qed.
 
+Definition sum_super {m n} (f g : Superoperator m n) : Superoperator m n :=
+  fun ρ => (1/2)%R .* f ρ .+ (1 - 1/2)%R .* g ρ.
+Lemma WF_sum_super : forall m n (f g : Superoperator m n),
+      WF_Superoperator f -> WF_Superoperator g -> WF_Superoperator (sum_super f g).
+Proof.
+  intros m n f g wf_f wf_g ρ pf_ρ.
+  unfold sum_super. 
+  set (wf_f' := wf_f _ pf_ρ).
+  set (wf_g' := wf_g _ pf_ρ).
+  apply (Mix_S (1/2) (f ρ) (g ρ)); auto. Rsolve.
+Qed.
+  
+
 (* To do: correctness conditions for density matrices and superoperators *)
 (* NOTE: I think these all need fixing *)
 
@@ -466,7 +493,7 @@ Definition discard_op : Superoperator 2 1 := fun ρ => super ⟨0| ρ .+ super �
 
 
 Lemma pure_unitary : forall {n} (U ρ : Matrix n n), 
-  WF_Matrix U -> unitary_matrix U -> Pure_State ρ -> Pure_State (super U ρ).
+  WF_Matrix n n U -> unitary_matrix U -> Pure_State ρ -> Pure_State (super U ρ).
 Proof.
   intros n U ρ WFU H [WFρ P].
   unfold Pure_State, unitary_matrix, super in *.
@@ -519,7 +546,7 @@ Proof. unfold meas_op.
 Qed.
 
 Lemma mixed_unitary : forall {n} (U ρ : Matrix n n), 
-  WF_Matrix U -> unitary_matrix U -> Mixed_State ρ -> Mixed_State (super U ρ).
+  WF_Matrix n n U -> unitary_matrix U -> Mixed_State ρ -> Mixed_State (super U ρ).
 Proof.
   intros n U ρ WFU H M.
   induction M.

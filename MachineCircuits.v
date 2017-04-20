@@ -150,13 +150,13 @@ Admitted.
 Fixpoint Flat_to_Machine_Circuit {Γ W} (C : Flat_Circuit Γ W)  
                  : Machine_Circuit (size_OCtx Γ) (size_WType W) :=
   match C with
-  | flat_output _ p => m_output (pat_to_list p)
+  | flat_output p => m_output (pat_to_list p)
   | @flat_gate Γ Γ1 _ _ _ _ _ _ _ _ _ _ g p1 p2 C' => 
     let ls1 := pat_to_list p1 in
     let ls2 := pat_to_list p2 in
     let f := subst_with_gate (size_OCtx (Γ ⋓ Γ1)) g ls1 ls2 in
     m_gate ls1 g (apply_substitution f (Flat_to_Machine_Circuit C'))
-  | flat_lift _ _ _ _ => lift_undefined
+  | flat_lift _ _ => lift_undefined
   end.
 
 (*
