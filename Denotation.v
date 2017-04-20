@@ -48,13 +48,13 @@ Fixpoint denote_unitary {W} (U : Unitary W) : Square (2^〚W〛) :=
   | σx => pauli_x
   | σy => pauli_y
   | σz => pauli_z
-  | CNOT => control pauli_x
+  | CNOT => cnot
   | ctrl _ g => control (denote_unitary g)
   | bit_ctrl _ g => control (denote_unitary g)  
   | Contexts.transpose _ g => (denote_unitary g)†
   end. 
 
-Lemma unitary_wf : forall {W} (U : Unitary W), 
+Lemma WF_unitary : forall {W} (U : Unitary W), 
       WF_Matrix (2^〚W〛) (2^〚W〛) (denote_unitary U).
 Proof.
   induction U.
@@ -62,14 +62,14 @@ Proof.
   + apply WF_pauli_x.
   + apply WF_pauli_y.
   + apply WF_pauli_z.
-  + apply WF_control. apply WF_pauli_x.
+  + apply WF_cnot.
   + simpl. apply WF_control. assumption.    
   + simpl. apply WF_control. assumption.    
   + simpl. apply WF_conj_transpose. assumption.    
 Qed.
-Hint Resolve unitary_wf.
+Hint Resolve WF_unitary.
 
-Lemma unitary_gate_unitary : forall {W} (U : Unitary W), unitary_matrix (denote_unitary U).
+Lemma unitary_gate_unitary : forall {W} (U : Unitary W), is_unitary (denote_unitary U).
 Proof.
   induction U.
   + apply H_unitary.
@@ -79,19 +79,15 @@ Proof.
   + apply cnot_unitary.
   + simpl. apply control_unitary; assumption. (* NB: Admitted lemma *)
   + simpl. apply control_unitary; assumption. (* NB: Admitted lemma *)
-  + simpl.
-    unfold unitary_matrix in *.
-    rewrite conj_transpose_involutive.
-    apply Minv_left in IHU as [_ S]. (* NB: Admitted lemma *)
-    assumption.
+  + simpl. apply transpose_unitary; assumption.
 Qed.
 Hint Resolve unitary_gate_unitary.
 
 Instance Denote_Unitary {W} : Denote (Unitary W) (Square (2^〚W〛)) :=
 {|
-    correctness := fun m => WF_Matrix (2^〚W〛) (2^〚W〛) m /\ unitary_matrix m;
+    correctness := fun A => is_unitary A;
     denote := denote_unitary;
-    denote_correct := fun U => conj (unitary_wf U) (unitary_gate_unitary U)
+    denote_correct := fun U => unitary_gate_unitary U
 |}.
 
 (** Gate Denotation *)
@@ -313,19 +309,18 @@ Lemma unitary_trans_qubit_id : forall (U : Unitary Qubit) (ρ : Density (2^1)),
 Proof.
   intros U ρ WF.
   simpl.
-  specialize unitary_wf with U; intros wf.
+  specialize WF_unitary with U; intros wf.
   repeat (unfold apply_U, swap_list, swap_two, pad; simpl).
   Msimpl; auto. 
   unfold compose_super, super. Msimpl.
   rewrite conj_transpose_involutive.
-  specialize (unitary_gate_unitary U). unfold unitary_matrix. simpl. intros H.
+  specialize (unitary_gate_unitary U). unfold is_unitary. simpl. intros [_ H].
   repeat rewrite <- Mmult_assoc.
   rewrite H.
   repeat rewrite Mmult_assoc.
   rewrite H.
   Msimpl. 
 Qed.  
-
 
 Lemma swap_list_aux_id : forall n l, swap_list_aux n (combine l l) = Id (2 ^ n).
 Proof.
@@ -359,7 +354,7 @@ Proof.
   Msimpl.
   unfold super, compose_super.
   rewrite conj_transpose_involutive.
-  specialize (unitary_gate_unitary U). unfold unitary_matrix. simpl. intros H. 
+  specialize (unitary_gate_unitary U). unfold is_unitary. simpl. intros [_ H]. 
   Msimpl.
   repeat rewrite <- Mmult_assoc. 
   rewrite H.
@@ -563,21 +558,17 @@ Definition Flat_Equiv {W1 W2} (b1 b2 : Flat_Box W1 W2) :=
 Lemma unitary_trans_qubit' : forall (U : Unitary Qubit), Flat_Equiv (U_U_trans U) id_circ.
 Proof.
   intros U ρ pf_ρ.
-  assert (wf_U : WF_Matrix (2^〚Qubit〛) (2^〚Qubit〛) (denote_unitary U))
-    by apply unitary_wf.
-  assert (unitary_U : unitary_matrix (denote_unitary U))
+  assert (unitary_U : is_unitary (denote_unitary U)) 
     by apply unitary_gate_unitary.
+  destruct unitary_U as [WF inv].
   simpl in *.
   repeat (unfold apply_U, compose_super, super, swap_list, swap_two, pad; simpl).
   Msimpl.
   rewrite conj_transpose_involutive. 
-  unfold unitary_matrix in unitary_U.
-  repeat rewrite Mmult_assoc; rewrite unitary_U.
-  repeat rewrite <- Mmult_assoc; rewrite unitary_U.
+  repeat rewrite Mmult_assoc; rewrite inv.
+  repeat rewrite <- Mmult_assoc; rewrite inv.
   Msimpl.
 Qed.
-
-
 
 Lemma fresh_pat_empty : forall W, pat_to_list (fresh_pat ∅ W valid_empty) = seq 0 (〚W〛).
 Admitted.
@@ -636,20 +627,17 @@ Lemma unitary_trans_qubit'' : forall (U : Unitary Qubit), forall ρ,
     WF_Matrix (2^〚Qubit〛) (2^〚Qubit〛) ρ -> 〚U_U_trans U〛ρ = 〚@id_circ Qubit〛ρ.
 Proof.
   intros U ρ pf_ρ.
-  assert (wf_U : WF_Matrix (2^〚Qubit〛) (2^〚Qubit〛) (denote_unitary U))
-    by apply unitary_wf.
-  assert (unitary_U : unitary_matrix (denote_unitary U))
+  assert (unitary_U : is_unitary (denote_unitary U)) 
     by apply unitary_gate_unitary.
+  destruct unitary_U as [WF inv].
   simpl in *.
   repeat (unfold apply_U, compose_super, super, swap_list, swap_two, pad; simpl).
   Msimpl.
   rewrite conj_transpose_involutive. 
-  unfold unitary_matrix in unitary_U.
-  repeat rewrite Mmult_assoc; rewrite unitary_U.
-  repeat rewrite <- Mmult_assoc; rewrite unitary_U.
+  repeat rewrite Mmult_assoc; rewrite inv.
+  repeat rewrite <- Mmult_assoc; rewrite inv.
   Msimpl.
 Qed.
-
 
 Lemma flip_toss'' : 〚coin_flip〛 I1  = even_toss.
 Proof.
