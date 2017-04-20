@@ -83,8 +83,11 @@ Ltac new_pat p W Γ v :=
     let v' := fresh "v" in
     let v'' := fresh "v" in
 (*    let Eq := fresh "Eq" in *)
-    destruct (fresh_pat Γ W v) as [Γ' [[v' v''] p]];
-    apply disjoint_valid in v''; trivial; try apply valid_empty.
+    set (p := fresh_pat Γ W v);
+    set (Γ' := fresh_ctx Γ W);
+    set (v' := fresh_ctx_valid W Γ v);
+    set (v'' := fresh_ctx_merge_valid W Γ v).
+(*    apply disjoint_valid in v''; trivial; try apply valid_empty.*)
 Print flat_gate.
 Notation gate g p1 p2 C := (flat_gate g p1 p2 C).
 Notation output_f p := (flat_output p).

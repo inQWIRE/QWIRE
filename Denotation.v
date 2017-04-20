@@ -7,6 +7,7 @@ Require Import Arith.
 Require Import Quantum.
 Require Import Omega.
 Import ListNotations.
+Set Bullet Behavior "Strict Subproofs".
 
 Class Denote source target :=
 {
@@ -556,28 +557,107 @@ Proof.
   destruct x, y; Csimpl; destruct_Csolve. Csolve.
 Qed.
 
-Lemma unitary_trans_qubit' : forall (U : Unitary Qubit) (ρ : Density (2^〚Qubit〛)),
-  WF_Matrix (2^〚Qubit〛) (2^〚Qubit〛) ρ -> 〚U_U_trans U〛 ρ = ρ.    
+Definition Flat_Equiv {W1 W2} (b1 b2 : Flat_Box W1 W2) :=
+  forall ρ, WF_Matrix (2^〚W1〛) (2^〚W1〛) ρ -> 〚b1〛 ρ = 〚b2〛 ρ.
+
+Lemma unitary_trans_qubit' : forall (U : Unitary Qubit), Flat_Equiv (U_U_trans U) id_circ.
 Proof.
-  intros.
-  simpl.
+  intros U ρ pf_ρ.
   assert (wf_U : WF_Matrix (2^〚Qubit〛) (2^〚Qubit〛) (denote_unitary U))
     by apply unitary_wf.
-  simpl in wf_U.
-  repeat (unfold apply_U, compose_super, super, swap_list, swap_two, pad; simpl).
-  Msimpl.
-  repeat rewrite Mmult_assoc.
-  rewrite conj_transpose_involutive. 
   assert (unitary_U : unitary_matrix (denote_unitary U))
     by apply unitary_gate_unitary.
+  simpl in *.
+  repeat (unfold apply_U, compose_super, super, swap_list, swap_two, pad; simpl).
+  Msimpl.
+  rewrite conj_transpose_involutive. 
   unfold unitary_matrix in unitary_U.
-  rewrite <- (Mmult_1_r ρ) at 2; auto.
-  rewrite <- (Mmult_1_l ρ) at 2; auto.
-  rewrite <- unitary_U.
-  repeat rewrite Mmult_assoc. reflexivity.
+  repeat rewrite Mmult_assoc; rewrite unitary_U.
+  repeat rewrite <- Mmult_assoc; rewrite unitary_U.
+  Msimpl.
 Qed.
 
-(* To Do:
+
+
+Lemma fresh_pat_empty : forall W, pat_to_list (fresh_pat ∅ W valid_empty) = seq 0 (〚W〛).
+Admitted.
+Lemma size_fresh_ctx : forall Γ_in W, size_OCtx (fresh_ctx Γ_in W) = 〚W〛.
+Admitted.
+Hint Rewrite size_fresh_ctx.
+
+(* To Do: *)
 Lemma unitary_trans_id' : forall W (U : Unitary W) (ρ : Density (2^〚W〛 )), 
   WF_Matrix (2^〚W〛) (2^〚W〛) ρ -> 〚U_U_trans U〛 ρ = ρ.
+Admitted.
+(*
+Proof.
+  intros W U ρ pf_ρ. 
+  simpl. rewrite size_fresh_ctx.
+  rewrite fresh_pat_empty.
+  rewrite merge_nil_r.
+  fold singleton.
+  rewrite swap_list_n_id.
 *)
+
+
+(****************** HOAS ********************)
+
+Instance Denote_HOAS_Circuit {Γ W} : Denote (Circuit Γ W) (Superoperator (2^〚Γ〛) (2^〚W〛)) :=
+{| 
+    denote      := fun C => 〚from_HOAS C〛;
+    correctness := fun _ => True;
+    denote_correct := fun _ => I
+|}.
+Instance Denote_HOAS_Box {W1 W2} : Denote (Box W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
+{|
+    denote := fun C => 〚from_HOAS_Box C〛;
+    correctness := fun _ => True;
+    denote_correct := fun _ => I
+|}.
+ 
+Require Import HOASExamples.
+Check init.
+
+Lemma Ex'' : 〚init true〛 I1 = (|1⟩⟨1| : Density 2).
+Proof.
+  unfold I1. 
+  simpl.
+  unfold compose_super, super, swap_list, swap_two. simpl.
+  unfold swap_two, apply_new1, super; simpl.
+  Msimpl.
+Qed.
+
+Definition HOAS_Equiv {W1 W2} (b1 b2 : Box W1 W2) :=
+  forall ρ, WF_Matrix (2^〚W1〛) (2^〚W1〛) ρ -> 〚b1〛 ρ = 〚b2〛 ρ.
+
+
+
+Lemma unitary_trans_qubit'' : forall (U : Unitary Qubit), forall ρ,
+    WF_Matrix (2^〚Qubit〛) (2^〚Qubit〛) ρ -> 〚U_U_trans U〛ρ = 〚@id_circ Qubit〛ρ.
+Proof.
+  intros U ρ pf_ρ.
+  assert (wf_U : WF_Matrix (2^〚Qubit〛) (2^〚Qubit〛) (denote_unitary U))
+    by apply unitary_wf.
+  assert (unitary_U : unitary_matrix (denote_unitary U))
+    by apply unitary_gate_unitary.
+  simpl in *.
+  repeat (unfold apply_U, compose_super, super, swap_list, swap_two, pad; simpl).
+  Msimpl.
+  rewrite conj_transpose_involutive. 
+  unfold unitary_matrix in unitary_U.
+  repeat rewrite Mmult_assoc; rewrite unitary_U.
+  repeat rewrite <- Mmult_assoc; rewrite unitary_U.
+  Msimpl.
+Qed.
+
+
+Lemma flip_toss'' : 〚coin_flip〛 I1  = even_toss.
+Proof.
+  simpl.
+  repeat (unfold compose_super, super, swap_list, swap_two, pad, apply_new0, apply_U, apply_meas; simpl).
+  Msimpl. 
+  prep_matrix_equality.
+  unfold even_toss, ket0, ket1, Mplus, Mmult, conj_transpose.
+  Csimpl.
+  destruct x, y; Csimpl; destruct_Csolve. Csolve.
+Qed.

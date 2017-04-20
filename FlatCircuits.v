@@ -52,7 +52,58 @@ Proof.
   * exact I.
   * unfold Disjoint. apply valid_fresh_var.
 Qed.
- 
+
+Fixpoint fresh_ctx (Γ_in : OCtx) (W : WType) : OCtx :=
+  match W with
+  | One   => ∅
+  | Qubit => singleton (fresh_var_o Γ_in) Qubit
+  | Bit   => singleton (fresh_var_o Γ_in) Bit
+  | W1 ⊗ W2 => let Γ1 := fresh_ctx Γ_in W1 in
+               let Γ2 := fresh_ctx (Γ_in ⋓ Γ1) W2 in
+               Γ1 ⋓ Γ2
+  end.
+
+
+Lemma fresh_ctx_merge_valid : forall W Γ_in, is_valid Γ_in -> is_valid (Γ_in ⋓ fresh_ctx Γ_in W).
+Proof.
+  induction W; intros Γ_in pf_Γ_in; simpl.
+  - apply disjoint_valid; [ | auto | apply valid_valid].
+    apply disjoint_fresh_var_o.
+  - apply disjoint_valid; [ | auto | apply valid_valid].
+    apply disjoint_fresh_var_o.
+  - validate.
+  - rewrite merge_assoc.
+    apply IHW2. apply IHW1. auto.
+Qed.
+
+Lemma fresh_ctx_valid : forall W Γ_in, is_valid Γ_in -> is_valid (fresh_ctx Γ_in W).
+Proof.
+  intros.
+  apply (fresh_ctx_merge_valid W) in H.
+  apply valid_split_basic in H. 
+  destruct H; auto.
+Qed.
+
+
+Program Fixpoint fresh_pat (Γ_in : OCtx) (W : WType) (pf : is_valid Γ_in) : Pat (fresh_ctx Γ_in W) W :=
+  match W with
+  | One     => unit
+  | Qubit   => qubit (fresh_var_o Γ_in) _ _
+  | Bit     => bit (fresh_var_o Γ_in) _ _
+  | W1 ⊗ W2 => let p1 := fresh_pat Γ_in W1 _ in
+               let p2 := fresh_pat (Γ_in ⋓ fresh_ctx Γ_in W1) W2 _ in
+               pair _ _ _ _ _ _ _ p1 p2
+  end.
+Next Obligation. apply singleton_singleton. Defined.
+Next Obligation. apply singleton_singleton. Defined.
+Next Obligation.  apply fresh_ctx_merge_valid; auto. Defined.
+Next Obligation.
+  assert (H : is_valid (Γ_in ⋓ fresh_ctx Γ_in W1 ⋓ fresh_ctx (Γ_in ⋓ fresh_ctx Γ_in W1) W2))
+    by (repeat apply fresh_ctx_merge_valid; auto).
+  validate.
+Defined.
+
+(* 
 Program Fixpoint fresh_pat (Γ_in : OCtx) (W : WType) (pf : is_valid Γ_in)
                          : {Γ_out : OCtx & is_valid Γ_out * Disjoint Γ_in Γ_out * Pat Γ_out W}%type :=
   match W with
@@ -83,16 +134,9 @@ Next Obligation. rename x0 into Γ1. rename x into Γ2.
                  apply disjoint_valid; auto.
                  apply disjoint_split with (Γ1 := Γ_in); auto.
 Defined.
+*)
 
 (* Simpler modular version of fresh_pat *)
-Fixpoint fresh_ctx (Γ_in : OCtx) (W : WType) : OCtx :=
-  match W with
-  | One => ∅
-  | Qubit => singleton (fresh_var_o Γ_in) Qubit
-  | Bit => singleton (fresh_var_o Γ_in) Bit
-  | W1 ⊗ W2 => let Γ_in' := fresh_ctx Γ_in W1 in
-              Γ_in' ⋓ fresh_ctx (Γ_in ⋓ Γ_in') W2
-  end.
 
 Definition from_HOAS {Γ W} (c : Circuit Γ W) : Flat_Circuit Γ W.
 Proof. 
@@ -106,17 +150,15 @@ Proof.
       destruct Γ as [ | Γ]; [rewrite merge_I_r in eq1; inversion eq1 | ].
       apply valid_valid.
     }
-    destruct (fresh_pat Γ W2 valid0) as [Γ2 [[valid2 disj2] p2]].
-    assert (valid2' : is_valid (Γ2 ⋓ Γ)).
+    set (p2 := fresh_pat Γ W2 valid0).
+    assert (valid2' : is_valid (Γ ⋓ fresh_ctx Γ W2)).
+    { apply fresh_ctx_merge_valid; auto. }
+    assert (c' : Flat_Circuit (fresh_ctx Γ W2 ⋓ Γ) W).
     {
-      rewrite merge_comm.
-      apply disjoint_valid; auto.
+      apply H with (Γ2 := fresh_ctx Γ W2); auto.
+      validate.
     }
-    assert (c' : Flat_Circuit (Γ2 ⋓ Γ) W).
-    {
-      apply H with (Γ2 := Γ2); auto.
-    }
-    refine (flat_gate g p1 p2 c'); auto. auto.
+    refine (flat_gate g p1 p2 c'); auto. auto. validate.
   - refine (flat_lift p H); auto. 
 Defined.
 
@@ -127,8 +169,9 @@ Inductive Flat_Box : WType -> WType -> Set :=
 .
 Definition from_HOAS_Box {W1 W2} (b : Box W1 W2) : Flat_Box W1 W2.
   destruct b as [W1 W2 b].
-  destruct (fresh_pat ∅ W1) as [Γ [[valid_Γ _] p]]; [apply valid_valid | ].
-  apply (flat_box p (from_HOAS (b Γ p))).
+(*  destruct (fresh_pat ∅ W1) as [Γ [[valid_Γ _] p]]; [apply valid_valid | ].*)
+  set (p := fresh_pat ∅ W1 (valid_valid [])).
+  apply (flat_box p (from_HOAS (b _ p))).
 Defined.
 
 Close Scope circ_scope.

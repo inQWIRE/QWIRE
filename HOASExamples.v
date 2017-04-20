@@ -398,5 +398,14 @@ Definition split_qubit : Box Qubit (Qubit ⊗ Qubit).
     output ⟨w1;w2'⟩). *)
 
 
+
+Definition U_U_trans {W} (U : Unitary W) : Box W W.
+  box_ (fun p =>
+    gate_ p ← U @p;
+    gate_ p ← transpose U @p;
+    output p
+  ).
+Defined.
+
 Close Scope circ_scope.
 (* *)
