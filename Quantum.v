@@ -386,15 +386,73 @@ Proof.
     simpl.
 Admitted.
 
-(** Density matrices and superoperators **)
+(* Pure and Mixed States *)
+
+(* Wiki:
+In operator language, a density operator is a positive semidefinite, hermitian 
+operator of trace 1 acting on the state space. A density operator describes 
+a pure state if it is a rank one projection. Equivalently, a density operator ρ 
+describes a pure state if and only if ρ = ρ ^ 2 *)
 
 Notation Density n := (Matrix n n) (only parsing). 
+
+Definition Pure_State {n} (ρ : Density n) : Prop := WF_Matrix ρ /\ ρ = ρ × ρ.
+
+Lemma pure0 : Pure_State |0⟩⟨0|. Proof. split; [show_wf|mlra]. Qed.
+Lemma pure1 : Pure_State |1⟩⟨1|. Proof. split; [show_wf|mlra]. Qed.
+
+(* Wiki:
+For a finite-dimensional function space, the most general density operator 
+is of the form:
+
+  ρ =∑_j p_j |ψ_j⟩⟨ ψ_j| 
+
+where the coefficients p_j are non-negative and add up to one. *)
+
+Inductive Mixed_State {n} : (Matrix n n) -> Prop :=
+| Pure_S : forall ρ, Pure_State ρ -> Mixed_State ρ
+| Mix_S : forall (p : R) ρ1 ρ2, 0 < p < 1 -> Mixed_State ρ1 -> Mixed_State ρ2 ->
+                                        Mixed_State (p .* ρ1 .+ (1-p)%R .* ρ2).  
+
+Lemma WF_Pure : forall {n} (ρ : Density n), Pure_State ρ -> WF_Matrix ρ.
+Proof.
+  unfold Pure_State. intuition.
+Qed.
+Hint Resolve WF_Pure.
+Lemma WF_Mixed : forall {n} (ρ : Density n), Mixed_State ρ -> WF_Matrix ρ.
+Proof.
+  induction 1; auto.
+  show_wf_safe. 
+Qed.
+Hint Resolve WF_Mixed.
+
+(** Density matrices and superoperators **)
+
 Definition Superoperator m n := Density m -> Density n.
+
+Definition WF_Superoperator {m n} (f : Superoperator m n) := 
+  (forall ρ, Mixed_State ρ -> Mixed_State (f ρ)).   
 
 (* Transparent Density. *)
 
 Definition super {m n} (M : Matrix m n) : Superoperator n m := fun ρ => 
   M × ρ × M†.
+
+
+Definition compose_super {m n p} (g : Superoperator n p) (f : Superoperator m n)
+                      : Superoperator m p :=
+  fun ρ => g (f ρ).
+Lemma compose_super_correct : forall {m n p} 
+                              (g : Superoperator n p) (f : Superoperator m n),
+      WF_Superoperator g -> WF_Superoperator f ->
+      WF_Superoperator (compose_super g f).
+Proof.
+  intros m n p g f pf_g pf_f.
+  unfold WF_Superoperator.
+  intros ρ mixed.
+  unfold compose_super.
+  apply pf_g. apply pf_f. auto.
+Qed.
 
 (* To do: correctness conditions for density matrices and superoperators *)
 (* NOTE: I think these all need fixing *)
@@ -406,37 +464,6 @@ Definition meas_op : Superoperator 2 2 := fun ρ => super |0⟩⟨0| ρ .+ super
 Definition discard_op : Superoperator 2 1 := fun ρ => super ⟨0| ρ .+ super ⟨1| ρ.
 
 
-(* Pure and Mixed States *)
-
-(* Wiki:
-In operator language, a density operator is a positive semidefinite, hermitian 
-operator of trace 1 acting on the state space. A density operator describes 
-a pure state if it is a rank one projection. Equivalently, a density operator ρ 
-describes a pure state if and only if ρ = ρ ^ 2 *)
-
-Definition Pure_State {n} (ρ : Density n) : Prop := WF_Matrix ρ /\ ρ = ρ × ρ.
-
-Lemma pure0 : Pure_State |0⟩⟨0|. Proof. split; [show_wf|mlra]. Qed.
-Lemma pure1 : Pure_State |1⟩⟨1|. Proof. split; [show_wf|mlra]. Qed.
-
-(* Very simple version of a general lemma saying that all unitaries map pure states
-   to pure states *)
-(* Takes forever. Msolve *can* solve this, but it takes 2^forever. *)
-(*
-Lemma pure_hadamard_0 : Pure_State (super hadamard |0⟩⟨0|).
-Proof. 
-  unfold Pure_State, hadamard, ket0, conj_transpose, super, Mmult.
-  apply functional_extensionality; intros x.
-  apply functional_extensionality; intros y.
-  destruct x as [| [|x]]; destruct y as [|[|y]]; Csolve.
-Qed.
-*)
-
-(* These no longer work
-Lemma pure_σx_1 : Pure_State (super pauli_x |0⟩⟨0|). Proof. mlra. Qed.
-Lemma pure_σy_1 : Pure_State (super pauli_y |0⟩⟨0|). Proof. mlra. Qed.
-Lemma pure_σz_1 : Pure_State (super pauli_z |0⟩⟨0|). Proof. mlra. Qed.
-*)
 
 Lemma pure_unitary : forall {n} (U ρ : Matrix n n), 
   WF_Matrix U -> unitary_matrix U -> Pure_State ρ -> Pure_State (super U ρ).
@@ -461,18 +488,6 @@ Proof. apply pure_unitary.
        + apply pure1. 
 Qed.
 
-(* Wiki:
-For a finite-dimensional function space, the most general density operator 
-is of the form:
-
-  ρ =∑_j p_j |ψ_j⟩⟨ ψ_j| 
-
-where the coefficients p_j are non-negative and add up to one. *)
-
-Inductive Mixed_State {n} : (Matrix n n) -> Prop :=
-| Pure_S : forall ρ, Pure_State ρ -> Mixed_State ρ
-| Mix_S : forall (p : R) ρ1 ρ2, 0 < p < 1 -> Mixed_State ρ1 -> Mixed_State ρ2 ->
-                                        Mixed_State (p .* ρ1 .+ (1-p)%R .* ρ2).  
 
 Definition dm12 : Matrix 2 2 :=
   (fun x y => match x, y with

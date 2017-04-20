@@ -319,11 +319,13 @@ Lemma WF_conj_transpose : forall {m n : nat} (A : Matrix m n), WF_Matrix A -> WF
 Proof. unfold WF_Matrix, conj_transpose, Cconj. intros m n A H x y H0. simpl. 
 rewrite H. clra. omega. Qed.
 
+
 (* Well-formedness tactic *)
 Ltac show_wf :=
   repeat match goal with
   | [ |- WF_Matrix (?A × ?B) ]  => apply WF_mult 
   | [ |- WF_Matrix (?A .+ ?B) ] => apply WF_plus 
+  | [ |- WF_Matrix (?p .* ?B) ] => apply WF_scale
   | [ |- WF_Matrix (?A ⊗ ?B) ]  => apply WF_kron
   | [ |- WF_Matrix (?A⊤) ]      => apply WF_transpose 
   | [ |- WF_Matrix (?A†) ]      => apply WF_conj_transpose 
@@ -332,9 +334,38 @@ Ltac show_wf :=
   unfold WF_Matrix;
   let x := fresh "x" in
   let y := fresh "y" in
+  let H := fresh "H" in
   intros x y [H | H];
   repeat (destruct x; try reflexivity; try omega);
   repeat (destruct y; try reflexivity; try omega).
+
+Ltac show_wf_safe :=
+  repeat match goal with
+  | [ |- WF_Matrix (Zero ?m ?n) ] => apply WF_Zero
+  | [ |- WF_Matrix (Id ?n) ]      => apply WF_Id 
+  | [ |- WF_Matrix (?A × ?B) ]    => apply WF_mult 
+  | [ |- WF_Matrix (?A .+ ?B) ]   => apply WF_plus 
+  | [ |- WF_Matrix (?p .* ?B) ]   => apply WF_scale
+  | [ |- WF_Matrix (?A ⊗ ?B) ]    => apply WF_kron
+  | [ |- WF_Matrix (?A⊤) ]        => apply WF_transpose 
+  | [ |- WF_Matrix (?A†) ]        => apply WF_conj_transpose 
+  end; trivial.
+
+
+Lemma Cconj_R : forall r : R, Cconj r = r. Proof. intros. clra. Qed.
+
+(* More basic for the moment *)
+Ltac Csimpl := 
+  simpl;
+  repeat (
+    try rewrite Cconj_R;
+    try rewrite Cplus_0_l;
+    try rewrite Cplus_0_r;
+    try rewrite Cmult_0_l;
+    try rewrite Cmult_0_r;
+    try rewrite Cmult_1_l;
+    try rewrite Cmult_1_r
+).
 
 
 (** Basic Matrix Lemmas **)
@@ -792,5 +823,19 @@ Proof.
     simpl.
 Admitted.
 *)
+
+Ltac Msimpl := 
+  simpl; 
+  repeat (
+  try rewrite kron_1_l;
+  try rewrite kron_1_r;
+  try rewrite Mmult_1_l; 
+  try rewrite Mmult_1_r; 
+  try rewrite id_conj_transpose_eq;
+  try rewrite id_conj_transpose_eq); 
+  try show_wf_safe; try omega.
+
+
+
 
 (* *)

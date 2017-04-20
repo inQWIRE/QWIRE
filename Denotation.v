@@ -1,5 +1,5 @@
 Require Import Program. 
-(*Require Import Contexts.*)
+Require Import Contexts.
 Require Import HOASCircuits.
 Require Import FlatCircuits.
 Require Import List.
@@ -18,8 +18,8 @@ Notation "〚 s 〛" := (denote s) (at level 10).
 
 (** Wire and Context Denotation **)
 
-(*
-Instance denote_WType : Denote WType nat :=
+
+Instance Denote_WType : Denote WType nat :=
 {|
     correctness := fun _ => True;
     denote := size_WType;
@@ -27,13 +27,13 @@ Instance denote_WType : Denote WType nat :=
 |}.
 
 
-Instance denote_Ctx : Denote Ctx nat :=
+Instance Denote_Ctx : Denote Ctx nat :=
 {|
     correctness := fun _ => True;
     denote := size_Ctx;
     denote_correct := fun _ => I
 |}.
-Instance denote_OCtx : Denote OCtx nat :=
+Instance Denote_OCtx : Denote OCtx nat :=
 {|
     correctness := fun _ => True;
     denote := size_OCtx;
@@ -83,7 +83,7 @@ Proof.
     assumption.
 Qed.
 
-Instance denote_Unitary {W} : Denote (Unitary W) (Square (2^〚W〛)) :=
+Instance Denote_Unitary {W} : Denote (Unitary W) (Square (2^〚W〛)) :=
 {|
     correctness := fun m => WF_Matrix m /\ unitary_matrix m;
     denote := denote_unitary;
@@ -104,18 +104,16 @@ Definition denote_gate {W1 W2} (g : Gate W1 W2) :
   | discard => discard_op
   end.
 
-Definition super_op_correctness {m n} (f : Superoperator m n) := 
-  (forall ρ, Mixed_State ρ -> Mixed_State (f ρ)).   
 
 Lemma denote_gate_correct : forall {W1} {W2} (g : Gate W1 W2), 
-                            super_op_correctness (denote_gate g). 
+                            WF_Superoperator (denote_gate g). 
 Proof.
-  unfold super_op_correctness.
+  unfold WF_Superoperator.
 Admitted.
 
-Instance denote_Gate {W1 W2} : Denote (Gate W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
+Instance Denote_Gate {W1 W2} : Denote (Gate W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
 {|
-    correctness := super_op_correctness;
+    correctness := WF_Superoperator;
     denote := denote_gate;
     denote_correct := denote_gate_correct
 |}.
@@ -138,19 +136,6 @@ Eval compute in (from_HOAS_Box hadamard_measure).
 Eval vm_compute in (from_HOAS_Box hadamard_measure).
 *)
 
-(*
-Fixpoint zip_to (m n: nat) (l : list nat) :
-  list (nat * nat) :=
-  match l with
-  | nil => nil 
-  | x :: xs => match m <? n with 
-              | true => (m, x) :: zip_to (S m) n xs
-              | false => nil
-              end
-  end.
-*)
-
-(* Let's try using Coq's combine (zip) function instead *)
 Definition zip_to (m n : nat) (l : list nat) := combine (seq m n) l.
 
 Fixpoint swap_list_aux (n : nat) (l : list (nat * nat)) : Square  (2^n) :=
@@ -353,8 +338,6 @@ Proof.
     Csolve.
 Qed.
 
-(*Check InitT.*)
-(*Check flip.*)
 Definition FLIP : Square (2^1) := 〚coin_flip〛 I1.
 Lemma flip_toss : 〚coin_flip〛 I1  = even_toss.
 Proof.
@@ -465,20 +448,19 @@ Proof.
 
 (* Flat Circuits *)  
 
+(*
+Program Fixpoint denote_flat_circuit {Γ W} (C : Flat_Circuit Γ W) 
+                 : Superoperator (2^〚Γ〛) (2^〚W〛) :=
+  match C with
+  | flat_output _ _ _ _ p => _
+  | flat_gate Γ Γ1 g p1 p2 C' => _
+  | flat_lift _ _ _ _ => _
+  end.
+*)
+
+
 Instance Denote_Flat_Circuit {Γ W} : Denote (Flat_Circuit Γ W) (Superoperator (2^〚Γ〛) (2^〚W〛)) :=
 {| 
     denote      := fun C => 〚Flat_to_Machine_Circuit C〛;
-    correctness := fun _ => True;
-    denote_correct := fun _ => I
 |}.
-(*
-Instance Denote_Flat_Box {W1 W2} : Denote (Flat_Box W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
-{|
-    denote := fun b => 〚Flat_Box_to_Machine_Circuit b〛.
-|}
-
-Require Import FlatExamples.
-*)
-
-
-*)
+Admitted.
