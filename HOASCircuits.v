@@ -2,45 +2,6 @@ Require Export Contexts.
 Require Import List.
 Import ListNotations.
 
-(* Typed Circuits Scope [UC is UntypedCircuits] *)
-(* Module TC. *)
-
-(* need to change to contexts *)
-Inductive Pat : OCtx -> WType -> Set :=
-(* | var  : forall x w ctx, SingletonCtx x w ctx -> Pat ctx w *)
-| unit : Pat ∅ One
-| qubit : forall x ctx, (SingletonCtx x Qubit ctx) -> Pat ctx Qubit 
-| bit : forall x ctx, (SingletonCtx x Bit ctx) -> Pat ctx Bit 
-| pair : forall ctx1 ctx2 ctx w1 w2,
-        is_valid ctx 
-      -> ctx = ctx1 ⋓ ctx2
-      -> Pat ctx1 w1
-      -> Pat ctx2 w2
-      -> Pat ctx (Tensor w1 w2).
-
-Lemma pat_ctx_valid : forall Γ W, Pat Γ W -> is_valid Γ.
-Proof. intros Γ W p. unfold is_valid. inversion p; eauto. Qed.
-
-Inductive Unitary : WType -> Set := 
-  | H : Unitary Qubit 
-  | σx : Unitary Qubit
-  | σy : Unitary Qubit
-  | σz : Unitary Qubit
-  | CNOT : Unitary (Qubit ⊗ Qubit)
-  | control : forall {W} (U : Unitary W), Unitary (Qubit ⊗ W) 
-  | bit_control : forall {W} (U : Unitary W), Unitary (Bit ⊗ W) 
-  | transpose : forall {W} (U : Unitary W), Unitary W.
-
-Inductive Gate : WType -> WType -> Set := 
-  | U : forall {W} (u : Unitary W), Gate W W
-  | init0 : Gate One Qubit
-  | init1 : Gate One Qubit
-  | new0 : Gate One Bit
-  | new1 : Gate One Bit
-  | meas : Gate Qubit Bit
-  | discard : Gate Bit One.
-
-Coercion U : Unitary >-> Gate.
 
 Inductive Circuit : OCtx -> WType -> Set :=
 | output : forall {ctx ctx' w}, ctx' = ctx -> Pat ctx w -> Circuit ctx' w

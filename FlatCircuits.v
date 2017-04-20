@@ -1,7 +1,8 @@
 Require Import Contexts.
-Require Import TypedCircuits.
+Require Import HOASCircuits.
 Require Import Program.
 
+Open Scope circ_scope.
 Inductive Flat_Circuit : OCtx -> WType -> Set :=
 | flat_output : forall {ctx ctx' w}, ctx' = ctx -> Pat ctx w -> Flat_Circuit ctx' w
 | flat_gate   : forall ctx {ctx1 ctx1' ctx2 ctx2'} {w1 w2 w}, 
@@ -157,5 +158,7 @@ Definition from_HOAS_Box {W1 W2} (b : Box W1 W2) : Flat_Box W1 W2.
   destruct (fresh_pat ∅ W1) as [Γ [[valid_Γ _] p]]; [apply valid_valid | ].
   apply (flat_box p (from_HOAS (b Γ p))).
 Defined.
+
+Close Scope circ_scope.
 
 (* *)

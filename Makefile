@@ -99,19 +99,16 @@ endif
 ######################
 
 VFILES:=MachineExamples.v\
-  Monoid.v\
   Quantum.v\
-  TypedCircuits.v\
+  HOASCircuits.v\
   Denotation.v\
-  UMatrix.v\
-  RelationalContexts.v\
-  Monad.v\
-  UQuantum.v\
-  UDenotation.v\
+  Matrix.v\
+  Quantum.v\
+  Denotation.v\
   MachineCircuits.v\
   Contexts.v\
   FlatCircuits.v\
-  Examples.v\
+  HOASExamples.v\
   Matrix.v\
   FlatExamples.v
 

@@ -4,7 +4,7 @@ Require Import Omega.
 Require Import Reals.
 Require Import Bool.
 Require Export Coquelicot.Complex.
-Require Export UMatrix.
+Require Export Matrix.
 
 (* Using our (complex, unbounded) matrices, their complex numbers *)
 

@@ -1,10 +1,10 @@
 Require Import Program. 
-Require Import Contexts.
-Require Import TypedCircuits.
+(*Require Import Contexts.*)
+Require Import HOASCircuits.
 Require Import FlatCircuits.
 Require Import List.
 Require Import Arith.
-Require Import UQuantum. (* Less typed! *)
+Require Import Quantum.
 Require Import Omega.
 Import ListNotations.
 
@@ -18,41 +18,29 @@ Notation "〚 s 〛" := (denote s) (at level 10).
 
 (** Wire and Context Denotation **)
 
+(*
 Instance denote_WType : Denote WType nat :=
 {|
     correctness := fun _ => True;
-    denote := num_wires;
+    denote := size_WType;
     denote_correct := fun _ => I
 |}.
-
-Fixpoint num_elts (Γ : Ctx) : nat :=
-  match Γ with
-  | [] => 0
-  | None :: Γ' => num_elts Γ'
-  | Some _ :: Γ' => S (num_elts Γ')
-  end.
-Definition num_elts_o (Γ : OCtx) : nat :=
-  match Γ with
-  | Invalid => 0
-  | Valid Γ' => num_elts Γ'
-  end.
 
 
 Instance denote_Ctx : Denote Ctx nat :=
 {|
     correctness := fun _ => True;
-    denote := num_elts;
+    denote := size_Ctx;
     denote_correct := fun _ => I
 |}.
 Instance denote_OCtx : Denote OCtx nat :=
 {|
     correctness := fun _ => True;
-    denote := num_elts_o;
+    denote := size_OCtx;
     denote_correct := fun _ => I
 |}.
 
 (** Unitary Denotation **)
-
 Fixpoint denote_unitary {W} (U : Unitary W) : Square (2^〚W〛) :=
   match U with  
   | H => hadamard 
@@ -60,9 +48,9 @@ Fixpoint denote_unitary {W} (U : Unitary W) : Square (2^〚W〛) :=
   | σy => pauli_y
   | σz => pauli_z
   | CNOT => control pauli_x
-  | TypedCircuits.control _ g => control (denote_unitary g)
-  | TypedCircuits.bit_control _ g => control (denote_unitary g)  
-  | TypedCircuits.transpose _ g => (denote_unitary g)†
+  | ctrl _ g => control (denote_unitary g)
+  | bit_ctrl _ g => control (denote_unitary g)  
+  | Contexts.transpose _ g => (denote_unitary g)†
   end. 
 
 Lemma unitary_wf : forall {W} (U : Unitary W), WF_Matrix (denote_unitary U).
@@ -314,7 +302,7 @@ Require Import MachineExamples.
 Definition I1 := Id (2^0).
 
 (* Why can't I compose these? *)
-Definition InitT := 〚init true〛 I1. Check InitT. 
+Definition InitT := 〚init true〛 I1. (*Check InitT. *)
 
 Lemma Ex : InitT = |1⟩⟨1|.
 Proof.
@@ -365,8 +353,8 @@ Proof.
     Csolve.
 Qed.
 
-Check InitT.
-Check flip.
+(*Check InitT.*)
+(*Check flip.*)
 Definition FLIP : Square (2^1) := 〚coin_flip〛 I1.
 Lemma flip_toss : 〚coin_flip〛 I1  = even_toss.
 Proof.
@@ -427,10 +415,10 @@ Proof.
   rewrite leb_correct; try omega.
   rewrite leb_correct; try omega.
   unfold apply_U.
-  replace (num_wires W + num_wires W - num_wires W)%nat with (num_wires W) by omega.
+  replace (size_WType W + size_WType W - size_WType W)%nat with (size_WType W) by omega.
   rewrite swap_list_n_id.
   unfold pad.
-  replace (num_wires W - num_wires W)%nat with O by omega.   
+  replace (size_WType W - size_WType W)%nat with O by omega.   
   Msimpl.
   unfold super.
   rewrite conj_transpose_involutive.
@@ -492,3 +480,5 @@ Instance Denote_Flat_Box {W1 W2} : Denote (Flat_Box W1 W2) (Superoperator (2^〚
 Require Import FlatExamples.
 *)
 
+
+*)

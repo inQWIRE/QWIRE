@@ -3,7 +3,7 @@ Require Import Datatypes.
 Require Import Arith.
 Require Import List.
 Require Import Contexts.
-Require Import TypedCircuits.
+Require Import HOASCircuits.
 (* Import TC. *)
 Import ListNotations.
 Open Scope list_scope.
@@ -254,8 +254,8 @@ Defined.
 Definition bob' : Box (Bit ⊗ (Bit ⊗ Qubit)) Qubit.
   box (fun xyb =>
     letC (x,yb)  ← output xyb;
-    letC (y,b)   ← gate (bit_control σx) yb;
-    letC (x,b)   ← gate (bit_control σx) (x,b);
+    letC (y,b)   ← gate (bit_ctrl σx) yb;
+    letC (x,b)   ← gate (bit_ctrl σx) (x,b);
     letC _       ← gate discard y;
     letC _       ← gate discard x;
     output b).
@@ -268,16 +268,16 @@ refine(
   box (fun _ xyb =>
     let 'existT23 Γxy Γb xy b Mxyb := wproj xyb in
     let 'existT23 Γx Γy x y Mxy := wproj xy in
-    TypedCircuits.gate _ _ _ (bit_control σx) (y, b) 
+    HOASCircuits.gate _ _ _ (bit_ctrl σx) (y, b) 
      (fun _ _ _ _ yb =>
      let 'existT23 Γy' Γb' y' b' Myb := wproj yb in
-      TypedCircuits.gate _ _ _ (bit_control σz) (x, b') (* <? *)
+      HOASCircuits.gate _ _ _ (bit_ctrl σz) (x, b') (* <? *)
        (fun _ _ _ _ xb =>
-        TypedCircuits.gate _ _ _ discard y' 
+        HOASCircuits.gate _ _ _ discard y' 
          (fun _ _ _ _ z1 =>
           let 'existT23 Γx' Γb'' x' b'' Mxb := wproj xb in
-          TypedCircuits.gate _ _ _ discard x'
-           (fun _ _ _ _ z2 => TypedCircuits.output _ b'')))))); type_check. 
+          HOASCircuits.gate _ _ _ discard x'
+           (fun _ _ _ _ z2 => HOASCircuits.output _ b'')))))); type_check. 
 Defined.
 *)
 
@@ -286,8 +286,8 @@ Definition bob : Box (Bit⊗Bit⊗Qubit) Qubit.
   box (fun xyb => 
     letC ((x,y),b) ← output xyb ; 
 (*    letC (x,y)  ← output xy ; *)
-    letC (y,b)  ← gate (bit_control σx) (y,b);
-    letC (x,b)  ← gate (bit_control σz) (x,b);
+    letC (y,b)  ← gate (bit_ctrl σx) (y,b);
+    letC (x,b)  ← gate (bit_ctrl σz) (x,b);
     letC _      ← gate discard y ;   
     letC _      ← gate discard x ;
     output b).
@@ -354,7 +354,7 @@ make_circ (
       letC (c, qqs) ← output w;  
       letC (q, qs)  ← output qqs;  
       letC (c,qs)   ← unbox (rotationsZ m n') (c,qs) ;
-      letC (c,q)    ← gate (control (RGate (1 + m - n'))) (c,q);
+      letC (c,q)    ← gate (ctrl (RGate (1 + m - n'))) (c,q);
       output (c,(q,qs)))
    end (eq_refl n)).
 Defined.
