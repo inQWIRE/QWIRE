@@ -474,6 +474,14 @@ Inductive Mixed_State {n} : (Matrix n n) -> Prop :=
 | Mix_S : forall (p : R) ρ1 ρ2, 0 < p < 1 -> Mixed_State ρ1 -> Mixed_State ρ2 ->
                                         Mixed_State (p .* ρ1 .+ (1-p)%R .* ρ2).  
 
+Lemma WF_Mixed : forall n (ρ : Matrix n n), Mixed_State ρ -> WF_Matrix ρ.
+Proof.
+  intros n ρ H.
+  induction H.
+  + inversion H; trivial.
+  + apply WF_plus; apply WF_scale; trivial.
+Qed.    
+
 Definition dm12 : Matrix 2 2 :=
   (fun x y => match x, y with
           | 0, 0 => 1 / 2
