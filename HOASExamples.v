@@ -370,6 +370,21 @@ Definition coin_flip : Box One Bit.
 Defined.
 
 
+Fixpoint coin_flips (n : nat) : Box One Bit.
+  box_ (fun _ =>
+  match n with
+  | 0    => gate_ x ← new1 @(); output x
+  | S n' => let_  c     ← unbox (coin_flips n') ();
+            gate_ q     ← init1 @();
+            gate_ (c,q) ← bit_ctrl H @(c,q);
+            gate_ _     ← discard @c;
+            gate_ b     ← meas @q;
+            output b
+  end).
+Defined.
+
+
+
 (** Invalid Circuits **)
 
 Definition absurd_circ : Box Qubit (Bit ⊗ Qubit).
@@ -377,17 +392,17 @@ Definition absurd_circ : Box Qubit (Bit ⊗ Qubit).
     gate_ x  ← meas @w ;
     gate_ w' ← H @w ;
     output (x,w')).
-Admitted.
+Abort.
 
 Definition unused_qubit : Box Qubit One.
   box_ (fun w => 
    gate_ w ← H @w ;
    output () ).
-Admitted.
+Abort.
 
 Definition clone W : Box W (W ⊗ W).
   box_ (fun w => output (w,w)).
-Admitted.
+Abort.
 
 
 (* Caught by Coq's typechecker

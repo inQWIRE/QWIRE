@@ -73,26 +73,30 @@ Ltac validate :=
   | [|- is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) ]   => apply valid_join; validate
   end).
 
-Require Program.
-Program Fixpoint compose {Γ1 Γ1'} {W} (c : Circuit Γ1 W) {Γ W'} 
+Require Program. Print lift.
+Arguments gate Γ Γ1 {Γ1' w1 w2 w v1 m1}. 
+Arguments lift Γ1 Γ2 {Γ w w' v m}.
+Program Fixpoint compose Γ1 {Γ1'} {W} (c : Circuit Γ1 W) {Γ W'} 
         {v1 : is_valid Γ1'} {m1 : Γ1' = Γ1 ⋓ Γ}
         (f : forall {Γ2 Γ2'} (m2 : Γ2' = Γ2 ⋓ Γ) (v2 : is_valid Γ2'), 
              Pat Γ2 W -> Circuit Γ2' W')
         : Circuit Γ1' W' :=
   match c with 
-  | @output _ _ _ _ p1 => f _ _ p1
-  | @gate Γ0 Γ01 _ _ _ _ _ _ g p1 h => 
-    @gate (Γ0 ⋓ Γ) Γ01 _ _ _ _ _ _ g p1 (fun Γ02 _ _ _ q => 
-    compose (h Γ02 (Γ02 ⋓ Γ0) _ _ q) (fun _ _ => f))
-  | @lift Γ01 Γ02 _ _ _ _ v p h => 
-    @lift Γ01 (Γ02 ⋓ Γ) _ _ _ _ _ p (fun x => 
-    @compose Γ02 _ _ (h x) _ _ _ _ (fun _ _ => f))
+  | output p1          => f _ _ p1
+  | gate Γ0 Γ01 g p1 h => gate (Γ0 ⋓ Γ) Γ01 g p1 (fun Γ02 _ _ _ q => 
+                          compose _ (h Γ02 (Γ02 ⋓ Γ0) _ _ q) (fun _ _ => f))
+  | lift Γ01 Γ02 p h   => lift Γ01 (Γ02 ⋓ Γ) p (fun x => 
+                          compose Γ02 (h x) (fun _ _ => f))
   end.
 Next Obligation. monoid. Defined.
 Next Obligation. validate. Defined.
 Next Obligation. monoid.  Defined.
 Next Obligation. monoid. Defined.
 Next Obligation. validate. Defined.
+Arguments gate {Γ Γ1 Γ1' w1 w2 w v1 m1}. 
+Arguments lift {Γ1 Γ2 Γ w w' v m}.
+Arguments compose {Γ1 Γ1' W c Γ W' v1 m1}.
+
 
 (* Automation *)
 
