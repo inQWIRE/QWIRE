@@ -338,8 +338,8 @@ Ltac show_wf :=
   let y := fresh "y" in
   let H := fresh "H" in
   intros x y [H | H];
-  repeat (destruct x; try reflexivity; try omega);
-  repeat (destruct y; try reflexivity; try omega).
+    repeat (destruct x; try reflexivity; try omega);
+    repeat (destruct y; try reflexivity; try omega).
 
 Ltac show_wf_safe :=
   repeat match goal with
@@ -691,9 +691,9 @@ Lemma Mscale_mult_dist_r : forall {m n o} x (A : Matrix m n) (B : Matrix n o),
                              (A × (x .* B)) = x .* (A × B).
 Admitted.
 
-(* Inverses *)
+(* Inverses of square matrices *)
 
-Definition Minv {n} (A B : Square n) := A × B = Id n /\ B × A = Id n.
+Definition Minv {n} (A B : Square n) : Prop := A × B = Id n /\ B × A = Id n.
 
 Lemma Minv_unique : forall {n} (A B C : Square n), 
                       WF_Matrix n n A -> WF_Matrix n n B -> WF_Matrix n n C ->
@@ -708,6 +708,10 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma Minv_symm : forall n (A B : Square n), Minv A B -> Minv B A.
+Proof. unfold Minv; intuition. Qed.
+
+(* Important but hardish lemma *)
 Lemma Minv_flip : forall {n} (A B : Square n), A × B = Id n -> B × A = Id n.
 Admitted.
   
@@ -715,8 +719,17 @@ Lemma Minv_left : forall {n} (A B : Square n), A × B = Id n -> Minv A B.
 Proof.
   intros n A B H. 
   unfold Minv. split; trivial.
-  + unfold Id, Mmult in *. prep_matrix_equality. 
-Admitted.
+  apply Minv_flip.
+  assumption.
+Qed.
+
+Lemma Minv_right : forall {n} (A B : Square n), B × A = Id n -> Minv A B.
+Proof.
+  intros n A B H. 
+  unfold Minv. split; trivial.
+  apply Minv_flip.
+  assumption.
+Qed.
 
 (* Not generally true, just like sum_sum wasn't.
    A general sum_n_to_m function might have better properties. 
