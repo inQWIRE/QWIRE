@@ -100,9 +100,43 @@ Definition denote_gate {W1 W2} (g : Gate W1 W2) :
   | discard => discard_op
   end.*)
 
-Lemma denote_gate_wf : forall n W1 W2 (g : Gate W1 W2) ρ,
-    WF_Matrix _ _ ρ -> WF_Matrix _ _ (denote_gate' n g ρ).
-Admitted.
+Lemma pow_gt_0 : forall n, 2^n > 0%nat.
+Proof.
+  induction n; auto. 
+  simpl. apply gt_trans with (2^n); auto. omega.
+Qed.
+
+Lemma WF_ket0 : WF_Matrix 2 1 |0⟩.
+Proof. show_wf. Qed.
+Lemma WF_ket1 : WF_Matrix 2 1 |1⟩.
+Proof. show_wf. Qed.
+Hint Resolve WF_ket0.
+Hint Resolve WF_ket1.
+
+Lemma WF_denote_gate : forall n W1 W2 (g : Gate W1 W2) ρ,
+    WF_Matrix (2^〚W1〛 * 2^n) (2^〚W1〛 * 2^n) ρ 
+ -> WF_Matrix (2^〚W2〛 * 2^n) (2^〚W2〛 * 2^n) (denote_gate' n g ρ).
+Proof.
+  intros n W1 W2 g ρ wf_ρ.
+  assert (0%nat < 2^n) by apply pow_gt_0.
+  assert (0%nat <> 2^n) by omega.
+  assert (pf0 : WF_Matrix (2 * 2^n) (1 * 2^n) (|0⟩ ⊗ Id (2^n)))
+      by (show_wf_safe; auto).
+  assert (pf1 : WF_Matrix (2 * 2^n) (1 * 2^n) (|1⟩ ⊗ Id (2^n)))
+      by (show_wf_safe; auto).
+  assert (pf00 : WF_Matrix (2 * 2^n) (2 * 2^n) (|0⟩⟨0| ⊗ Id (2^n)))
+      by (show_wf_safe; auto).
+  assert (pf11 : WF_Matrix (2 * 2^n) (2 * 2^n) (|1⟩⟨1| ⊗ Id (2^n)))
+      by (show_wf_safe; auto).
+  assert (pf0' : WF_Matrix (1 * 2^n) (2 * 2^n) (⟨0| ⊗ Id (2^n)))
+      by (show_wf_safe; auto).
+  assert (pf1' : WF_Matrix (1 * 2^n) (2 * 2^n) (⟨1| ⊗ Id (2^n)))
+      by (show_wf_safe; auto).
+  destruct g; simpl; unfold super; try (show_wf_safe; try omega; fail).
+  specialize (WF_unitary u); intros wf_u.
+    show_wf_safe; try omega. 
+Qed.
+Hint Resolve WF_denote_gate.
 
 
 Lemma denote_gate_correct : forall {W1} {W2} (g : Gate W1 W2), 
@@ -127,7 +161,7 @@ Fixpoint swap_list_aux (n : nat) (l : list (nat * nat)) : Square  (2^n) :=
   | cons (a,b) xs => swap_two n a b × swap_list_aux n xs
   end. 
 
-Definition swap_list (n : nat) (l : list nat) := swap_list_aux n (zip_to 0 n l). 
+Definition swap_list (n : nat) (l : list nat) : Square (2^n) := swap_list_aux n (zip_to 0 n l). 
 
 Lemma swap_list_swap : swap_list 2 [S O] = swap.
 Proof.
@@ -303,7 +337,8 @@ Proof.
 Qed.
 
 Definition denote_pat_in Γ' {Γ W} (p : Pat Γ W): Matrix (2^〚Γ ⋓ Γ'〛) (2^〚W〛 * 2^〚Γ'〛):=
-    swap_list (〚Γ'〛) (pat_to_list p).
+    swap_list (〚Γ ⋓ Γ'〛) (pat_to_list p).
+
 
 Instance Denote_Pat {Γ W} : Denote (Pat Γ W) (Matrix (2^〚Γ〛) (2^〚W〛)) := 
    {| denote := denote_pat_in ∅ |}.
@@ -319,16 +354,17 @@ Fixpoint denote_flat_circuit {Γ W} (C : Flat_Circuit Γ W)
     compose_super (super (denote_pat_in Γ p2)†) (
                   (* Superoperator (2^〚W1〛 * 2^Γ) (2^〚W2〛 * 2^Γ) *)
     compose_super (denote_gate' (〚Γ〛) g) (
-                  (* Superoperator (2^Γ1 * 2^Γ) (2^W1 * 2^Γ) *)
+                  (* Superoperator (2^(Γ1⋓Γ)) (2^W1 * 2^Γ) *)
                   (super (denote_pat_in Γ p1)))))
 
   | flat_lift Γ1 Γ2 _ w _ _ _ p f => 
-     let supers   : interpret w -> Superoperator (2 ^ 〚w〛 * (2^〚Γ2〛)) (2^〚Γ2〛)
-                  := fun x => compose_super (super ((kets x)† ⊗ Id (2^〚Γ2〛))) 
-                              (denote_flat_circuit (f x)) in
+     let supers   : interpret w -> Superoperator (2^〚Γ1 ⋓ Γ2〛) (2^〚Γ2〛)
+                  := fun x => compose_super (denote_flat_circuit (f x)) (
+                              compose_super (super ((kets x)† ⊗ Id (2^〚Γ2〛)))
+                                            (super (denote_pat_in Γ2 p)))
+     in
      let branches := map supers (get_interpretations w) in
-     compose_super (fold_left Splus branches SZero)
-                   (super (denote_pat_in Γ2 p))
+     fold_left Splus branches SZero
   end.
 
 (* Old version, using apply_gate:
@@ -350,15 +386,14 @@ Instance Denote_Flat_Circuit Γ W
     {| denote := denote_flat_circuit |}.
 Instance Denote_Flat_Circuit_Correct Γ W : Denote_Correct (Denote_Flat_Circuit Γ W):=
     {| correctness := WF_Superoperator |}.
-Proof.
 Admitted.
 
+Print flat_box.
 Definition denote_flat_box {W1 W2} (b : Flat_Box W1 W2) 
                            : Superoperator (2^〚W1〛) (2^〚W2〛) :=
   match b with
-  | flat_box _ _ _ p C => let l := pat_to_list p in
-                          compose_super (denote_flat_circuit C)
-                                        (super (swap_list (〚W1〛) l)†)
+  | flat_box _ _ _ p C => compose_super (denote_flat_circuit C)
+                                        (super (denote_pat_in ∅ p)†)
                                         
   end.
 
@@ -396,17 +431,16 @@ Ltac destruct1 :=
   end.
 Ltac destruct_Csolve := repeat (destruct1; try Csolve).
 
+(*Set Printing All.*)
+(* Unset Printing Notations.*)
 Lemma Ex' : InitT' = (|1⟩⟨1| : Density 2).
 Proof.
   unfold InitT', I1. 
   simpl.
-  unfold compose_super, super, swap_list, swap_two, denote_pat_in, swap_list. simpl.
+  unfold compose_super, super, swap_list, swap_two, denote_pat_in, swap_list, swap_two. simpl.
+  unfold swap_two; simpl.
   Msimpl. 
-  prep_matrix_equality.
-  unfold Mmult, ket1, conj_transpose, Id. simpl.
-  Csimpl.
-  destruct_Csolve.
-Admitted.
+Qed.
 
 Definition even_toss : Matrix 2 2 :=
   fun x y => match x, y with
@@ -422,12 +456,10 @@ Proof.
   repeat (unfold compose_super, super, swap_list, swap_two, pad, apply_new0, apply_U, apply_meas, denote_pat_in; simpl).
   Msimpl.
   prep_matrix_equality.
-(*
   unfold even_toss, ket0, ket1, Mplus, Mmult, conj_transpose.
   Csimpl.
   destruct x, y; Csimpl; destruct_Csolve. Csolve.
-Qed.*)
-Admitted.
+Qed.
 
 Definition Flat_Equiv {W1 W2} (b1 b2 : Flat_Box W1 W2) :=
   forall ρ, WF_Matrix (2^〚W1〛) (2^〚W1〛) ρ -> 〚b1〛 ρ = 〚b2〛 ρ.
@@ -441,13 +473,10 @@ Proof.
   simpl in *.
   repeat (unfold apply_U, compose_super, super, swap_list, swap_two, pad, denote_pat_in; simpl).
   Msimpl.
-  rewrite conj_transpose_involutive. 
-(*
   repeat rewrite Mmult_assoc; rewrite inv.
   repeat rewrite <- Mmult_assoc; rewrite inv.
   Msimpl.
-Qed. *)
-Admitted.
+Qed.
 
 Lemma fresh_pat_empty : forall W, pat_to_list (fresh_pat ∅ W) = seq 0 (〚W〛).
 Admitted.
@@ -455,20 +484,27 @@ Lemma size_fresh_ctx : forall Γ_in W, size_OCtx (fresh_ctx Γ_in W) = 〚W〛.
 Admitted.
 Hint Rewrite size_fresh_ctx.
 
-(* To Do: *)
 Lemma unitary_trans_id' : forall W (U : Unitary W) (ρ : Density (2^〚W〛 )), 
   WF_Matrix (2^〚W〛) (2^〚W〛) ρ -> 〚U_U_trans U〛 ρ = 〚@id_circ W〛 ρ.
 Proof.
   intros W U ρ pf_ρ. 
   Msimpl.
   unfold super, compose_super, denote_pat_in; simpl.
+  repeat rewrite merge_nil_r.
   repeat rewrite size_fresh_ctx.
   repeat rewrite fresh_pat_empty.
   repeat rewrite swap_list_n_id.
-  specialize (unitary_gate_unitary U). unfold is_unitary. simpl. intros [_ H]. 
-  repeat Msimpl1.
-  prep_matrix_equality.
-Abort.
+  specialize (WF_unitary U); intros wf_U.
+  specialize (unitary_gate_unitary U). unfold is_unitary. simpl. intros [_ unitary_U].
+  rewrite conj_transpose_involutive. 
+  rewrite mult_1_r. (* Rewrite implicit arguments *)
+  Msimpl. 
+  repeat rewrite Mmult_assoc.
+  rewrite unitary_U.
+  repeat rewrite <- Mmult_assoc.
+  rewrite unitary_U.
+  Msimpl.
+Qed.
 
 (****************** HOAS ********************)
 
@@ -494,10 +530,9 @@ Lemma Ex'' : 〚init true〛 I1 = (|1⟩⟨1| : Density 2).
 Proof.
   unfold I1. 
   simpl.
-  unfold compose_super, super, swap_list, swap_two. simpl.
-  unfold swap_two, apply_new1, super; simpl.
+  repeat (unfold compose_super, super, swap_list, swap_two, denote_pat_in; simpl).
   Msimpl.
-Admitted. 
+Qed.
 
 Definition HOAS_Equiv {W1 W2} (b1 b2 : Box W1 W2) :=
   forall ρ, WF_Matrix (2^〚W1〛) (2^〚W1〛) ρ -> 〚b1〛 ρ = 〚b2〛 ρ.
@@ -512,23 +547,44 @@ Proof.
   simpl in *.
   repeat (unfold apply_U, compose_super, super, swap_list, swap_two, pad, denote_pat_in; simpl).
   Msimpl.
-  rewrite conj_transpose_involutive. 
   repeat rewrite Mmult_assoc; try rewrite inv.
   repeat rewrite <- Mmult_assoc; try rewrite inv.
   Msimpl.
-Admitted.
+Qed.
 
-Lemma flip_toss'' : 〚coin_flip〛 I1  = even_toss.
-(*Proof.
+Lemma unitary_trans_id : forall W (U : Unitary W) (ρ : Density (2^〚W〛 )), 
+  WF_Matrix (2^〚W〛) (2^〚W〛) ρ -> 〚U_U_trans U〛 ρ = 〚@id_circ W〛 ρ.
+Proof.
+  intros W U ρ pf_ρ. 
+  Msimpl.
+  unfold super, compose_super, denote_pat_in; simpl.
+  repeat rewrite merge_nil_r.
+  repeat rewrite size_fresh_ctx.
+  repeat rewrite fresh_pat_empty.
+  repeat rewrite swap_list_n_id.
+  specialize (WF_unitary U); intros wf_U.
+  specialize (unitary_gate_unitary U). unfold is_unitary. simpl. intros [_ unitary_U].
+  rewrite conj_transpose_involutive. 
+  rewrite mult_1_r. (* Rewrite implicit arguments *)
+  Msimpl. 
+  repeat rewrite Mmult_assoc.
+  rewrite unitary_U.
+  repeat rewrite <- Mmult_assoc.
+  rewrite unitary_U.
+  Msimpl.
+Qed.
+
+Lemma flip_toss : 〚coin_flip〛 I1  = even_toss.
+Proof.
   simpl.
-  repeat (unfold compose_super, super, swap_list, swap_two, pad, apply_new0, apply_U, apply_meas; simpl).
+  repeat (unfold compose_super, super, swap_list, swap_two, pad, apply_new0, apply_U, apply_meas,
+          denote_pat_in; simpl).
   Msimpl. 
   prep_matrix_equality.
   unfold even_toss, ket0, ket1, Mplus, Mmult, conj_transpose.
   Csimpl.
   destruct x, y; Csimpl; destruct_Csolve. Csolve.
-Qed.*)
-Admitted.
+Qed.
 
 
 Program Lemma compose_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2),
@@ -539,43 +595,50 @@ Lemma boxed_gate_correct : forall W1 W2 (g : Gate W1 W2) ρ,
       WF_Matrix _ _ ρ -> 〚boxed_gate g〛 ρ = 〚g〛 ρ.
 Proof.
   intros W1 W2 g ρ wf_ρ. simpl.
+  unfold denote_pat_in.
   repeat rewrite merge_nil_r.
   repeat rewrite size_fresh_ctx.
   repeat rewrite fresh_pat_empty.
   repeat rewrite swap_list_n_id.
   unfold super, compose_super.
+  repeat rewrite mult_1_r.
+  assert (wf_g : WF_Matrix (2^〚W2〛) (2^〚W2〛) (〚g〛 ρ)).
+    generalize (WF_denote_gate 0 _ _ g ρ); intros.
+    simpl in *. repeat rewrite mult_1_r in *. unfold denote_gate. apply (H wf_ρ).
   Msimpl.
-Admitted.  
+Qed.
 
 
-Lemma conj_transpose_Mmult : forall m n o (A : Matrix m n) (B : Matrix n o),
-      (A × B)† = B† × A†.
-Admitted.  
-  
+
 Lemma lift_meas_correct : forall ρ, WF_Matrix _ _ ρ
       -> 〚lift_meas〛 ρ = 〚boxed_gate meas〛 ρ.
 Proof.
   intros ρ wf_ρ.
   simpl.
-  repeat rewrite swap_list_n_id.
+  repeat (unfold denote_pat_in, swap_list, swap_two; simpl).
   Msimpl.
   unfold super, compose_super, Splus, SZero.
   Msimpl.
-  repeat rewrite conj_transpose_Mmult.
-  repeat rewrite conj_transpose_involutive.
+  rewrite braket0_conj_transpose, braket1_conj_transpose.
   prep_matrix_equality; simpl.
-  unfold Mplus, Mmult. simpl.
-Admitted.
+  unfold Mplus, Mmult, Id, conj_transpose, Zero. simpl.
+  Csimpl. rewrite Cplus_comm. reflexivity.
+Qed.
 
 
-Lemma lift_eta_correct : forall W ρ, WF_Matrix _ _ ρ
-      -> 〚lift_eta W〛 ρ = 〚@id_circ W〛 ρ.
-Proof.
-  intros W ρ wf_ρ.
+Lemma lift_eta_correct : forall ρ, WF_Matrix _ _ ρ
+      -> 〚lift_eta Bit〛 ρ = 〚@id_circ Bit〛 ρ.
+Abort (* This is only true if ρ is a classical state *).
+(* Proof.
+  intros ρ wf_ρ.
   simpl.
-  repeat rewrite size_fresh_ctx.
-  repeat rewrite fresh_pat_empty.
-  repeat rewrite swap_list_n_id.
+  repeat (unfold denote_pat_in, swap_list, swap_two; simpl).
   Msimpl.
-  unfold super, compose_super. Msimpl.
-Admitted.
+  unfold super, compose_super, Splus, SZero. 
+  Msimpl.
+  prep_matrix_equality.
+  unfold Mmult, Mplus, Zero, conj_transpose, ket0, ket1. simpl.
+  Csimpl.
+  destruct x; Csimpl. 
+  destruct y; Csimpl.
+*)

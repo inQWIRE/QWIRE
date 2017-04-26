@@ -422,7 +422,7 @@ Definition U_U_trans {W} (U : Unitary W) : Box W W.
   ).
 Defined.
 
-Definition unlift {W} (x : interpret W) : Box One W.
+Definition prepare_basis {W} (x : interpret W) : Box One W.
 Proof.
   induction W.
   - exact (boxed_gate (if x then init0 else init1)).
@@ -438,7 +438,7 @@ Defined.
 Definition lift_eta W : Box W W.
   box_ (fun q => 
     lift_ x ← q;
-    unbox (unlift x) ()).
+    unbox (prepare_basis x) ()).
 Defined.
 
 Definition lift_meas : Box Qubit Bit.

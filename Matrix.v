@@ -758,6 +758,11 @@ Proof. reflexivity. Qed.
 Lemma conj_mult_dist : forall (x y : C), Cconj (x * y) = (Cconj x * Cconj y)%C.
 Proof. intros x y. clra. Qed.
   
+Lemma Mmult_conj_transpose : forall m n o (A : Matrix m n) (B : Matrix n o),
+      (A × B)† = B† × A†.
+Admitted.  
+
+
 Lemma kron_conj_transpose : forall {m n o p : nat} (A : Matrix m n) (B : Matrix o p ),
   (A ⊗ B)† = A† ⊗ B†.
 Proof. 
@@ -846,6 +851,7 @@ Ltac Msimpl1 :=
   repeat rewrite Mmult_1_r; 
   repeat rewrite id_conj_transpose_eq;
   repeat rewrite id_conj_transpose_eq; 
+  repeat rewrite conj_transpose_involutive;
   try show_wf_safe; try omega.
 Ltac Msimpl := simpl; repeat Msimpl1.
 

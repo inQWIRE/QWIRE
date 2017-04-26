@@ -233,6 +233,12 @@ Proof. show_wf. Qed.
 Hint Resolve WF_braket1.
 Hint Resolve WF_braket0.
 
+Lemma braket0_conj_transpose : |0⟩⟨0|† = |0⟩⟨0|.
+Admitted.
+Lemma braket1_conj_transpose : |1⟩⟨1|† = |1⟩⟨1|.
+Admitted.
+
+
 Lemma WF_control : forall {n} (U : Matrix n n), 
       WF_Matrix n n U -> WF_Matrix (2* n) (2*n) (control U).
 Proof.
