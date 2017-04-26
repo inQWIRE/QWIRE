@@ -78,15 +78,20 @@ Tactic Notation (at level 0) "make_circ" uconstr(C) := refine C; type_check.
 Tactic Notation (at level 0) "box_f" uconstr(p) uconstr(C) := 
   refine (flat_box p C); type_check.
 
-Ltac new_pat p W Γ v := 
+Ltac new_pat p W Γ := 
     let Γ' := fresh "Γ" in
-    let v' := fresh "v" in
-    let v'' := fresh "v" in
+    let v1 := fresh "v" in
+    let v2 := fresh "v" in 
+    let v3 := fresh "v" in 
 (*    let Eq := fresh "Eq" in *)
-    set (p := fresh_pat Γ W v);
+    set (p := fresh_pat Γ W);
     set (Γ' := fresh_ctx Γ W);
-    set (v' := fresh_ctx_valid W Γ v);
-    set (v'' := fresh_ctx_merge_valid W Γ v).
+    generalize (fresh_ctx_valid W Γ); intros v1;
+    try (assert (v2 : is_valid Γ) by validate;
+         generalize (fresh_ctx_merge_valid W Γ v2); intros v3).
+
+(*    set (v' := fresh_ctx_valid W Γ v);
+    set (v'' := fresh_ctx_merge_valid W Γ v). *)
 (*    apply disjoint_valid in v''; trivial; try apply valid_empty.*)
 Print flat_gate.
 Notation gate g p1 p2 C := (flat_gate g p1 p2 C).
@@ -103,20 +108,20 @@ Notation "( x , y , .. , z )" := (pair _ _ _ _ _ _ _ .. (pair _ _ _ _ _ _ _ x y)
 
 
 Definition id_circ {W} : Flat_Box W W.
-  new_pat p W ∅ valid_empty.
+  new_pat p W ∅.
   box_f p (output_f p).
 Defined.
 
 Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Flat_Box W1 W2.
-  new_pat p W1 ∅ valid_empty.
-  new_pat p' W2 ∅ valid_empty.
+  new_pat p W1 ∅.
+  new_pat p' W2 ∅.
   box_f p (
     gate_f p' ← g @p;
     output_f p'). 
 Defined.
 
 Definition new_discard : Flat_Box One One.
-  new_pat p Bit ∅ valid_empty.
+  new_pat p Bit ∅.
   box_f unit (
     gate_f p    ← new0 @(); 
     gate_f unit ← discard @p;
@@ -124,8 +129,8 @@ Definition new_discard : Flat_Box One One.
 Defined.
 
 Definition init_discard : Flat_Box One One.
-  new_pat q Qubit ∅ valid_empty.
-  new_pat b Bit ∅ valid_empty.
+  new_pat q Qubit ∅.
+  new_pat b Bit ∅.
   box_f () ( 
     gate_f q    ← init0 @();
     gate_f b    ← meas @q;
@@ -134,8 +139,8 @@ Definition init_discard : Flat_Box One One.
 Defined.
 
 Definition hadamard_measure : Flat_Box Qubit Bit.
-  new_pat q Qubit ∅ valid_empty.
-  new_pat b Bit ∅ valid_empty.
+  new_pat q Qubit ∅.
+  new_pat b Bit ∅.
   box_f q ( 
     gate_f q ← H @q;
     gate_f b ← meas @q;
@@ -158,9 +163,9 @@ Defined.
 *)
 
 Definition deutsch (U_f : Gate (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Flat_Box One Qubit.
-  new_pat x Qubit ∅ valid_empty.
-  new_pat y Qubit Γ v.
-  new_pat b Bit (Γ ⋓ Γ0) v2.
+  new_pat x Qubit ∅.
+  new_pat y Qubit Γ.
+  new_pat b Bit (Γ ⋓ Γ0).
   box_f () (
     gate_f x     ← init0 @();
     gate_f x     ← H @x;
@@ -179,8 +184,8 @@ Eval simpl in (init true).
 Eval compute in (init true).
 
 Definition coin_flip : Flat_Box One Bit .
-  new_pat x Qubit ∅ valid_empty.
-  new_pat y Bit ∅ valid_empty.
+  new_pat x Qubit ∅.
+  new_pat y Bit ∅.
   box_f () (
     gate_f x ← init0 @();
     gate_f x ← H @x;
@@ -189,12 +194,13 @@ Definition coin_flip : Flat_Box One Bit .
 Defined.
 
 Definition U_U_trans {W} (U : Unitary W) : Flat_Box W W.
-  new_pat p W ∅ valid_empty.
+  new_pat p W ∅.
   box_f p (
     gate_f p ← U @p;
     gate_f p ← transpose U @p;
     output_f p
   ).
 Defined.
+
 
 (* *)

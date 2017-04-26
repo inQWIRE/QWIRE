@@ -4,21 +4,21 @@ Require Import Program.
 
 Open Scope circ_scope.
 Inductive Flat_Circuit : OCtx -> WType -> Set :=
-| flat_output : forall {ctx ctx' w} {pf : ctx' = ctx}, 
-                Pat ctx w -> Flat_Circuit ctx' w
-| flat_gate   : forall {ctx ctx1 ctx1' ctx2 ctx2'} {w1 w2 w}
-           {m1 : ctx1' = ctx1 ⋓ ctx} {m2 : ctx2' = ctx2 ⋓ ctx}
-           {v1 : is_valid ctx1'} {v2 : is_valid ctx2'},
+| flat_output : forall {Γ Γ' w} {pf : Γ' = Γ}, 
+                Pat Γ w -> Flat_Circuit Γ' w
+| flat_gate   : forall {Γ Γ1 Γ1' Γ2 Γ2'} {w1 w2 w}
+           {m1 : Γ1' = Γ1 ⋓ Γ} {m2 : Γ2' = Γ2 ⋓ Γ}
+           {v1 : is_valid Γ1'} {v2 : is_valid Γ2'},
            Gate w1 w2
-        -> Pat ctx1 w1
-        -> Pat ctx2 w2
-        -> Flat_Circuit ctx2' w
-        -> Flat_Circuit ctx1' w
-| flat_lift  : forall {ctx1 ctx2 ctx w w'}
-         {m : ctx = ctx1 ⋓ ctx2} {v : is_valid ctx},
-         Pat ctx1 w
-      -> (interpret w -> Flat_Circuit ctx2 w')
-      -> Flat_Circuit ctx w'
+        -> Pat Γ1 w1
+        -> Pat Γ2 w2
+        -> Flat_Circuit Γ2' w
+        -> Flat_Circuit Γ1' w
+| flat_lift  : forall {Γ1 Γ2 Γ w w'}
+         {m : Γ = Γ1 ⋓ Γ2} {v : is_valid Γ},
+         Pat Γ1 w
+      -> (interpret w -> Flat_Circuit Γ2 w')
+      -> Flat_Circuit Γ w'
 .
 
 Fixpoint fresh_var (Γ_in : Ctx) : nat :=
@@ -53,16 +53,31 @@ Proof.
   * unfold Disjoint. apply valid_fresh_var.
 Qed.
 
+
+Lemma valid_dec Γ : {is_valid Γ} + {Γ = Invalid}.
+Proof. destruct Γ; [right | left]; auto. apply valid_valid. Defined.
+
+Lemma valid_valid_dec : forall (Γ : Ctx), valid_dec Γ = left (valid_valid Γ).
+Proof.
+  intros. auto.
+Qed.
+
+
 Fixpoint fresh_ctx (Γ_in : OCtx) (W : WType) : OCtx :=
   match W with
   | One   => ∅
   | Qubit => singleton (fresh_var_o Γ_in) Qubit
   | Bit   => singleton (fresh_var_o Γ_in) Bit
   | W1 ⊗ W2 => let Γ1 := fresh_ctx Γ_in W1 in
-               let Γ2 := fresh_ctx (Γ_in ⋓ Γ1) W2 in
+               let Γ1' := if valid_dec Γ_in then (Γ_in ⋓ Γ1) else Γ1 in
+               let Γ2 := fresh_ctx Γ1' W2 in
                Γ1 ⋓ Γ2
   end.
 
+Lemma disjoint_empty_r : forall Γ, Disjoint Γ ∅.
+Admitted.
+
+  
 
 Lemma fresh_ctx_merge_valid : forall W Γ_in, is_valid Γ_in -> is_valid (Γ_in ⋓ fresh_ctx Γ_in W).
 Proof.
@@ -72,35 +87,60 @@ Proof.
   - apply disjoint_valid; [ | auto | apply valid_valid].
     apply disjoint_fresh_var_o.
   - validate.
-  - rewrite merge_assoc.
-    apply IHW2. apply IHW1. auto.
+  - destruct Γ_in as [ | Γ_in]; [absurd (is_valid Invalid); auto; apply not_valid|].
+    rewrite valid_valid_dec.
+    rewrite merge_assoc.
+    apply IHW2.
+    apply IHW1.
+    auto.
 Qed.
 
-Lemma fresh_ctx_valid : forall W Γ_in, is_valid Γ_in -> is_valid (fresh_ctx Γ_in W).
+Lemma fresh_ctx_invalid : forall W, is_valid (fresh_ctx Invalid W).
+Proof.
+  induction W; try apply valid_valid.
+  simpl. destruct IHW1 as [ Γ1 H]. rewrite H.
+  apply fresh_ctx_merge_valid. apply valid_valid.
+Qed.
+
+Lemma fresh_ctx_valid : forall W Γ_in, is_valid (fresh_ctx Γ_in W).
 Proof.
   intros.
+  destruct (valid_dec Γ_in) as [H | H]; [ | rewrite H; apply fresh_ctx_invalid].
   apply (fresh_ctx_merge_valid W) in H.
   apply valid_split_basic in H. 
   destruct H; auto.
 Qed.
 
 
-Program Fixpoint fresh_pat (Γ_in : OCtx) (W : WType) (pf : is_valid Γ_in) : Pat (fresh_ctx Γ_in W) W :=
+Program Fixpoint fresh_pat (Γ_in : OCtx) (W : WType) : Pat (fresh_ctx Γ_in W) W :=
   match W with
   | One     => unit
   | Qubit   => qubit (fresh_var_o Γ_in) _ _
   | Bit     => bit (fresh_var_o Γ_in) _ _
-  | W1 ⊗ W2 => let p1 := fresh_pat Γ_in W1 _ in
-               let p2 := fresh_pat (Γ_in ⋓ fresh_ctx Γ_in W1) W2 _ in
+  | W1 ⊗ W2 => let p1 := fresh_pat Γ_in W1 in
+               let Γ1' := if valid_dec Γ_in 
+                          then Γ_in ⋓ fresh_ctx Γ_in W1
+                          else fresh_ctx Γ_in W1 in
+               let p2 := fresh_pat Γ1' W2 in
                pair _ _ _ _ _ _ _ p1 p2
   end.
 Next Obligation. apply singleton_singleton. Defined.
 Next Obligation. apply singleton_singleton. Defined.
-Next Obligation.  apply fresh_ctx_merge_valid; auto. Defined.
-Next Obligation.
-  assert (H : is_valid (Γ_in ⋓ fresh_ctx Γ_in W1 ⋓ fresh_ctx (Γ_in ⋓ fresh_ctx Γ_in W1) W2))
-    by (repeat apply fresh_ctx_merge_valid; auto).
-  validate.
+Next Obligation. destruct Γ_in as [ | Γ_in]; simpl.
+  - apply fresh_ctx_merge_valid. apply fresh_ctx_invalid.
+  - assert (H : is_valid (fresh_ctx Γ_in W1)) by apply fresh_ctx_valid.
+    destruct H as [ Γ H]. rewrite H.
+    replace (merge' Γ_in Γ) with (Γ_in ⋓ Γ); auto.
+    assert (H' : is_valid (Γ_in ⋓ Γ)).
+    {
+      rewrite <- H.
+      apply fresh_ctx_merge_valid.
+      apply valid_valid.
+    }
+    apply (fresh_ctx_merge_valid W2) in H'.
+    rewrite <- merge_assoc in H'.
+    apply valid_split_basic in H'.
+    destruct H'; auto.
 Defined.
 
 (* 
@@ -150,7 +190,7 @@ Proof.
       destruct Γ as [ | Γ]; [rewrite merge_I_r in eq1; inversion eq1 | ].
       apply valid_valid.
     }
-    set (p2 := fresh_pat Γ W2 valid0).
+    set (p2 := fresh_pat Γ W2).
     assert (valid2' : is_valid (Γ ⋓ fresh_ctx Γ W2)).
     { apply fresh_ctx_merge_valid; auto. }
     assert (c' : Flat_Circuit (fresh_ctx Γ W2 ⋓ Γ) W).
@@ -170,10 +210,11 @@ Inductive Flat_Box : WType -> WType -> Set :=
 Definition from_HOAS_Box {W1 W2} (b : Box W1 W2) : Flat_Box W1 W2.
   destruct b as [W1 W2 b].
 (*  destruct (fresh_pat ∅ W1) as [Γ [[valid_Γ _] p]]; [apply valid_valid | ].*)
-  set (p := fresh_pat ∅ W1 (valid_valid [])).
+  set (p := fresh_pat ∅ W1).
   apply (flat_box p (from_HOAS (b _ p))).
 Defined.
 
 Close Scope circ_scope.
+
 
 (* *)

@@ -19,6 +19,7 @@ Inductive Circuit : OCtx -> WType -> Set :=
 .
 
 
+
 (*
 Inductive Circuit : OCtx -> WType -> Set :=
 | output : forall {ctx ctx' w}, ctx' = ctx -> Pat ctx w -> Circuit ctx' w
@@ -73,7 +74,7 @@ Ltac validate :=
   | [|- is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) ]   => apply valid_join; validate
   end).
 
-Require Program. Print lift.
+Require Program. 
 Arguments gate Γ Γ1 {Γ1' w1 w2 w v1 m1}. 
 Arguments lift Γ1 Γ2 {Γ w w' v m}.
 Program Fixpoint compose Γ1 {Γ1'} {W} (c : Circuit Γ1 W) {Γ W'} 
@@ -95,7 +96,7 @@ Next Obligation. monoid. Defined.
 Next Obligation. validate. Defined.
 Arguments gate {Γ Γ1 Γ1' w1 w2 w v1 m1}. 
 Arguments lift {Γ1 Γ2 Γ w w' v m}.
-Arguments compose {Γ1 Γ1' W c Γ W' v1 m1}.
+Arguments compose {Γ1 Γ1' W} c {Γ W' v1 m1}.
 
 
 (* Automation *)

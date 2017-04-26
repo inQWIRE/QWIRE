@@ -839,16 +839,15 @@ Proof.
 Admitted.
 *)
 
-Ltac Msimpl := 
-  simpl; 
-  repeat (
-  try rewrite kron_1_l;
-  try rewrite kron_1_r;
-  try rewrite Mmult_1_l; 
-  try rewrite Mmult_1_r; 
-  try rewrite id_conj_transpose_eq;
-  try rewrite id_conj_transpose_eq); 
+Ltac Msimpl1 := 
+  repeat rewrite kron_1_l;
+  repeat rewrite kron_1_r;
+  repeat rewrite Mmult_1_l; 
+  repeat rewrite Mmult_1_r; 
+  repeat rewrite id_conj_transpose_eq;
+  repeat rewrite id_conj_transpose_eq; 
   try show_wf_safe; try omega.
+Ltac Msimpl := simpl; repeat Msimpl1.
 
 
 

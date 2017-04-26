@@ -422,5 +422,41 @@ Definition U_U_trans {W} (U : Unitary W) : Box W W.
   ).
 Defined.
 
+Definition unlift {W} (x : interpret W) : Box One W.
+Proof.
+  induction W.
+  - exact (boxed_gate (if x then init0 else init1)).
+  - exact (boxed_gate (if x then new0 else new1)).
+  - exact id_circ.
+  - box_ (fun _ =>
+          let (x1,x2) := x in
+          let_ p1 ← unbox (IHW1 x1) ();
+          let_ p2 ← unbox (IHW2 x2) ();
+          output (p1,p2)).
+Defined.
+
+Definition lift_eta W : Box W W.
+  box_ (fun q => 
+    lift_ x ← q;
+    unbox (unlift x) ()).
+Defined.
+
+Definition lift_meas : Box Qubit Bit.
+  box_ (fun q =>
+    lift_ x ← q; _).
+  make_circ (
+    gate_ p ← (if x then new1 else new0) @();
+    output p
+  ).
+Defined.
+(* 
+  box_ (fun q =>
+    lift_ x ← q;
+    gate_ p ← (if x then new1 else new0) @();
+    output p
+  ).
+*)
+
+
 Close Scope circ_scope.
 (* *)
