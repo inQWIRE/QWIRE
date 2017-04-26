@@ -204,8 +204,8 @@ Defined.
 
 
 Inductive Flat_Box : WType -> WType -> Set :=
-| flat_box : forall {w1 w2} {ctx},
-             Pat ctx w1 -> Flat_Circuit ctx w2 -> Flat_Box w1 w2
+| flat_box : forall {w1 w2} {Γ},
+             Pat Γ w1 -> Flat_Circuit Γ w2 -> Flat_Box w1 w2
 .
 Definition from_HOAS_Box {W1 W2} (b : Box W1 W2) : Flat_Box W1 W2.
   destruct b as [W1 W2 b].

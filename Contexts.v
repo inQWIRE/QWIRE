@@ -684,14 +684,14 @@ Defined.
 
 Inductive Pat : OCtx -> WType -> Set :=
 | unit : Pat ∅ One
-| qubit : forall x ctx, (SingletonCtx x Qubit ctx) -> Pat ctx Qubit 
-| bit : forall x ctx, (SingletonCtx x Bit ctx) -> Pat ctx Bit 
-| pair : forall ctx1 ctx2 ctx w1 w2,
-        is_valid ctx 
-      -> ctx = ctx1 ⋓ ctx2
-      -> Pat ctx1 w1
-      -> Pat ctx2 w2
-      -> Pat ctx (Tensor w1 w2).
+| qubit : forall x Γ, (SingletonCtx x Qubit Γ) -> Pat Γ Qubit 
+| bit : forall x Γ, (SingletonCtx x Bit Γ) -> Pat Γ Bit 
+| pair : forall Γ1 Γ2 Γ w1 w2,
+        is_valid Γ 
+      -> Γ = Γ1 ⋓ Γ2
+      -> Pat Γ1 w1
+      -> Pat Γ2 w2
+      -> Pat Γ (Tensor w1 w2).
 
 Lemma pat_ctx_valid : forall Γ W, Pat Γ W -> is_valid Γ.
 Proof. intros Γ W p. unfold is_valid. inversion p; eauto. Qed.

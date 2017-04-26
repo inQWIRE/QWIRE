@@ -9,6 +9,8 @@ Require Import FlatCircuits.
 Import ListNotations.
 Open Scope list_scope.
 
+Module F.
+
 (** Projecting out elements of tensors **)
 
 Inductive sigT23 (A:Type) (P Q R : A -> A -> Type) : Type :=
@@ -93,7 +95,7 @@ Ltac new_pat p W Γ :=
 (*    set (v' := fresh_ctx_valid W Γ v);
     set (v'' := fresh_ctx_merge_valid W Γ v). *)
 (*    apply disjoint_valid in v''; trivial; try apply valid_empty.*)
-Print flat_gate.
+
 Notation gate g p1 p2 C := (flat_gate g p1 p2 C).
 Notation output_f p := (flat_output p).
 
@@ -180,9 +182,6 @@ Defined.
 Definition init (b : bool) : Flat_Box One Qubit :=
   if b then boxed_gate init1 else boxed_gate init0.
 
-Eval simpl in (init true).
-Eval compute in (init true).
-
 Definition coin_flip : Flat_Box One Bit .
   new_pat x Qubit ∅.
   new_pat y Bit ∅.
@@ -193,7 +192,7 @@ Definition coin_flip : Flat_Box One Bit .
     output_f y).
 Defined.
 
-Definition U_U_trans {W} (U : Unitary W) : Flat_Box W W.
+Definition unitary_transpose {W} (U : Unitary W) : Flat_Box W W.
   new_pat p W ∅.
   box_f p (
     gate_f p ← U @p;
@@ -202,5 +201,6 @@ Definition U_U_trans {W} (U : Unitary W) : Flat_Box W W.
   ).
 Defined.
 
+End F.
 
 (* *)

@@ -18,28 +18,6 @@ Inductive Circuit : OCtx -> WType -> Set :=
       -> Circuit Γ w'
 .
 
-
-
-(*
-Inductive Circuit : OCtx -> WType -> Set :=
-| output : forall {ctx ctx' w}, ctx' = ctx -> Pat ctx w -> Circuit ctx' w
-| gate   : forall ctx {ctx1 ctx1'} {w1 w2 w}, 
-          is_valid ctx1'
-        -> ctx1' = ctx1 ⋓ ctx            
-        -> Gate w1 w2
-        -> Pat ctx1 w1
-        -> (forall {ctx2 ctx2'},
-              is_valid ctx2'
-            -> ctx2' = ctx2 ⋓ ctx 
-            -> Pat ctx2 w2 -> Circuit ctx2' w)
-        -> Circuit ctx1' w
-| lift : forall {ctx1 ctx2 ctx w w'},
-         is_valid ctx -> ctx = ctx1 ⋓ ctx2
-      -> Pat ctx1 w
-      -> (interpret w -> Circuit ctx2 w')
-      -> Circuit ctx w'
-. *)
-
 Inductive Box : WType -> WType -> Set :=
 | box : forall {w1} {w2}, 
         (forall {Γ}, Pat Γ w1 -> Circuit Γ w2) -> Box w1 w2.
@@ -75,8 +53,9 @@ Ltac validate :=
   end).
 
 Require Program. 
-Arguments gate Γ Γ1 {Γ1' w1 w2 w v1 m1}. 
-Arguments lift Γ1 Γ2 {Γ w w' v m}.
+
+Arguments gate Γ Γ1 {Γ1' w1 w2 w v1 m1} g p c. 
+Arguments lift Γ1 Γ2 {Γ w w' v m} p _.
 Program Fixpoint compose Γ1 {Γ1'} {W} (c : Circuit Γ1 W) {Γ W'} 
         {v1 : is_valid Γ1'} {m1 : Γ1' = Γ1 ⋓ Γ}
         (f : forall {Γ2 Γ2'} (m2 : Γ2' = Γ2 ⋓ Γ) (v2 : is_valid Γ2'), 
@@ -94,9 +73,9 @@ Next Obligation. validate. Defined.
 Next Obligation. monoid.  Defined.
 Next Obligation. monoid. Defined.
 Next Obligation. validate. Defined.
-Arguments gate {Γ Γ1 Γ1' w1 w2 w v1 m1}. 
-Arguments lift {Γ1 Γ2 Γ w w' v m}.
-Arguments compose {Γ1 Γ1' W} c {Γ W' v1 m1}.
+Arguments gate {Γ Γ1 Γ1' w1 w2 w v1 m1} g p c. 
+Arguments lift {Γ1 Γ2 Γ w w' v m} p _.
+Arguments compose {Γ1 Γ1' W} c {Γ W' v1 m1} f.
 
 
 (* Automation *)
