@@ -50,7 +50,7 @@ Set Printing Coercions.
 
 (* These tactics construct circuits by calling out to type_check *)
 Tactic Notation (at level 0) "make_circ" uconstr(C) := refine C; type_check.
-Tactic Notation (at level 0) "box_"      uconstr(C) := 
+Tactic Notation (at level 0) "box_" uconstr(C) := 
     refine (box (fun _ => C)); type_check.
 
 (* Notations for patterns *)
@@ -126,7 +126,7 @@ Notation "'lift_' x ← c1 ; c2" := (lift_pat x c1 c2)
 
 
 Definition id_circ {W} : Box W W.
-  box_(fun p1 => output p1).
+  box_ (fun p1 => output p1).
 Defined.
 
 

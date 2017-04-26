@@ -478,9 +478,18 @@ Proof.
   Msimpl.
 Qed.
 
+Lemma size_singleton : forall x W, size_Ctx (singleton x W) = 1%nat.
+Proof.
+  induction x; auto.
+Qed.
+
 Lemma fresh_pat_empty : forall W, pat_to_list (fresh_pat ∅ W) = seq 0 (〚W〛).
 Admitted.
 Lemma size_fresh_ctx : forall Γ_in W, size_OCtx (fresh_ctx Γ_in W) = 〚W〛.
+Proof.
+  intros Γ_in W.
+  revert Γ_in.
+  induction W; intros Γ_in; simpl; auto; try apply size_singleton.
 Admitted.
 Hint Rewrite size_fresh_ctx.
 
@@ -526,7 +535,7 @@ Admitted.
  
 Require Import HOASExamples.
 
-Lemma Ex'' : 〚init true〛 I1 = (|1⟩⟨1| : Density 2).
+Lemma Ex : 〚init true〛 I1 = (|1⟩⟨1| : Density 2).
 Proof.
   unfold I1. 
   simpl.
@@ -537,7 +546,7 @@ Qed.
 Definition HOAS_Equiv {W1 W2} (b1 b2 : Box W1 W2) :=
   forall ρ, WF_Matrix (2^〚W1〛) (2^〚W1〛) ρ -> 〚b1〛 ρ = 〚b2〛 ρ.
 
-Lemma unitary_trans_qubit'' : forall (U : Unitary Qubit), forall ρ,
+Lemma unitary_trans_qubit : forall (U : Unitary Qubit), forall ρ,
     WF_Matrix (2^〚Qubit〛) (2^〚Qubit〛) ρ -> 〚U_U_trans U〛ρ = 〚@id_circ Qubit〛ρ.
 Proof.
   intros U ρ pf_ρ.
