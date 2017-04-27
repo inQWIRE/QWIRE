@@ -388,8 +388,22 @@ Proof.
   rewrite app_length. auto.
 Qed.
 
+Fixpoint num_wires_before (Γ : Ctx) i : nat :=
+  match Γ, i with
+  | [], i => i
+  | _, 0 => 0
+  | None :: Γ', S i' => num_wires_before Γ' i'
+  | Some _ :: Γ', S i' => S (num_wires_before Γ' i')
+  end.
+Definition num_wires_before_o (Γ : OCtx) : nat -> nat :=
+  match Γ with
+  | Valid Γ' => num_wires_before Γ'
+  | Invalid => id
+  end.
+
 Definition denote_pat_in Γ' {Γ W} (p : Pat Γ W): Matrix (2^〚Γ ⋓ Γ'〛) (2^〚W〛 * 2^〚Γ'〛):=
-    swap_list (〚Γ ⋓ Γ'〛) (pat_to_list p).
+    let ls := map (num_wires_before_o (Γ ⋓ Γ')) (pat_to_list p) in
+    swap_list (〚Γ ⋓ Γ'〛) ls.
 
 
 Instance Denote_Pat {Γ W} : Denote (Pat Γ W) (Matrix (2^〚Γ〛) (2^〚W〛)) := 
@@ -488,7 +502,7 @@ Lemma Ex' : InitT' = (|1⟩⟨1| : Density 2).
 Proof.
   unfold InitT', I1. 
   simpl.
-  unfold compose_super, super, swap_list, swap_two, denote_pat_in, swap_list, swap_two. simpl.
+  repeat (unfold compose_super, super, swap_list, swap_two, denote_pat_in). simpl.
   unfold swap_two; simpl.
   Msimpl. 
 Qed.
@@ -551,7 +565,9 @@ Proof.
   revert Γ_in.
   induction W; intros Γ_in; simpl; auto; try apply size_singleton.
 Admitted.
-Hint Rewrite size_fresh_ctx.
+Lemma map_num_wires_before : forall W, 
+      map (num_wires_before_o (fresh_ctx ∅ W)) (seq 0 (〚W〛)) = seq 0 (〚W〛).
+Admitted.
 
 Lemma unitary_transpose_id' : forall W (U : Unitary W) (ρ : Density (2^〚W〛 )), 
   WF_Matrix (2^〚W〛) (2^〚W〛) ρ -> 〚F.unitary_transpose U〛 ρ = 〚@F.id_circ W〛 ρ.
@@ -562,6 +578,7 @@ Proof.
   repeat rewrite merge_nil_r.
   repeat rewrite size_fresh_ctx.
   repeat rewrite fresh_pat_empty.
+  repeat rewrite map_num_wires_before.
   repeat rewrite swap_list_n_id.
   specialize (WF_unitary U); intros wf_U.
   specialize (unitary_gate_unitary U). unfold is_unitary. simpl. intros [_ unitary_U].
@@ -630,6 +647,7 @@ Proof.
   repeat rewrite merge_nil_r.
   repeat rewrite size_fresh_ctx.
   repeat rewrite fresh_pat_empty.
+  repeat rewrite map_num_wires_before.
   repeat rewrite swap_list_n_id.
   specialize (WF_unitary U); intros wf_U.
   specialize (unitary_gate_unitary U). unfold is_unitary. simpl. intros [_ unitary_U].
@@ -674,6 +692,7 @@ Proof.
   repeat rewrite merge_nil_r.
   repeat rewrite size_fresh_ctx.
   repeat rewrite fresh_pat_empty.
+  repeat rewrite map_num_wires_before.
   repeat rewrite swap_list_n_id.
   unfold super, compose_super.
   repeat rewrite mult_1_r.
@@ -716,3 +735,48 @@ Abort (* This is only true if ρ is a classical state *).
   destruct x; Csimpl. 
   destruct y; Csimpl.
 *)
+
+Require Import Reals.
+Fixpoint nat_to_R (n : nat) : R :=
+  match n with
+  | 0 => 0
+  | S n' => 1 + nat_to_R n'
+  end.
+Open Scope bool_scope.
+
+Definition flips_mat n : Density (2^1) := 
+(*  fun x y =>
+  if (x =? (2^n)-1) && (y =? (2^n)-1)
+  then  1 / √(nat_to_R (2^n))
+  else 0.
+*)
+  fun x y => match x, y with
+  | 1, 1 => 1 / √(nat_to_R (2^n))
+  | _, _ => 0
+  end.
+
+Lemma flips_mat_0 : flips_mat 0 = |1⟩⟨1|.
+Proof.
+  unfold flips_mat, conj_transpose, Mmult, ket1.
+  prep_matrix_equality; simpl. Csimpl.
+  destruct_Csolve.
+  Csimpl.
+Admitted (* Robert: how to finish this? *).
+     
+
+Lemma flips_correct : forall n, 〚coin_flips n〛 I1 = flips_mat n.
+Proof.
+  induction n; simpl.
+  - Msimpl. repeat (unfold super, compose_super, denote_pat_in, swap_list, swap_two, I1; simpl).
+    Msimpl.
+    prep_matrix_equality. unfold flips_mat; simpl. 
+    unfold Mmult, conj_transpose, ket0, ket1; simpl.
+    Csimpl. 
+    destruct_Csolve. Csimpl. 
+    rewrite Rplus_0_r. rewrite sqrt_1. Csimpl. 
+    admit (* Robert: how to finish this? *).
+  - simpl in *.
+    unfold eq_ind_r; simpl.
+Abort.
+
+
