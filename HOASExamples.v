@@ -400,6 +400,7 @@ Definition lift_eta W : Box W W.
     unbox (prepare_basis x) ()).
 Defined.
 
+(*
 Definition lift_meas : Box Qubit Bit.
   box_ (q ⇒
     lift_ x ← q; _).
@@ -408,6 +409,7 @@ Definition lift_meas : Box Qubit Bit.
     output p
   ).
 Defined.
+*)
 
 (* 
   box_ (q ⇒
@@ -417,6 +419,13 @@ Defined.
   ).
 *)
 
+Definition lift_meas : Box Qubit Bit.
+  make_circ (
+  box (fun Γ (q : Pat Γ Qubit) =>
+    lift_ x ← q;
+    gate_ p ← (if x then new1 else new0) @();
+    output p)).
+Defined.
 
 
 
