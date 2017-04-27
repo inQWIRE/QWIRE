@@ -421,7 +421,7 @@ Defined.
 
 Definition lift_meas : Box Qubit Bit.
   make_circ (
-  box (fun Γ (q : Pat Γ Qubit) =>
+  box (fun _ (q : Pat _ Qubit) =>
     lift_ x ← q;
     gate_ p ← (if x then new1 else new0) @();
     output p)).
