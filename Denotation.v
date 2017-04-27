@@ -156,15 +156,45 @@ Instance Denote_Gate_Correct W1 W2 : Denote_Correct (Denote_Gate W1 W2) :=
     denote_correct := denote_gate_correct
 |}.
 
-Definition zip_to (m n : nat) (l : list nat) := combine (seq m n) l.
+Require Import Recdef.
 
-Fixpoint swap_list_aux (n : nat) (l : list (nat * nat)) : Square  (2^n) :=
-  match l with
-  | nil => Id (2^n)
-  | cons (a,b) xs => swap_two n a b × swap_list_aux n xs
+(* m is to show structural decreasing *)
+Fixpoint swap_list_aux (m n : nat) (l : list (nat * nat)) : Square  (2^n) :=
+  match m with
+  | 0 => Id (2^n)
+  | S m' => match l with
+           | nil => Id (2^n)
+           | cons (a,b) xs => swap_two n a b × 
+             swap_list_aux m' n (map (fun z => if a =? snd z then (fst z, b) else z) xs)
+           end
   end. 
 
-Definition swap_list (n : nat) (l : list nat) : Square (2^n) := swap_list_aux n (zip_to 0 n l). 
+(*
+Function swap_list_aux (n : nat) (l : list (nat * nat)) {measure length l} : Square  (2^n) :=
+  match l with
+  | nil => Id (2^n)
+  | cons (a,b) xs => swap_two n a b × 
+        swap_list_aux n (map (fun z => if a =? snd z then (fst z, b) else z) xs)
+  end. 
+  intros n l p xs a b teq0 teq.
+  rewrite map_length.
+  simpl.
+  apply Nat.lt_succ_diag_r.
+Defined.
+*)
+  
+(* Old and missing remapping:
+Function swap_list_aux (n : nat) (l : list (nat * nat)) {measure length l} : Square  (2^n) :=
+  match l with
+  | nil => Id (2^n)
+  | cons (a,b) xs => swap_two n a b × (swap_list_aux n xs)
+  end. 
+*)
+
+Definition zip_to (m n : nat) (l : list nat) := combine (seq m n) l.
+
+Definition swap_list (n : nat) (l : list nat) : Square (2^n) := 
+  swap_list_aux n n (zip_to 0 n l). 
 
 Lemma swap_list_swap : swap_list 2 [S O] = swap.
 Proof.
@@ -236,13 +266,33 @@ Hint Resolve WF_k0.
 Lemma WF_k1 : WF_Matrix 2 1 |1⟩. Proof. show_wf. Qed.
 Hint Resolve WF_k1.
 
-
-Lemma swap_list_aux_id : forall n l, swap_list_aux n (combine l l) = Id (2 ^ n).
+(* Can also use map_id and map_ext *)
+Lemma map_same_id : forall a l, (map (fun z : nat * nat => if a =? snd z then (fst z, a) else z)
+                                (combine l l)) = combine l l.
 Proof.
-  intros n l.
-  induction l.
-  + simpl. reflexivity.
-  + simpl. rewrite IHl. unfold swap_two. rewrite <- beq_nat_refl. Msimpl.
+  intros a l.
+  induction l. reflexivity.
+  simpl.
+  rewrite IHl.
+  destruct (a =? a0) eqn:eq; try reflexivity.
+  apply beq_nat_true in eq.
+  subst; reflexivity.
+Qed.
+
+Lemma swap_list_aux_id : forall m n l, swap_list_aux m n (combine l l) = Id (2 ^ n).
+Proof.
+  intros m n l.
+  generalize dependent m.
+  induction l; intros m.
+  + simpl. destruct m; reflexivity.
+  + simpl. 
+    destruct m; [reflexivity|].
+    simpl.
+    rewrite map_same_id.
+    rewrite IHl. 
+    unfold swap_two. 
+    rewrite <- beq_nat_refl. 
+    Msimpl.    
 Qed.
 
 Lemma swap_list_n_id : forall n, swap_list n (seq 0 n) = Id (2^n).
@@ -252,7 +302,6 @@ Proof.
   unfold zip_to.
   apply swap_list_aux_id.
 Qed.
-
 
 (* Flat Circuits *)  
 
@@ -451,11 +500,18 @@ Definition even_toss : Matrix 2 2 :=
           | _, _ => 0
           end.
 
+Definition bias_toss (n : C) : Matrix 2 2 :=
+  fun x y => match x, y with
+          | 0, 0 => (1 - n) 
+          | 1, 1 => n
+          | _, _ => 0
+          end.
 
 Lemma flip_toss' : 〚F.coin_flip〛 I1  = even_toss.
 Proof.
   simpl.
-  repeat (unfold compose_super, super, swap_list, swap_two, pad, apply_new0, apply_U, apply_meas, denote_pat_in; simpl).
+  repeat (unfold compose_super, super, swap_list, swap_two, pad, 
+          apply_new0, apply_U, apply_meas, denote_pat_in; simpl).
   Msimpl.
   prep_matrix_equality.
   unfold even_toss, ket0, ket1, Mplus, Mmult, conj_transpose.
@@ -466,7 +522,7 @@ Qed.
 Definition Flat_Equiv {W1 W2} (b1 b2 : Flat_Box W1 W2) :=
   forall ρ, WF_Matrix (2^〚W1〛) (2^〚W1〛) ρ -> 〚b1〛 ρ = 〚b2〛 ρ.
 
-Lemma unitary_trans_qubit' : forall (U : Unitary Qubit), 
+Lemma unitary_transpose_qubit' : forall (U : Unitary Qubit), 
   Flat_Equiv (F.unitary_transpose U) F.id_circ.
 Proof.
   intros U ρ pf_ρ.
@@ -497,7 +553,7 @@ Proof.
 Admitted.
 Hint Rewrite size_fresh_ctx.
 
-Lemma unitary_trans_id' : forall W (U : Unitary W) (ρ : Density (2^〚W〛 )), 
+Lemma unitary_transpose_id' : forall W (U : Unitary W) (ρ : Density (2^〚W〛 )), 
   WF_Matrix (2^〚W〛) (2^〚W〛) ρ -> 〚F.unitary_transpose U〛 ρ = 〚@F.id_circ W〛 ρ.
 Proof.
   intros W U ρ pf_ρ. 
@@ -550,7 +606,7 @@ Qed.
 Definition HOAS_Equiv {W1 W2} (b1 b2 : Box W1 W2) :=
   forall ρ, WF_Matrix (2^〚W1〛) (2^〚W1〛) ρ -> 〚b1〛 ρ = 〚b2〛 ρ.
 
-Lemma unitary_trans_qubit : forall (U : Unitary Qubit), forall ρ,
+Lemma unitary_transpose_id_qubit : forall (U : Unitary Qubit), forall ρ,
     WF_Matrix (2^〚Qubit〛) (2^〚Qubit〛) ρ -> 〚unitary_transpose U〛ρ = 〚@id_circ Qubit〛ρ.
 Proof.
   intros U ρ pf_ρ.
@@ -565,7 +621,7 @@ Proof.
   Msimpl.
 Qed.
 
-Lemma unitary_trans_id : forall W (U : Unitary W) (ρ : Density (2^〚W〛 )), 
+Lemma unitary_transpose_id : forall W (U : Unitary W) (ρ : Density (2^〚W〛 )), 
   WF_Matrix (2^〚W〛) (2^〚W〛) ρ -> 〚unitary_transpose U〛 ρ = 〚@id_circ W〛 ρ.
 Proof.
   intros W U ρ pf_ρ. 
@@ -599,6 +655,12 @@ Proof.
   destruct x, y; Csimpl; destruct_Csolve. Csolve.
 Qed.
 
+(*
+Require Import Reals.
+
+Lemma flip_toss_n : forall n, 〚coin_flips n 〛 I1 = bias_toss (1/(2^n))%C.
+Proof.
+*)
 
 Program Lemma compose_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2),
       〚inSeq f g〛 = compose_super (〚g〛) (〚f〛).
