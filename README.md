@@ -12,22 +12,20 @@ Files in this repository
 ------------------------
 
 *Underlying mathematical libraries*
-	- Matrix.v : Matrix library
-	- Quantum.v : Defines unitary matrices and quantum operations
+- Matrix.v : Matrix library
+- Quantum.v : Defines unitary matrices and quantum operations
 
 *Implementation of QWIRE*
-	- Contexts.v : Defines wire types and typing contexts
-	- HOASCircuits.v : Defines QWIRE circuits using higher-order abstract syntax
-	- HOASExamples.v : Examples using HOAS circuits
-	- FlatCircuits.v : Defines QWIRE circuits using an explicit representation
-      of variable binding
-	- FlatExamples.v : Examples using flat circuits
-	- Denotation.v : Defines denotational semantics of QWIRE circuits and proves
-      correctness of example circuits
+- Contexts.v : Defines wire types and typing contexts
+- HOASCircuits.v : Defines QWIRE circuits using higher-order abstract syntax
+- HOASExamples.v : Examples using HOAS circuits
+- FlatCircuits.v : Defines QWIRE circuits using an explicit representation of variable binding
+- FlatExamples.v : Examples using flat circuits
+- Denotation.v : Defines denotational semantics of QWIRE circuits and proves correctness of example circuits
 	  
 *QASM-like representation of QWIRE*
- 	- MachineCircuits.v : Defines QWIRE circuits in the style of QASM
-	- MachineExamples.v : Examples using machine circuits
+- MachineCircuits.v : Defines QWIRE circuits in the style of QASM
+- MachineExamples.v : Examples using machine circuits
 
 
 
