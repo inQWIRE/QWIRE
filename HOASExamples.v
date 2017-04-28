@@ -49,7 +49,13 @@ Opaque is_valid.
 Set Printing Coercions.
 
 (* These tactics construct circuits by calling out to type_check *)
+
+
 Tactic Notation (at level 0) "make_circ" uconstr(C) := refine C; type_check.
+
+(* Definition I_am_one : nat := ltac:(let x := constr:(2 - 1) in exact x). *)
+
+(* Notation "'bbox' p => C" := ltac:(refine (box (fun Γ p => C)); type_check) (at level 8). *)
 
 Notation "p ⇒ C" := (box (fun _ p => C)) (at level 8).
 
@@ -142,36 +148,36 @@ Definition id_circ {W} : Box W W.
 Defined.
 
 Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Box W1 W2.
-  box_ p ⇒ (  
+  box_ p ⇒   
     gate_ p2 ← g @ p;
-    output p2).
+    output p2.
 Defined.
 
 (* TODO: fix these bugs! *)
 Definition new_discard : Box One One.
-  box_ (_ ⇒ 
+  box_ _ ⇒ 
     gate_ b ← new0 @ ();
     gate_ _ ← discard @ b;
-    output ()). 
+    output (). 
 Defined.
 
 Definition init_discard : Box One One.
-  box_ (_ ⇒ 
+  box_ _ ⇒ 
     gate_ q ← init0 @ ();
     gate_ b ← meas @ q;
     gate_ _ ← discard @ b;
-    output () ). 
+    output (). 
 Defined.
 
 Definition hadamard_measure : Box Qubit Bit.
-  box_ (q ⇒ 
+  box_ q ⇒ 
     gate_ q ← H @ q;
     gate_ b ← meas @ q;
-    output b).
+    output b.
 Defined.
 
 Definition deutsch (U_f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Qubit.
-  box_ (_ ⇒ 
+  box_ _ ⇒ 
     gate_ x ← init0 @ ();
     gate_ x ← H @ x;
     gate_ y ← init1 @ ();
@@ -179,18 +185,18 @@ Definition deutsch (U_f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Qub
     let_ (x,y) ← unbox U_f (x,y);
     gate_ x ← meas @ x;
     gate_ x ← discard @ x;
-    output y).
+    output y.
 Defined.
 
 Definition lift_deutsch (U_f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Qubit.
-  box_ (_ ⇒
+  box_ _ ⇒
     gate_ x    ← init0 @ ();
     gate_ x    ← H @ x;
     gate_ y    ← init1 @ ();
     gate_ y    ← H @ y;
     let_ (x,y) ← unbox U_f (x,y);
     lift_ _    ← x;
-    output y).
+    output y.
 Defined.
 
 
@@ -199,43 +205,38 @@ Definition init (b : bool) : Box One Qubit :=
   if b then boxed_gate init1 else boxed_gate init0.
 
 Definition inSeq {W1 W2 W3} (c1 : Box W1 W2) (c2 : Box W2 W3) : Box W1 W3. 
-  box_ (p1 ⇒ 
+  box_ p1 ⇒ 
     let_ p2 ← unbox c1 p1;
-    unbox c2 p2).
+    unbox c2 p2.
 Defined.
 
 Definition inPar {W1 W2 W1' W2'} (c1 : Box W1 W1') (c2 : Box W2 W2') 
                                  : Box (W1⊗W2) (W1'⊗W2').
-  box_ (p12 ⇒ 
+  box_ p12 ⇒ 
     let_ (p1,p2) ← output p12; 
     let_ p1'     ← unbox c1 p1;
     let_ p2'     ← unbox c2 p2; 
-    output (p1',p2')).
+    output (p1',p2').
 Defined. 
-
-(* Flip *)
-
-
-
 
 (** Teleport **)
 
 Definition bell00 : Box One (Qubit ⊗ Qubit).
-  box_ (_ ⇒  
+  box_ _ ⇒  
     gate_ a ← init0 @();
     gate_ b ← init0 @();
     gate_ a ← H @a;
     gate_ z ← CNOT @(a,b);
-    output z).
+    output z.
 Defined.
 
 Definition alice : Box (Qubit⊗Qubit) (Bit⊗Bit).
-  box_ (qa ⇒ 
+  box_ qa ⇒ 
     gate_ (q,a) ← CNOT @qa;
     gate_ q     ← H @q;
     gate_ x     ← meas @q;
     gate_ y     ← meas @a;
-    output (x,y)).
+    output (x,y).
 Defined.
 
 Definition bob' : Box (Bit ⊗ (Bit ⊗ Qubit)) Qubit.
@@ -249,27 +250,27 @@ Definition bob' : Box (Bit ⊗ (Bit ⊗ Qubit)) Qubit.
 Defined.
 
 Definition bob : Box (Bit⊗Bit⊗Qubit) Qubit.
-  box_ (xyb ⇒ 
+  box_ xyb ⇒ 
     let_ ((x,y),b) ← output xyb ; 
     gate_ (y,b)  ← bit_ctrl σx @(y,b);
     gate_ (x,b)  ← bit_ctrl σz @(x,b);
     gate_ _      ← discard @y ;   
     gate_ _      ← discard @x ;
-    output b).
+    output b.
 Defined.
 
 Definition teleport' : Box Qubit Qubit.
-  box_ (q ⇒
+  box_ q ⇒
     let_ (a,b) ← unbox bell00 () ;
     let_ (x,y) ← unbox alice (q,a) ;
-    unbox bob' (x,(y,b))).
+    unbox bob' (x,(y,b)).
 Defined.
 
 Definition teleport : Box Qubit Qubit.
-  box_ (q ⇒
+  box_ q ⇒
     let_ (a,b) ← unbox bell00 () ;
     let_ (x,y) ← unbox alice (q,a) ;
-    unbox bob (x,y,b)).
+    unbox bob (x,y,b).
 Defined.
 
 (* Right associative Tensor *)
@@ -351,16 +352,16 @@ Definition qft (n : nat) : Box (n ⨂ Qubit) (n ⨂ Qubit) :=
 (** Coin flip **)
 
 Definition coin_flip : Box One Bit.
-  box_ (_ ⇒
+  box_ _ ⇒
     gate_ q  ← init0 @();
     gate_ q  ← H @q;
     gate_ b  ← meas @q;
-    output b).
+    output b.
 Defined.
 
 
 Fixpoint coin_flips (n : nat) : Box One Bit.
-  box_ (_ ⇒
+  box_ _ ⇒
   match n with
   | 0    => gate_ x ← new1 @(); output x
   | S n' => let_  c     ← unbox (coin_flips n') ();
@@ -369,16 +370,16 @@ Fixpoint coin_flips (n : nat) : Box One Bit.
             gate_ _     ← discard @c;
             gate_ b     ← meas @q;
             output b
-  end).
+  end.
 Defined.
 
 
 Definition unitary_transpose {W} (U : Unitary W) : Box W W.
-  box_ (p ⇒
+  box_ p ⇒
     gate_ p ← U @p;
     gate_ p ← transpose U @p;
     output p
-  ).
+  .
 Defined.
 
 Definition prepare_basis {W} (x : interpret W) : Box One W.
@@ -395,9 +396,9 @@ Proof.
 Defined.
 
 Definition lift_eta W : Box W W.
-  box_ (q ⇒ 
+  box_ q ⇒ 
     lift_ x ← q;
-    unbox (prepare_basis x) ()).
+    unbox (prepare_basis x) ().
 Defined.
 
 (*
@@ -432,20 +433,20 @@ Defined.
 (** Invalid Circuits **)
 
 Definition absurd_circ : Box Qubit (Bit ⊗ Qubit).
-  box_ (w ⇒ 
+  box_ w ⇒ 
     gate_ x  ← meas @w ;
     gate_ w' ← H @w ;
-    output (x,w')).
+    output (x,w').
 Abort.
 
 Definition unused_qubit : Box Qubit One.
-  box_ (w ⇒ 
+  box_ w ⇒ 
    gate_ w ← H @w ;
-   output () ).
+   output ().
 Abort.
 
 Definition clone W : Box W (W ⊗ W).
-  box_ (p ⇒ (output (p,p))).
+  box_ p ⇒ (output (p,p)).
 Abort.
 
 
