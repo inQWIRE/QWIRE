@@ -57,9 +57,14 @@ Tactic Notation (at level 0) "make_circ" uconstr(C) := refine C; type_check.
 
 (* Notation "'bbox' p => C" := ltac:(refine (box (fun Γ p => C)); type_check) (at level 8). *)
 
-Notation "p ⇒ C" := (box (fun _ p => C)) (at level 8).
+Tactic Notation (at level 0) "box_" uconstr(C) := (refine(C); type_check).
 
-Tactic Notation (at level 0) "box_" uconstr(C) := refine(C); type_check. 
+Notation letpair p1 p2 p c := (let 'existT23 _ _ p1 p2 _ := wproj p in c).
+
+Notation "p ⇒ C" := (box (fun _ p => C)) (at level 8).
+Notation "() ⇒ C" := (box (fun _ _ => C)) (at level 8).
+(*Notation "( x , y ) ⇒ C" := (box (fun _ z => letpair x y z C)) (at level 8).*)
+
 
 (*
 Tactic Notation (at level 0) "box_" ident(p) "=>" uconstr(C) := 
@@ -78,122 +83,122 @@ Notation "( x , y , .. , z )" := (pair _ _ _ _ _ _ _ .. (pair _ _ _ _ _ _ _ x y)
 
 (* Notations for circuits *)
 Notation comp p c1 c2 := (compose c1 (fun _ _ _ _ p => c2)).
-Notation letpair p1 p2 p c := (let 'existT23 _ _ p1 p2 _ := wproj p in c).
 Notation "'let_' p ← c1 ; c2" := (comp p c1 c2)
-                            (at level 10, right associativity) : circ_scope.
+                            (at level 12, right associativity) : circ_scope.
+Notation "'let_' () ← c1 ; c2" := 
+    (compose c1 (fun _ _ _ _ _ => c2)) 
+                            (at level 12, right associativity) : circ_scope.
 Notation "'let_' ( p1 , p2 ) ← c1 ; c2" := 
     (compose c1 (fun _ _ _ _ x => letpair p1 p2 x c2)) 
-                            (at level 10, right associativity) : circ_scope.
+                            (at level 12, right associativity) : circ_scope.
 Notation "'let_' ( p1 , p2 , p3 ) ← c1 ; c2" :=
     (compose c1 (fun _ _ _ _ x => let 'existT23 _ _ y  p3 _ := wproj x in
                               let 'existT23 _ _ p1 p2 _ := wproj y in
                               c2))
-                            (at level 10, right associativity) : circ_scope.
+                            (at level 12, right associativity) : circ_scope.
 Notation "'let_' ( ( p1 , p2 ) , p3 ) ← c1 ; c2" := 
     (compose c1 (fun _ _ _ _ x => let 'existT23 _ _ y  p3 _ := wproj x in
                                   let 'existT23 _ _ p1 p2 _ := wproj y in
                                   c2))
-                            (at level 10, right associativity) : circ_scope.
+                            (at level 12, right associativity) : circ_scope.
 Notation "'let_' ( p1 , ( p2 , p3 ) ) ← c1 ; c2" :=
     (compose c1 (fun _ _ _ _ x => let 'existT23 _ _ p1 y  _ := wproj x in
                                   let 'existT23 _ _ p2 p3 _ := wproj y in
                                   c2))
-                            (at level 10, right associativity) : circ_scope.
+                            (at level 12, right associativity) : circ_scope.
 Notation "'let_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ← c1 ; c2" :=
     (compose c1 (fun _ _ _ _ x => let 'existT23 _ _ y  z  _ := wproj x in
                                   let 'existT23 _ _ p1 p2 _ := wproj y in
                                   let 'existT23 _ _ p3 p4 _ := wproj z in
                                   c2))
-                            (at level 10, right associativity) : circ_scope.
+                            (at level 12, right associativity) : circ_scope.
 
 
 Notation "'gate_' p2 ← g @ p ; c2" := (gate g p (fun _ _ _ _ p2 => c2))
-         (at level 10, right associativity).
+         (at level 12, right associativity).
+Notation "'gate_' () ← g @ p ; c2" := (gate g p (fun _ _ _ _ _ => c2))
+         (at level 12, right associativity).
 Notation "'gate_' ( p1 , p2 ) ← g @ p ; c2" := 
     (gate g p (fun _ _ _ _ x => letpair p1 p2 x c2))
-                            (at level 10, right associativity) : circ_scope.
+                            (at level 12, right associativity) : circ_scope.
 Notation "'gate_' ( p1 , p2 , p3 ) ← g @ p ; c2" :=
     (gate g p (fun _ _ _ _ x => let 'existT23 _ _ y  p3 _ := wproj x in
                                 let 'existT23 _ _ p1 p2 _ := wproj y in
                                 c2))
-                            (at level 10, right associativity) : circ_scope.
+                            (at level 12, right associativity) : circ_scope.
 Notation "'gate_' ( ( p1 , p2 ) , p3 ) ← g @ p ; c2" := 
     (gate g p (fun _ _ _ _ x => let 'existT23 _ _ y  p3 _ := wproj x in
                                 let 'existT23 _ _ p1 p2 _ := wproj y in
                                 c2))
-                            (at level 10, right associativity) : circ_scope.
+                            (at level 12, right associativity) : circ_scope.
 Notation "'gate_' ( p1 , ( p2 , p3 ) ) ← g @ p ; c2" :=
     (gate g p (fun _ _ _ _ x => let 'existT23 _ _ p1 y  _ := wproj x in
                                 let 'existT23 _ _ p2 p3 _ := wproj y in
                                 c2))
-                            (at level 10, right associativity) : circ_scope.
+                            (at level 12, right associativity) : circ_scope.
 Notation "'gate_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ← g @ p ; c2" :=
     (gate g p (fun _ _ _ _ x => let 'existT23 _ _ y  z  _ := wproj x in
                                 let 'existT23 _ _ p1 p2 _ := wproj y in
                                 let 'existT23 _ _ p3 p4 _ := wproj z in
                                 c2))
-                            (at level 10, right associativity) : circ_scope.
+                            (at level 12, right associativity) : circ_scope.
 
-
-
-(*Notation unbox c p := (unbox c _ p).*)
 
 Notation lift_pat x p c := (lift p (fun x => c)).
 Notation "'lift_' x ← c1 ; c2" := (lift_pat x c1 c2) 
-         (at level 10, right associativity) : circ_scope.
+         (at level 12, right associativity) : circ_scope.
 
 
 Definition id_circ {W} : Box W W.
-  box_ p1 ⇒ (output p1).
+  box_ p ⇒ (output p).
 Defined.
 
 Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Box W1 W2.
   box_ p ⇒   
-    gate_ p2 ← g @ p;
+    gate_ p2 ← g @p;
     output p2.
 Defined.
 
-(* TODO: fix these bugs! *)
 Definition new_discard : Box One One.
-  box_ _ ⇒ 
-    gate_ b ← new0 @ ();
-    gate_ _ ← discard @ b;
+  box_ () ⇒ 
+    gate_ b ← new0 @();
+    gate_ () ← discard @b;
     output (). 
 Defined.
 
 Definition init_discard : Box One One.
-  box_ _ ⇒ 
-    gate_ q ← init0 @ ();
-    gate_ b ← meas @ q;
-    gate_ _ ← discard @ b;
+  box_ () ⇒ 
+    gate_ q ← init0 @();
+    gate_ b ← meas @q;
+    gate_ () ← discard @b;
     output (). 
 Defined.
 
 Definition hadamard_measure : Box Qubit Bit.
   box_ q ⇒ 
-    gate_ q ← H @ q;
-    gate_ b ← meas @ q;
+    gate_ q ← H @q;
+    gate_ b ← meas @q;
     output b.
 Defined.
 
 Definition deutsch (U_f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Qubit.
-  box_ _ ⇒ 
-    gate_ x ← init0 @ ();
-    gate_ x ← H @ x;
-    gate_ y ← init1 @ ();
-    gate_ y ← H @ y;
+  box_ () ⇒ 
+    gate_ x ← init0 @();
+    gate_ x ← H @x;
+    gate_ y ← init1 @();
+    gate_ y ← H @y;
     let_ (x,y) ← unbox U_f (x,y);
-    gate_ x ← meas @ x;
-    gate_ x ← discard @ x;
+    gate_ x ← meas @x;
+    gate_ x ← discard @x;
     output y.
 Defined.
 
 Definition lift_deutsch (U_f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Qubit.
-  box_ _ ⇒
-    gate_ x    ← init0 @ ();
-    gate_ x    ← H @ x;
-    gate_ y    ← init1 @ ();
-    gate_ y    ← H @ y;
+  box_ () ⇒
+    gate_ x    ← init0 @();
+    gate_ x    ← H @x;
+    gate_ y    ← init1 @();
+    gate_ y    ← H @y;
     let_ (x,y) ← unbox U_f (x,y);
     lift_ _    ← x;
     output y.
@@ -222,7 +227,7 @@ Defined.
 (** Teleport **)
 
 Definition bell00 : Box One (Qubit ⊗ Qubit).
-  box_ _ ⇒  
+  box_ () ⇒  
     gate_ a ← init0 @();
     gate_ b ← init0 @();
     gate_ a ← H @a;
@@ -244,8 +249,8 @@ Definition bob' : Box (Bit ⊗ (Bit ⊗ Qubit)) Qubit.
     let_  (x,yb)  ← output xyb;
     gate_ (y,b)   ← bit_ctrl σx @yb;
     gate_ (x,b)   ← bit_ctrl σx @(x,b);
-    gate_ _       ← discard @y;
-    gate_ _       ← discard @x;
+    gate_ ()      ← discard @y;
+    gate_ ()      ← discard @x;
     output b).
 Defined.
 
@@ -254,8 +259,8 @@ Definition bob : Box (Bit⊗Bit⊗Qubit) Qubit.
     let_ ((x,y),b) ← output xyb ; 
     gate_ (y,b)  ← bit_ctrl σx @(y,b);
     gate_ (x,b)  ← bit_ctrl σz @(x,b);
-    gate_ _      ← discard @y ;   
-    gate_ _      ← discard @x ;
+    gate_ ()     ← discard @y ;   
+    gate_ ()     ← discard @x ;
     output b.
 Defined.
 
@@ -352,7 +357,7 @@ Definition qft (n : nat) : Box (n ⨂ Qubit) (n ⨂ Qubit) :=
 (** Coin flip **)
 
 Definition coin_flip : Box One Bit.
-  box_ _ ⇒
+  box_ () ⇒
     gate_ q  ← init0 @();
     gate_ q  ← H @q;
     gate_ b  ← meas @q;
@@ -361,13 +366,13 @@ Defined.
 
 
 Fixpoint coin_flips (n : nat) : Box One Bit.
-  box_ _ ⇒
+  box_ () ⇒
   match n with
   | 0    => gate_ x ← new1 @(); output x
   | S n' => let_  c     ← unbox (coin_flips n') ();
             gate_ q     ← init1 @();
             gate_ (c,q) ← bit_ctrl H @(c,q);
-            gate_ _     ← discard @c;
+            gate_ ()     ← discard @c;
             gate_ b     ← meas @q;
             output b
   end.
