@@ -575,10 +575,10 @@ Qed.
 Theorem transpose_involutive : forall {m n : nat} (A : Matrix m n), (A⊤)⊤ = A.
 Proof. reflexivity. Qed.
 
-Lemma conj_involutive : forall (c : C), Cconj (Cconj c) = c.
-Proof. intros c. clra. Qed.
+Lemma conj_involutive : forall c, Cconj (Cconj c) = c.
+Proof. intros. clra. Qed.
 
-Theorem conj_transpose_involutive : forall {m n : nat} (A : Matrix m n), (A†)† = A.
+Theorem conj_transpose_involutive : forall {m n : nat} (A : Matrix m n), A†† = A.
 Proof. intros. mlra. Qed.  
 
 Lemma id_transpose_eq : forall n, (Id n)⊤ = (Id n).
