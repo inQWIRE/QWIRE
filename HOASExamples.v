@@ -278,11 +278,37 @@ Definition teleport : Box Qubit Qubit.
     unbox bob (x,y,b).
 Defined.
 
-Definition bob_lift : Box (Bit⊗Bit⊗Qubit) Qubit :=
-  box_ xyb ⇒ 
+Parameter id_gate: Gate Qubit Qubit.
+
+Definition bob_lift : Box (Bit⊗Bit⊗Qubit) Qubit.
+  make_circ ( 
+  box (fun _ (xyb : Pat _ (Bit⊗Bit⊗Qubit)) =>
     let_ (xy, b) ← output xyb; 
-    lift_ (x,y) ← xy ;
-    if x then 
+    lift_ z      ← xy ;
+    gate_ b      ← (if snd z then σx else id_gate) @b;
+    gate_ b      ← (if fst z then σz else id_gate) @b;
+    output b)).
+Defined.
+
+Definition bob_lift' : Box (Bit⊗Bit⊗Qubit) Qubit.
+  make_circ ( 
+  box (fun _ (xyb : Pat _ (Bit⊗Bit⊗Qubit)) =>
+    let_ (xy, b) ← output xyb; 
+    lift_ z      ← xy ;
+    match fst z, snd z with
+    | true,  true  => gate_ b ← σx @b; gate_ b ← σz @b; output b
+    | true,  false => gate_ b ← σz @b; output b
+    | false, true  => gate_ b ← σx @b; output b
+    | false, false => output b
+    end)).
+Defined.
+
+Definition teleport_lift : Box Qubit Qubit.
+  box_ q ⇒
+    let_ (a,b) ← unbox bell00 () ;
+    let_ (x,y) ← unbox alice (q,a) ;
+    unbox bob_lift (x,y,b).
+Defined.
 
 
 (* Right associative Tensor *)
@@ -385,6 +411,17 @@ Fixpoint coin_flips (n : nat) : Box One Bit.
   end.
 Defined.
 
+
+Fixpoint coin_flips_lift (n : nat) : Box One Bit. 
+  box_ () ⇒ 
+  match n with
+  | 0    => gate_ q ← new1 @(); output q
+  | S n' => let_ q  ← unbox (coin_flips_lift n') ();
+           lift_ x ← q;
+           if x then unbox coin_flip ()
+                else gate_ q ← new0 @(); output q
+  end.
+Defined.
 
 Definition unitary_transpose {W} (U : Unitary W) : Box W W.
   box_ p ⇒
