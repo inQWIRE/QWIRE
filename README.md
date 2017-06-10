@@ -5,13 +5,13 @@ in [QWIRE: a core language for quantum circuits][1].
 
 Compatible with Coq 8.5 and 8.6.
 
-This project relies on the [Mathematical Components][2] and [Coquelicot][3]
-libraries. After installing these, run `make`.
+This version of the project has no dependencies. Run `make` to compile the project.
 
 Files in this repository
 ------------------------
 
 *Underlying mathematical libraries*
+- Complex.v : Complex number library, modified from [2]
 - Matrix.v : Matrix library
 - Quantum.v : Defines unitary matrices and quantum operations
 
@@ -30,5 +30,4 @@ Files in this repository
 
 
 [1]: http://dl.acm.org/citation.cfm?id=3009894
-[2]: https://math-comp.github.io/math-comp/
-[3]: http://coquelicot.saclay.inria.fr/
+[2]: http://coquelicot.saclay.inria.fr/html/Coquelicot.Complex.html

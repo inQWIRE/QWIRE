@@ -110,7 +110,8 @@ VFILES:=MachineExamples.v\
   FlatCircuits.v\
   HOASExamples.v\
   Matrix.v\
-  FlatExamples.v
+  FlatExamples.v\
+  Complex.v
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(VFILES))
