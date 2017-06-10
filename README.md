@@ -11,7 +11,7 @@ Files in this repository
 ------------------------
 
 *Underlying mathematical libraries*
-- Complex.v : Complex number library, modified from [2]
+- Complex.v : Complex number library, modified from [Coquelicot][2]
 - Matrix.v : Matrix library
 - Quantum.v : Defines unitary matrices and quantum operations
 
