@@ -5,7 +5,8 @@ in [QWIRE: a core language for quantum circuits][1].
 
 Compatible with Coq 8.5 and 8.6.
 
-This version of the project has no dependencies. Run `make` to compile the project.
+This version of the project has no dependencies. It is a fork of [QWIRE][3]. 
+Run `make` to compile the project.
 
 Files in this repository
 ------------------------
@@ -31,3 +32,4 @@ Files in this repository
 
 [1]: http://dl.acm.org/citation.cfm?id=3009894
 [2]: http://coquelicot.saclay.inria.fr/html/Coquelicot.Complex.html
+[3]: https://github.com/jpaykin/QWIRE
