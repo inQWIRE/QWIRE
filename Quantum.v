@@ -3,7 +3,7 @@ Require Import Psatz.
 Require Import Omega.
 Require Import Reals.
 Require Import Bool.
-Require Export Coquelicot.Complex.
+Require Export Complex.
 Require Export Matrix.
 
 (* Using our (complex, unbounded) matrices, their complex numbers *)
@@ -12,18 +12,24 @@ Open Scope R_scope.
 Open Scope C_scope.
 Open Scope matrix_scope.
 
+(* WARNING: Resize should only be used where m = m' and n = n'.
+   It should be followed with a proof of this: resize_safe. *) 
+Definition resize (m n m' n' : nat) (A : Matrix m n) : Matrix m' n' := A.
+Definition resize_safe (m n m' n' : nat) : Prop := m = m' /\ n = n'.
+Transparent resize.
+
 Definition ket0 : Matrix 2 1:= 
-  Mat (fun x y => match x, y with 
+  fun x y => match x, y with 
           | 0, 0 => 1
           | 1, 0 => 0
           | _, _ => 0
-          end).
+          end.
 Definition ket1 : Matrix 2 1 := 
-  Mat (fun x y => match x, y with 
+  fun x y => match x, y with 
           | 0, 0 => 0
           | 1, 0 => 1
           | _, _ => 0
-          end).
+          end.
 
 Definition ket (x : nat) : Matrix 2 1 := if x =? 0 then ket0 else ket1.
 Transparent ket0.
@@ -40,7 +46,7 @@ Notation "|1⟩⟨0|" := (|1⟩×⟨0|).
 Notation "|0⟩⟨1|" := (|0⟩×⟨1|).
 
 Definition hadamard : Matrix 2 2 := 
-  Mat (fun x y => match x, y with
+  (fun x y => match x, y with
           | 0, 0 => (1 / √2)
           | 0, 1 => (1 / √2)
           | 1, 0 => (1 / √2)
@@ -60,7 +66,7 @@ Proof. apply kron_1_r. Qed.
 *)
 
 Definition pauli_x : Matrix 2 2 := 
-  Mat (fun x y => match x, y with
+  (fun x y => match x, y with
           | 0, 0 => 0
           | 0, 1 => 1
           | 1, 0 => 1
@@ -69,31 +75,40 @@ Definition pauli_x : Matrix 2 2 :=
           end).
 
 Definition pauli_y : Matrix 2 2 := 
-  Mat (fun x y => match x, y with
+  (fun x y => match x, y with
           | 0, 1 => -Ci
           | 1, 0 => Ci
           | _, _ => 0
           end).
 
 Definition pauli_z : Matrix 2 2 := 
-  Mat (fun x y => match x, y with
+  (fun x y => match x, y with
           | 0, 0 => 1
           | 1, 1 => -1
           | _, _ => 0
           end).
   
 Definition control {n : nat} (A : Matrix n n) : Matrix (2*n) (2*n) :=
-  Mat (fun x y => if (x <? n) && (y <? n) then (Id n) {x,y} 
-          else if (n <=? x) && (n <=? y) then A{x-n,y-n}%nat 
+  (fun x y => if (x <? n) && (y <? n) then (Id n) x y 
+          else if (n <=? x) && (n <=? y) then A (x-n)%nat (y-n)%nat 
           else 0).
 
-Definition cnot := control pauli_x.
-          
+(* Definition cnot := control pauli_x. *)
+(* Direct definition makes our lives easier *)
+Definition cnot : Matrix 4 4 :=
+  fun x y => match x, y with 
+          | 0, 0 => 1
+          | 1, 1 => 1
+          | 2, 3 => 1
+          | 3, 2 => 1
+          | _, _ => 0
+          end.          
+
 
 (* Swap Matrices *)
 
 Definition swap : Matrix 4 4 :=
-  Mat (fun x y => match x, y with
+  (fun x y => match x, y with
           | 0, 0 => 1
           | 1, 2 => 1
           | 2, 1 => 1
@@ -125,116 +140,107 @@ Ltac unify_pows_two :=
   | [ |- (2^?x = 2^?y)%nat ]                => apply pow_components; try omega 
   end.
 
-Local Obligation Tactic := program_simpl; unify_pows_two; try omega.
-
 (* The input k is really k+1, to appease to Coq termination gods *)
 (* NOTE: Check that the offsets are right *)
-Program Fixpoint swap_to_0' (n i : nat) {pf : lt (i+1) n} {struct i}
-        : Matrix (2^n) (2^n) := 
+(* Requires: i + 1 < n *)
+Fixpoint swap_to_0_aux (n i : nat) {struct i} : Matrix (2^n) (2^n) := 
   match i with
   | O => swap ⊗ Id (2^(n-2))
   | S i' =>  (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2))) × (* swap i-1 with i *)
-            swap_to_0' n i' × 
+            swap_to_0_aux n i' × 
             (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2))) (* swap i-1 with 0 *)
   end.
-(* Next Obligation. rewrite plus_0_r. rewrite double_pow. rewrite plus_assoc. 
-                 rewrite double_pow. rewrite double_pow. 
-                 apply pow_components; omega. Defined. 
-Next Obligation. simpl. omega. replace 4%nat with (2^2)%nat by (simpl; reflexivity). 
-                 rewrite <- Nat.pow_add_r. rewrite <- Nat.pow_add_r. *)
 
-Program Definition swap_to_0 (n i : nat) {pf : lt i n} : Matrix (2^n) (2^n) := 
+(* Requires: i < n *)
+Definition swap_to_0 (n i : nat) : Matrix (2^n) (2^n) := 
   match i with 
   | O => Id (2^n) 
-  | S i' => @swap_to_0' n i' _
+  | S i' => swap_to_0_aux n i'
   end.
  
-(* Requires i < j *)
-Program Fixpoint swap_two' (n i j : nat) {ltij : lt i j} {ltjn : lt j n} : Matrix (2^n) (2^n) := 
+(* Requires i < j, j < n *)
+Fixpoint swap_two_aux (n i j : nat) : Matrix (2^n) (2^n) := 
   match i with 
   | O => swap_to_0 n j 
-  | S i' => Id 2 ⊗ swap_two' (n-1) (i') (j-1)
+  | S i' => Id 2 ⊗ swap_two_aux (n-1) (i') (j-1)
   end.
 
-Definition swap_two (n i j : nat) {ltin : lt i n} {ltjn : lt j n} : Matrix (2^n) (2^n).
-  destruct (lt_eq_lt_dec i j) as [[ltij | eq] | ltji].
-  exact (@swap_two' n i j ltij ltjn).
-  exact (Id (2^n)).
-  exact (@swap_two' n j i ltji ltin).
-Defined.
+(* Requires i < n, j < n *)
+Definition swap_two (n i j : nat) : Matrix (2^n) (2^n) :=
+  if i =? j then Id (2^n) 
+  else if i <? j then swap_two_aux n i j
+  else swap_two_aux n j i.
 
 (* Simpler version of swap_to_0 that shifts other elements *)
-Program Fixpoint move_to_0' (n i : nat) {pf : lt (i+1) n} {struct i}: Matrix (2^n) (2^n) := 
+(* Requires: i+1 < n *)
+Fixpoint move_to_0_aux (n i : nat) {struct i}: Matrix (2^n) (2^n) := 
   match i with
   | O => swap ⊗ Id (2^(n-2))
-  | S i' =>  (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2))) × swap_to_0' n i
+  | S i' =>  (resize (2^i' * 4 * 2^(n-i'-2)) (2^i' * 4 * 2^(n-i'-2)) (2^n) (2^n) 
+             (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2)))) × swap_to_0_aux n i
   end.
 
-Program Definition move_to_0 (n i : nat) {pf : lt i n} : Matrix (2^n) (2^n) := 
+Lemma move_to_0_aux_safe : forall (i' n : nat), (i'+2 < n)%nat -> 
+  resize_safe (2^i' * 4 * 2^(n-i'-2)) (2^i' * 4 * 2^(n-i'-2)) (2^n) (2^n).
+Proof. intros. unfold resize_safe. split; unify_pows_two. Qed.
+             
+(* Requires: i < n *)
+Definition move_to_0 (n i : nat) : Matrix (2^n) (2^n) := 
   match i with 
   | O => Id (2^n) 
-  | S i' => @move_to_0' n i' _
+  | S i' => move_to_0_aux n i'
   end.
  
 (* Always moves up in the matrix from i to k *)
-Program Fixpoint move_to (n i k : nat) {ltij : lt k i} {ltjn : lt i n} : Matrix (2^n) (2^n) := 
+(* Requires: k < i < n *)
+Fixpoint move_to (n i k : nat) : Matrix (2^n) (2^n) := 
   match k with 
   | O => move_to_0 n i 
   | S k' => Id 2 ⊗ move_to (n-1) (i-1) (k')
   end.
 
-Program Definition lt02 : (0 < 2)%nat := _. 
-Program Definition lt12 : (1 < 2)%nat := _. 
-Program Definition lt13 : (1 < 3)%nat := _. 
-Program Definition lt23 : (2 < 3)%nat := _. 
+Lemma swap_two_base : swap_two 2 1 0 = swap.
+Proof. unfold swap_two. simpl. apply kron_1_r. Qed.
 
-Lemma swap_two_base : @swap_two 2 1 0 lt12 lt02 = swap.
-Admitted.
-(*
-Proof. unfold swap_two.
-       simpl.
-       compute.
-       destruct (Nat.add_0_r 1).
-       strip_matrix_proofs.
-       apply functional_extensionality.
-       mlra. reflexivity.
-       destruct (dec_eq_nat 2 2).
-       match goal with
-         | [ |- context[eq_rect ?x ?P ?Px ?y ?eq]] => rewrite (proof_irrelevance P)
-       end. 
-
-
-       rewrite proof_irrelevance.
-
-       match goal with
-         | [ |- context[eq_rect ?x ?P ?Px ?y ?eq]] => destruct eq; simpl
-       end. 
-       destruct 
-       rewrite kron_1_r.
-       reflexivity.
-Qed.
-
-Lemma swap_second_two : @swap_two 3 1 2 lt13 lt23 = Id 2 ⊗ swap.
+Lemma swap_second_two : swap_two 3 1 2 = Id 2 ⊗ swap.
 Proof. unfold swap_two.
        simpl.
        rewrite kron_1_r.
        reflexivity.
 Qed.
-*)
 
 (*
-Eval compute in ((swap_two 1 0 1) {0, 0})%nat.
+Eval compute in ((swap_two 1 0 1) 0 0)%nat.
 Eval compute in (print_matrix (swap_two 1 0 2)).
 *)
 
 (** Unitaries are well-formed **)
 
-Lemma WF_hadamard : WF_Matrix hadamard. Proof. show_wf. Qed.
-Lemma WF_pauli_x : WF_Matrix pauli_x. Proof. show_wf. Qed.
-Lemma WF_pauli_y : WF_Matrix pauli_y. Proof. show_wf. Qed.
-Lemma WF_pauli_z : WF_Matrix pauli_z. Proof. show_wf. Qed.
+Lemma WF_hadamard : WF_Matrix 2 2 hadamard. Proof. show_wf. Qed.
+Lemma WF_pauli_x : WF_Matrix 2 2 pauli_x. Proof. show_wf. Qed.
+Lemma WF_pauli_y : WF_Matrix 2 2 pauli_y. Proof. show_wf. Qed.
+Lemma WF_pauli_z : WF_Matrix 2 2 pauli_z. Proof. show_wf. Qed.
 
-Lemma WF_control : forall {n} (U : Matrix n n), WF_Matrix U -> WF_Matrix (control U).
+Hint Resolve WF_hadamard.
+Hint Resolve WF_pauli_x.
+Hint Resolve WF_pauli_y.
+Hint Resolve WF_pauli_z.
+
+Lemma WF_braket1 : WF_Matrix 2 2 |1⟩⟨1|.
+Proof. show_wf. Qed.
+Lemma WF_braket0 : WF_Matrix 2 2 |0⟩⟨0|.
+Proof. show_wf. Qed.
+Hint Resolve WF_braket1.
+Hint Resolve WF_braket0.
+
+Lemma braket0_conj_transpose : |0⟩⟨0|† = |0⟩⟨0|.
+Admitted.
+Lemma braket1_conj_transpose : |1⟩⟨1|† = |1⟩⟨1|.
+Admitted.
+
+
+Lemma WF_control : forall {n} (U : Matrix n n), 
+      WF_Matrix n n U -> WF_Matrix (2* n) (2*n) (control U).
 Proof.
   intros n U WFU.
   unfold control, WF_Matrix in *.
@@ -242,95 +248,123 @@ Proof.
   + replace (x <? n) with false by (symmetry; apply Nat.ltb_ge; omega). simpl.
     rewrite WFU.
     * destruct (n <=? x), (n <=? y); reflexivity.
-    * left. omega.
+    * left. omega. 
   + replace (y <? n) with false by (symmetry; apply Nat.ltb_ge; omega). 
     rewrite andb_false_r.
     rewrite WFU.
     * destruct (n <=? x), (n <=? y); reflexivity.
     * right. omega.
 Qed.
+Hint Resolve WF_control.
+
+Lemma WF_cnot : WF_Matrix 4 4 cnot. Proof. show_wf. Qed.
+(* Proof. replace 4%nat with (2*2)%nat by auto. apply WF_control. apply WF_pauli_x. Qed. *)
+Lemma WF_swap : WF_Matrix 4 4 swap. Proof. show_wf. Qed.
 
 (** Unitaries are unitary **)
 
-Definition unitary_matrix {n: nat} (A : Matrix n n): Prop :=
-  A† × A = Id n.
+Definition is_unitary {n: nat} (U : Matrix n n): Prop :=
+  WF_Matrix n n U /\ U † × U = Id n.
 
 (* More precise *)
-Definition unitary_matrix' {n: nat} (A : Matrix n n): Prop := Minv A A†.
+(* Definition unitary_matrix' {n: nat} (A : Matrix n n): Prop := Minv A A†. *)
 
-Lemma H_unitary : unitary_matrix hadamard.
+Lemma H_unitary : is_unitary hadamard.
 Proof.
-  unfold unitary_matrix, Minv, Mmult, Id.
+  split.
+  show_wf.
+  unfold Mmult, Id.
   prep_matrix_equality.
-  simpl.
   destruct x as [| [|x]]; destruct y as [|[|y]]; try Csolve.
+  simpl.
   replace ((S (S x) <? 2)) with (false) by reflexivity.
   rewrite andb_false_r.
   clra.
 Qed.
 
-Lemma σx_unitary : unitary_matrix pauli_x.
+Lemma σx_unitary : is_unitary pauli_x.
 Proof. 
-  unfold unitary_matrix, Mmult, Id.
+  split.
+  show_wf.
+  unfold Mmult, Id.
   prep_matrix_equality.
-  destruct x as [| [|x]]; destruct y as [|[|y]]; try clra.
+  destruct x as [| [|x]]; destruct y as [|[|y]]; try Csolve.
+  simpl.
   replace ((S (S x) <? 2)) with (false) by reflexivity.
   rewrite andb_false_r.
   clra.
 Qed.
 
-Lemma σy_unitary : unitary_matrix pauli_y.
+Lemma σy_unitary : is_unitary pauli_y.
 Proof.
-  unfold unitary_matrix, Mmult, Id.
+  split.
+  show_wf.
+  unfold Mmult, Id.
   prep_matrix_equality.
-  destruct x as [| [|x]]; destruct y as [|[|y]]; try clra.
+  destruct x as [| [|x]]; destruct y as [|[|y]]; try Csolve.
+  simpl.
   replace ((S (S x) <? 2)) with (false) by reflexivity.
   rewrite andb_false_r.
   clra.
 Qed.
 
-Lemma σz_unitary : unitary_matrix pauli_z.
+Lemma σz_unitary : is_unitary pauli_z.
 Proof.
-  unfold unitary_matrix, Mmult, Id.
+  split.
+  show_wf.
+  unfold Mmult, Id.
   prep_matrix_equality.
-  destruct x as [| [|x]]; destruct y as [|[|y]]; try clra.
+  destruct x as [| [|x]]; destruct y as [|[|y]]; try Csolve.
+  simpl.
   replace ((S (S x) <? 2)) with (false) by reflexivity.
   rewrite andb_false_r.
   clra.
 Qed.
 
 Lemma control_unitary : forall n (A : Matrix n n), 
-                          unitary_matrix A -> unitary_matrix (control A). 
+                          is_unitary A -> is_unitary (control A). 
 Proof.
-  intros n A. dependent destruction A. rename m into n, u into A.
-  revert A.
+  intros n A.
+  split.
+  apply WF_control. destruct H; assumption.
   induction n.
-  + intros A H.
-    unfold control, unitary_matrix, conj_transpose, Mmult, Id.
+  + unfold control, is_unitary, conj_transpose, Mmult, Id.
     prep_matrix_equality.
     replace (x <? 0) with false by reflexivity.
     rewrite andb_false_r.
     reflexivity.
-  + intros A H.
-    unfold control, unitary_matrix, Mmult, Id.
+  + unfold control, is_unitary, Mmult, Id.
     prep_matrix_equality.    
-
+    simpl.
 
 (*
   intros.
   unfold control.
-  apply functional_extensionality; intros x.
-  apply functional_extensionality; intros y.
+  prep_matrix_equality.
   unfold conj_transpose, Mmult, Id in *.
   destruct (x <? n) eqn:Ltxn, (y <? n) eqn:Ltyn.
   simpl.
-*)
+*)    
 
 Admitted.
 
-Lemma cnot_unitary : unitary_matrix cnot.
+Lemma transpose_unitary : forall n (A : Matrix n n), is_unitary A -> is_unitary (A†).
+  intros. 
+  simpl.
+  split.
+  + apply WF_conj_transpose. destruct H. assumption.
+  + unfold is_unitary in *.
+    rewrite conj_transpose_involutive.
+    destruct H as [_ H].
+    apply Minv_left in H as [_ S]. (* NB: Admitted lemma *)
+    assumption.
+Qed.
+
+Lemma cnot_unitary : is_unitary cnot.
 Proof.
-  unfold unitary_matrix, Mmult, Id.
+  split. 
+  apply WF_cnot.
+  unfold Mmult, Id.
   prep_matrix_equality.
   do 4 (try destruct x; try destruct y; try clra).
   replace ((S (S (S (S x))) <? 4)) with (false) by reflexivity.
@@ -338,18 +372,21 @@ Proof.
   clra.
 Qed.
 
-Lemma id_unitary : forall n, unitary_matrix (Id n). 
+Lemma id_unitary : forall n, is_unitary (Id n). 
 Proof.
-  intros n.
-  unfold unitary_matrix.
+  split.
+  apply WF_Id.
+  unfold is_unitary.
   rewrite id_conj_transpose_eq.
   apply Mmult_1_l.
   apply WF_Id.
 Qed.
 
-Lemma swap_unitary : unitary_matrix swap.
+Lemma swap_unitary : is_unitary swap.
 Proof. 
-  unfold unitary_matrix, Mmult, Id.
+  split.
+  apply WF_swap.
+  unfold is_unitary, Mmult, Id.
   prep_matrix_equality.
   do 4 (try destruct x; try destruct y; try clra).
   replace ((S (S (S (S x))) <? 4)) with (false) by reflexivity.
@@ -359,85 +396,84 @@ Qed.
 
 
 Lemma kron_unitary : forall {m n} (A : Matrix m m) (B : Matrix n n),
-  unitary_matrix A -> unitary_matrix B -> unitary_matrix (A ⊗ B).
+  is_unitary A -> is_unitary B -> is_unitary (A ⊗ B).
 Admitted.
 
-Lemma unitary_swap_to_0 : forall n i P, unitary_matrix (@swap_to_0 n i P).
+Lemma unitary_swap_to_0 : forall n i, (i < n)%nat -> is_unitary (swap_to_0 n i).
 Proof.
-  intros n i P.
+  intros n i.
   generalize dependent n.
-  unfold unitary_matrix.
-  induction i; intros n P; simpl.
-  + apply id_unitary.
-  + unfold swap_to_0 in IHi. 
-    destruct i.
-    - simpl.
-      remember ( Id (2 ^ (n - 2))) as A.
-      remember swap as B.
-(*
-      setoid_rewrite (kron_conj_transpose B A).
+  unfold is_unitary; split.
+  + (* well-formedness *)
+    induction i. 
+    simpl. apply WF_Id.
+    simpl in *.
+    unfold swap_to_0 in IHi.
+    destruct i; simpl in *.
+    replace (2 ^ n)%nat with (4 * 2^(n-2))%nat by unify_pows_two.
+    (* We need a tactic here *)
+    apply WF_kron; try (apply Nat.pow_nonzero; omega).
+    apply WF_swap.
+    apply WF_Id.
+    replace (2^n)%nat with  (2 ^ i * 4 * 2 ^ (n - i - 2))%nat by unify_pows_two.
+    apply WF_mult.
+    apply WF_mult.
+    apply WF_kron; try (apply Nat.pow_nonzero; omega).
+    apply WF_kron; try omega. 
+    apply WF_Id.
+    apply WF_swap.
+    apply WF_Id.
+    replace (2 ^ i * 4 * 2 ^ (n - i - 2))%nat with (2^n)%nat by unify_pows_two.
+    apply IHi.
+    omega.
+    apply WF_kron; try (apply Nat.pow_nonzero; omega).
+    apply WF_kron; try omega. 
+    apply WF_Id.
+    apply WF_swap.
+    apply WF_Id.
+  + induction i; simpl.
+    - apply id_unitary.
+    - unfold swap_to_0 in IHi. 
+      destruct i.
+      * simpl.
+        remember ( Id (2 ^ (n - 2))) as A.
+        remember swap as B.
+        setoid_rewrite (kron_conj_transpose B A).            
+    
 (*    rewrite (kron_mixed_product B† A† B A). *)
 
-      specialize (kron_mixed_product B† A† B A); intros H.
-      assert (unitary_matrix B). subst. apply swap_unitary.
-      assert (unitary_matrix A). subst. apply id_unitary.
-      rewrite H0 in H.
-      rewrite H1 in H.
-      replace (Id (2 ^ n)) with (Id 4 ⊗ Id (2 ^ (n - 2))).
-      (* apply H. (* GAAAHHHH! *) *)
 
-      rewrite <- H.
-      replace (Init.Nat.mul (S (S (S (S O))))
-       (Nat.pow (S (S O)) (Init.Nat.sub n (S (S O))))) 
-              with
-              (Nat.pow (S (S O)) n).
-      reflexivity.
 
-      destruct n; try omega.
-      destruct n; try omega.
-      simpl. repeat rewrite plus_0_r, Nat.sub_0_r. omega.
-
-      replace (2 ^ n)%nat with (4 * 2^(n-2))%nat.
-      apply id_kron.
-      
-      specialize (id_kron 4 (2 ^ (n - 2))); intros Eq.
-      destruct n; try omega.
-      destruct n; try omega.
-      simpl. repeat rewrite plus_0_r, Nat.sub_0_r. omega.
-
-      simpl.
-*)
+        specialize (kron_mixed_product B† A† B A); intros H'.
+        assert (is_unitary B). subst. apply swap_unitary.
+        assert (is_unitary A). subst. apply id_unitary.
+        destruct H0 as [_ H0], H1 as [_ H1].
+        rewrite H0 in H'.
+        rewrite H1 in H'.
+        replace (Id (2 ^ n)) with (Id 4 ⊗ Id (2 ^ (n - 2))).
+        (* apply H doesn't work. 
+         Surprisingly, that's the matrix types failing to line up *)
+        rewrite <- H'.
+        replace (4 * (2 ^ (n - 2)))%nat with (2 ^ n)%nat.
+        reflexivity.
+        unify_pows_two.
+        unify_pows_two.
+        replace (2^n)%nat with (2^2 * 2^(n-2))%nat by unify_pows_two.
+        rewrite id_kron.
+        reflexivity.
+      * simpl.
 Admitted.
 
-Lemma unitary_swap_two : forall n i j P1 P2, unitary_matrix (@swap_two n i j P1 P2).
+Lemma unitary_swap_two : forall n i j, (i < n)%nat -> (j < n)%nat ->
+                                  is_unitary (swap_two n i j).
 Proof.
   intros n i j P1 P2.
-  unfold unitary_matrix.
+  unfold is_unitary.
   unfold swap_two.
   destruct (lt_eq_lt_dec i j) as [[ltij | eq] | ltji].
   + induction i.
     simpl.
 Admitted.
-
-(** Density matrices and superoperators **)
-
-Notation Density n := (Matrix n n) (only parsing). 
-Definition Superoperator m n := Density m -> Density n.
-
-(* Transparent Density. *)
-
-Definition super {m n} (M : Matrix m n) : Superoperator n m := fun ρ => 
-  M × ρ × M†.
-
-(* To do: correctness conditions for density matrices and superoperators *)
-(* NOTE: I think these all need fixing *)
-
-
-Definition new0_op : Superoperator 1 2 := super |0⟩.
-Definition new1_op : Superoperator 1 2 := super |1⟩.
-Definition meas_op : Superoperator 2 2 := fun ρ => super |0⟩⟨0| ρ .+ super |1⟩⟨1| ρ.
-Definition discard_op : Superoperator 2 1 := fun ρ => super ⟨0| ρ .+ super ⟨1| ρ.
-
 
 (* Pure and Mixed States *)
 
@@ -447,52 +483,12 @@ operator of trace 1 acting on the state space. A density operator describes
 a pure state if it is a rank one projection. Equivalently, a density operator ρ 
 describes a pure state if and only if ρ = ρ ^ 2 *)
 
-Definition Pure_State {n} (ρ : Density n) : Prop := WF_Matrix ρ /\ ρ = ρ × ρ.
+Notation Density n := (Matrix n n) (only parsing). 
+
+Definition Pure_State {n} (ρ : Density n) : Prop := WF_Matrix n n ρ /\ ρ = ρ × ρ.
 
 Lemma pure0 : Pure_State |0⟩⟨0|. Proof. split; [show_wf|mlra]. Qed.
 Lemma pure1 : Pure_State |1⟩⟨1|. Proof. split; [show_wf|mlra]. Qed.
-
-(* Very simple version of a general lemma saying that all unitaries map pure states
-   to pure states *)
-(* Takes forever. Msolve *can* solve this, but it takes 2^forever. *)
-(*
-Lemma pure_hadamard_0 : Pure_State (super hadamard |0⟩⟨0|).
-Proof. 
-  unfold Pure_State, hadamard, ket0, conj_transpose, super, Mmult.
-  apply functional_extensionality; intros x.
-  apply functional_extensionality; intros y.
-  destruct x as [| [|x]]; destruct y as [|[|y]]; Csolve.
-Qed.
-*)
-
-(*  Less slow, but slow:
-Lemma pure_σx_1 : Pure_State (super pauli_x |0⟩⟨0|). Proof. mlra. Qed.
-Lemma pure_σy_1 : Pure_State (super pauli_y |0⟩⟨0|). Proof. mlra. Qed.
-Lemma pure_σz_1 : Pure_State (super pauli_z |0⟩⟨0|). Proof. mlra. Qed.
-*)
-
-Lemma pure_unitary : forall {n} (U ρ : Matrix n n), 
-  WF_Matrix U -> unitary_matrix U -> Pure_State ρ -> Pure_State (super U ρ).
-Proof.
-  intros n U ρ WFU H [WFρ P].
-  unfold Pure_State, unitary_matrix, super in *.
-  split.
-  show_wf.
-  remember (U × ρ × (U) † × (U × ρ × (U) †)) as rhs.
-  rewrite P.
-  replace (ρ × ρ) with (ρ × Id n × ρ) by (rewrite Mmult_1_r; trivial).
-  rewrite <- H.
-  rewrite Heqrhs.
-  repeat rewrite Mmult_assoc. (* Admitted *)
-  reflexivity.
-Qed.  
-
-Lemma pure_hadamard_1 : Pure_State (super hadamard |1⟩⟨1|).
-Proof. apply pure_unitary. 
-       + apply WF_hadamard.       
-       + apply H_unitary.
-       + apply pure1. 
-Qed.
 
 (* Wiki:
 For a finite-dimensional function space, the most general density operator 
@@ -507,16 +503,94 @@ Inductive Mixed_State {n} : (Matrix n n) -> Prop :=
 | Mix_S : forall (p : R) ρ1 ρ2, 0 < p < 1 -> Mixed_State ρ1 -> Mixed_State ρ2 ->
                                         Mixed_State (p .* ρ1 .+ (1-p)%R .* ρ2).  
 
-Lemma WF_Mixed : forall n (ρ : Matrix n n), Mixed_State ρ -> WF_Matrix ρ.
+Lemma WF_Pure : forall {n} (ρ : Density n), Pure_State ρ -> WF_Matrix n n ρ.
 Proof.
-  intros n ρ H.
-  induction H.
-  + inversion H; trivial.
-  + apply WF_plus; apply WF_scale; trivial.
-Qed.    
+  unfold Pure_State. intuition.
+Qed.
+Hint Resolve WF_Pure.
+Lemma WF_Mixed : forall {n} (ρ : Density n), Mixed_State ρ -> WF_Matrix n n ρ.
+Proof.
+  induction 1; auto.
+  show_wf_safe. 
+Qed.
+Hint Resolve WF_Mixed.
+
+(** Density matrices and superoperators **)
+
+Definition Superoperator m n := Density m -> Density n.
+
+Definition WF_Superoperator {m n} (f : Superoperator m n) := 
+  (forall ρ, Mixed_State ρ -> Mixed_State (f ρ)).   
+
+(* Transparent Density. *)
+
+Definition super {m n} (M : Matrix m n) : Superoperator n m := fun ρ => 
+  M × ρ × M†.
+
+
+Definition compose_super {m n p} (g : Superoperator n p) (f : Superoperator m n)
+                      : Superoperator m p :=
+  fun ρ => g (f ρ).
+Lemma compose_super_correct : forall {m n p} 
+                              (g : Superoperator n p) (f : Superoperator m n),
+      WF_Superoperator g -> WF_Superoperator f ->
+      WF_Superoperator (compose_super g f).
+Proof.
+  intros m n p g f pf_g pf_f.
+  unfold WF_Superoperator.
+  intros ρ mixed.
+  unfold compose_super.
+  apply pf_g. apply pf_f. auto.
+Qed.
+
+Definition sum_super {m n} (f g : Superoperator m n) : Superoperator m n :=
+  fun ρ => (1/2)%R .* f ρ .+ (1 - 1/2)%R .* g ρ.
+Lemma WF_sum_super : forall m n (f g : Superoperator m n),
+      WF_Superoperator f -> WF_Superoperator g -> WF_Superoperator (sum_super f g).
+Proof.
+  intros m n f g wf_f wf_g ρ pf_ρ.
+  unfold sum_super. 
+  set (wf_f' := wf_f _ pf_ρ).
+  set (wf_g' := wf_g _ pf_ρ).
+  apply (Mix_S (1/2) (f ρ) (g ρ)); auto. Rsolve.
+Qed.
   
+
+(* To do: correctness conditions for density matrices and superoperators *)
+(* NOTE: I think these all need fixing *)
+
+
+Definition new0_op : Superoperator 1 2 := super |0⟩.
+Definition new1_op : Superoperator 1 2 := super |1⟩.
+Definition meas_op : Superoperator 2 2 := fun ρ => super |0⟩⟨0| ρ .+ super |1⟩⟨1| ρ.
+Definition discard_op : Superoperator 2 1 := fun ρ => super ⟨0| ρ .+ super ⟨1| ρ.
+
+
+
+Lemma pure_unitary : forall {n} (U ρ : Matrix n n), 
+  is_unitary U -> Pure_State ρ -> Pure_State (super U ρ).
+Proof.
+  intros n U ρ [WFU H] [WFρ P].
+  unfold Pure_State, is_unitary, super in *.
+  split.
+  show_wf.
+  remember (U × ρ × (U) † × (U × ρ × (U) †)) as rhs.
+  rewrite P.
+  replace (ρ × ρ) with (ρ × Id n × ρ) by (rewrite Mmult_1_r; trivial).
+  rewrite <- H.
+  rewrite Heqrhs.
+  repeat rewrite Mmult_assoc. (* Admitted *)
+  reflexivity.
+Qed.  
+
+Lemma pure_hadamard_1 : Pure_State (super hadamard |1⟩⟨1|).
+Proof. apply pure_unitary. 
+       + apply H_unitary.       
+       + apply pure1. 
+Qed.
+
 Definition dm12 : Matrix 2 2 :=
-  Mat (fun x y => match x, y with
+  (fun x y => match x, y with
           | 0, 0 => 1 / 2
           | 0, 1 => 1 / 2
           | 1, 0 => 1 / 2
@@ -545,13 +619,13 @@ Proof. unfold meas_op.
 Qed.
 
 Lemma mixed_unitary : forall {n} (U ρ : Matrix n n), 
-  WF_Matrix U -> unitary_matrix U -> Mixed_State ρ -> Mixed_State (super U ρ).
+  WF_Matrix n n U -> is_unitary U -> Mixed_State ρ -> Mixed_State (super U ρ).
 Proof.
   intros n U ρ WFU H M.
   induction M.
   + apply Pure_S.
     apply pure_unitary; trivial.
-  + unfold unitary_matrix, super in *.
+  + unfold is_unitary, super in *.
     rewrite Mmult_plus_distr_l.
     rewrite Mmult_plus_distr_r.
     rewrite 2 Mscale_mult_dist_r.

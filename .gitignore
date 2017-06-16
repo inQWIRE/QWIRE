@@ -2,3 +2,6 @@
 *.aux
 *~
 *.vo
+extra/*
+*.bak
+*.v.d

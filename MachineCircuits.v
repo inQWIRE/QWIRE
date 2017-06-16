@@ -1,11 +1,11 @@
 Require Import Contexts.
 Require Import FlatCircuits.
-Require Import TypedCircuits.
+Require Import HOASCircuits.
 Require Import Program.
 Require Import List.
 Require Import PeanoNat.
 Require Import Omega.
-
+Require Import Denotation.
 
 (* No input, output length *)
 Inductive Untyped_Machine_Circuit : Set :=
@@ -20,7 +20,7 @@ Definition Machine_Circuit (m n : nat) := Untyped_Machine_Circuit.
 Fixpoint input (c : Untyped_Machine_Circuit) : nat :=
   match c with
   | m_output l => length l
-  | @m_gate W1 W2 l g c => input c + num_wires W2 - num_wires W1
+  | @m_gate W1 W2 l g c => input c + size_WType W2 - size_WType W1
   end.
 Fixpoint output (c : Untyped_Machine_Circuit) : nat :=
   match c with
@@ -31,14 +31,11 @@ Fixpoint output (c : Untyped_Machine_Circuit) : nat :=
 Definition WF_Machine_Circuit {m n} (c : Machine_Circuit m n) : Prop :=
   input c = m /\ output c = n.
 
-
-
-
 (* Version with output length.
 Inductive Machine_Circuit : list nat -> Set :=
 | m_output : forall l, Machine_Circuit l
 | m_gate   : forall {l l' : list nat} {w1 w2}, 
-               length l = num_wires w1
+               length l = size_WType w1
              -> Gate w1 w2
              -> Machine_Circuit l'
              -> Machine_Circuit l'.
@@ -49,9 +46,9 @@ Inductive Machine_Circuit : list nat -> Set :=
 Inductive Machine_Circuit : nat -> nat -> Set :=
 | m_output : forall (l : list nat), Machine_Circuit (length l) (length l)
 | m_gate   : forall (l : list nat) {w1 w2 m n}, 
-               length l = num_wires w1
+               length l = size_WType w1
              -> Gate w1 w2
-             -> Machine_Circuit (m + num_wires w2 - num_wires w1) n
+             -> Machine_Circuit (m + size_WType w2 - size_WType w1) n
              -> Machine_Circuit m n.
 *)
 
@@ -71,24 +68,6 @@ Fixpoint m_compose (c1 c2 : Untyped_Machine_Circuit) : Untyped_Machine_Circuit :
 (* TODO: prove correctness? *)
 
 
-
-Fixpoint pat_to_list {Γ W} (p : Pat Γ W) : list nat :=
-  match p with
-  | pair Γ1 Γ2 Γ0 W1 W2 valid merge p1 p2 => 
-      let ls1 := pat_to_list p1 in
-      let ls2 := pat_to_list p2 in 
-      ls1 ++ ls2
-  | qubit x Γ sing => [x]
-  | bit   x Γ sing => [x]
-  | unit => []
-  end.
-Lemma pat_to_list_length : forall Γ W (p : Pat Γ W), length (pat_to_list p) = num_wires W.
-Proof.
-  induction p; simpl; auto.
-  rewrite app_length. auto.
-Qed.
-
-
 Fixpoint subst_eq_length (ls1 ls2 : list nat) : nat -> nat :=
   match ls1, ls2 with
   | m1 :: ls1, m2 :: ls2 => fun i => if Nat.eq_dec i m2 then m1 else (subst_eq_length ls1 ls2) i
@@ -96,7 +75,7 @@ Fixpoint subst_eq_length (ls1 ls2 : list nat) : nat -> nat :=
   end.
 
 Definition subst_add (bound : nat) (ls2 : list nat) : nat * (nat -> nat) :=
-  let new_bound := bound + length ls2 in
+  let new_bound := (bound + length ls2)%nat in
   (new_bound, subst_eq_length (seq bound (length ls2)) ls2).
 
 Definition subst_add_1 (bound : nat) (ls2 : list nat) : nat -> nat :=
@@ -107,7 +86,7 @@ Definition subst_add_1 (bound : nat) (ls2 : list nat) : nat -> nat :=
 
 Definition subst_remove_1 (ls1 : list nat) : nat -> nat :=
   match ls1 with
-  | [m1] => fun i => if Nat.ltb m1 i then i-1 else i
+  | [m1] => fun i => if Nat.ltb m1 i then (i-1)%nat else i
   | _    => id
   end.
   
@@ -130,39 +109,37 @@ Fixpoint apply_substitution (f : nat -> nat) (C : Untyped_Machine_Circuit) : Unt
   | m_gate l g C' => m_gate (map f l) g (apply_substitution f C')
   end.
 
-Lemma singleton_num_elts : forall x Γ W, SingletonCtx x W Γ -> num_elts Γ = 1.
+Lemma singleton_size_Ctx : forall x Γ W, SingletonCtx x W Γ -> size_Ctx Γ = 1%nat.
 Proof.
   induction x; intros Γ W H; inversion H; subst; simpl; auto.
   erewrite IHx; eauto.
 Qed.
 
-Lemma pat_square : forall Γ W (p : Pat Γ W), num_elts_o Γ = num_wires W.
+Lemma pat_square : forall Γ W (p : Pat Γ W), size_OCtx Γ = size_WType W.
 Proof.
   induction 1; simpl; auto.
-  - eapply singleton_num_elts; eauto.
-  - eapply singleton_num_elts; eauto.
-  - inversion i. rename x into Γ. inversion H; subst.
-    erewrite num_elts_merge; [ | eauto | apply valid_valid].
-    rewrite IHp1, IHp2; auto.
+  - eapply singleton_size_Ctx; eauto.
+  - eapply singleton_size_Ctx; eauto.
+  - subst. rewrite size_ctx_merge; auto.
 Defined.
 
 Lemma lift_undefined : Untyped_Machine_Circuit.
 Admitted.
 
 Fixpoint Flat_to_Machine_Circuit {Γ W} (C : Flat_Circuit Γ W)  
-                 : Machine_Circuit (num_elts_o Γ) (num_wires W) :=
+                 : Machine_Circuit (size_OCtx Γ) (size_WType W) :=
   match C with
-  | flat_output _ p => m_output (pat_to_list p)
+  | flat_output p => m_output (pat_to_list p)
   | @flat_gate Γ Γ1 _ _ _ _ _ _ _ _ _ _ g p1 p2 C' => 
     let ls1 := pat_to_list p1 in
     let ls2 := pat_to_list p2 in
-    let f := subst_with_gate (num_elts_o (Γ ⋓ Γ1)) g ls1 ls2 in
+    let f := subst_with_gate (size_OCtx (Γ ⋓ Γ1)) g ls1 ls2 in
     m_gate ls1 g (apply_substitution f (Flat_to_Machine_Circuit C'))
-  | flat_lift _ _ _ _ => lift_undefined
+  | flat_lift _ _ => lift_undefined
   end.
 
 (*
-Definition Flat_Box_to_Machine_Circuit {W1 W2} (b : Flat_Box W1 W2) : Machine_Circuit (num_wires W1) (num_wires W2) :=
+Definition Flat_Box_to_Machine_Circuit {W1 W2} (b : Flat_Box W1 W2) : Machine_Circuit (size_WType W1) (size_WType W2) :=
   match b with
   | flat_box p C => Flat_to_Machine_Circuit C
   end.
@@ -174,14 +151,25 @@ Defined.
 Next Obligation. apply pat_to_list_length. Defined.
 Next Obligation. apply pat_to_list_length. Defined.
 Next Obligation. 
-  rewrite (num_elts_merge Γ2 Γ (Γ2 ⋓ Γ)); auto.
-  rewrite (num_elts_merge Γ1 Γ (Γ1 ⋓ Γ)); auto.
+  rewrite (size_ctx_merge Γ2 Γ (Γ2 ⋓ Γ)); auto.
+  rewrite (size_ctx_merge Γ1 Γ (Γ1 ⋓ Γ)); auto.
   rewrite (pat_square _ _ p1).
   rewrite (pat_square _ _ p2).
-  apply eq_trans with (num_wires W2 + num_elts_o Γ + num_wires W1 - num_wires W1); 
+  apply eq_trans with (size_WType W2 + size_OCtx Γ + size_WType W1 - size_WType W1); 
     omega.
 Defined. *)
 
 
+Fixpoint denote_machine_circuit m n (c : Machine_Circuit m n) : Superoperator (2^m) (2^n) :=
+  match c with 
+  | m_output l         => super (swap_list n l)
+  | @m_gate w1 w2 l g c => compose_super (denote_machine_circuit (m+〚w2〛-〚w1〛) n c)
+                                        (apply_gate g l)
+  end.
+
+(* Need a richer description of correctness because we need to refer to the
+circuit in the condition, and we also need a stronger condition thatn WF_Machie_Circuit *)
+
+Instance Denote_Machine_Circuit {m n} : Denote (Machine_Circuit m n) (Superoperator (2^m) (2^n)) := {| denote := fun C => denote_machine_circuit m n C |}.
 
 (* *)

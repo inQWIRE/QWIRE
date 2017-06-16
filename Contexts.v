@@ -5,54 +5,51 @@ Open Scope list_scope.
 
 (*** Context Definitions ***)
 
-Class Has_Tensor A :=
-{ 
-    tensor : A -> A -> A
-}.
-
+(** Types **)
 Inductive WType := Qubit | Bit | One | Tensor : WType -> WType -> WType.
-Notation " W1 ⊗ W2 " := (Tensor W1 W2) (at level 40, left associativity): circ_scope.
+Notation " W1 ⊗ W2 " := (Tensor W1 W2) (at level 40, left associativity)
+                     : circ_scope.
 
-Instance WType_tensor : Has_Tensor WType := { tensor := Tensor }.
- 
 Open Scope circ_scope.
-
-Fixpoint num_wires (W : WType) : nat := 
+Fixpoint size_WType (W : WType) : nat := 
   match W with
   | One => 0
   | Qubit => 1
   | Bit => 1
-  | W1 ⊗ W2 => num_wires W1 + num_wires W2
+  | W1 ⊗ W2 => size_WType W1 + size_WType W2
   end.
 
 (* Coq interpretations of wire types *)
 Fixpoint interpret (w:WType) : Set :=
   match w with
     | Qubit => bool
-    | Bit => bool 
-    | One => Datatypes.unit
-    | Tensor w1 w2 => (interpret w1) * (interpret w2)
+    | Bit   => bool 
+    | One   => unit
+    | w1 ⊗ w2 => (interpret w1) * (interpret w2)
   end.
+Close Scope circ_scope.
 
+
+(** Variables **)
 Definition Var := nat.
 Definition Ctx := list (option WType).
-(* Definition OCtx := option Ctx. *)
 
 Inductive OCtx := 
 | Invalid : OCtx 
 | Valid : Ctx -> OCtx.
 
 
-Fixpoint num_elts (Γ : Ctx) : nat :=
+(* The size of a context is the number of wires it holds *)
+Fixpoint size_Ctx (Γ : Ctx) : nat :=
   match Γ with
   | [] => 0
-  | None :: Γ' => num_elts Γ'
-  | Some _ :: Γ' => S (num_elts Γ')
+  | None :: Γ' => size_Ctx Γ'
+  | Some _ :: Γ' => S (size_Ctx Γ')
   end.
-Definition num_elts_o (Γ : OCtx) : nat :=
+Definition size_OCtx (Γ : OCtx) : nat :=
   match Γ with
   | Invalid => 0
-  | Valid Γ' => num_elts Γ'
+  | Valid Γ' => size_Ctx Γ'
   end.
 
 
@@ -475,16 +472,16 @@ Proof.
     destruct (Γ2 ⋓ Γ3); [rewrite merge_I_r in V; inversion V | eauto]. 
 Defined. 
 
-Lemma num_elts_merge : forall (Γ1 Γ2 : OCtx) (Γ : OCtx), Γ1 ⋓ Γ2 = Γ -> is_valid Γ->
-                       num_elts_o Γ = (num_elts_o Γ1 + num_elts_o Γ2)%nat.
+Ltac valid_invalid_absurd := try (absurd (is_valid Invalid); 
+                                  [apply not_valid | auto]; fail).
+
+Lemma size_ctx_merge : forall (Γ1 Γ2 : OCtx), is_valid (Γ1 ⋓ Γ2) ->
+                       size_OCtx (Γ1 ⋓ Γ2) = (size_OCtx Γ1 + size_OCtx Γ2)%nat.
 Proof.
-  intros Γ1 Γ2 Γ merge valid.
+  intros Γ1 Γ2 valid.
   destruct Γ1 as [ | Γ1];
   destruct Γ2 as [ | Γ2];
-  destruct Γ  as [ | Γ ];
-    try (inversion merge; 
-          absurd (is_valid Invalid); auto; apply not_valid).
-  rewrite <- merge in *. clear Γ merge.
+    valid_invalid_absurd.
   revert Γ2 valid.
   induction Γ1 as [ | [W1 | ] Γ1]; intros Γ2 valid; 
     [rewrite merge_nil_l; auto | | ];
@@ -573,18 +570,6 @@ Defined.
 (*** Automation ***)
 
 
-(*
-Lemma counter : forall x y z, x + z + y = x + (y + z).
-Proof.
-  intros. Check plus_assoc.
-  match goal with
-  | [ |- context[?n + ?m + ?p] ] => rewrite <- plus_assoc with (n := n) (m := m) (p := p)
-  end.
-  apply merge_cancel_l.
-Admitted.
-*)
-
-
 
 (* Local check for multiple evars *)
 Ltac has_evars term := 
@@ -622,27 +607,6 @@ Ltac monoid :=
   end.
 
 
-(*
-Ltac move_left Γ :=
-  try match goal with
-      | [ |- Γ ⋓ _ = _ ] => return
-      | [ |- context[Γ] ⋓ _ = _ ] => 
-      | [ |- _ ⋓ context[Γ] = _ ] => 
-*)
-
-(*
-Require Import Monoid. Print Monoid.
-Instance ctx_monoid : Monoid merge ∅ := 
-{
-    assoc := merge_assoc;
-    unit_l := merge_nil_l;
-    unit_r := merge_nil_r
-}.
-Instance ctx_cmonoid : CMonoid merge ∅ :=
-{
-    comm := merge_comm
-}.
-*) 
 
 Lemma test1 : forall x y z, x ⋓ y ⋓ z = z ⋓ x ⋓ y.
 Proof. intros. monoid. Qed.
@@ -689,32 +653,15 @@ Fixpoint index (ls : OCtx) (i : nat) : option WType :=
               end
   end.
 
-Definition lengthO (ls : OCtx) : nat :=
+(* length is the actual length of the underlying list, as opposed to size, which
+ * is the number of Some entries in the list 
+ *)
+Definition length_OCtx (ls : OCtx) : nat :=
   match ls with
   | Invalid => O
   | Valid ls => length ls
   end.
 
-
-(*
-Lemma mergeO_merge : forall Γ1 Γ1' Γ2 Γ2' Γ Γ',
-  MergeO Γ1 Γ2 Γ -> MergeO Γ1' Γ2' Γ' ->
-  MergeO (Γ1 ⋓ Γ1') (Γ2 ⋓ Γ2') (Γ ⋓ Γ').
-Admitted.
-*)
-
-Fixpoint lookup (Γ : Ctx) (x : nat) : option WType :=
-  match Γ,x with
-  | (o::_), 0   => o
-  | (_::Γ), S x => lookup Γ x
-  | _,      _   => None
-  end.
-
-Definition lookupO (Γ : OCtx) (x : nat) : option WType :=
-  match Γ with
-  | Valid Γ' => lookup Γ' x
-  | Invalid  => None
-  end.
 
 Lemma merge_dec Γ1 Γ2 : is_valid (Γ1 ⋓ Γ2) + {Γ1 ⋓ Γ2 = Invalid}.
 Proof.
@@ -732,3 +679,42 @@ Proof.
     { left; destruct (merge' Γ1 Γ2); auto. apply valid_valid. }    
   - right. simpl in *. rewrite IH. destruct (merge_wire o1 o2); auto.
 Defined.
+
+(* Patterns and Gates *)
+
+Inductive Pat : OCtx -> WType -> Set :=
+| unit : Pat ∅ One
+| qubit : forall x Γ, (SingletonCtx x Qubit Γ) -> Pat Γ Qubit 
+| bit : forall x Γ, (SingletonCtx x Bit Γ) -> Pat Γ Bit 
+| pair : forall Γ1 Γ2 Γ w1 w2,
+        is_valid Γ 
+      -> Γ = Γ1 ⋓ Γ2
+      -> Pat Γ1 w1
+      -> Pat Γ2 w2
+      -> Pat Γ (Tensor w1 w2).
+
+Lemma pat_ctx_valid : forall Γ W, Pat Γ W -> is_valid Γ.
+Proof. intros Γ W p. unfold is_valid. inversion p; eauto. Qed.
+
+Open Scope circ_scope.
+Inductive Unitary : WType -> Set := 
+  | H         : Unitary Qubit 
+  | σx        : Unitary Qubit
+  | σy        : Unitary Qubit
+  | σz        : Unitary Qubit
+  | CNOT      : Unitary (Qubit ⊗ Qubit)
+  | ctrl      : forall {W} (U : Unitary W), Unitary (Qubit ⊗ W) 
+  | bit_ctrl  : forall {W} (U : Unitary W), Unitary (Bit ⊗ W) 
+  | transpose : forall {W} (U : Unitary W), Unitary W.
+
+Inductive Gate : WType -> WType -> Set := 
+  | U : forall {W} (u : Unitary W), Gate W W
+  | init0 : Gate One Qubit
+  | init1 : Gate One Qubit
+  | new0 : Gate One Bit
+  | new1 : Gate One Bit
+  | meas : Gate Qubit Bit
+  | discard : Gate Bit One.
+
+Coercion U : Unitary >-> Gate.
+Close Scope circ_scope.
