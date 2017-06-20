@@ -702,10 +702,14 @@ Inductive Unitary : WType -> Set :=
   | σx        : Unitary Qubit
   | σy        : Unitary Qubit
   | σz        : Unitary Qubit
-  | CNOT      : Unitary (Qubit ⊗ Qubit)
   | ctrl      : forall {W} (U : Unitary W), Unitary (Qubit ⊗ W) 
   | bit_ctrl  : forall {W} (U : Unitary W), Unitary (Bit ⊗ W) 
   | transpose : forall {W} (U : Unitary W), Unitary W.
+
+(* NOT, CNOT and Tofolli notation *)
+Notation NOT := σx.
+Notation CNOT := (ctrl σx).
+Notation T := (ctrl (ctrl σx)).
 
 Inductive Gate : WType -> WType -> Set := 
   | U : forall {W} (u : Unitary W), Gate W W

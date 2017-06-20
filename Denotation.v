@@ -35,7 +35,6 @@ Fixpoint denote_unitary {W} (U : Unitary W) : Square (2^〚W〛) :=
   | σx => pauli_x
   | σy => pauli_y
   | σz => pauli_z
-  | CNOT => cnot
   | ctrl g => control (denote_unitary g)
   | bit_ctrl g => control (denote_unitary g)  
   | Contexts.transpose g => (denote_unitary g)†
@@ -51,8 +50,7 @@ Proof.
   + apply WF_pauli_x.
   + apply WF_pauli_y.
   + apply WF_pauli_z.
-  + apply WF_cnot.
-  + simpl. apply WF_control. assumption.    
+  + simpl. apply WF_control. assumption. 
   + simpl. apply WF_control. assumption.    
   + simpl. apply WF_conj_transpose. assumption.    
 Qed.
@@ -65,7 +63,6 @@ Proof.
   + apply σx_unitary.
   + apply σy_unitary.
   + apply σz_unitary.
-  + apply cnot_unitary.
   + simpl. apply control_unitary; assumption. (* NB: Admitted lemma *)
   + simpl. apply control_unitary; assumption. (* NB: Admitted lemma *)
   + simpl. apply transpose_unitary; assumption.
@@ -751,6 +748,7 @@ Definition flips_mat n : Density (2^1) :=
   else 0.
 *)
   fun x y => match x, y with
+  | 0, 0 => 1 - (1 / √(nat_to_R (2^n)))
   | 1, 1 => 1 / √(nat_to_R (2^n))
   | _, _ => 0
   end.
@@ -760,22 +758,28 @@ Proof.
   unfold flips_mat, conj_transpose, Mmult, ket1.
   prep_matrix_equality; simpl. Csimpl.
   destruct_Csolve.
-  Csimpl.
-Admitted (* Robert: how to finish this? *).
-     
+  + Csimpl.
+    Rsimpl.
+    rewrite sqrt_1.
+    clra.
+  + Csimpl.
+    Rsimpl.
+    rewrite sqrt_1.
+    clra.
+Qed.     
 
 Lemma flips_correct : forall n, 〚coin_flips n〛 I1 = flips_mat n.
 Proof.
   induction n; simpl.
-  - Msimpl. repeat (unfold super, compose_super, denote_pat_in, swap_list, swap_two, I1; simpl).
+  + Msimpl. repeat (unfold super, compose_super, denote_pat_in, swap_list, swap_two, I1; simpl).
     Msimpl.
     prep_matrix_equality. unfold flips_mat; simpl. 
     unfold Mmult, conj_transpose, ket0, ket1; simpl.
     Csimpl. 
-    destruct_Csolve. Csimpl. 
-    rewrite Rplus_0_r. rewrite sqrt_1. Csimpl. 
-    admit (* Robert: how to finish this? *).
-  - simpl in *.
+    destruct_Csolve; Csimpl. 
+    - rewrite Rplus_0_r. rewrite sqrt_1. clra.
+    - rewrite Rplus_0_r. rewrite sqrt_1. clra.
+  + simpl in *.
     unfold eq_ind_r; simpl.
 Abort.
 
