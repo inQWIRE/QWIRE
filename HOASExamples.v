@@ -478,6 +478,31 @@ Definition lift_meas : Box Qubit Bit.
 Defined.
 
 
+(** Classical Gates **)
+
+(* NOT already exists *)
+
+Definition AND : Box (Qubit ⊗ Qubit) (Qubit).
+  box_ ab ⇒
+    let_ (a,b)      ← output ab;
+    gate_ z         ← init0 @();
+    gate_ (a,(b,z)) ← T @(a,(b,z));
+    gate_ a         ← meas @a;
+    gate_ b         ← meas @b;
+    gate_ ()        ← discard @a;   
+    gate_ ()        ← discard @b;   
+    output z.
+Defined.
+
+Definition OR : Box (Qubit ⊗ Qubit) (Qubit).
+  box_ ab ⇒ 
+    let_ (a,b)       ← output ab;
+    gate_ a'         ← NOT @a;
+    gate_ b'         ← NOT @b;
+    let_ z           ← unbox AND (a',b');
+    gate_ z'         ← NOT @z;
+    output z'.
+Defined.
 
 (** Invalid Circuits **)
 
