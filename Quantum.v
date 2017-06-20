@@ -240,7 +240,7 @@ Admitted.
 
 
 Lemma WF_control : forall {n} (U : Matrix n n), 
-      WF_Matrix n n U -> WF_Matrix (2* n) (2*n) (control U).
+      WF_Matrix n n U -> WF_Matrix (2*n) (2*n) (control U).
 Proof.
   intros n U WFU.
   unfold control, WF_Matrix in *.
