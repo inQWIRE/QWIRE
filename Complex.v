@@ -80,6 +80,7 @@ Definition Cmult (x y : C) : C := (fst x * fst y - snd x * snd y, fst x * snd y 
 Definition Cinv (x : C) : C := (fst x / (fst x ^ 2 + snd x ^ 2), - snd x / (fst x ^ 2 + snd x ^ 2)).
 Definition Cdiv (x y : C) : C := Cmult x (Cinv y).
 
+
 Delimit Scope C_scope with C.
 Local Open Scope C_scope.
 
@@ -89,6 +90,15 @@ Infix "-" := Cminus : C_scope.
 Infix "*" := Cmult : C_scope.
 Notation "/ x" := (Cinv x) : C_scope.
 Infix "/" := Cdiv : C_scope.
+
+(* Added exponentiation *)
+Fixpoint Cpow (c : C) (n : nat) : C :=  
+  match n with
+  | 0%nat => 1
+  | S n' => c * Cpow c n'
+  end.
+
+Infix "^" := Cpow : C_scope.
 
 (** *** Other usual functions *)
 

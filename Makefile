@@ -54,9 +54,13 @@ vo_to_obj = $(addsuffix .o,\
 #                        #
 ##########################
 
-COQLIBS?=
-COQCHKLIBS?=
-COQDOCLIBS?=
+COQLIBS?=\
+  -R "." Top\
+  -I "."
+COQCHKLIBS?=\
+  -R "." Top
+COQDOCLIBS?=\
+  -R "." Top
 
 ##########################
 #                        #
@@ -98,7 +102,10 @@ endif
 #                    #
 ######################
 
-VFILES:=MachineExamples.v\
+VFILES:=HOASProofs.v\
+  FlatProofs.v\
+  MachineProofs.v\
+  MachineExamples.v\
   Quantum.v\
   HOASCircuits.v\
   Denotation.v\
@@ -242,6 +249,8 @@ uninstall: uninstall_me.sh
 	@echo "B $(COQLIB)config" >> .merlin
 	@echo "B $(COQLIB)ltac" >> .merlin
 	@echo "B $(COQLIB)engine" >> .merlin
+	@echo "B /Users/Reuven/Dropbox/papers/quantum/QWIRE-NODEP/QWIRE" >> .merlin
+	@echo "S /Users/Reuven/Dropbox/papers/quantum/QWIRE-NODEP/QWIRE" >> .merlin
 
 clean::
 	rm -f $(OBJFILES) $(OBJFILES:.o=.native) $(NATIVEFILES)

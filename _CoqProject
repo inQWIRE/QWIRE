@@ -1,4 +1,6 @@
--R . Top
+./HOASProofs.v
+./FlatProofs.v
+./MachineProofs.v
 ./MachineExamples.v
 ./Quantum.v
 ./HOASCircuits.v
@@ -12,3 +14,4 @@
 ./HOASExamples.v
 ./Matrix.v
 ./FlatExamples.v
+./Complex.v

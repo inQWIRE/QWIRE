@@ -310,6 +310,44 @@ Definition teleport_lift : Box Qubit Qubit.
     unbox bob_lift (x,y,b).
 Defined.
 
+(* teleport lift outside of bob *)
+Definition bob_distant (z : bool * bool) : Box Qubit Qubit.
+  box_ b ⇒
+    gate_ b      ← (if snd z then σx else id_gate) @b;
+    gate_ b      ← (if fst z then σz else id_gate) @b;
+    output b.
+Defined.
+
+Definition teleport_distant : Box Qubit Qubit.
+  box_ q ⇒
+    let_ (a,b) ← unbox bell00 () ;
+    let_ (x,y) ← unbox alice (q,a) ;
+    lift_ z ← (x,y) ;
+    unbox (bob_distant z) b.
+Defined.
+
+Definition teleport_direct : Box Qubit Qubit.
+  box_ q ⇒  
+  (* bell00 *)
+    gate_ a     ← init0 @();
+    gate_ b     ← init0 @();
+    gate_ a     ← H @a;
+    gate_ (a,b) ← CNOT @(a,b);
+
+  (* alice *)
+    gate_ (q,a) ← CNOT @(q,a);
+    gate_ q     ← H @q;
+    gate_ x     ← meas @q;
+    gate_ y     ← meas @a;
+
+  (* bob *)
+    gate_ (y,b)  ← bit_ctrl σx @(y,b);
+    gate_ (x,b)  ← bit_ctrl σz @(x,b);
+    gate_ ()     ← discard @y;   
+    gate_ ()     ← discard @x;
+    output b.
+Defined.
+
 
 (* Right associative Tensor *)
 Fixpoint NTensor (n : nat) (W : WType) := 
@@ -511,6 +549,13 @@ Definition absurd_circ : Box Qubit (Bit ⊗ Qubit).
     gate_ x  ← meas @w ;
     gate_ w' ← H @w ;
     output (x,w').
+Abort.
+
+Definition unmeasure : Box Qubit Qubit.
+  box_ q ⇒ 
+    gate_ q  ← H @q ;
+    gate_ b ← meas @q ;
+    output q.
 Abort.
 
 Definition unused_qubit : Box Qubit One.
