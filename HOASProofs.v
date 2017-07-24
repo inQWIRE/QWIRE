@@ -8,9 +8,8 @@ Global Unset Asymmetric Patterns.
 
 Lemma Ex : 〚init true〛 I1 = (|1⟩⟨1| : Density 2).
 Proof.
-  unfold I1. 
   simpl.
-  repeat (unfold compose_super, super, swap_list, swap_two, denote_pat_in; simpl).
+  repeat (unfold I1, compose_super, super, swap_list, swap_two, denote_pat_in; simpl).
   Msimpl.
 Qed.
 
@@ -104,9 +103,116 @@ Proof.
   destruct x, y; Csimpl; destruct_Csolve. Csolve.
 Qed.
 
+Definition EPR00 : Matrix 4 4 :=
+  fun x y => match x, y with
+             | 0, 0 => 1/2
+             | 0, 3 => 1/2
+             | 3, 0 => 1/2
+             | 3, 3 => 1/2
+             | _, _ => 0
+             end.
+
+
+Lemma cnot_eq : cnot = control pauli_x.
+Proof.
+  unfold cnot, control, pauli_x.
+  simpl.
+  prep_matrix_equality.
+  (* destruct_Csolve; simpl. huh??? *)
+  repeat (try destruct x; try destruct y; Csimpl; trivial).
+Qed.
+
+(*
+Opaque Nat.div.
+Opaque Nat.modulo.
+*)
+
+Lemma divmod_eq : forall x y n z, fst (Nat.divmod x y n z) = (n + fst (Nat.divmod x y 0 z))%nat.
+Proof.
+  induction x.
+  + intros. simpl. omega.
+  + intros. simpl. 
+    destruct z.
+    rewrite IHx.
+    rewrite IHx with (n:=1%nat).
+    omega.
+    rewrite IHx.
+    reflexivity.
+Qed.
+
+(*
+Lemma bell00_eq :  〚bell00〛 I1  = EPR00.
+Proof.
+  repeat (unfold I1, compose_super, super, swap_list, 
+          swap_two, pad, apply_new0, apply_U, 
+          apply_meas, denote_pat_in; simpl).
+  Msimpl.
+  repeat rewrite <- Mmult_assoc.
+  
+  
+
+(* Doesn't rewrite:
+  replace (control pauli_x × (hadamard ⊗ Id 2) × (swap) † × (|0⟩ ⊗ Id 2) × |0⟩ × ⟨0|
+  × (|0⟩ ⊗ Id 2) † × swap × (hadamard ⊗ Id 2) † × (control pauli_x) †) 
+  ((control pauli_x × (hadamard ⊗ Id 2) × (swap) † × (|0⟩ ⊗ Id 2) × |0⟩) × (⟨0|
+  × (|0⟩ ⊗ Id 2) † × swap × (hadamard ⊗ Id 2) † × (control pauli_x) †)).
+*)
+
+
+  assert (control pauli_x × (hadamard ⊗ Id 2) = fun x y => match x, y with
+                                                           | 0, 0 => 1/√2
+                                                           | 0, 2 => 1/√2
+                                                           | 1, 1 => 1/√2
+                                                           | 1, 3 => 1/√2
+                                                           | 2, 1 => 1/√2
+                                                           | 2, 3 => -1/√2
+                                                           | 3, 0 => 1/√2
+                                                           | 3, 2 => -1/√2
+                                                           | _, _ => 0
+                                                           end
+         ). 
+  unfold control, pauli_x, Mmult, kron, hadamard, Id.
+  simpl.
+  prep_matrix_equality.
+  destruct x, y; Csimpl; trivial.
+  destruct y; Csimpl; trivial.
+  destruct y; Csimpl; trivial.
+  destruct y; Csimpl; trivial.
+  rewrite divmod_eq. simpl. Csimpl. reflexivity.
+  destruct x; Csimpl; trivial.
+  destruct x; Csimpl; trivial.
+  destruct x; Csimpl; trivial.
+  destruct x, y; Csimpl; trivial.
+  destruct y; Csimpl; trivial.
+  destruct y; Csimpl; trivial.
+  rewrite divmod_eq. simpl. Csimpl. reflexivity.
+  destruct x; Csimpl; trivial.
+  destruct x; Csimpl; trivial.
+  destruct x, y; Csimpl; trivial.
+  destruct y; Csimpl; trivial.
+  clra. 
+  rewrite divmod_eq. simpl. Csimpl. reflexivity.
+  destruct x; Csimpl; trivial.
+  clra.
+  destruct x, y; Csimpl; trivial.
+  rewrite divmod_eq. simpl. Csimpl. reflexivity.
+
+  rewrite H. (* bah! hidden type problems? *)
+
+
+
+  unfold EPR00, ket0, ket1, Mplus, Mmult, conj_transpose, swap, hadamard, control, pauli_x, Id.
+  prep_matrix_equality.
+
+  destruct x,y.
+  Csimpl.
+  destruct x, y; Csimpl; destruct_Csolve. Csolve.
+Qed. *)
+
 (*
 Print teleport_direct.
 Print teleport.
+Eval native_compute in teleport. 
 *)
 
 Lemma teleport_direct_eq : forall (ρ : Density 2), 
@@ -118,17 +224,20 @@ Proof.
   unfold eq_rect, eq_sym.
 Admitted.
 
+(*
 Lemma teleport_eq : forall (ρ : Density 2), 
   WF_Matrix 2 2 ρ -> 〚teleport〛 ρ = ρ.
 Proof.
   intros ρ WF.
+  native_compute.
+  vm_compute.
+  simpl.
   unfold teleport.
   
-(*simpl.
+  simpl.
   unfold compose_super, super, denote_pat_in.
   unfold swap_list, swap_list_aux.
   simpl.*)
-Admitted.
 
 (* Do these belong back in Denotation? *)
 Program Lemma compose_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2),

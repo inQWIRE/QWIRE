@@ -290,13 +290,37 @@ Proof.
       apply IHn; trivial.
 Qed.
 
-(* Should the non-zero assumptions be here? *)
+(*
 Lemma WF_kron : forall {m n o p : nat} (A : Matrix m n) (B : Matrix o p), 
                   o <> 0 -> p <> 0 ->
                   WF_Matrix m n A -> WF_Matrix o p B -> WF_Matrix (m*o) (n*p) (A ⊗ B).
 Proof.
   unfold WF_Matrix, kron.
   intros m n o p A B Nn No H H0 x y H1. simpl.
+  rewrite H.
+  rewrite Cmult_0_l; reflexivity.
+  destruct H1.
+  unfold ge in *.
+  left. 
+  apply Nat.div_le_lower_bound; trivial.
+  rewrite Nat.mul_comm.
+  assumption.
+  right.
+  apply Nat.div_le_lower_bound; trivial.
+  rewrite Nat.mul_comm.
+  assumption.
+Qed. 
+*)
+
+(* Should the non-zero assumptions be here? *)
+(* Adding equivalence conditions *)
+Lemma WF_kron : forall {m n o p q r : nat} (A : Matrix m n) (B : Matrix o p), 
+                  o <> 0 -> p <> 0 ->
+                  q = m * o -> r = n * p -> 
+                  WF_Matrix m n A -> WF_Matrix o p B -> WF_Matrix q r (A ⊗ B).
+Proof.
+  unfold WF_Matrix, kron.
+  intros m n o p q r E1 E2 A B Nn No H H0 x y H1. subst.
   rewrite H.
   rewrite Cmult_0_l; reflexivity.
   destruct H1.
@@ -341,6 +365,16 @@ Ltac show_wf :=
     repeat (destruct x; try reflexivity; try omega);
     repeat (destruct y; try reflexivity; try omega).
 
+Create HintDb wf_db.
+Hint Resolve WF_Zero : wf_db.
+Hint Resolve WF_Id : wf_db.
+Hint Resolve WF_mult : wf_db.
+Hint Resolve WF_plus : wf_db.
+Hint Resolve WF_scale : wf_db.
+Hint Resolve WF_kron : wf_db.
+Hint Resolve WF_transpose : wf_db.
+Hint Resolve WF_conj_transpose : wf_db.
+
 Ltac show_wf_safe :=
   repeat match goal with
   | [ |- WF_Matrix _ _  (Zero ?m ?n) ] => apply WF_Zero
@@ -351,7 +385,7 @@ Ltac show_wf_safe :=
   | [ |- WF_Matrix _ _ (?A ⊗ ?B) ]    => apply WF_kron
   | [ |- WF_Matrix _ _ (?A⊤) ]        => apply WF_transpose 
   | [ |- WF_Matrix _ _ (?A†) ]        => apply WF_conj_transpose 
-  end; trivial.
+  end; auto.
 
 
 Lemma Cconj_R : forall r : R, Cconj r = r. Proof. intros. clra. Qed.
@@ -852,7 +886,11 @@ Ltac Msimpl1 :=
   repeat rewrite id_conj_transpose_eq;
   repeat rewrite id_conj_transpose_eq; 
   repeat rewrite conj_transpose_involutive;
-  try show_wf_safe; try omega.
+(*  repeat match goal with
+  | [|- WF_Matrix _] => auto 20 with wf_db
+  end; *)
+  auto 20 with wf_db;
+  try omega. 
 Ltac Msimpl := simpl; repeat Msimpl1.
 
 

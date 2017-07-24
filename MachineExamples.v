@@ -3,7 +3,6 @@ Require Import Datatypes.
 Require Import Arith.
 Require Import List.
 Require Import Contexts.
-Require Import HOASCircuits.
 Require Import MachineCircuits.
 Require Import Omega.
 Import ListNotations.

@@ -91,6 +91,7 @@ Proof.
   Msimpl.
 Qed.
 
+(*
 Lemma teleport_eq : forall (ρ : Density 2), 
   WF_Matrix 2 2 ρ -> 〚teleport_direct〛 ρ = ρ.
 Proof.
@@ -99,17 +100,16 @@ Proof.
   repeat (unfold compose_super, super, swap_list, swap_two, pad, 
           apply_new0, apply_U, apply_meas, denote_pat_in; simpl).
   simpl.
-(* Commented because slow: 
-  repeat rewrite id_conj_transpose_eq.
-  repeat rewrite Mmult_1_r.
-  repeat rewrite Mmult_1_l.
+(* Commented because slow: *)
   repeat (repeat rewrite kron_1_l; repeat rewrite kron_1_r; repeat rewrite Mmult_1_l;
    repeat rewrite Mmult_1_r; repeat rewrite id_conj_transpose_eq;
    repeat rewrite conj_transpose_involutive).
-  Search "†".
-  repeat rewrite kron_conj_transpose. *)
-Admitted.
+  
 
+  Search "†".
+  repeat rewrite kron_conj_transpose.
+Admitted.
+*)
 
 
 

@@ -214,35 +214,35 @@ Eval compute in ((swap_two 1 0 1) 0 0)%nat.
 Eval compute in (print_matrix (swap_two 1 0 2)).
 *)
 
-(** Unitaries are well-formed **)
+(** Well Formedness of Quantum States and Unitaries **)
+
+Lemma WF_bra0 : WF_Matrix 1 2 ⟨0|. Proof. show_wf. Qed.
+Lemma WF_bra1 : WF_Matrix 1 2 ⟨1|. Proof. show_wf. Qed.
+Lemma WF_ket0 : WF_Matrix 2 1 |0⟩. Proof. show_wf. Qed.
+Lemma WF_ket1 : WF_Matrix 2 1 |1⟩. Proof. show_wf. Qed.
+Lemma WF_braket0 : WF_Matrix 2 2 |0⟩⟨0|. Proof. show_wf. Qed.
+Lemma WF_braket1 : WF_Matrix 2 2 |1⟩⟨1|. Proof. show_wf. Qed.
+
+Hint Resolve WF_bra0 : wf_db.
+Hint Resolve WF_bra1 : wf_db.
+Hint Resolve WF_ket0 : wf_db.
+Hint Resolve WF_ket1 : wf_db.
+Hint Resolve WF_braket0 : wf_db.
+Hint Resolve WF_braket1 : wf_db.
 
 Lemma WF_hadamard : WF_Matrix 2 2 hadamard. Proof. show_wf. Qed.
 Lemma WF_pauli_x : WF_Matrix 2 2 pauli_x. Proof. show_wf. Qed.
 Lemma WF_pauli_y : WF_Matrix 2 2 pauli_y. Proof. show_wf. Qed.
 Lemma WF_pauli_z : WF_Matrix 2 2 pauli_z. Proof. show_wf. Qed.
+Lemma WF_cnot : WF_Matrix 4 4 cnot. Proof. show_wf. Qed.
+(* Proof. replace 4%nat with (2*2)%nat by auto. apply WF_control. apply WF_pauli_x. Qed. *)
+Lemma WF_swap : WF_Matrix 4 4 swap. Proof. show_wf. Qed.
 
-Hint Resolve WF_hadamard.
-Hint Resolve WF_pauli_x.
-Hint Resolve WF_pauli_y.
-Hint Resolve WF_pauli_z.
-
-Lemma WF_braket1 : WF_Matrix 2 2 |1⟩⟨1|.
-Proof. show_wf. Qed.
-Lemma WF_braket0 : WF_Matrix 2 2 |0⟩⟨0|.
-Proof. show_wf. Qed.
-Hint Resolve WF_braket1.
-Hint Resolve WF_braket0.
-
-Lemma braket0_conj_transpose : |0⟩⟨0|† = |0⟩⟨0|.
-Admitted.
-Lemma braket1_conj_transpose : |1⟩⟨1|† = |1⟩⟨1|.
-Admitted.
-
-
-Lemma WF_control : forall {n} (U : Matrix n n), 
-      WF_Matrix n n U -> WF_Matrix (2*n) (2*n) (control U).
+Lemma WF_control : forall (n m : nat) (U : Matrix n n), 
+      (m = 2 * n)%nat ->
+      WF_Matrix n n U -> WF_Matrix m m (control U).
 Proof.
-  intros n U WFU.
+  intros n m U E WFU. subst.
   unfold control, WF_Matrix in *.
   intros x y [Hx | Hy]; simpl.
   + replace (x <? n) with false by (symmetry; apply Nat.ltb_ge; omega). simpl.
@@ -255,11 +255,17 @@ Proof.
     * destruct (n <=? x), (n <=? y); reflexivity.
     * right. omega.
 Qed.
-Hint Resolve WF_control.
 
-Lemma WF_cnot : WF_Matrix 4 4 cnot. Proof. show_wf. Qed.
-(* Proof. replace 4%nat with (2*2)%nat by auto. apply WF_control. apply WF_pauli_x. Qed. *)
-Lemma WF_swap : WF_Matrix 4 4 swap. Proof. show_wf. Qed.
+Hint Resolve WF_hadamard : wf_db.
+Hint Resolve WF_pauli_x : wf_db.
+Hint Resolve WF_pauli_y : wf_db.
+Hint Resolve WF_pauli_z : wf_db.
+Hint Resolve WF_cnot : wf_db.
+Hint Resolve WF_swap : wf_db.
+Hint Resolve WF_control : wf_db.
+
+Lemma braket0_conj_transpose : |0⟩⟨0|† = |0⟩⟨0|. Proof. mlra. Qed.
+Lemma braket1_conj_transpose : |1⟩⟨1|† = |1⟩⟨1|. Proof. mlra. Qed.
 
 (** Unitaries are unitary **)
 
@@ -326,7 +332,7 @@ Lemma control_unitary : forall n (A : Matrix n n),
 Proof.
   intros n A.
   split.
-  apply WF_control. destruct H; assumption.
+  destruct H; auto with wf_db.
   induction n.
   + unfold control, is_unitary, conj_transpose, Mmult, Id.
     prep_matrix_equality.
@@ -352,7 +358,7 @@ Lemma transpose_unitary : forall n (A : Matrix n n), is_unitary A -> is_unitary 
   intros. 
   simpl.
   split.
-  + apply WF_conj_transpose. destruct H. assumption.
+  + destruct H; auto with wf_db.
   + unfold is_unitary in *.
     rewrite conj_transpose_involutive.
     destruct H as [_ H].
@@ -406,31 +412,21 @@ Proof.
   unfold is_unitary; split.
   + (* well-formedness *)
     induction i. 
-    simpl. apply WF_Id.
+    simpl. auto with wf_db.     
     simpl in *.
     unfold swap_to_0 in IHi.
     destruct i; simpl in *.
-    replace (2 ^ n)%nat with (4 * 2^(n-2))%nat by unify_pows_two.
-    (* We need a tactic here *)
-    apply WF_kron; try (apply Nat.pow_nonzero; omega).
-    apply WF_swap.
-    apply WF_Id.
-    replace (2^n)%nat with  (2 ^ i * 4 * 2 ^ (n - i - 2))%nat by unify_pows_two.
-    apply WF_mult.
-    apply WF_mult.
-    apply WF_kron; try (apply Nat.pow_nonzero; omega).
-    apply WF_kron; try omega. 
-    apply WF_Id.
-    apply WF_swap.
-    apply WF_Id.
-    replace (2 ^ i * 4 * 2 ^ (n - i - 2))%nat with (2^n)%nat by unify_pows_two.
-    apply IHi.
-    omega.
-    apply WF_kron; try (apply Nat.pow_nonzero; omega).
-    apply WF_kron; try omega. 
-    apply WF_Id.
-    apply WF_swap.
-    apply WF_Id.
+    - specialize Nat.pow_nonzero; intros NZ.
+      replace (2 ^ n)%nat with (4 * 2^(n-2))%nat by unify_pows_two.
+      auto with wf_db.
+    - specialize Nat.pow_nonzero; intros NZ.
+      replace (2^n)%nat with  (2 ^ i * 4 * 2 ^ (n - i - 2))%nat by unify_pows_two.
+      auto with wf_db.
+      apply WF_mult; auto with wf_db.
+      apply WF_mult; auto with wf_db.
+      replace (2 ^ i * 4 * 2 ^ (n - i - 2))%nat with (2^n)%nat by unify_pows_two.
+      apply IHi.
+      omega.
   + induction i; simpl.
     - apply id_unitary.
     - unfold swap_to_0 in IHi. 
@@ -441,8 +437,6 @@ Proof.
         setoid_rewrite (kron_conj_transpose B A).            
     
 (*    rewrite (kron_mixed_product B† A† B A). *)
-
-
 
         specialize (kron_mixed_product B† A† B A); intros H'.
         assert (is_unitary B). subst. apply swap_unitary.
@@ -487,8 +481,8 @@ Notation Density n := (Matrix n n) (only parsing).
 
 Definition Pure_State {n} (ρ : Density n) : Prop := WF_Matrix n n ρ /\ ρ = ρ × ρ.
 
-Lemma pure0 : Pure_State |0⟩⟨0|. Proof. split; [show_wf|mlra]. Qed.
-Lemma pure1 : Pure_State |1⟩⟨1|. Proof. split; [show_wf|mlra]. Qed.
+Lemma pure0 : Pure_State |0⟩⟨0|. Proof. split; [auto with wf_db|mlra]. Qed.
+Lemma pure1 : Pure_State |1⟩⟨1|. Proof. split; [auto with wf_db|mlra]. Qed.
 
 (* Wiki:
 For a finite-dimensional function space, the most general density operator 
@@ -507,13 +501,10 @@ Lemma WF_Pure : forall {n} (ρ : Density n), Pure_State ρ -> WF_Matrix n n ρ.
 Proof.
   unfold Pure_State. intuition.
 Qed.
-Hint Resolve WF_Pure.
+Hint Resolve WF_Pure : wf_db.
 Lemma WF_Mixed : forall {n} (ρ : Density n), Mixed_State ρ -> WF_Matrix n n ρ.
-Proof.
-  induction 1; auto.
-  show_wf_safe. 
-Qed.
-Hint Resolve WF_Mixed.
+Proof. induction 1; auto with wf_db. Qed.
+Hint Resolve WF_Mixed : wf_db.
 
 (** Density matrices and superoperators **)
 
@@ -573,13 +564,13 @@ Proof.
   intros n U ρ [WFU H] [WFρ P].
   unfold Pure_State, is_unitary, super in *.
   split.
-  show_wf.
+  auto with wf_db.
   remember (U × ρ × (U) † × (U × ρ × (U) †)) as rhs.
   rewrite P.
   replace (ρ × ρ) with (ρ × Id n × ρ) by (rewrite Mmult_1_r; trivial).
   rewrite <- H.
   rewrite Heqrhs.
-  repeat rewrite Mmult_assoc. (* Admitted *)
+  repeat rewrite Mmult_assoc. (* Admitted lemma *)
   reflexivity.
 Qed.  
 
@@ -614,8 +605,8 @@ Proof. unfold meas_op.
          by (unfold dm12, super; mlra).
        apply Mix_S.
        lra.
-       constructor; split; [show_wf|mlra].
-       constructor; split; [show_wf|mlra].
+       constructor; split; [auto with wf_db|mlra].
+       constructor; split; [auto with wf_db|mlra].
 Qed.
 
 Lemma mixed_unitary : forall {n} (U ρ : Matrix n n), 
@@ -632,7 +623,5 @@ Proof.
     rewrite 2 Mscale_mult_dist_l.
     apply Mix_S; trivial.
 Qed.
-
-
 
 (* *)

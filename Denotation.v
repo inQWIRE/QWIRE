@@ -11,7 +11,6 @@ Set Bullet Behavior "Strict Subproofs".
 Global Unset Asymmetric Patterns.
 
 
-
 Class Denote source target := {denote : source -> target}.
 Notation "〚 s 〛" := (denote s) (at level 10).
 
@@ -50,11 +49,11 @@ Proof.
   + apply WF_pauli_x.
   + apply WF_pauli_y.
   + apply WF_pauli_z.
-  + simpl. apply WF_control. assumption. 
-  + simpl. apply WF_control. assumption.    
-  + simpl. apply WF_conj_transpose. assumption.    
+  + simpl. auto with wf_db. 
+  + simpl. auto with wf_db. 
+  + simpl. auto with wf_db. 
 Qed.
-Hint Resolve WF_unitary.
+Hint Resolve WF_unitary : wf_db.
 
 Lemma unitary_gate_unitary : forall {W} (U : Unitary W), is_unitary (〚U〛).
 Proof.
@@ -67,7 +66,7 @@ Proof.
   + simpl. apply control_unitary; assumption. (* NB: Admitted lemma *)
   + simpl. apply transpose_unitary; assumption.
 Qed.
-Hint Resolve unitary_gate_unitary.
+(* Hint Resolve unitary_gate_unitary. Do we need this? Where? *)
 Instance Denote_Unitary_Correct W : Denote_Correct (Denote_Unitary W) :=
 {|
     correctness := fun A => is_unitary A;
@@ -106,13 +105,6 @@ Proof.
   simpl. apply gt_trans with (2^n)%nat; auto. omega.
 Qed.
 
-Lemma WF_ket0 : WF_Matrix 2 1 |0⟩.
-Proof. show_wf. Qed.
-Lemma WF_ket1 : WF_Matrix 2 1 |1⟩.
-Proof. show_wf. Qed.
-Hint Resolve WF_ket0.
-Hint Resolve WF_ket1.
-
 Lemma WF_denote_gate : forall n W1 W2 (g : Gate W1 W2) ρ,
     WF_Matrix (2^〚W1〛 * 2^n) (2^〚W1〛 * 2^n) ρ 
  -> WF_Matrix (2^〚W2〛 * 2^n) (2^〚W2〛 * 2^n) (denote_gate' n g ρ).
@@ -120,24 +112,10 @@ Proof.
   intros n W1 W2 g ρ wf_ρ.
   assert (0 < 2^n)%nat by apply pow_gt_0.
   assert (0 <> 2^n)%nat by omega.
-  assert (pf0 : WF_Matrix (2 * 2^n) (1 * 2^n) (|0⟩ ⊗ Id (2^n)))
-      by (show_wf_safe; auto).
-  assert (pf1 : WF_Matrix (2 * 2^n) (1 * 2^n) (|1⟩ ⊗ Id (2^n)))
-      by (show_wf_safe; auto).
-  assert (pf00 : WF_Matrix (2 * 2^n) (2 * 2^n) (|0⟩⟨0| ⊗ Id (2^n)))
-      by (show_wf_safe; auto).
-  assert (pf11 : WF_Matrix (2 * 2^n) (2 * 2^n) (|1⟩⟨1| ⊗ Id (2^n)))
-      by (show_wf_safe; auto).
-  assert (pf0' : WF_Matrix (1 * 2^n) (2 * 2^n) (⟨0| ⊗ Id (2^n)))
-      by (show_wf_safe; auto).
-  assert (pf1' : WF_Matrix (1 * 2^n) (2 * 2^n) (⟨1| ⊗ Id (2^n)))
-      by (show_wf_safe; auto).
-  destruct g; simpl; unfold super; try (show_wf_safe; try omega; fail).
-  specialize (WF_unitary u); intros wf_u.
-    show_wf_safe; try omega. 
+  destruct g; simpl; unfold super; auto with wf_db; try omega.
+  specialize (WF_unitary u). intros wf_u. auto with wf_db.
 Qed.
-Hint Resolve WF_denote_gate.
-
+Hint Resolve WF_denote_gate : wf_db.
 
 Lemma denote_gate_correct : forall {W1} {W2} (g : Gate W1 W2), 
                             WF_Superoperator (denote_gate g). 
@@ -202,7 +180,7 @@ Proof.
   apply swap_two_base. 
   unfold swap_two. simpl.
   rewrite kron_1_r.
-  show_wf.
+  auto with wf_db.
 Qed.
 
 Local Obligation Tactic := program_simpl; unify_pows_two; try omega.
@@ -227,7 +205,7 @@ Program Definition apply_discard {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :
   let S := swap_two n 0 k in 
   fun ρ => super ((⟨0| ⊗ Id (2^(n-1))) × S) ρ .+ super ((⟨1| ⊗ Id (2^(n-1))) × S) ρ.
 
-(* Confirm tranposes are in the right place *)
+(* Confirm transposes are in the right place *)
 Program Definition apply_meas {n} (k : nat) : Superoperator (2^n) (2^n) :=
   let S := swap_two n 0 k in 
   fun ρ => super (S × (|0⟩⟨0| ⊗ Id (2^(n-1))) × S†) ρ 
@@ -256,12 +234,6 @@ Definition apply_gate {n w1 w2} (g : Gate w1 w2) (l : list nat)
               | _      => super_Zero
               end
   end.
-
-
-Lemma WF_k0 : WF_Matrix 2 1 |0⟩. Proof. show_wf. Qed.
-Hint Resolve WF_k0.
-Lemma WF_k1 : WF_Matrix 2 1 |1⟩. Proof. show_wf. Qed.
-Hint Resolve WF_k1.
 
 (* Can also use map_id and map_ext *)
 Lemma map_same_id : forall a l, (map (fun z : nat * nat => if a =? snd z then (fst z, a) else z)
@@ -470,11 +442,8 @@ Proof.
 Admitted.
 
 Definition I1 := Id (2^0).
-Lemma WF_I1 : WF_Matrix 1 1 I1.
-Proof.
-  unfold I1. apply WF_Id.
-Qed.
-Hint Resolve WF_I1.
+Lemma WF_I1 : WF_Matrix 1 1 I1. Proof. unfold I1. apply WF_Id. Qed.
+Hint Resolve WF_I1 : wf_db.
 
 Ltac destruct1 :=
   match goal with
