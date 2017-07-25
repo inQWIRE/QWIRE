@@ -3,11 +3,13 @@ Require Import Datatypes.
 Require Import Arith.
 Require Import List.
 Require Import Contexts.
-Require Import TypedCircuits.
+Require Import HOASCircuits.
 Require Import FlatCircuits.
 (* Import TC. *)
 Import ListNotations.
 Open Scope list_scope.
+
+Module F.
 
 (** Projecting out elements of tensors **)
 
@@ -24,34 +26,6 @@ Program Definition wproj {Γ W1 W2} (p : Pat Γ (Tensor W1 W2)) :
   | bit _ _ _ => _
   | pair Γ1 Γ2 Γ W1 W2 v M p1 p2 => existT23 Γ1 Γ2 p1 p2 M  
   end.
-(*
-Program Definition elim_unit {Γ} (p : Pat Γ One) : Γ = ∅ :=
-  match p with
-  | unit => _
-  | qubit _ _ _ => _
-  | bit _ _ _ => _
-  | pair Γ1 Γ2 Γ W1 W2 v M p1 p2 => _
-  end.
-*)
-
-(* Examples below use fresh_pat, but I'd rather have concrete patterns *)
-(*
-Fixpoint concrete_bit (Γ : Ctx) : Ctx :=
-  match Γ with
-  | nil => [Some Bit]
-  | None :: Γ' => Some Bit :: Γ'
-  | Some w :: Γ' => Some w :: concrete_bit Γ'
-  end.
-
-Fixpoint concrete_qubit (Γ : Ctx) : Ctx :=
-  match Γ with
-  | nil => [Some Qubit]
-  | None :: Γ' => Some Qubit :: Γ'
-  | Some w :: Γ' => Some w :: concrete_qubit Γ'
-  end.
-
-Fixpoint concrete_tensor (Γ : Ctx) : Ctx
-*)
 
 (*** Typechecking Tactic ***)
 
@@ -63,6 +37,11 @@ Opaque wproj.
 Opaque merge.
 Opaque Ctx.
 Opaque is_valid.
+
+Ltac print_goal :=
+  match goal with 
+  | [|- ?G ] => idtac G
+  end.
 
 Ltac goal_has_evars := 
   match goal with 
@@ -85,7 +64,7 @@ Ltac type_check_once :=
   | [|- ?G ]         => tryif (has_evars G)  
                         then (idtac (*"can't monoid"; print_goal*))
                         else (idtac (*"monoid"; print_goal*); monoid)
-  end.
+  end; try solve [vm_compute; eauto].
 
 (* Useful for debugging *)
 Ltac type_check_num := 
@@ -103,131 +82,87 @@ Ltac type_check := let n := numgoals in do n [> type_check_once..].
 Set Printing Coercions.
 
 Tactic Notation (at level 0) "make_circ" uconstr(C) := refine C; type_check.
-Tactic Notation (at level 0) "box" uconstr(p) uconstr(C) := 
+Tactic Notation (at level 0) "box_f" uconstr(p) uconstr(C) := 
   refine (flat_box p C); type_check.
 
-Ltac new_pat p W Γ v := 
+Ltac new_pat p W Γ := 
     let Γ' := fresh "Γ" in
-    let v' := fresh "v" in
-    let v'' := fresh "v" in
+    let v1 := fresh "v" in
+    let v2 := fresh "v" in 
+    let v3 := fresh "v" in 
 (*    let Eq := fresh "Eq" in *)
-    destruct (fresh_pat Γ W v) as [Γ' [[v' v''] p]];
-    apply disjoint_valid in v''; trivial; try apply valid_empty.
+    set (p := fresh_pat Γ W);
+    set (Γ' := fresh_ctx Γ W);
+    generalize (fresh_ctx_valid W Γ); intros v1;
+    try (assert (v2 : is_valid Γ) by validate;
+         generalize (fresh_ctx_merge_valid W Γ v2); intros v3).
 
-Notation gate g p1 p2 C := (flat_gate _ _ _ _ _ g p1 p2 C).
-Notation output p := (flat_output _ p).
+(*    set (v' := fresh_ctx_valid W Γ v);
+    set (v'' := fresh_ctx_merge_valid W Γ v). *)
+(*    apply disjoint_valid in v''; trivial; try apply valid_empty.*)
+
+Notation gate g p1 p2 C := (flat_gate g p1 p2 C).
+Notation output_f p := (flat_output p).
 
 
-Notation "p' ← 'gate' g 'on' p ; C" := (gate g p p' C) 
+Notation "'gate_f' p' ← g @ p ; C" := (gate g p p' C) 
                                           (at level 10, right associativity). 
-
-Notation "'letC' p' ← 'gate' g 'on' p ; C" := (gate g p p' C) 
-                                          (at level 10, right associativity).   
 
 
 Notation "()" := unit : circ_scope.
 Notation "( x , y , .. , z )" := (pair _ _ _ _ _ _ _ .. (pair _ _ _ _ _ _ _ x y) .. z) (at level 0) : circ_scope.
 
-
-(*
-
-Notation output p := (output _ p).
-Notation gate g p1 := (gate _ _ _ g p1 (fun _ _ _ _ p' => output p')).
-Notation comp p c1 c2 := (compose c1 _ _ (fun _ _ _ _ p => c2)).
-Notation letpair p1 p2 p c := (let 'existT23 _ _ p1 p2 _ := wproj p in c).
-
-
-Notation "'letC' p ← c1 ; c2" := (comp p c1 c2)
-                            (at level 10, right associativity) : circ_scope.
-Notation "'letC' ( p1 , p2 ) ← c1 ; c2" := (compose c1 _ _ (fun _ _ _ _ x => letpair p1 p2 x c2)) 
-                            (at level 10, right associativity) : circ_scope.
-Notation "'letC' ( p1 , p2 , p3 ) ← c1 ; c2" :=
-    (compose c1 _ _ (fun _ _ _ _ x => let 'existT23 _ _ y  p3 _ := wproj x in
-                                      let 'existT23 _ _ p1 p2 _ := wproj y in
-                                      c2))
-                            (at level 10, right associativity) : circ_scope.
-Notation "'letC' ( ( p1 , p2 ) , p3 ) ← c1 ; c2" := 
-    (compose c1 _ _ (fun _ _ _ _ x => let 'existT23 _ _ y  p3 _ := wproj x in
-                                      let 'existT23 _ _ p1 p2 _ := wproj y in
-                                      c2))
-                            (at level 10, right associativity) : circ_scope.
-Notation "'letC' ( p1 , ( p2 , p3 ) ) ← c1 ; c2" :=
-    (compose c1 _ _ (fun _ _ _ _ x => let 'existT23 _ _ p1 y  _ := wproj x in
-                                      let 'existT23 _ _ p2 p3 _ := wproj y in
-                                      c2))
-                            (at level 10, right associativity) : circ_scope.
-Notation "'letC' ( ( p1 , p2 ) , ( p3 , p4 ) ) ← c1 ; c2" :=
-    (compose c1 _ _ (fun _ _ _ _ x => let 'existT23 _ _ y  z  _ := wproj x in
-                                      let 'existT23 _ _ p1 p2 _ := wproj y in
-                                      let 'existT23 _ _ p3 p4 _ := wproj z in
-                                      c2))
-                            (at level 10, right associativity) : circ_scope.
-
-
-Notation unbox c p := (unbox c _ p).
-
-Notation lift_compose x c1 c2 := (compose c1 _ _ (fun _ _ _ _ p' => lift _ _ p' (fun x => c2))).
-Notation lift_pat x p c := (lift _ _ p (fun x => c)).
-Notation "'lift' x ← c1 ; c2" := (lift_pat x c1 c2) (at level 10, right associativity) : circ_scope.
-
-*)
-
-(* Alternative Notations:
-
-Notation out p := (output p).
-Notation gate g p p' c := (gate _ _ _ g p (fun _ _ _ _ p' => c)).
-
-Notation "p1 & p2 <<- p ; c" := (bind' p1 p2 p c) (at level 10, right associativity).
-Notation "() <<-- p ; c" := (match elim_unit p with eq_refl => c end) (at level 10).
-Notation "p' <-- 'gate g 'on' p ; C" := (gate' g p p' C) 
-                                          (at level 10, right associativity).   
-Notation "p <-- c1 ;; c2" := (comp' p c1 c2) (at level 10, right associativity).
-
-Future work:
-Notation gate' g p1 p2 c := (gate _ _ g p1 (fun _ _ _ z => match z (* w2? *) with
-                                                        | p2 => c
-                                                        end)).
-*)
+(****************
+Non-Concrete examples 
+*****************)
 
 Definition id_circ {W} : Flat_Box W W.
-  new_pat p W ∅ valid_empty.
-(*  destruct (fresh_pat ∅ W valid_empty) as [Γ [_ p]]. *)
-  box p (output p).
+  new_pat p W ∅.
+  box_f p (output_f p).
 Defined.
 
 Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Flat_Box W1 W2.
-  new_pat p W1 ∅ valid_empty.
-  new_pat p' W2 ∅ valid_empty.
-  box p (
-    p' ← gate g on p;
-    output p'). 
+  new_pat p W1 ∅.
+  new_pat p' W2 ∅.
+  box_f p (
+    gate_f p' ← g @p;
+    output_f p'). 
+Defined.
+
+Definition unitary_transpose {W} (U : Unitary W) : Flat_Box W W.
+  new_pat p W ∅.
+  box_f p (
+    gate_f p ← U @p;
+    gate_f p ← transpose U @p;
+    output_f p
+  ).
 Defined.
 
 Definition new_discard : Flat_Box One One.
-  new_pat p Bit ∅ valid_empty.
-  box unit (
-    p ← gate new0 on (); 
-    unit ← gate discard on p;
-    output () ).
+  new_pat p Bit ∅.
+  box_f unit (
+    gate_f p    ← new0 @(); 
+    gate_f unit ← discard @p;
+    output_f () ).
 Defined.
 
 Definition init_discard : Flat_Box One One.
-  new_pat q Qubit ∅ valid_empty.
-  new_pat b Bit ∅ valid_empty.
-  box () ( 
-    q ← gate init0 on ();
-    b ← gate meas on q;
-    unit ← gate discard on b;
-    output () ). 
+  new_pat q Qubit ∅.
+  new_pat b Bit ∅.
+  box_f () ( 
+    gate_f q    ← init0 @();
+    gate_f b    ← meas @q;
+    gate_f unit ← discard @b;
+    output_f () ). 
 Defined.
 
 Definition hadamard_measure : Flat_Box Qubit Bit.
-  new_pat q Qubit ∅ valid_empty.
-  new_pat b Bit ∅ valid_empty.
-  box q ( 
-    q ← gate H on q;
-    b ← gate meas on q;
-    output b).
+  new_pat q Qubit ∅.
+  new_pat b Bit ∅.
+  box_f q ( 
+    gate_f q ← H @q;
+    gate_f b ← meas @q;
+    output_f b).
 Defined.
 
 (*
@@ -246,229 +181,320 @@ Defined.
 *)
 
 Definition deutsch (U_f : Gate (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Flat_Box One Qubit.
-  new_pat x Qubit ∅ valid_empty.
-  new_pat y Qubit Γ v.
-  new_pat b Bit (Γ ⋓ Γ0) v2.
-  box unit (
-    x ← gate init0 on ();
-    x ← gate H on x;
-    y ← gate init1 on ();
-    y ← gate H on y;
-    (x,y) ← gate U_f on (x,y);
-    b ← gate meas on x;
-    () ← gate discard on b;
-    output y).
+  new_pat x Qubit ∅.
+  new_pat y Qubit Γ.
+  new_pat b Bit (Γ ⋓ Γ0).
+  box_f () (
+    gate_f x     ← init0 @();
+    gate_f x     ← H @x;
+    gate_f y     ← init1 @();
+    gate_f y     ← H @y;
+    gate_f (x,y) ← U_f @(x,y);
+    gate_f b     ← meas @x;
+    gate_f ()    ← discard @b;
+    output_f y).
 Defined.
 
 Definition init (b : bool) : Flat_Box One Qubit :=
   if b then boxed_gate init1 else boxed_gate init0.
 
-Eval simpl in (init true).
-Eval compute in (init true).
+Definition coin_flip : Flat_Box One Bit .
+  new_pat x Qubit ∅.
+  new_pat y Bit ∅.
+  box_f () (
+    gate_f x ← init0 @();
+    gate_f x ← H @x;
+    gate_f y ← meas @x;
+    output_f y).
+Defined.
+
+Definition bell00 : Flat_Box One (Qubit ⊗ Qubit).
+  new_pat a Qubit ∅.
+  new_pat b Qubit Γ.
+  new_pat z (Qubit ⊗ Qubit) ∅.  
+  box_f () (  
+    gate_f a ← init0 @();
+    gate_f b ← init0 @();
+    gate_f a ← H @a;
+    gate_f z ← CNOT @(a,b);
+    output_f z).
+Defined.
+
+
+Definition teleport_direct : Flat_Box Qubit Qubit.
+  new_pat q Qubit ∅.
+  new_pat a Qubit Γ.          
+  new_pat b Qubit (Γ ⋓ Γ0).          
+  new_pat x Bit ∅.
+  new_pat y Bit Γ2.
+
+  box_f q (  
+  (* bell00 *)
+    gate_f a     ← init0 @();
+    gate_f b     ← init0 @();
+    gate_f a     ← H @a;
+    gate_f (a,b) ← CNOT @(a,b);
+
+  (* alice *)
+    gate_f (q,a) ← CNOT @(q,a);
+    gate_f q     ← H @q;
+    gate_f x     ← meas @q;
+    gate_f y     ← meas @a;
+
+  (* bob *)
+    gate_f (y,b)  ← bit_ctrl σx @(y,b);
+    gate_f (x,b)  ← bit_ctrl σz @(x,b);
+    gate_f ()     ← discard @y;   
+    gate_f ()     ← discard @x;
+    output_f b).
+Defined.
+
+(* A different approach to effecient typechecking of concrete circuits *)
 
 (*
 
-Definition inSeq {W1 W2 W3} (c1 : Box W1 W2) (c2 : Box W2 W3) : Box W1 W3. 
-  box (fun p1 => 
-    letC p2 ← unbox c1 p1;
-    unbox c2 p2).
+(****************
+Concrete examples 
+*****************)
+
+Transparent merge.
+
+Ltac new_concrete_pat p W Γ := 
+    let Γ' := fresh "Γ" in
+    set (p := fresh_pat Γ W);
+    set (Γ' := fresh_ctx Γ W);
+    compute in Γ';
+    compute in p.
+
+
+Ltac monoidc :=
+  try match goal with
+      | |- ?Γ1 = ?Γ2 => has_evar Γ1; symmetry
+      end;
+   repeat
+   print_goal;
+    match goal with
+    | |- context [ ?Γ1 ⋓ ?Γ2 ⋓ ?Γ3 ] => rewrite <- (merge_assoc Γ1 Γ2 Γ3)
+    | |- ?Γ = ?Γ => reflexivity
+    | |- ?Γ1 = ?Γ2 => is_evar Γ2; reflexivity
+    | |- ?Γ1 = Valid ?Γ2 => is_evar Γ2; reflexivity
+    | |- context [ ?Γ ⋓ ∅ ] => rewrite (merge_nil_r Γ)
+    | |- context [ ∅ ⋓ ?Γ ] => rewrite (merge_nil_l Γ)
+    | |- _ = ?Γ ⋓ ?Γ' => is_evar Γ; rewrite (merge_comm Γ Γ')
+    | |- _ = Valid ?Γ ⋓ ?Γ' => is_evar Γ; rewrite (merge_comm Γ Γ')
+    | |- ?Γ = ?Γ ⋓ _ => rewrite merge_nil_r; reflexivity
+    | |- ?Γ ⋓ _ = ?Γ ⋓ _ => apply merge_cancel_l
+    | |- ?Γ1 ⋓ ?Γ1' = ?Γ ⋓ _ => rewrite (merge_comm Γ1 Γ1')
+    end.
+
+Ltac type_check_concrete_once := 
+  (* Runs monoid iff a single evar appears in context *)
+  repeat match goal with 
+  | [|- is_valid ?Γ ] => apply valid_valid
+  | [|- _ = match ?Γ with
+           | Invalid => Invalid
+           | Valid _ => Valid _
+           end ]    => instantiate (Γ := Valid _); auto 
+  | [|- ?G ]         => tryif (has_evars G)  
+                        then (idtac (*"can't monoid"; print_goal*))
+                        else monoidc
+  end.
+
+Ltac type_check_concrete := let n := numgoals in do n [> type_check_concrete_once..].
+
+
+Tactic Notation (at level 0) "box_c" uconstr(p) uconstr(C) := 
+  refine (flat_box p C); type_check_concrete. 
+
+Definition new_discard_c : Flat_Box One One.
+  new_concrete_pat p Bit ∅.
+  box_c unit (
+    gate_f p    ← new0 @(); 
+    gate_f unit ← discard @p;
+    output_f () ).
 Defined.
 
-Definition inPar {W1 W2 W1' W2'} (c1 : Box W1 W1') (c2 : Box W2 W2') 
-                                 : Box (W1⊗W2) (W1'⊗W2').
-  box (fun p12 => 
-    letC (p1,p2) ← output p12; 
-    letC p1'     ← unbox c1 p1;
-    letC p2'     ← unbox c2 p2; 
-    output (p1',p2')).
-Defined. 
-
-
-(* Flip *)
-
-
-
-
-(** Teleport **)
-
-Definition bell00 : Box One (Qubit ⊗ Qubit).
-  box (fun _ =>  
-    letC a ← gate init0 ();
-    letC b ← gate init0 ();
-    letC a ← gate H a;
-    gate CNOT (a,b)).
+Definition init_discard_c : Flat_Box One One.
+  new_concrete_pat q Qubit ∅.
+  new_concrete_pat b Bit ∅.
+  box_c () ( 
+    gate_f q    ← init0 @();
+    gate_f b    ← meas @q;
+    gate_f unit ← discard @b;
+    output_f () ). 
 Defined.
 
-Definition alice : Box (Qubit⊗Qubit) (Bit⊗Bit).
-  box (fun qa => 
-    letC (q,a) ← gate CNOT qa;
-    letC q     ← gate H q;
-    letC x     ← gate meas q;
-    letC y     ← gate meas a;
-    output (x,y)).
+Definition hadamard_measure_c : Flat_Box Qubit Bit.
+  new_concrete_pat q Qubit ∅.
+  new_concrete_pat b Bit ∅.
+  box_c q ( 
+    gate_f q ← H @q;
+    gate_f b ← meas @q;
+    output_f b).
 Defined.
 
-Definition bob' : Box (Bit ⊗ (Bit ⊗ Qubit)) Qubit.
-  box (fun xyb =>
-    letC (x,yb)  ← output xyb;
-    letC (y,b)   ← gate (bit_control σx) yb;
-    letC (x,b)   ← gate (bit_control σx) (x,b);
-    letC _       ← gate discard y;
-    letC _       ← gate discard x;
-    output b).
-Defined.
+Search (Valid _ = Valid _).
+
+Ltac type_check_concrete_new := 
+  simpl;
+  try instantiate (1 := Valid _);
+  simpl; 
+  repeat match goal with 
+  | [|- is_valid ?Γ ] => apply valid_valid
+  | [|- Valid _ = Valid _ ] => reflexivity
+  | [|- ?Γ = Valid _ ] => is_evar Γ; reflexivity
+  | [|- Valid _ = ?Γ ] => is_evar Γ; reflexivity
+  | [|- Valid _ = match ?Γ with
+           | Invalid => Invalid
+           | Valid _ => Valid _
+           end ]    => instantiate (1 := Valid _); simpl (* prefer Γ := Valid _ *)
+  end.
+
+Definition deutsch_c (U_f : Gate (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Flat_Box One Qubit.
+  new_concrete_pat x Qubit ∅.
+  new_concrete_pat y Qubit Γ.
+  new_concrete_pat b Bit (Γ ⋓ Γ0).
 
 (*
-(* Explicit version for possible use in paper *)
-Definition bob_ex : Box (Bit⊗Bit⊗Qubit) Qubit. 
-refine(
-  box (fun _ xyb =>
-    let 'existT23 Γxy Γb xy b Mxyb := wproj xyb in
-    let 'existT23 Γx Γy x y Mxy := wproj xy in
-    TypedCircuits.gate _ _ _ (bit_control σx) (y, b) 
-     (fun _ _ _ _ yb =>
-     let 'existT23 Γy' Γb' y' b' Myb := wproj yb in
-      TypedCircuits.gate _ _ _ (bit_control σz) (x, b') (* <? *)
-       (fun _ _ _ _ xb =>
-        TypedCircuits.gate _ _ _ discard y' 
-         (fun _ _ _ _ z1 =>
-          let 'existT23 Γx' Γb'' x' b'' Mxb := wproj xb in
-          TypedCircuits.gate _ _ _ discard x'
-           (fun _ _ _ _ z2 => TypedCircuits.output _ b'')))))); type_check. 
-Defined.
+  box_c () (
+    gate_f x     ← init0 @();
+    gate_f x     ← H @x;
+    gate_f y     ← init1 @();
+    gate_f y     ← H @y;
+    gate_f (x,y) ← U_f @(x,y);
+    gate_f b     ← meas @x;
+    gate_f ()    ← discard @b;
+    output_f y).
 *)
 
-Definition bob : Box (Bit⊗Bit⊗Qubit) Qubit.
-(*  refine (box (fun _ xyb =>*)
-  box (fun xyb => 
-    letC ((x,y),b) ← output xyb ; 
-(*    letC (x,y)  ← output xy ; *)
-    letC (y,b)  ← gate (bit_control σx) (y,b);
-    letC (x,b)  ← gate (bit_control σz) (x,b);
-    letC _      ← gate discard y ;   
-    letC _      ← gate discard x ;
+refine( flat_box () (
+    gate_f x     ← init0 @();
+    gate_f x     ← H @x;
+    gate_f y     ← init1 @();
+    gate_f y     ← H @y;
+    gate_f (x,y) ← U_f @(x,y);
+    gate_f b     ← meas @x;
+    gate_f ()    ← discard @b;
+    output_f y)).
+
+
+Defined.
+
+Definition init (b : bool) : Flat_Box One Qubit :=
+  if b then boxed_gate init1 else boxed_gate init0.
+
+Definition coin_flip : Flat_Box One Bit .
+  new_concrete_pat x Qubit ∅.
+  new_concrete_pat y Bit ∅.
+  box_c () (
+    gate_f x ← init0 @();
+    gate_f x ← H @x;
+    gate_f y ← meas @x;
+    output_f y).
+Defined.
+
+(* teleport *)
+Definition bell00 : Flat_Box One (Qubit ⊗ Qubit).
+  new_concrete_pat a Qubit ∅.
+  new_concrete_pat b Qubit Γ.
+  new_concrete_pat z (Qubit ⊗ Qubit) ∅.  
+  box_c () (  
+    gate_f a ← init0 @();
+    gate_f b ← init0 @();
+    gate_f a ← H @a;
+    gate_f z ← CNOT @(a,b);
+    output_f z).
+Defined.
+
+Print bell00.
+
+Definition alice : Flat_Box (Qubit⊗Qubit) (Bit⊗Bit).
+  new_concrete_pat q Qubit ∅. 
+  new_concrete_pat a Qubit Γ.
+  new_concrete_pat x Bit ∅. 
+  new_concrete_pat y Bit Γ.
+  new_concrete_pat qa (Qubit ⊗ Qubit) ∅.
+  box_c qa ( 
+    gate_f (q,a) ← CNOT @qa;
+    gate_f q     ← H @q;
+    gate_f x     ← meas @q;
+    gate_f y     ← meas @a;
+    output_f (x,y)); vm_compute; eauto. (* Modify type_check for flat circs? *)
+Defined.
+
+
+Definition teleport_direct : Flat_Box Qubit (Qubit ⊗ Bit ⊗ Bit).
+  new_concrete_pat q Qubit ∅.
+  new_concrete_pat a Qubit Γ.          
+  new_concrete_pat b Qubit (Γ ⋓ Γ0).          
+  new_concrete_pat x Bit ∅.
+  new_concrete_pat y Bit Γ2.
+
+  simpl in Γ, Γ0, Γ1.
+  compute in q, a, b.
+  unfold FlatCircuits.fresh_pat_obligation_1 in q.
+  simpl in q.
+
+  box_c q (  
+  (* bell00 *)
+    gate_f a     ← init0 @();
+    gate_f b     ← init0 @();
+    gate_f a     ← H @a;
+    gate_f (a,b) ← CNOT @(a,b);
+
+  (* alice *)
+    gate_f (q,a) ← CNOT @(q,a);
+    gate_f q     ← H @q;
+    gate_f x     ← meas @q;
+    gate_f y     ← meas @a;
+
+  (* bob *)
+    gate_f (y,b)  ← bit_ctrl σx @(y,b);
+    gate_f (x,b)  ← bit_ctrl σz @(x,b);
+    gate_f ()     ← discard @y;   
+    gate_f ()     ← discard @x;
+    output_f b).
+Defined.
+
+
+(*
+Definition bob' : Box (Bit ⊗ (Bit ⊗ Qubit)) Qubit.
+  box_ (xyb ⇒
+    let_  (x,yb)  ← output xyb;
+    gate_ (y,b)   ← bit_ctrl σx @yb;
+    gate_ (x,b)   ← bit_ctrl σx @(x,b);
+    gate_ ()      ← discard @y;
+    gate_ ()      ← discard @x;
     output b).
+Defined.
+
+Definition bob : Box (Bit⊗Bit⊗Qubit) Qubit.
+  box_ xyb ⇒ 
+    let_ ((x,y),b) ← output xyb ; 
+    gate_ (y,b)  ← bit_ctrl σx @(y,b);
+    gate_ (x,b)  ← bit_ctrl σz @(x,b);
+    gate_ ()     ← discard @y ;   
+    gate_ ()     ← discard @x ;
+    output b.
 Defined.
 
 Definition teleport' : Box Qubit Qubit.
-  box (fun q =>
-    letC (a,b) ← unbox bell00 () ;
-    letC (x,y) ← unbox alice (q,a) ;
-    unbox bob' (x,(y,b))).
+  box_ q ⇒
+    let_ (a,b) ← unbox bell00 () ;
+    let_ (x,y) ← unbox alice (q,a) ;
+    unbox bob' (x,(y,b)).
 Defined.
 
 Definition teleport : Box Qubit Qubit.
-  box (fun q =>
-    letC (a,b) ← unbox bell00 () ;
-    letC (x,y) ← unbox alice (q,a) ;
-    unbox bob (x,y,b)).
+  box_ q ⇒
+    let_ (a,b) ← unbox bell00 () ;
+    let_ (x,y) ← unbox alice (q,a) ;
+    unbox bob (x,y,b).
 Defined.
-
-(* Right associative Tensor *)
-Fixpoint Tensor (n : nat) (W : WType) := 
-  match n with 
-  | 0    => One
-  | 1    => W
-  | S n' => W ⊗ Tensor n' W
-  end.
-
-Infix "⨂" := Tensor (at level 30). 
-(* Transparent Tensor. *)
-Opaque Tensor.
-
-Fixpoint inSeqMany {W} (n :nat) (c : Box W W) : Box W W := 
-  match n with
-  | 0 => id_circ
-  | 1 => c
-  | S n' => inSeq c (inSeqMany n' c)
-  end.
-
-(* Zero-indexed variant. I don't know why this is necessary *)
-(* This will be fairly common *)
-Fixpoint inParManyZ {W1 W2} (n : nat) (c : Box W1 W2) {struct n} : 
-  Box (S n ⨂ W1) (S n ⨂ W2) :=
-  match n with 
-  | 0 => c
-  | S n' => inPar c (inParManyZ n' c)
-  end. 
-
-Definition inParMany {W1 W2} (n : nat) (c : Box W1 W2) : Box (n ⨂ W1) (n ⨂ W2) := 
-  match n with 
-  | 0 => id_circ
-  | S n' => inParManyZ n' c 
-  end.
-
-
-(** Quantum Fourier Transform **)
-
-Parameter RGate : nat -> Unitary Qubit.
-
-Fixpoint rotationsZ (m : nat) (n : nat) : Box (S (S n) ⨂ Qubit) (S (S n) ⨂ Qubit).
-make_circ (
-  match n as n0 return n = n0 -> Box (S (S n0) ⨂ Qubit) (S (S n0) ⨂ Qubit) with
-  | 0    => fun _ => id_circ 
-  | S n' => fun _ => box (fun _ w =>
-      letC (c, qqs) ← output w;  
-      letC (q, qs)  ← output qqs;  
-      letC (c,qs)   ← unbox (rotationsZ m n') (c,qs) ;
-      letC (c,q)    ← gate (control (RGate (1 + m - n'))) (c,q);
-      output (c,(q,qs)))
-   end (eq_refl n)).
-Defined.
-
-
-Definition rotations (m : nat) (n : nat) : Box (S n ⨂ Qubit) (S n ⨂ Qubit) :=
-  match n with 
-  | 0 => id_circ
-  | S n' => rotationsZ m n' 
-  end.
-
-Fixpoint qftZ (n : nat) : Box (S n ⨂ Qubit) (S n ⨂ Qubit).
-make_circ (
-  match n as n0 return n = n0 -> Box (S n0 ⨂ Qubit) (S n0 ⨂ Qubit) with 
-  | 0 => fun eq => box (fun _ p1 => gate H p1)
-  | S n' => fun eq => box (fun _ qw =>
-             letC (q,w) ← output qw; 
-             letC w ← unbox (qftZ n') w; 
-             unbox (rotationsZ (S n') n') (q,w))
-  end (eq_refl n)).
-Defined.
-
-Definition qft (n : nat) : Box (n ⨂ Qubit) (n ⨂ Qubit) :=
-  match n with 
-  | 0 => id_circ
-  | S n' => qftZ n'
-  end.
-
-
-
-(** Invalid Circuits **)
-
-Definition absurd_circ : Box Qubit (Bit ⊗ Qubit).
-  box (fun w => 
-    letC x  ← gate meas w ;
-    letC w' ← gate H w ;
-    output (x,w')).
-Admitted.
-
-Definition unused_qubit : Box Qubit One.
-  box (fun w => 
-   letC w ← gate H w ;
-   output () ).
-Admitted.
-
-Definition clone : Box Qubit (Qubit ⊗ Qubit).
-  box (fun w => output (w,w)).
-Admitted.
-
-
-(* Caught by Coq's typechecker
-Definition split_qubit : Box Qubit (Qubit ⊗ Qubit).
-  box (fun w => 
-    ⟨w1,w2⟩  ← output w ;
-    w2'      ← gate H w2 ; 
-    output ⟨w1;w2'⟩). *)
+*)
 
 *)
+
+End F.
 
 (* *)

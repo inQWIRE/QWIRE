@@ -3,12 +3,12 @@ Require Import Datatypes.
 Require Import Arith.
 Require Import List.
 Require Import Contexts.
-Require Import TypedCircuits.
 Require Import MachineCircuits.
 Require Import Omega.
 Import ListNotations.
 Open Scope list_scope.
 
+Module M.
 
 (*** Paper Examples ***)
 
@@ -17,6 +17,7 @@ Notation "'gate' g 'on' l ; C" := (m_gate l g C) (at level 10, right associativi
 Notation "# l " := (length l) (at level 0).
 
 Notation out l := (m_output l). 
+Open Scope circ_scope.
 
 
 (* Basic Circuits *)
@@ -52,8 +53,8 @@ Definition U_U_trans_qubit (U : Unitary Qubit): Machine_Circuit 1 1 :=
   gate (transpose U) on [0];
   out [0].
 
-Definition U_U_trans {W} (U : Unitary W): Machine_Circuit (num_wires W) (num_wires W) :=
-  let l := seq 0 (num_wires W) in  
+Definition U_U_trans {W} (U : Unitary W): Machine_Circuit (size_WType W) (size_WType W) :=
+  let l := seq 0 (size_WType W) in  
   gate U on l;
   gate (transpose U) on l;
   out l.
@@ -96,8 +97,8 @@ Definition alice : Machine_Circuit 2 2 :=
   out [0;1].
 
 Definition bob : Machine_Circuit 3 1 :=
-  gate (bit_control σx) on [1;2];
-  gate (bit_control σz) on [0;2];
+  gate (bit_ctrl σx) on [1;2];
+  gate (bit_ctrl σz) on [0;2];
   gate discard on [1];
   gate discard on [0]; 
   out [2].
@@ -116,8 +117,8 @@ Definition teleport : Machine_Circuit 1 1 :=
   gate meas on [1];
 
   (* bob *)  
-  gate (bit_control σx) on [1;2];
-  gate (bit_control σz) on [0;2];
+  gate (bit_ctrl σx) on [1;2];
+  gate (bit_ctrl σz) on [0;2];
   gate discard on [1];
   gate discard on [0]; 
   out [0].
@@ -138,5 +139,9 @@ Definition teleport : Machine_Circuit := bell00 ↦ alice ↦ bob.
 Print teleport.
 Eval compute in teleport.
 *)
+
+Close Scope circ_scope.
+
+End M.
 
 (* *)
