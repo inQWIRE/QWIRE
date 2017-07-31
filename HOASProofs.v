@@ -10,7 +10,8 @@ Lemma Ex : 〚init true〛 I1 = (|1⟩⟨1| : Density 2).
 Proof.
   simpl.
   repeat (unfold I1, compose_super, super, swap_list, swap_two, denote_pat_in; simpl).
-  Msimpl.
+  autorewrite with M_db.
+  reflexivity.
 Qed.
 
 Definition HOAS_Equiv {W1 W2} (b1 b2 : Box W1 W2) :=
@@ -25,10 +26,11 @@ Proof.
   destruct unitary_U as [WF inv].
   simpl in *.
   repeat (unfold apply_U, compose_super, super, swap_list, swap_two, pad, denote_pat_in; simpl).
-  Msimpl.
+  autorewrite with M_db.
   repeat rewrite Mmult_assoc; try rewrite inv.
   repeat rewrite <- Mmult_assoc; try rewrite inv.
-  Msimpl.
+  autorewrite with M_db.
+  reflexivity.
 Qed.
 
 Lemma unitary_transpose_id : forall W (U : Unitary W) (ρ : Density (2^〚W〛 )), 
@@ -44,14 +46,15 @@ Proof.
   repeat rewrite swap_list_n_id.
   specialize (WF_unitary U); intros wf_U.
   specialize (unitary_gate_unitary U). unfold is_unitary. simpl. intros [_ unitary_U].
-  rewrite conj_transpose_involutive. 
+  autorewrite with M_db.
   rewrite mult_1_r. (* Rewrite implicit arguments *)
-  Msimpl. 
+  autorewrite with M_db.
   repeat rewrite Mmult_assoc.
   rewrite unitary_U.
   repeat rewrite <- Mmult_assoc.
   rewrite unitary_U.
-  Msimpl.
+  autorewrite with M_db.
+  reflexivity.
 Qed.
 
 Definition fair_coin : Matrix 2 2 :=
@@ -96,11 +99,12 @@ Proof.
   repeat (unfold compose_super, super, swap_list, 
           swap_two, pad, apply_new0, apply_U, 
           apply_meas, denote_pat_in; simpl).
+  autorewrite with M_db.
   Msimpl. 
   prep_matrix_equality.
   unfold fair_coin, ket0, ket1, Mplus, Mmult, conj_transpose.
-  Csimpl.
-  destruct x, y; Csimpl; destruct_Csolve. Csolve.
+  simpl; autorewrite with C_db.
+  destruct x, y; simpl; autorewrite with C_db; destruct_Csolve. Csolve.
 Qed.
 
 Definition EPR00 : Matrix 4 4 :=
@@ -119,7 +123,7 @@ Proof.
   simpl.
   prep_matrix_equality.
   (* destruct_Csolve; simpl. huh??? *)
-  repeat (try destruct x; try destruct y; Csimpl; trivial).
+  repeat (try destruct x; try destruct y; autorewrite with C_db; trivial).
 Qed.
 
 (*
@@ -259,10 +263,9 @@ Proof.
   assert (wf_g : WF_Matrix (2^〚W2〛) (2^〚W2〛) (〚g〛 ρ)).
     generalize (WF_denote_gate 0 _ _ g ρ); intros.
     simpl in *. repeat rewrite mult_1_r in *. unfold denote_gate. apply (H wf_ρ).
-  Msimpl.
+  autorewrite with M_db.
+  reflexivity.
 Qed.
-
-
 
 Lemma lift_meas_correct : forall (ρ : Density 2), WF_Matrix 2 2 ρ
       -> 〚lift_meas〛 ρ = 〚boxed_gate meas〛 ρ.
@@ -276,7 +279,8 @@ Proof.
   rewrite braket0_conj_transpose, braket1_conj_transpose.
   prep_matrix_equality; simpl.
   unfold Mplus, Mmult, Id, conj_transpose, Zero. simpl.
-  Csimpl. rewrite Cplus_comm. reflexivity.
+  autorewrite with C_db.
+  rewrite Cplus_comm. reflexivity.
 Qed.
 
 Lemma lift_eta_correct : forall (ρ : Density 2), WF_Matrix 2 2 ρ
@@ -299,12 +303,12 @@ Abort (* This is only true if ρ is a classical state *).
 Lemma flips_correct : forall n, 〚coin_flips n〛 I1 = biased_coin (2^n).
 Proof.
   induction n; simpl.
-  + Msimpl. repeat (unfold super, compose_super, denote_pat_in, swap_list, swap_two, I1; simpl).
-    Msimpl.
+  + autorewrite with M_db.
+    repeat (unfold super, compose_super, denote_pat_in, swap_list, swap_two, I1; simpl).
+    autorewrite with M_db.
     prep_matrix_equality. unfold biased_coin; simpl. 
     unfold Mmult, conj_transpose, ket0, ket1; simpl.
-    Csimpl. 
-    destruct_Csolve; Csimpl. 
+    destruct_Csolve; autorewrite with C_db; trivial. 
   + simpl in *.
     unfold eq_ind_r; simpl.
 Abort.

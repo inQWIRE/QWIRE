@@ -261,7 +261,8 @@ Proof.
     rewrite IHl. 
     unfold swap_two. 
     rewrite <- beq_nat_refl. 
-    Msimpl.    
+    autorewrite with M_db.
+    reflexivity.
 Qed.
 
 Lemma swap_list_n_id : forall n, swap_list n (seq 0 n) = Id (2^n).

@@ -366,15 +366,10 @@ Ltac show_wf :=
     repeat (destruct y; try reflexivity; try omega).
 
 Create HintDb wf_db.
-Hint Resolve WF_Zero : wf_db.
-Hint Resolve WF_Id : wf_db.
-Hint Resolve WF_mult : wf_db.
-Hint Resolve WF_plus : wf_db.
-Hint Resolve WF_scale : wf_db.
-Hint Resolve WF_kron : wf_db.
-Hint Resolve WF_transpose : wf_db.
-Hint Resolve WF_conj_transpose : wf_db.
+Hint Resolve WF_Zero WF_Id WF_mult WF_plus WF_scale WF_kron WF_transpose 
+     WF_conj_transpose : wf_db.
 
+(* Deprecated in favor of "auto with wf_db" *)
 Ltac show_wf_safe :=
   repeat match goal with
   | [ |- WF_Matrix _ _  (Zero ?m ?n) ] => apply WF_Zero
@@ -390,7 +385,7 @@ Ltac show_wf_safe :=
 
 Lemma Cconj_R : forall r : R, Cconj r = r. Proof. intros. clra. Qed.
 
-(* More basic for the moment *)
+(* deprecated in favor of autorewrite *)
 Ltac Csimpl := 
   simpl;
   repeat (
@@ -403,6 +398,8 @@ Ltac Csimpl :=
     try rewrite Cmult_1_r
 ).
 
+Hint Rewrite Cconj_R Cplus_0_l Cplus_0_r 
+     Cmult_0_l Cmult_0_r Cmult_1_l Cmult_1_r : C_db.
 
 (** Basic Matrix Lemmas **)
 
@@ -420,8 +417,7 @@ Proof.
   induction n.
   + simpl. reflexivity.
   + simpl in *.
-    rewrite Cmult_0_l.
-    rewrite Cplus_0_r.
+    autorewrite with C_db.
     apply IHn.
 Qed.    
 
@@ -434,8 +430,7 @@ Proof.
   induction n.
   + simpl. reflexivity.
   + simpl. 
-    rewrite Cmult_0_r.
-    rewrite Cplus_0_r.
+    autorewrite with C_db.
     apply IHn.
 Qed.
 
@@ -463,13 +458,11 @@ Proof.
       destruct (x =? k) eqn:Eqxk.
       - apply Nat.eqb_eq in Eqxk; subst.
         replace (k <? m) with true in * by (symmetry; apply Nat.ltb_lt; omega).
-        rewrite Cmult_1_l.
         rewrite IHl; try omega.
-        rewrite Cplus_0_l.     
+        autorewrite with C_db.
         reflexivity.
       - apply Nat.eqb_neq in Eqxk; subst.
-        rewrite Cmult_0_l.
-        rewrite Cplus_0_r.
+        autorewrite with C_db.
         apply IHr.
         omega.
 Qed.
@@ -491,8 +484,7 @@ Lemma Mmult_1_l: forall {m n : nat} (A : Matrix m n),
 Proof.
   intros m n A H.
   apply mat_equiv_eq; trivial.
-  apply WF_mult; trivial.
-  apply WF_Id.
+  auto with wf_db.
   apply Mmult_1_l_mat_eq.
 Qed.
 
@@ -520,13 +512,11 @@ Proof.
     destruct (k =? z) eqn:Eqxk.
     - apply Nat.eqb_eq in Eqxk; subst.
       replace (z <? n) with true in * by (symmetry; apply Nat.ltb_lt; omega).
-      rewrite Cmult_1_r.
       rewrite IHl; try omega.
-      rewrite Cplus_0_l.     
+      autorewrite with C_db.
       reflexivity.
     - apply Nat.eqb_neq in Eqxk; subst.
-      rewrite Cmult_0_r.
-      rewrite Cplus_0_r.
+      autorewrite with C_db.
       apply IHr.
       omega.
 Qed.
@@ -548,8 +538,7 @@ Lemma Mmult_1_r: forall {m n : nat} (A : Matrix m n),
 Proof.
   intros m n A H.
   apply mat_equiv_eq; trivial.
-  apply WF_mult; trivial.
-  apply WF_Id.
+  auto with wf_db.
   apply Mmult_1_r_mat_eq.
 Qed.
 
@@ -566,7 +555,8 @@ Proof.
   rewrite 2 Nat.div_1_r.
   rewrite 2 Nat.mod_1_r.
   simpl.
-  clra.
+  autorewrite with C_db.
+  reflexivity.
 Qed.
 
 (* This side is much more limited/annoying *)
@@ -878,6 +868,7 @@ Proof.
 Admitted.
 *)
 
+(* Deprecated in favor of "autorewrite with M_db" *)
 Ltac Msimpl1 := 
   repeat rewrite kron_1_l;
   repeat rewrite kron_1_r;
@@ -893,7 +884,14 @@ Ltac Msimpl1 :=
   try omega. 
 Ltac Msimpl := simpl; repeat Msimpl1.
 
+Hint Rewrite @kron_1_l @kron_1_r @Mmult_1_l @Mmult_1_r id_conj_transpose_eq
+     id_conj_transpose_eq @conj_transpose_involutive using 
+     (auto 100 with wf_db; autorewrite with M_db; auto 100 with wf_db; omega) : M_db.
 
-
+(* Note on "using [tactics]": Most generated subgoals will be of the form 
+   WF_Matrix M, where auto with wf_db will work.
+   Occasionally WF_Matrix M will rely on rewriting to match an assumption in the 
+   context, here we recursively autorewrite (which adds time). 
+   kron_1_l requires proofs of (n > 0)%nat, here we use omega. *)
 
 (* *)
