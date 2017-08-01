@@ -403,13 +403,13 @@ Hint Rewrite Cconj_R Cplus_0_l Cplus_0_r
 
 (** Basic Matrix Lemmas **)
 
-Lemma Mplus_0_l : forall {m n : nat} (A : Matrix m n), Zero m n .+ A = A.
+Lemma Mplus_0_l : forall (m n : nat) (A : Matrix m n), Zero m n .+ A = A.
 Proof. intros. mlra. Qed.
 
-Lemma Mplus_0_r : forall {m n : nat} (A : Matrix m n), A .+ Zero m n = A.
+Lemma Mplus_0_r : forall (m n : nat) (A : Matrix m n), A .+ Zero m n = A.
 Proof. intros. mlra. Qed.
     
-Program Lemma Mmult_0_l : forall {m n o : nat} (A : Matrix n o), 
+Program Lemma Mmult_0_l : forall (m n o : nat) (A : Matrix n o), 
        (Zero m n) × A = Zero m o.
 Proof.
   intros m n o A. unfold Mmult, Zero.
@@ -421,7 +421,7 @@ Proof.
     apply IHn.
 Qed.    
 
-Program Lemma Mmult_0_r : forall {m n o : nat} (A : Matrix m n), 
+Program Lemma Mmult_0_r : forall (m n o : nat) (A : Matrix m n), 
               A × Zero n o = Zero m o.
 Proof.
   intros m n o A. 
@@ -435,7 +435,7 @@ Proof.
 Qed.
 
 (* using <= because our form Rsum_to_n is exclusive. *)
-Lemma Mmult_1_l_gen: forall {m n : nat} (A : Matrix m n) (x z k : nat), 
+Lemma Mmult_1_l_gen: forall (m n : nat) (A : Matrix m n) (x z k : nat), 
   k <= m ->
   (k <= x -> Rsum_to_n (fun y : nat => ((Id m) x y * A y z)%C) k = C0) /\
   (k > x -> Rsum_to_n (fun y : nat => ((Id m) x y * A y z)%C) k = A x z).
@@ -467,7 +467,7 @@ Proof.
         omega.
 Qed.
 
-Lemma Mmult_1_l_mat_eq : forall {m n : nat} (A : Matrix m n), Id m × A ≡ A.
+Lemma Mmult_1_l_mat_eq : forall (m n : nat) (A : Matrix m n), Id m × A ≡ A.
 Proof.
   intros m n A x y.
   destruct x as [x Px], y as [y Py].
@@ -479,7 +479,7 @@ Proof.
   omega.
 Qed.  
 
-Lemma Mmult_1_l: forall {m n : nat} (A : Matrix m n), 
+Lemma Mmult_1_l: forall (m n : nat) (A : Matrix m n), 
   WF_Matrix m n A -> Id m × A = A.
 Proof.
   intros m n A H.
@@ -488,7 +488,7 @@ Proof.
   apply Mmult_1_l_mat_eq.
 Qed.
 
-Lemma Mmult_1_r_gen: forall {m n : nat} (A : Matrix m n) (x z k : nat), 
+Lemma Mmult_1_r_gen: forall (m n : nat) (A : Matrix m n) (x z k : nat), 
   k <= n ->
   (k <= z -> Rsum_to_n (fun y : nat => (A x y * (Id n) y z)%C) k = C0) /\
   (k > z -> Rsum_to_n (fun y : nat => (A x y * (Id n) y z)%C) k = A x z).
@@ -521,7 +521,7 @@ Proof.
       omega.
 Qed.
 
-Lemma Mmult_1_r_mat_eq : forall {m n : nat} (A : Matrix m n), A × Id n ≡ A.
+Lemma Mmult_1_r_mat_eq : forall (m n : nat) (A : Matrix m n), A × Id n ≡ A.
 Proof.
   intros m n A x y.
   destruct x as [x Px], y as [y Py].
@@ -533,7 +533,7 @@ Proof.
   omega.
 Qed.  
 
-Lemma Mmult_1_r: forall {m n : nat} (A : Matrix m n), 
+Lemma Mmult_1_r: forall (m n : nat) (A : Matrix m n), 
   WF_Matrix m n A -> A × Id n = A.
 Proof.
   intros m n A H.
@@ -547,7 +547,7 @@ Ltac strip_matrix_proofs :=
     | [ |- context[eq_rect ?x ?P ?Px ?y ?eq]] => destruct eq; simpl
   end. 
 
-Lemma kron_1_r : forall {m n : nat} (A : Matrix m n), A ⊗ Id 1 = A.
+Lemma kron_1_r : forall (m n : nat) (A : Matrix m n), A ⊗ Id 1 = A.
 Proof.
   intros m n A.
   prep_matrix_equality.
@@ -560,7 +560,7 @@ Proof.
 Qed.
 
 (* This side is much more limited/annoying *)
-Lemma kron_1_l : forall {m n : nat} (A : Matrix m n), 
+Lemma kron_1_l : forall (m n : nat) (A : Matrix m n), 
   m > 0 -> n > 0 -> WF_Matrix m n A -> Id 1 ⊗ A = A.
 Proof.
   intros m n A H1 H2 WF.
@@ -596,13 +596,13 @@ Proof.
     reflexivity.
 Qed.
 
-Theorem transpose_involutive : forall {m n : nat} (A : Matrix m n), (A⊤)⊤ = A.
+Theorem transpose_involutive : forall (m n : nat) (A : Matrix m n), (A⊤)⊤ = A.
 Proof. reflexivity. Qed.
 
 Lemma conj_involutive : forall c, Cconj (Cconj c) = c.
 Proof. intros. clra. Qed.
 
-Theorem conj_transpose_involutive : forall {m n : nat} (A : Matrix m n), A†† = A.
+Theorem conj_transpose_involutive : forall (m n : nat) (A : Matrix m n), A†† = A.
 Proof. intros. mlra. Qed.  
 
 Lemma id_transpose_eq : forall n, (Id n)⊤ = (Id n).
@@ -631,7 +631,7 @@ Proof.
     clra.
 Qed.
 
-Theorem Mplus_comm : forall {m n : nat} (A B : Matrix m n), A .+ B = B .+ A.
+Theorem Mplus_comm : forall (m n : nat) (A B : Matrix m n), A .+ B = B .+ A.
 Proof.
   unfold Mplus. 
   intros m n A B.
@@ -640,7 +640,7 @@ Proof.
 Qed.
 
 
-Theorem Mplus_assoc : forall {m n : nat} (A B C : Matrix m n), A .+ B .+ C = A .+ (B .+ C).
+Theorem Mplus_assoc : forall (m n : nat) (A B C : Matrix m n), A .+ B .+ C = A .+ (B .+ C).
 Proof.
   unfold Mplus. 
   intros m n A B C.
@@ -649,7 +649,7 @@ Proof.
   reflexivity.
 Qed.
 
-Theorem Mmult_assoc : forall {m n o p : nat} (A : Matrix m n) (B : Matrix n o) 
+Theorem Mmult_assoc : forall (m n o p : nat) (A : Matrix m n) (B : Matrix n o) 
   (C: Matrix o p), A × B × C = A × (B × C).
 Proof.
   intros m n o p A B C.
@@ -677,7 +677,7 @@ Proof.
   + simpl. rewrite IHk. clra.
 Qed.
 
-Lemma Mmult_plus_distr_l : forall {m n o} (A : Matrix m n) (B C : Matrix n o), 
+Lemma Mmult_plus_distr_l : forall (m n o : nat) (A : Matrix m n) (B C : Matrix n o), 
                            A × (B .+ C) = A × B .+ A × C.
 Proof. 
   intros m n o A B C.
@@ -690,7 +690,7 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma Mmult_plus_distr_r : forall {m n o} (A B : Matrix m n) (C : Matrix n o), 
+Lemma Mmult_plus_distr_r : forall (m n o : nat) (A B : Matrix m n) (C : Matrix n o), 
                            (A .+ B) × C = A × C .+ B × C.
 Proof. 
   intros m n o A B C.
@@ -704,22 +704,20 @@ Proof.
 Qed.
 
 (* These are easy - just haven't done them *)
-Lemma Mscale_mult_dist_l : forall {m n o} x (A : Matrix m n) (B : Matrix n o), 
-                             ((x .* A) × B) = x .* (A × B).
+Lemma Mscale_mult_dist_l : forall (m n o : nat) (x : C) (A : Matrix m n) (B : Matrix n o), ((x .* A) × B) = x .* (A × B).
 Proof.
   intros m n o x A B.
   unfold scale, Mmult.
 Admitted.
 
-Lemma Mscale_mult_dist_r : forall {m n o} x (A : Matrix m n) (B : Matrix n o), 
-                             (A × (x .* B)) = x .* (A × B).
+Lemma Mscale_mult_dist_r : forall (m n o : nat) (x : C) (A : Matrix m n) (B : Matrix n o), (A × (x .* B)) = x .* (A × B).
 Admitted.
 
 (* Inverses of square matrices *)
 
-Definition Minv {n} (A B : Square n) : Prop := A × B = Id n /\ B × A = Id n.
+Definition Minv {n : nat} (A B : Square n) : Prop := A × B = Id n /\ B × A = Id n.
 
-Lemma Minv_unique : forall {n} (A B C : Square n), 
+Lemma Minv_unique : forall (n : nat) (A B C : Square n), 
                       WF_Matrix n n A -> WF_Matrix n n B -> WF_Matrix n n C ->
                       Minv A B -> Minv A C -> B = C.
 Proof.
@@ -732,14 +730,14 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma Minv_symm : forall n (A B : Square n), Minv A B -> Minv B A.
+Lemma Minv_symm : forall (n : nat) (A B : Square n), Minv A B -> Minv B A.
 Proof. unfold Minv; intuition. Qed.
 
 (* Important but hardish lemma *)
-Lemma Minv_flip : forall {n} (A B : Square n), A × B = Id n -> B × A = Id n.
+Lemma Minv_flip : forall (n : nat) (A B : Square n), A × B = Id n -> B × A = Id n.
 Admitted.
   
-Lemma Minv_left : forall {n} (A B : Square n), A × B = Id n -> Minv A B.
+Lemma Minv_left : forall (n : nat) (A B : Square n), A × B = Id n -> Minv A B.
 Proof.
   intros n A B H. 
   unfold Minv. split; trivial.
@@ -747,7 +745,7 @@ Proof.
   assumption.
 Qed.
 
-Lemma Minv_right : forall {n} (A B : Square n), B × A = Id n -> Minv A B.
+Lemma Minv_right : forall (n : nat) (A B : Square n), B × A = Id n -> Minv A B.
 Proof.
   intros n A B H. 
   unfold Minv. split; trivial.
@@ -766,7 +764,7 @@ Proof.
   *)
 
 
-Lemma kron_mixed_product : forall {m n o p q r : nat} (A : Matrix m n) (B : Matrix p q ) 
+Lemma kron_mixed_product : forall (m n o p q r : nat) (A : Matrix m n) (B : Matrix p q ) 
   (C : Matrix n o) (D : Matrix q r), (A ⊗ B) × (C ⊗ D) = (A × C) ⊗ (B × D).
 Proof.
   intros m n o p q r A B C D.
@@ -775,19 +773,19 @@ Proof.
   induction n. simpl. 
 Admitted.
 
-Theorem kron_transpose : forall {m n o p : nat} (A : Matrix m n) (B : Matrix o p ),
+Theorem kron_transpose : forall (m n o p : nat) (A : Matrix m n) (B : Matrix o p ),
   (A ⊗ B)⊤ = A⊤ ⊗ B⊤.
 Proof. reflexivity. Qed.
 
 Lemma conj_mult_dist : forall (x y : C), Cconj (x * y) = (Cconj x * Cconj y)%C.
 Proof. intros x y. clra. Qed.
   
-Lemma Mmult_conj_transpose : forall m n o (A : Matrix m n) (B : Matrix n o),
+Lemma Mmult_conj_transpose : forall (m n o : nat) (A : Matrix m n) (B : Matrix n o),
       (A × B)† = B† × A†.
 Admitted.  
 
 
-Lemma kron_conj_transpose : forall {m n o p : nat} (A : Matrix m n) (B : Matrix o p ),
+Lemma kron_conj_transpose : forall (m n o p : nat) (A : Matrix m n) (B : Matrix o p ),
   (A ⊗ B)† = A† ⊗ B†.
 Proof. 
   intros. unfold conj_transpose, kron. 
@@ -796,7 +794,7 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma id_kron : forall m n,  Id m ⊗ Id n = Id (m * n).
+Lemma id_kron : forall (m n : nat),  Id m ⊗ Id n = Id (m * n).
 Proof.
   intros.
   unfold Id, kron.
@@ -884,8 +882,20 @@ Ltac Msimpl1 :=
   try omega. 
 Ltac Msimpl := simpl; repeat Msimpl1.
 
-Hint Rewrite @kron_1_l @kron_1_r @Mmult_1_l @Mmult_1_r id_conj_transpose_eq
-     id_conj_transpose_eq @conj_transpose_involutive using 
+(*
+Unset Maximal Implicit Insertion.
+
+Arguments kron_1_l : clear implicits.
+Arguments kron_1_l {m} {n}.
+Arguments kron_1_l [m] [n].
+Arguments kron_1_l m n.
+
+About kron_1_l.
+*)
+
+
+Hint Rewrite kron_1_l kron_1_r Mmult_1_l Mmult_1_r id_conj_transpose_eq
+     id_conj_transpose_eq conj_transpose_involutive using 
      (auto 100 with wf_db; autorewrite with M_db; auto 100 with wf_db; omega) : M_db.
 
 (* Note on "using [tactics]": Most generated subgoals will be of the form 

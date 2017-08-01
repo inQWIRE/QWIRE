@@ -434,11 +434,11 @@ Proof.
       * simpl.
         remember ( Id (2 ^ (n - 2))) as A.
         remember swap as B.
-        setoid_rewrite (kron_conj_transpose B A).            
+        setoid_rewrite (kron_conj_transpose _ _ _ _ B A).            
     
 (*    rewrite (kron_mixed_product B† A† B A). *)
 
-        specialize (kron_mixed_product B† A† B A); intros H'.
+        specialize (kron_mixed_product _ _ _ _ _ _ B† A† B A); intros H'.
         assert (is_unitary B). subst. apply swap_unitary.
         assert (is_unitary A). subst. apply id_unitary.
         destruct H0 as [_ H0], H1 as [_ H1].
