@@ -1,130 +1,48 @@
-Require Import Program.
-Require Import Psatz.
+From mathcomp Require Import all_ssreflect all_algebra all_field.
+Set Implicit Arguments.
+Unset Strict Implicit.
+Unset Printing Implicit Defensive.
+
+(* Require Import mxtens. Instead using mxutil.v *)
+Require Import mxutil.
+Require Import Arith.
 Require Import Omega.
-Require Import Reals.
-Require Import Bool.
-Require Export Complex.
-Require Export Matrix.
 
-(* Using our (complex, unbounded) matrices, their complex numbers *)
+Import GRing.Theory Num.Theory UnityRootTheory.
+Local Open Scope ring_scope.
 
-Open Scope R_scope.
-Open Scope C_scope.
-Open Scope matrix_scope.
+Open Scope ring_scope.
+Bind Scope C with algC.
 
-(* WARNING: Resize should only be used where m = m' and n = n'.
-   It should be followed with a proof of this: resize_safe. *) 
-Definition resize (m n m' n' : nat) (A : Matrix m n) : Matrix m' n' := A.
-Definition resize_safe (m n m' n' : nat) : Prop := m = m' /\ n = n'.
-Transparent resize.
+Notation "√ n" := (sqrtC n) (at level 20).
 
-Definition ket0 : Matrix 2 1:= 
-  fun x y => match x, y with 
-          | 0, 0 => 1
-          | 1, 0 => 0
-          | _, _ => 0
-          end.
-Definition ket1 : Matrix 2 1 := 
-  fun x y => match x, y with 
-          | 0, 0 => 0
-          | 1, 0 => 1
-          | _, _ => 0
-          end.
+(* Natural number arithmetic *)
 
-Definition ket (x : nat) : Matrix 2 1 := if x =? 0 then ket0 else ket1.
-Transparent ket0.
-Transparent ket1.
-Transparent ket.
-
-Notation "|0⟩" := ket0.
-Notation "|1⟩" := ket1.
-Notation "⟨0|" := ket0†.
-Notation "⟨1|" := ket1†.
-Notation "|0⟩⟨0|" := (|0⟩×⟨0|).
-Notation "|1⟩⟨1|" := (|1⟩×⟨1|).
-Notation "|1⟩⟨0|" := (|1⟩×⟨0|).
-Notation "|0⟩⟨1|" := (|0⟩×⟨1|).
-
-Definition hadamard : Matrix 2 2 := 
-  (fun x y => match x, y with
-          | 0, 0 => (1 / √2)
-          | 0, 1 => (1 / √2)
-          | 1, 0 => (1 / √2)
-          | 1, 1 => -(1 / √2)
-          | _, _ => 0
-          end).
-
-Fixpoint hadamard_k (k : nat) : Matrix (2^k) (2^k):= 
-  match k with
-  | 0 => Id 1
-  | S k' => hadamard ⊗ hadamard_k k'
-  end. 
-
-(*
-Lemma hadamard_1 : hadamard_k 1 = hadamard.
-Proof. apply kron_1_r. Qed.
-*)
-
-Definition pauli_x : Matrix 2 2 := 
-  (fun x y => match x, y with
-          | 0, 0 => 0
-          | 0, 1 => 1
-          | 1, 0 => 1
-          | 1, 1 => 0
-          | _, _ => 0
-          end).
-
-Definition pauli_y : Matrix 2 2 := 
-  (fun x y => match x, y with
-          | 0, 1 => -Ci
-          | 1, 0 => Ci
-          | _, _ => 0
-          end).
-
-Definition pauli_z : Matrix 2 2 := 
-  (fun x y => match x, y with
-          | 0, 0 => 1
-          | 1, 1 => -1
-          | _, _ => 0
-          end).
-  
-Definition control {n : nat} (A : Matrix n n) : Matrix (2*n) (2*n) :=
-  (fun x y => if (x <? n) && (y <? n) then (Id n) x y 
-          else if (n <=? x) && (n <=? y) then A (x-n)%nat (y-n)%nat 
-          else 0).
-
-(* Definition cnot := control pauli_x. *)
-(* Direct definition makes our lives easier *)
-Definition cnot : Matrix 4 4 :=
-  fun x y => match x, y with 
-          | 0, 0 => 1
-          | 1, 1 => 1
-          | 2, 3 => 1
-          | 3, 2 => 1
-          | _, _ => 0
-          end.          
-
-
-(* Swap Matrices *)
-
-Definition swap : Matrix 4 4 :=
-  (fun x y => match x, y with
-          | 0, 0 => 1
-          | 1, 2 => 1
-          | 2, 1 => 1
-          | 3, 3 => 1
-          | _, _ => 0
-          end).
-
-Lemma double_mult : forall (n : nat), (n + n = 2 * n)%nat. Proof. intros. omega. Qed.
-Lemma pow_two_succ_l : forall x, (2^x * 2 = 2 ^ (x + 1))%nat.
-Proof. intros. rewrite mult_comm. rewrite <- Nat.pow_succ_r'. intuition. Qed.
+(* Use SSR_nat ? *)
+Lemma double_mult : forall (n : nat), (n + n = 2 * n)%nat. 
+Proof. intros. rewrite mul2n. apply addnn. Qed.
+Lemma pow_two_succ_l : forall x, (2^x * 2 = 2^(x + 1))%nat.
+Proof. intros. rewrite mulnC. rewrite mul2n. rewrite addnC. simpl. 
+       rewrite plus_0_r. rewrite <- addnn. reflexivity. Qed.
 Lemma pow_two_succ_r : forall x, (2 * 2^x = 2 ^ (x + 1))%nat.
-Proof. intros. rewrite <- Nat.pow_succ_r'. intuition. Qed.
+Proof. intros. rewrite <- Nat.pow_succ_r'. rewrite addn1. reflexivity. Qed.
 Lemma double_pow : forall (n : nat), (2^n + 2^n = 2^(n+1))%nat. 
 Proof. intros. rewrite double_mult. rewrite pow_two_succ_r. reflexivity. Qed.
 Lemma pow_components : forall (a b m n : nat), a = b -> m = n -> (a^m = b^n)%nat.
 Proof. intuition. Qed.
+
+(* Coq_nat:
+Lemma double_mult : forall (n : nat), (n + n = 2 * n)%coq_nat. Proof. intros. omega. Qed. 
+Locate "^".
+Lemma pow_two_succ_l : forall x, (2^x * 2 = Nat.pow 2 (x + 1))%coq_nat.
+Proof. intros. rewrite mult_comm. rewrite <- Nat.pow_succ_r'. rewrite addn1. reflexivity. Qed.
+Lemma pow_two_succ_r : forall x, (2 * 2^x = 2 ^ (x + 1))%coq_nat.
+Proof. intros. rewrite <- Nat.pow_succ_r'. rewrite addn1. reflexivity. Qed.
+Lemma double_pow : forall (n : nat), (2^n + 2^n = 2^(n+1))%coq_nat. 
+Proof. intros. rewrite double_mult. rewrite pow_two_succ_r. reflexivity. Qed.
+Lemma pow_components : forall (a b m n : nat), a = b -> m = n -> (a^m = b^n)%nat.
+Proof. intuition. Qed.
+*)
 
 Ltac unify_pows_two :=
   repeat match goal with
@@ -140,16 +58,151 @@ Ltac unify_pows_two :=
   | [ |- (2^?x = 2^?y)%nat ]                => apply pow_components; try omega 
   end.
 
+(* /Natural Numbers *)
+
+(* Matrix Stuff *)
+Definition conj_trmx {m n : nat} (A : 'M[algC]_(m,n)) : 'M[algC]_(n,m) := 
+  \matrix_(i, j) conjC (A j i).
+
+Notation I := 1%:M.
+Notation I_ x := (1%:M : 'M_(x)).
+Infix "×" := mulmx (at level 40, left associativity) : matrix_scope.
+(* Infix "⊗" := tensmx (at level 40, left associativity) : matrix_scope. *)
+Infix "⊗" := kron (at level 40, left associativity) : matrix_scope.
+Notation "A ⊤" := (trmx A) (at level 0) : matrix_scope. 
+Notation "A †" := (conj_trmx A) (at level 0) : matrix_scope. 
+
+(* /Matrix stuff *)
+
+Open Scope matrix_scope.
+
+Example test : (1 * 1 + 'i = 1 + 0 + 'i)%C.
+Proof. rewrite mul1r. rewrite addr0. reflexivity. Qed.
+
+(* This database will need expanding *)
+Hint Rewrite add0r addr0 mul1r mulr1 : C_db.
+
+Definition ket0 : 'M[algC]_(2,1) := \matrix_(i,j) if i == 0%nat :> nat then 1 else 0. 
+Definition ket1 : 'M[algC]_(2,1) := \matrix_(i,j) if i == 1%nat :> nat then 1 else 0. 
+Definition bra0 : 'M[algC]_(1,2) := \matrix_(i,j) if j == 0%nat :> nat then 1 else 0. 
+Definition bra1 : 'M[algC]_(1,2) := \matrix_(i,j) if j == 1%nat :> nat then 1 else 0. 
+Definition ket (x : nat) : 'M[algC]_(2,1) := if x == 0%nat then ket0 else ket1.
+Transparent ket0.
+Transparent ket1.
+Transparent ket.
+Notation "|0⟩" := ket0.
+Notation "|1⟩" := ket1.
+Notation "⟨0|" := bra0.
+Notation "⟨1|" := bra1.
+Notation "|0⟩⟨0|" := (|0⟩×⟨0|).
+Notation "|1⟩⟨1|" := (|1⟩×⟨1|).
+Notation "|1⟩⟨0|" := (|1⟩×⟨0|).
+Notation "|0⟩⟨1|" := (|0⟩×⟨1|).
+
+
+(* Coercion nat_as_ord : nat >-> ord. *)
+
+Notation Ord n := (@Ordinal _ n _).
+
+(* 'M_2 = 'M[algC]_2 . Why can't I type 2 as an algC? *)
+Definition hadamard : 'M[algC]_2 :=  \matrix_(i,j) 
+  match i, j with 
+  | Ord 1, Ord 1 => -(1 / √(2%:R))
+  | _, _ => (1 / √(1+1))
+  end.
+
+Print hadamard.
+
+(* A moment ago this required a Program Fixpoint and had two obligations... *)
+Fixpoint hadamard_k (k : nat) : 'M_(2^k)%nat := 
+  match k with
+  | 0 => I
+  | S k' => hadamard ⊗ hadamard_k k'
+  end. 
+
+(*
+Lemma hadamard_1 : hadamard_k 1 = hadamard.
+Proof. apply kron_1_r. Qed.
+*)
+
+Definition pauli_x : 'M[algC]_2 := \matrix_(i,j)
+  match i, j with
+  | Ord 0, Ord 1 => 1
+  | Ord 1, Ord 0 => 1
+  | _, _ => 0
+  end.
+
+Definition pauli_y : 'M[algC]_2 := \matrix_(i,j)
+  match i, j with
+  | Ord 0, Ord 1 => -'i
+  | Ord 1, Ord 0 => 'i
+  | _, _ => 0
+  end.
+
+Definition pauli_z : 'M[algC]_2 := \matrix_(i,j)
+  match i, j with
+  | Ord 0, Ord 0 => 1
+  | Ord 1, Ord 1 => -1
+  | _, _ => 0
+  end.  
+ 
+(* Obligations being annoying. Will return. Maybe a different definition?
+Program Definition control {n : nat} (A : 'M[algC]_n) : 'M[algC]_(2*n) := \matrix_(i,j)
+  if (i <? n) && (j <? n) then (1%:M) i j  
+          else if (n <=? i) && (n <=? j) then A (Ord (i-n)%nat) (Ord (j-n)%nat)
+          else 0.
+Next Obligation. destruct i. simpl. 
+*)
+
+(* Definition cnot := control pauli_x. *)
+(* Direct definition makes our lives easier *)
+Definition cnot : 'M[algC]_4 := \matrix_(i,j)
+  match i, j with 
+  | Ord 0, Ord 0 => 1
+  | Ord 1, Ord 1 => 1
+  | Ord 2, Ord 3 => 1
+  | Ord 3, Ord 2 => 1
+  | _, _ => 0
+  end.          
+
+(* Swap Matrices *)
+
+Definition swap : 'M[algC]_4 := \matrix_(i,j)
+  match i, j with 
+  | Ord 0, Ord 0 => 1
+  | Ord 1, Ord 2 => 1
+  | Ord 2, Ord 1 => 1
+  | Ord 3, Ord 3 => 1
+  | _, _ => 0
+  end.
+
+(** Giuseppe Sergioli's approach **)
+
+(* Projection and Ladder Operators *)
+
+Definition P0 := |0⟩⟨0|. (* may define directly *)
+Definition P1 := |0⟩⟨0|.
+Definition L0 := |0⟩⟨1|.
+Definition L1 := |1⟩⟨0|.
+
+(* I don't know how to concatenate these *)
+(* Definition SWAP ' M[algC]_4 := P0 | L1
+                                  L0 | P1 *)
+
+
+
+(*
 (* The input k is really k+1, to appease to Coq termination gods *)
 (* NOTE: Check that the offsets are right *)
 (* Requires: i + 1 < n *)
-Fixpoint swap_to_0_aux (n i : nat) {struct i} : Matrix (2^n) (2^n) := 
+Program Fixpoint swap_to_0_aux (n i : nat) {pf : (i + 1 < n)%nat} {struct i} : 'M[algC]_(2^n) := 
   match i with
-  | O => swap ⊗ Id (2^(n-2))
-  | S i' =>  (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2))) × (* swap i-1 with i *)
+  | O => swap ⊗ I_(2^(n-2))
+  | S i' =>  (I_(2^i') ⊗ swap ⊗ I_(2^(n-i'-2))) × (* swap i-1 with i *)
             swap_to_0_aux n i' × 
-            (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2))) (* swap i-1 with 0 *)
+            (I_(2^i') ⊗ swap ⊗ I_(2^(n-i'-2))) (* swap i-1 with 0 *)
   end.
+Next Obligation. unify_pows_two.
 
 (* Requires: i < n *)
 Definition swap_to_0 (n i : nat) : Matrix (2^n) (2^n) := 
@@ -213,64 +266,20 @@ Qed.
 Eval compute in ((swap_two 1 0 1) 0 0)%nat.
 Eval compute in (print_matrix (swap_two 1 0 2)).
 *)
+*)
 
-(** Well Formedness of Quantum States and Unitaries **)
 
-Lemma WF_bra0 : WF_Matrix 1 2 ⟨0|. Proof. show_wf. Qed.
-Lemma WF_bra1 : WF_Matrix 1 2 ⟨1|. Proof. show_wf. Qed.
-Lemma WF_ket0 : WF_Matrix 2 1 |0⟩. Proof. show_wf. Qed.
-Lemma WF_ket1 : WF_Matrix 2 1 |1⟩. Proof. show_wf. Qed.
-Lemma WF_braket0 : WF_Matrix 2 2 |0⟩⟨0|. Proof. show_wf. Qed.
-Lemma WF_braket1 : WF_Matrix 2 2 |1⟩⟨1|. Proof. show_wf. Qed.
+Lemma braket0_conj_transpose : |0⟩⟨0|† = |0⟩⟨0|. 
+Proof. apply matrixP. move => //. intros. apply mxE.
 
-Hint Resolve WF_bra0 : wf_db.
-Hint Resolve WF_bra1 : wf_db.
-Hint Resolve WF_ket0 : wf_db.
-Hint Resolve WF_ket1 : wf_db.
-Hint Resolve WF_braket0 : wf_db.
-Hint Resolve WF_braket1 : wf_db.
+compute.
 
-Lemma WF_hadamard : WF_Matrix 2 2 hadamard. Proof. show_wf. Qed.
-Lemma WF_pauli_x : WF_Matrix 2 2 pauli_x. Proof. show_wf. Qed.
-Lemma WF_pauli_y : WF_Matrix 2 2 pauli_y. Proof. show_wf. Qed.
-Lemma WF_pauli_z : WF_Matrix 2 2 pauli_z. Proof. show_wf. Qed.
-Lemma WF_cnot : WF_Matrix 4 4 cnot. Proof. show_wf. Qed.
-(* Proof. replace 4%nat with (2*2)%nat by auto. apply WF_control. apply WF_pauli_x. Qed. *)
-Lemma WF_swap : WF_Matrix 4 4 swap. Proof. show_wf. Qed.
-
-Lemma WF_control : forall (n m : nat) (U : Matrix n n), 
-      (m = 2 * n)%nat ->
-      WF_Matrix n n U -> WF_Matrix m m (control U).
-Proof.
-  intros n m U E WFU. subst.
-  unfold control, WF_Matrix in *.
-  intros x y [Hx | Hy]; simpl.
-  + replace (x <? n) with false by (symmetry; apply Nat.ltb_ge; omega). simpl.
-    rewrite WFU.
-    * destruct (n <=? x), (n <=? y); reflexivity.
-    * left. omega. 
-  + replace (y <? n) with false by (symmetry; apply Nat.ltb_ge; omega). 
-    rewrite andb_false_r.
-    rewrite WFU.
-    * destruct (n <=? x), (n <=? y); reflexivity.
-    * right. omega.
-Qed.
-
-Hint Resolve WF_hadamard : wf_db.
-Hint Resolve WF_pauli_x : wf_db.
-Hint Resolve WF_pauli_y : wf_db.
-Hint Resolve WF_pauli_z : wf_db.
-Hint Resolve WF_cnot : wf_db.
-Hint Resolve WF_swap : wf_db.
-Hint Resolve WF_control : wf_db.
-
-Lemma braket0_conj_transpose : |0⟩⟨0|† = |0⟩⟨0|. Proof. mlra. Qed.
+simpl. Qed.
 Lemma braket1_conj_transpose : |1⟩⟨1|† = |1⟩⟨1|. Proof. mlra. Qed.
 
 (** Unitaries are unitary **)
 
-Definition is_unitary {n: nat} (U : Matrix n n): Prop :=
-  WF_Matrix n n U /\ U † × U = Id n.
+Definition is_unitary {n: nat} (U : Matrix n n): Prop := U † × U = I_n.
 
 (* More precise *)
 (* Definition unitary_matrix' {n: nat} (A : Matrix n n): Prop := Minv A A†. *)
