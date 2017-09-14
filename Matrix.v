@@ -12,20 +12,53 @@ Open Scope R_scope.
 Open Scope C_scope.
 Open Scope nat_scope.
 
+Bind Scope nat_scope with nat.
 Bind Scope R_scope with R.
 Bind Scope C_scope with C.
-Bind Scope nat_scope with nat.
+
 
 (** Useful C stuff *)
 
 Notation C0 := (RtoC 0). 
 Notation C1 := (RtoC 1).
+Notation C2 := (RtoC 2).
 Notation "√ n" := (sqrt n) (at level 20).
 
 Lemma c_proj_eq : forall (c1 c2 : C), fst c1 = fst c2 -> snd c1 = snd c2 -> c1 = c2.  
 Proof. intros c1 c2 H1 H2. destruct c1, c2. simpl in *. subst. reflexivity. Qed.
 
 Ltac clra := eapply c_proj_eq; simpl; lra.
+
+(* A bit of useful reflection from Software Foundations Vol 3 *)
+
+Lemma beq_reflect : forall x y, reflect (x = y) (x =? y).
+Proof.
+  intros x y.
+  apply iff_reflect. symmetry.  apply beq_nat_true_iff.
+Qed.
+
+Lemma blt_reflect : forall x y, reflect (x < y) (x <? y).
+Proof.
+  intros x y.
+  apply iff_reflect. symmetry. apply Nat.ltb_lt.
+Qed.
+
+Lemma ble_reflect : forall x y, reflect (x <= y) (x <=? y).
+Proof.
+  intros x y.
+  apply iff_reflect. symmetry. apply Nat.leb_le.
+Qed.
+
+Hint Resolve blt_reflect ble_reflect beq_reflect : bdestruct.
+
+Ltac bdestruct X :=
+  let H := fresh in let e := fresh "e" in
+   evar (e: Prop);
+   assert (H: reflect e X); subst e;
+    [eauto with bdestruct
+    | destruct H as [H|H];
+       [ | try first [apply not_lt in H | apply not_le in H]]].
+
 
 (** Matrix Definitions **)
 
@@ -73,19 +106,14 @@ Proof.
   intros m n A' B' WFA WFB Eq.
   prep_matrix_equality.
   unfold mat_equiv in Eq.
-  destruct (x <? m) eqn:Hx.
-  destruct (y <? n) eqn:Hy.
-  + apply Nat.ltb_lt in Hx.
-    apply Nat.ltb_lt in Hy.
-    specialize (Eq (exist _ x Hx) (exist _ y Hy)).
-    apply Eq.
-  + apply Nat.ltb_nlt in Hy.    
-    rewrite WFA, WFB; trivial; right; try omega.
-  + apply Nat.ltb_nlt in Hx.    
-    rewrite WFA, WFB; trivial; left; try omega.
+  bdestruct (x <? m).
+  bdestruct (y <? n).
+  + specialize (Eq (exist _ x H) (exist _ y H0)). apply Eq.
+  + rewrite WFA, WFB; trivial; right; try omega.
+  + rewrite WFA, WFB; trivial; left; try omega.
 Qed.
     
-Definition list2D_to_matrix (l : list (list R)) : 
+Definition list2D_to_matrix (l : list (list C)) : 
   Matrix (length l) (length (hd [] l)) :=
   (fun x y => nth y (nth x l []) 0%R).
 
@@ -103,8 +131,8 @@ Definition M23 : Matrix 2 3 :=
 
 Definition M23' : Matrix 2 3 := 
   list2D_to_matrix  
-  ([[1; 2; 3];
-    [4; 5; 6]])%R.
+  ([[RtoC 1; RtoC 2; RtoC 3];
+    [RtoC 4; RtoC 5; RtoC 6]]).
 
 Lemma M23eq : M23 = M23'.
 Proof.
@@ -165,7 +193,10 @@ Infix "≡" := mat_equiv (at level 100) : matrix_scope.
 Notation "A ⊤" := (transpose A) (at level 0) : matrix_scope. 
 Notation "A †" := (conj_transpose A) (at level 0) : matrix_scope. 
 Notation "Σ^ n f" := (Rsum_to_n f n) (at level 90) : matrix_scope.
+Hint Unfold Zero Id trace dot Mplus scale Mmult kron mat_equiv transpose 
+            conj_transpose : M_db.
 Open Scope matrix_scope.
+
 
 (** Matrix Tactics **)
 
@@ -236,14 +267,7 @@ Lemma WF_Id : forall {n : nat}, WF_Matrix n n (Id n).
 Proof. 
   unfold WF_Matrix, Id. intros n x y H.
   simpl.
-  destruct H. 
-  + replace (x <? n) with false by (symmetry; rewrite Nat.ltb_nlt; omega).
-    destruct (x =? y); simpl; reflexivity.
-  + destruct (x =? y) eqn:Eq.
-    apply Nat.eqb_eq in Eq; subst.
-    replace (y <? n) with false by (symmetry; rewrite Nat.ltb_nlt; omega).
-    reflexivity.
-    reflexivity.
+  destruct H; bdestruct (x =? y); bdestruct (x <? n); trivial; omega.
 Qed.
 
 Lemma WF_scale : forall {m n : nat} (r : C) (A : Matrix m n), 
@@ -365,7 +389,7 @@ Ltac show_wf :=
     repeat (destruct x; try reflexivity; try omega);
     repeat (destruct y; try reflexivity; try omega).
 
-Create HintDb wf_db.
+(* Create HintDb wf_db. *)
 Hint Resolve WF_Zero WF_Id WF_mult WF_plus WF_scale WF_kron WF_transpose 
      WF_conj_transpose : wf_db.
 
@@ -384,6 +408,17 @@ Ltac show_wf_safe :=
 
 
 Lemma Cconj_R : forall r : R, Cconj r = r. Proof. intros. clra. Qed.
+Lemma Cconj_rad2 : (Cconj (C1 / √2) = C1 / √2)%C. Proof. clra. Qed.
+Lemma square_rad2 : ((C1/√2) * (C1/√2) = C1/C2)%C. 
+Proof. 
+  eapply c_proj_eq; simpl; try lra.
+  Rsimpl.
+  Search (_ * _ * _ * _)%R.
+  rewrite Rmult_assoc.
+  rewrite (Rmult_comm (/2) _).
+  repeat rewrite <- Rmult_assoc.
+  rewrite sqrt_def; lra.
+Qed.
 
 (* deprecated in favor of autorewrite *)
 Ltac Csimpl := 
@@ -398,7 +433,7 @@ Ltac Csimpl :=
     try rewrite Cmult_1_r
 ).
 
-Hint Rewrite Cconj_R Cplus_0_l Cplus_0_r 
+Hint Rewrite Cconj_R Cconj_rad2 square_rad2 Cplus_0_l Cplus_0_r 
      Cmult_0_l Cmult_0_r Cmult_1_l Cmult_1_r : C_db.
 
 (** Basic Matrix Lemmas **)
@@ -448,23 +483,16 @@ Proof.
     + intros leSkx.
       simpl.
       unfold Id.
-      replace (x =? k) with false by (symmetry; apply Nat.eqb_neq; omega).
-      rewrite Cmult_0_l, Cplus_0_r.
+      bdestruct (x =? k); try omega.
+      autorewrite with C_db.
       apply IHl.
       omega.
     + intros gtSkx.
       simpl in *.
       unfold Id in *.
-      destruct (x =? k) eqn:Eqxk.
-      - apply Nat.eqb_eq in Eqxk; subst.
-        replace (k <? m) with true in * by (symmetry; apply Nat.ltb_lt; omega).
-        rewrite IHl; try omega.
-        autorewrite with C_db.
-        reflexivity.
-      - apply Nat.eqb_neq in Eqxk; subst.
-        autorewrite with C_db.
-        apply IHr.
-        omega.
+      bdestruct (x =? k); bdestruct (x <? m); subst; try omega.
+      rewrite IHl by omega; simpl; clra.
+      rewrite IHr by omega; simpl; clra.
 Qed.
 
 Lemma Mmult_1_l_mat_eq : forall (m n : nat) (A : Matrix m n), Id m × A ≡ A.
@@ -502,23 +530,16 @@ Proof.
   + intros leSkz.
     simpl in *.
     unfold Id.
-    replace (k =? z) with false by (symmetry; apply Nat.eqb_neq; omega).
-    rewrite Cmult_0_r, Cplus_0_r.
-    apply IHl.
-    omega.
+    bdestruct (k =? z); try omega.
+    autorewrite with C_db.
+    apply IHl; omega.
   + intros gtSkz.
     simpl in *.
     unfold Id in *.
-    destruct (k =? z) eqn:Eqxk.
-    - apply Nat.eqb_eq in Eqxk; subst.
-      replace (z <? n) with true in * by (symmetry; apply Nat.ltb_lt; omega).
-      rewrite IHl; try omega.
-      autorewrite with C_db.
-      reflexivity.
-    - apply Nat.eqb_neq in Eqxk; subst.
-      autorewrite with C_db.
-      apply IHr.
-      omega.
+    bdestruct (k =? z); subst.
+    - bdestruct (z <? n); try omega.
+      rewrite IHl by omega; clra.
+    - rewrite IHr by omega; simpl; clra.
 Qed.
 
 Lemma Mmult_1_r_mat_eq : forall (m n : nat) (A : Matrix m n), A × Id n ≡ A.
@@ -566,21 +587,16 @@ Proof.
   intros m n A H1 H2 WF.
   unfold Id, kron.
   prep_matrix_equality.
-  destruct (x / m <? 1) eqn:Eq1. 
-  destruct (x / m =? y / n) eqn:Eq2. 
-  all: simpl.
-  + apply Nat.ltb_lt in Eq1.
-    rewrite Nat.eqb_eq in Eq2.
-    assert (x / m = 0) by omega. clear Eq1. rename H into Eq1.
+  bdestruct (x / m <? 1); rename H into Eq1.
+  bdestruct (x / m =? y / n); rename H into Eq2; simpl.
+  + assert (x / m = 0) by omega. clear Eq1. rename H into Eq1.
     rewrite Eq1 in Eq2.     
     symmetry in Eq2.
     rewrite Nat.div_small_iff in Eq2 by omega.
     rewrite Nat.div_small_iff in Eq1 by omega.
     rewrite 2 Nat.mod_small; trivial.
     clra.
-  + apply Nat.ltb_lt in Eq1.
-    rewrite Nat.eqb_neq in Eq2.
-    assert (x / m = 0) by omega. clear Eq1.
+  + assert (x / m = 0) by omega. clear Eq1.
     rewrite H in Eq2. clear H.
     assert (y / n <> 0) by omega. clear Eq2.
     rewrite Nat.div_small_iff in H by omega.
@@ -588,7 +604,6 @@ Proof.
     destruct WF with (x := x) (y := y). omega.
     reflexivity.
   + rewrite andb_false_r.
-    apply Nat.ltb_nlt in Eq1.
     assert (x / m <> 0) by omega. clear Eq1.
     rewrite Nat.div_small_iff in H by omega.
     rewrite Cmult_0_l.
@@ -609,12 +624,8 @@ Lemma id_transpose_eq : forall n, (Id n)⊤ = (Id n).
 Proof.
   intros n. unfold transpose, Id.
   prep_matrix_equality.
-  destruct (y =? x) eqn:Eq.
-  + apply Nat.eqb_eq in Eq; subst.
-    rewrite Nat.eqb_refl.
-    reflexivity.
-  + rewrite Nat.eqb_sym. rewrite Eq.
-    reflexivity.    
+  bdestruct (y =? x); bdestruct (x =? y); bdestruct (y <? n); bdestruct (x <? n);
+    trivial; omega.
 Qed.
 
 Lemma id_conj_transpose_eq : forall n, (Id n)† = (Id n).
@@ -622,13 +633,8 @@ Proof.
   intros n.
   unfold conj_transpose, Id.
   prep_matrix_equality.
-  destruct (y =? x) eqn:Eq.
-  + apply Nat.eqb_eq in Eq; subst.
-    rewrite Nat.eqb_refl.
-    destruct (x <? n); simpl; clra.
-  + rewrite Nat.eqb_sym. rewrite Eq.
-    simpl. 
-    clra.
+  bdestruct (y =? x); bdestruct (x =? y); bdestruct (y <? n); bdestruct (x <? n);
+    try omega; clra.
 Qed.
 
 Theorem Mplus_comm : forall (m n : nat) (A B : Matrix m n), A .+ B = B .+ A.
@@ -799,18 +805,15 @@ Proof.
   intros.
   unfold Id, kron.
   prep_matrix_equality.
-  destruct (x =? y) eqn:Eq.
-  + apply beq_nat_true in Eq; subst.
-    repeat rewrite <- beq_nat_refl; simpl.
+  bdestruct (x =? y); rename H into Eq; subst.
+  + repeat rewrite <- beq_nat_refl; simpl.
     destruct n.
     - simpl.
       rewrite mult_0_r.
-      replace (y <? O) with false. clra.
-      symmetry; apply Nat.ltb_nlt. omega.
-    - replace (y mod S n <? S n) with true.
-      Focus 2. symmetry. apply Nat.ltb_lt.
-               apply Nat.mod_upper_bound. 
-               omega.      
+      bdestruct (y <? 0); try omega.
+      autorewrite with C_db; reflexivity.
+    - bdestruct (y mod S n <? S n). 
+      2: specialize (Nat.mod_upper_bound y (S n)); intros; omega. 
       rewrite Cmult_1_r.
       destruct (y / S n <? m) eqn:L1, (y <? m * S n) eqn:L2; trivial.
       * apply Nat.ltb_lt in L1. 
@@ -832,21 +835,16 @@ Proof.
         rewrite mult_comm.
         assumption.
   + simpl.
-    destruct (x / n =? y / n) eqn:Eq1;
-    destruct (x mod n =? y mod n) eqn:Eq2; simpl; try clra.
+    bdestruct (x / n =? y / n); simpl; try clra.
+    bdestruct (x mod n =? y mod n); simpl; try clra.
     destruct n; try clra.    
-    apply beq_nat_false in Eq.
-    apply beq_nat_true in Eq1. 
-    apply beq_nat_true in Eq2. 
     contradict Eq.
-    assert (S n <> 0) as H by omega.
-    specialize (Nat.div_mod x (S n) H). intros H1.
-    specialize (Nat.div_mod y (S n) H). intros H2.    
-    rewrite Eq1, Eq2 in H1.
-    rewrite <- H2 in H1.
-    assumption.
+    rewrite (Nat.div_mod x (S n)) by omega.
+    rewrite (Nat.div_mod y (S n)) by omega.
+    rewrite H, H0; reflexivity.
 Qed.
-  
+
+
 (*  
 Theorem Mmult_assoc : forall {m n o p : nat} (A : Matrix m n) (B : Matrix n o) 
   (C: Matrix o p), A × B × C = A × (B × C).
@@ -866,22 +864,6 @@ Proof.
 Admitted.
 *)
 
-(* Deprecated in favor of "autorewrite with M_db" *)
-Ltac Msimpl1 := 
-  repeat rewrite kron_1_l;
-  repeat rewrite kron_1_r;
-  repeat rewrite Mmult_1_l; 
-  repeat rewrite Mmult_1_r; 
-  repeat rewrite id_conj_transpose_eq;
-  repeat rewrite id_conj_transpose_eq; 
-  repeat rewrite conj_transpose_involutive;
-(*  repeat match goal with
-  | [|- WF_Matrix _] => auto 20 with wf_db
-  end; *)
-  auto 20 with wf_db;
-  try omega. 
-Ltac Msimpl := simpl; repeat Msimpl1.
-
 (*
 Unset Maximal Implicit Insertion.
 
@@ -897,6 +879,16 @@ About kron_1_l.
 Hint Rewrite kron_1_l kron_1_r Mmult_1_l Mmult_1_r id_conj_transpose_eq
      id_conj_transpose_eq conj_transpose_involutive using 
      (auto 100 with wf_db; autorewrite with M_db; auto 100 with wf_db; omega) : M_db.
+
+Ltac destruct_m_1 :=
+  match goal with
+  | [ |- context[match ?x with 
+                 | 0   => _
+                 | S _ => _
+                 end] ] => is_var x; destruct x
+  end.
+Ltac destruct_m_eq := repeat (destruct_m_1; simpl).
+
 
 (* Note on "using [tactics]": Most generated subgoals will be of the form 
    WF_Matrix M, where auto with wf_db will work.

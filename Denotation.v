@@ -44,14 +44,7 @@ Instance Denote_Unitary W : Denote (Unitary W) (Square (2^〚W〛)) :=
 Lemma WF_unitary : forall {W} (U : Unitary W), 
       WF_Matrix (2^〚W〛) (2^〚W〛) (〚U〛).
 Proof.
-  induction U.
-  + apply WF_hadamard.
-  + apply WF_pauli_x.
-  + apply WF_pauli_y.
-  + apply WF_pauli_z.
-  + simpl. auto with wf_db. 
-  + simpl. auto with wf_db. 
-  + simpl. auto with wf_db. 
+  induction U; simpl; auto with wf_db.
 Qed.
 Hint Resolve WF_unitary : wf_db.
 
@@ -178,7 +171,8 @@ Proof.
   simpl.
   rewrite Mmult_1_r.
   apply swap_two_base. 
-  unfold swap_two. simpl.
+  unfold swap_two.
+  simpl.
   rewrite kron_1_r.
   auto with wf_db.
 Qed.
@@ -445,15 +439,6 @@ Admitted.
 Definition I1 := Id (2^0).
 Lemma WF_I1 : WF_Matrix 1 1 I1. Proof. unfold I1. apply WF_Id. Qed.
 Hint Resolve WF_I1 : wf_db.
-
-Ltac destruct1 :=
-  match goal with
-  | [ |- context[match ?x with 
-                 | 0   => _
-                 | S _ => _
-                 end] ] => destruct x
-  end.
-Ltac destruct_Csolve := repeat (destruct1; try Csolve).
 
 (*Set Printing All.*)
 (* Unset Printing Notations.*)

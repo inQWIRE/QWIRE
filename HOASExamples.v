@@ -278,6 +278,49 @@ Definition teleport : Box Qubit Qubit.
     unbox bob (x,y,b).
 Defined.
 
+
+Definition half_teleport : Box Qubit (Qubit ⊗ Bit ⊗ Bit).
+  box_ q ⇒
+    let_ (a,b) ← unbox bell00 () ;
+    let_ (x,y) ← unbox alice (q,a);
+    output (b,x,y).
+Defined.
+
+
+Print alice.
+Print bob.
+
+Lemma ebob : exists x, bob = x.
+Proof.
+  unfold bob.
+  simpl.
+  unfold HOASCircuits.compose_obligation_3.
+  eauto.
+Qed.
+
+(*
+Doesn't Compute. 
+Lemma eteleport : exists x, teleport = x.
+Proof.
+  unfold teleport.
+  unfold bell00, alice, bob.
+
+  native_compute.
+  simpl.
+  unfold HOASCircuits.compose_obligation_3.
+  eauto.
+Qed.
+*)
+
+(* These take far too long:
+Eval vm_compute in alice.
+Eval vm_compute in bob.
+
+Eval vm_compute in half_teleport.
+Eval native_compute in teleport'.
+Eval vm_compute in teleport'.
+*)
+
 Parameter id_gate: Gate Qubit Qubit.
 
 Definition bob_lift : Box (Bit⊗Bit⊗Qubit) Qubit.

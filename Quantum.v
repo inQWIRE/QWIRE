@@ -60,9 +60,14 @@ Fixpoint hadamard_k (k : nat) : Matrix (2^k) (2^k):=
   | S k' => hadamard ⊗ hadamard_k k'
   end. 
 
-(*
 Lemma hadamard_1 : hadamard_k 1 = hadamard.
 Proof. apply kron_1_r. Qed.
+
+(* Alternative definitions:
+Definition pauli_x : Matrix 2 2 := fun x y => if x + y =? 1 then 1 else 0.
+Definition pauli_y : Matrix 2 2 := fun x y => if x + y =? 1 then (-1) ^ x * Ci else 0.
+Definition pauli_z : Matrix 2 2 := fun x y => if (x =? y) && (x <? 2) 
+                                           then (-1) ^ x * Ci else 0.
 *)
 
 Definition pauli_x : Matrix 2 2 := 
@@ -115,6 +120,9 @@ Definition swap : Matrix 4 4 :=
           | 3, 3 => 1
           | _, _ => 0
           end).
+
+(* Does this overwrite the other Hint DB M? *)
+Hint Unfold ket0 ket1 hadamard pauli_x pauli_y pauli_z control cnot swap : M_db.
 
 Lemma double_mult : forall (n : nat), (n + n = 2 * n)%nat. Proof. intros. omega. Qed.
 Lemma pow_two_succ_l : forall x, (2^x * 2 = 2 ^ (x + 1))%nat.
@@ -223,19 +231,13 @@ Lemma WF_ket1 : WF_Matrix 2 1 |1⟩. Proof. show_wf. Qed.
 Lemma WF_braket0 : WF_Matrix 2 2 |0⟩⟨0|. Proof. show_wf. Qed.
 Lemma WF_braket1 : WF_Matrix 2 2 |1⟩⟨1|. Proof. show_wf. Qed.
 
-Hint Resolve WF_bra0 : wf_db.
-Hint Resolve WF_bra1 : wf_db.
-Hint Resolve WF_ket0 : wf_db.
-Hint Resolve WF_ket1 : wf_db.
-Hint Resolve WF_braket0 : wf_db.
-Hint Resolve WF_braket1 : wf_db.
+Hint Resolve WF_bra0 WF_bra1 WF_ket0 WF_ket1 WF_braket0 WF_braket1 : wf_db.
 
 Lemma WF_hadamard : WF_Matrix 2 2 hadamard. Proof. show_wf. Qed.
 Lemma WF_pauli_x : WF_Matrix 2 2 pauli_x. Proof. show_wf. Qed.
 Lemma WF_pauli_y : WF_Matrix 2 2 pauli_y. Proof. show_wf. Qed.
 Lemma WF_pauli_z : WF_Matrix 2 2 pauli_z. Proof. show_wf. Qed.
 Lemma WF_cnot : WF_Matrix 4 4 cnot. Proof. show_wf. Qed.
-(* Proof. replace 4%nat with (2*2)%nat by auto. apply WF_control. apply WF_pauli_x. Qed. *)
 Lemma WF_swap : WF_Matrix 4 4 swap. Proof. show_wf. Qed.
 
 Lemma WF_control : forall (n m : nat) (U : Matrix n n), 
@@ -256,21 +258,15 @@ Proof.
     * right. omega.
 Qed.
 
-Hint Resolve WF_hadamard : wf_db.
-Hint Resolve WF_pauli_x : wf_db.
-Hint Resolve WF_pauli_y : wf_db.
-Hint Resolve WF_pauli_z : wf_db.
-Hint Resolve WF_cnot : wf_db.
-Hint Resolve WF_swap : wf_db.
-Hint Resolve WF_control : wf_db.
-
-Lemma braket0_conj_transpose : |0⟩⟨0|† = |0⟩⟨0|. Proof. mlra. Qed.
-Lemma braket1_conj_transpose : |1⟩⟨1|† = |1⟩⟨1|. Proof. mlra. Qed.
+Hint Resolve WF_hadamard WF_pauli_x WF_pauli_y WF_pauli_z WF_cnot WF_swap 
+             WF_control : wf_db.
 
 (** Unitaries are unitary **)
 
 Definition is_unitary {n: nat} (U : Matrix n n): Prop :=
   WF_Matrix n n U /\ U † × U = Id n.
+
+Hint Unfold is_unitary : M_db.
 
 (* More precise *)
 (* Definition unitary_matrix' {n: nat} (A : Matrix n n): Prop := Minv A A†. *)
@@ -468,6 +464,76 @@ Proof.
   + induction i.
     simpl.
 Admitted.
+
+(* Our unitaries are self-adjoint *)
+
+Definition id_sa := id_conj_transpose_eq.
+
+Lemma hadamard_sa : hadamard† = hadamard.
+Proof.
+  prep_matrix_equality.
+  repeat (try destruct x; try destruct y; try clra; trivial).
+Qed.
+
+Lemma pauli_x_sa : pauli_x† = pauli_x.
+Proof. 
+  prep_matrix_equality. 
+  repeat (try destruct x; try destruct y; try clra; trivial).
+Qed.
+
+Lemma pauli_y_sa : pauli_y† = pauli_y.
+Proof.
+  prep_matrix_equality. 
+  repeat (try destruct x; try destruct y; try clra; trivial).
+Qed.
+
+Lemma pauli_z_sa : pauli_z† = pauli_z.
+Proof.
+  prep_matrix_equality. 
+  repeat (try destruct x; try destruct y; try clra; trivial).
+Qed.
+
+Lemma cnot_sa : cnot† = cnot.
+Proof.
+  prep_matrix_equality. 
+  repeat (try destruct x; try destruct y; try clra; trivial).
+Qed.
+
+Lemma swap_sa : swap† = swap.
+Proof.
+  prep_matrix_equality. 
+  repeat (try destruct x; try destruct y; try clra; trivial).
+Qed.
+
+Lemma control_sa : forall (n : nat) (A : Square n), 
+    A† = A -> (control A)† = (control A).
+Proof.
+  intros n A H.
+  prep_matrix_equality.
+  autounfold with M_db in *.
+  autounfold with M_db in *.
+  bdestruct (x =? y); bdestruct (y =? x); 
+  bdestruct (y <? n); bdestruct (x <? n); 
+  bdestruct (n <=? y); bdestruct (n <=? x); 
+    try omega; simpl; try clra.
+  subst. 
+  (* ah, rewriting at X *)
+  remember (Cconj (A (y - n)%nat (y - n)%nat)) as L.
+  rewrite <- H. subst.
+  reflexivity.
+  remember (Cconj (A (y - n)%nat (x - n)%nat)) as L. (* oh hackyness *)
+  rewrite <- H. subst.
+  reflexivity.
+Qed.  
+
+Lemma braket0_sa : |0⟩⟨0|† = |0⟩⟨0|. Proof. mlra. Qed.
+Lemma braket1_sa : |1⟩⟨1|† = |1⟩⟨1|. Proof. mlra. Qed.
+
+Hint Rewrite hadamard_sa pauli_x_sa pauli_y_sa pauli_z_sa cnot_sa swap_sa 
+             braket1_sa braket0_sa : M_db.
+
+Hint Rewrite control_sa using (autorewrite with M_db; reflexivity) : M_db.
+
 
 (* Pure and Mixed States *)
 

@@ -6,10 +6,13 @@ Require Import Omega.
 Set Bullet Behavior "Strict Subproofs".
 Global Unset Asymmetric Patterns.
 
+
+Hint Unfold I1 compose_super super swap_list swap_two denote_pat_in pad : Den_db.
+
+
 Lemma Ex : 〚init true〛 I1 = (|1⟩⟨1| : Density 2).
 Proof.
-  simpl.
-  repeat (unfold I1, compose_super, super, swap_list, swap_two, denote_pat_in; simpl).
+  repeat (autounfold with Den_db; simpl).
   autorewrite with M_db.
   reflexivity.
 Qed.
@@ -21,11 +24,9 @@ Lemma unitary_transpose_id_qubit : forall (U : Unitary Qubit), forall ρ,
     WF_Matrix (2^〚Qubit〛) (2^〚Qubit〛) ρ -> 〚unitary_transpose U〛ρ = 〚@id_circ Qubit〛ρ.
 Proof.
   intros U ρ pf_ρ.
-  assert (unitary_U : is_unitary (denote_unitary U)) 
-    by apply unitary_gate_unitary.
+  assert (unitary_U : is_unitary (denote_unitary U)) by apply unitary_gate_unitary.
   destruct unitary_U as [WF inv].
-  simpl in *.
-  repeat (unfold apply_U, compose_super, super, swap_list, swap_two, pad, denote_pat_in; simpl).
+  repeat (autounfold with Den_db; simpl in *).
   autorewrite with M_db.
   repeat rewrite Mmult_assoc; try rewrite inv.
   repeat rewrite <- Mmult_assoc; try rewrite inv.
@@ -37,8 +38,8 @@ Lemma unitary_transpose_id : forall W (U : Unitary W) (ρ : Density (2^〚W〛 )
   WF_Matrix (2^〚W〛) (2^〚W〛) ρ -> 〚unitary_transpose U〛 ρ = 〚@id_circ W〛 ρ.
 Proof.
   intros W U ρ pf_ρ. 
-  Msimpl.
-  unfold super, compose_super, denote_pat_in; simpl.
+  autorewrite with M_db.  
+  repeat (unfold super, compose_super, denote_pat_in; simpl).
   repeat rewrite merge_nil_r.
   repeat rewrite size_fresh_ctx.
   repeat rewrite fresh_pat_empty.
@@ -84,27 +85,24 @@ Lemma bias1 : biased_coin 1 = |1⟩⟨1|.
 Proof.
   unfold biased_coin.
   prep_matrix_equality; simpl.
-  destruct_Csolve.
+  destruct_m_eq; clra.
 Qed.
 
 Lemma even_bias : biased_coin (1/2) = fair_coin.
 Proof. 
   unfold biased_coin, fair_coin.
   prep_matrix_equality; simpl.
-  destruct_Csolve.
+  destruct_m_eq; clra.
 Qed.
 
 Lemma fair_toss : 〚coin_flip〛 I1  = fair_coin.
 Proof.
-  repeat (unfold compose_super, super, swap_list, 
-          swap_two, pad, apply_new0, apply_U, 
-          apply_meas, denote_pat_in; simpl).
+  repeat (autounfold with Den_db; simpl).
   autorewrite with M_db.
-  Msimpl. 
   prep_matrix_equality.
-  unfold fair_coin, ket0, ket1, Mplus, Mmult, conj_transpose.
+  autounfold with M_db.
   simpl; autorewrite with C_db.
-  destruct x, y; simpl; autorewrite with C_db; destruct_Csolve. Csolve.
+  destruct x, y; simpl; autorewrite with C_db; destruct_m_eq; clra.
 Qed.
 
 Definition EPR00 : Matrix 4 4 :=
@@ -119,10 +117,9 @@ Definition EPR00 : Matrix 4 4 :=
 
 Lemma cnot_eq : cnot = control pauli_x.
 Proof.
-  unfold cnot, control, pauli_x.
+  autounfold with M_db.
   simpl.
   prep_matrix_equality.
-  (* destruct_Csolve; simpl. huh??? *)
   repeat (try destruct x; try destruct y; autorewrite with C_db; trivial).
 Qed.
 
@@ -144,79 +141,122 @@ Proof.
     reflexivity.
 Qed.
 
-(*
-Lemma bell00_eq :  〚bell00〛 I1  = EPR00.
-Proof.
-  repeat (unfold I1, compose_super, super, swap_list, 
-          swap_two, pad, apply_new0, apply_U, 
-          apply_meas, denote_pat_in; simpl).
-  Msimpl.
-  repeat rewrite <- Mmult_assoc.
-  
-  
+(* let A' := reduce_matrix A in 
+              let B' := reduce_matrix B in 
+              replace A with A';
+              replace B with B';
 
-(* Doesn't rewrite:
-  replace (control pauli_x × (hadamard ⊗ Id 2) × (swap) † × (|0⟩ ⊗ Id 2) × |0⟩ × ⟨0|
-  × (|0⟩ ⊗ Id 2) † × swap × (hadamard ⊗ Id 2) † × (control pauli_x) †) 
-  ((control pauli_x × (hadamard ⊗ Id 2) × (swap) † × (|0⟩ ⊗ Id 2) × |0⟩) × (⟨0|
-  × (|0⟩ ⊗ Id 2) † × swap × (hadamard ⊗ Id 2) † × (control pauli_x) †)).
+Ltac reduce_matrix M :=
+  match M with
+  | ?A × ?B => reduce_matrix A;
+              reduce_matrix B;
+              simpl;
+              autorewrite with C_db
+  | ?A      => autounfold with M_db (* in A *);
+              simpl; 
+              autorewrite with C_db
+  end.
+
+
+Ltac simpl_matrix := 
+  match goal with
+  | [|- ?M = _ ] => reduce_matrix M
+  end.
+
+Ltac solve_matrix := 
+  repeat match goal with
+  | [ x : nat |- context[?x] ] => destruct x; simpl; autorewrite with C_db; trivial
+  end.
+
 *)
 
+(* Construct matrices full of evars *)
+Ltac mk_evar s :=
+  let mk := match goal with _ => evar (s : C) end in constr:(s).
 
-  assert (control pauli_x × (hadamard ⊗ Id 2) = fun x y => match x, y with
-                                                           | 0, 0 => 1/√2
-                                                           | 0, 2 => 1/√2
-                                                           | 1, 1 => 1/√2
-                                                           | 1, 3 => 1/√2
-                                                           | 2, 1 => 1/√2
-                                                           | 2, 3 => -1/√2
-                                                           | 3, 0 => 1/√2
-                                                           | 3, 2 => -1/√2
-                                                           | _, _ => 0
-                                                           end
-         ). 
-  unfold control, pauli_x, Mmult, kron, hadamard, Id.
+Ltac evar_list n := 
+  match n with 
+  | O => constr:(@nil C)
+  | S ?n' => let e := fresh "e" in
+            let e' := mk_evar e in
+            let ls := evar_list n' in 
+            constr:(e :: ls)
+            
+  end.
+
+Ltac evar_list_2d m n := 
+  match m with 
+  | O => constr:(@nil (list C))
+  | S ?m' => let ls := evar_list n in 
+            let ls2d := evar_list_2d m' n in  
+            constr:(ls :: ls2d)
+  end.
+
+Ltac evar_matrix m n := let ls2d := (evar_list_2d m n) 
+                        in constr:(list2D_to_matrix ls2d).   
+
+(* Unify A × B with list (list (evars)) *)
+Ltac crunch_matrix := repeat match goal with
+                             | [ H : C |- _ ] => unfold H; clear H
+                             end; 
+                      simpl;
+                      unfold list2D_to_matrix;    
+                      autounfold with M_db;
+                      prep_matrix_equality;
+                      simpl;
+                      destruct_m_eq;
+                      try rewrite divmod_eq; 
+                      autorewrite with C_db; reflexivity.
+
+Ltac reduce_aux M := 
+  match M with 
+  |  @Mmult ?m ?n ?o ?A ?B        => let M := evar_matrix m o in
+                                    replace (@Mmult m n o A B) with M;
+                                    [| crunch_matrix ] 
+  end.
+
+(* Find two basic matrices to multiply *)
+Ltac find_smallest M := 
+  match M with 
+  | (@Mmult ?m ?n ?o ?A ?B) × ?C  => find_smallest (@Mmult m n o A B)
+  | ?A                            => A
+  end.                    
+
+(* Replace smallest A × B with their product *)
+Ltac reduce_matrix := match goal with [ |- ?M = _] => let M' := find_smallest M in
+                                                              reduce_aux M' end;
+                      repeat match goal with | [ H : C |- _ ] => unfold H; clear H end.
+
+Ltac solve_matrix := repeat reduce_matrix; crunch_matrix.
+
+
+Lemma bell00_eq :  〚bell00〛 I1  = EPR00.
+Proof.
+  repeat (autounfold with Den_db; simpl).
+  rewrite <- cnot_eq.
+  autorewrite with M_db.
+  repeat rewrite <- Mmult_assoc.
+  solve_matrix.
+Qed.
+
+(* Slow approach #1: 
   simpl.
-  prep_matrix_equality.
-  destruct x, y; Csimpl; trivial.
-  destruct y; Csimpl; trivial.
-  destruct y; Csimpl; trivial.
-  destruct y; Csimpl; trivial.
-  rewrite divmod_eq. simpl. Csimpl. reflexivity.
-  destruct x; Csimpl; trivial.
-  destruct x; Csimpl; trivial.
-  destruct x; Csimpl; trivial.
-  destruct x, y; Csimpl; trivial.
-  destruct y; Csimpl; trivial.
-  destruct y; Csimpl; trivial.
-  rewrite divmod_eq. simpl. Csimpl. reflexivity.
-  destruct x; Csimpl; trivial.
-  destruct x; Csimpl; trivial.
-  destruct x, y; Csimpl; trivial.
-  destruct y; Csimpl; trivial.
-  clra. 
-  rewrite divmod_eq. simpl. Csimpl. reflexivity.
-  destruct x; Csimpl; trivial.
-  clra.
-  destruct x, y; Csimpl; trivial.
-  rewrite divmod_eq. simpl. Csimpl. reflexivity.
+  autorewrite with C_db.
+  destruct x. repeat (destruct y; autorewrite with C_db; trivial).
+  destruct x. repeat (destruct y; autorewrite with C_db; trivial).
+  destruct x. repeat (destruct y; autorewrite with C_db; trivial).
+  destruct x. repeat (destruct y; autorewrite with C_db; trivial).
+  repeat (destruct y; autorewrite with C_db; trivial).
+  Qed.
+*)
 
-  rewrite H. (* bah! hidden type problems? *)
-
-
-
-  unfold EPR00, ket0, ket1, Mplus, Mmult, conj_transpose, swap, hadamard, control, pauli_x, Id.
-  prep_matrix_equality.
-
-  destruct x,y.
-  Csimpl.
-  destruct x, y; Csimpl; destruct_Csolve. Csolve.
-Qed. *)
-
-(*
-Print teleport_direct.
-Print teleport.
-Eval native_compute in teleport. 
+(* Slow approach #2: 
+  destruct x. repeat (destruct y; simpl; autorewrite with C_db; trivial).
+  destruct x. repeat (destruct y; simpl; autorewrite with C_db; trivial).
+  destruct x. repeat (destruct y; simpl; autorewrite with C_db; trivial).
+  destruct x. repeat (destruct y; simpl; autorewrite with C_db; trivial).
+  repeat (destruct y; simpl; autorewrite with C_db; trivial).
+Qed.
 *)
 
 Lemma teleport_direct_eq : forall (ρ : Density 2), 
