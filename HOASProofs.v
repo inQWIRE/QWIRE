@@ -141,44 +141,14 @@ Proof.
     reflexivity.
 Qed.
 
-(* let A' := reduce_matrix A in 
-              let B' := reduce_matrix B in 
-              replace A with A';
-              replace B with B';
-
-Ltac reduce_matrix M :=
-  match M with
-  | ?A × ?B => reduce_matrix A;
-              reduce_matrix B;
-              simpl;
-              autorewrite with C_db
-  | ?A      => autounfold with M_db (* in A *);
-              simpl; 
-              autorewrite with C_db
-  end.
-
-
-Ltac simpl_matrix := 
-  match goal with
-  | [|- ?M = _ ] => reduce_matrix M
-  end.
-
-Ltac solve_matrix := 
-  repeat match goal with
-  | [ x : nat |- context[?x] ] => destruct x; simpl; autorewrite with C_db; trivial
-  end.
-
-*)
-
 (* Construct matrices full of evars *)
-Ltac mk_evar s :=
-  let mk := match goal with _ => evar (s : C) end in constr:(s).
+Ltac mk_evar t T := match goal with _ => evar (t : T) end.
 
 Ltac evar_list n := 
   match n with 
   | O => constr:(@nil C)
   | S ?n' => let e := fresh "e" in
-            let e' := mk_evar e in
+            let none := mk_evar e C in 
             let ls := evar_list n' in 
             constr:(e :: ls)
             
@@ -232,14 +202,21 @@ Ltac solve_matrix := repeat reduce_matrix; crunch_matrix.
 
 Lemma bell00_eq :  〚bell00〛 I1  = EPR00.
 Proof.
-  repeat (autounfold with Den_db; simpl).
+  repeat (simpl; autounfold with Den_db). 
+  simpl. 
   rewrite <- cnot_eq.
   autorewrite with M_db.
   repeat rewrite <- Mmult_assoc.
+
+(* solve_matrix: 50s ?, 36s, 34s, 32s *)
   solve_matrix.
 Qed.
 
-(* Slow approach #1: 
+
+(* Slow approach #1: 1:25 ?, 1:00, 1:03, 1:00 *)
+(*
+  prep_matrix_equality.
+  autounfold with M_db.
   simpl.
   autorewrite with C_db.
   destruct x. repeat (destruct y; autorewrite with C_db; trivial).
@@ -250,7 +227,10 @@ Qed.
   Qed.
 *)
 
-(* Slow approach #2: 
+(* Slow approach #2: 5:32s *)
+(*
+  prep_matrix_equality.
+  autounfold with M_db.
   destruct x. repeat (destruct y; simpl; autorewrite with C_db; trivial).
   destruct x. repeat (destruct y; simpl; autorewrite with C_db; trivial).
   destruct x. repeat (destruct y; simpl; autorewrite with C_db; trivial).
@@ -266,6 +246,11 @@ Proof.
   unfold teleport_direct.
   unfold eq_ind_r, eq_ind.
   unfold eq_rect, eq_sym.
+  repeat (autounfold with Den_db; simpl).
+  simpl.
+
+  idtac.
+
 Admitted.
 
 (*
