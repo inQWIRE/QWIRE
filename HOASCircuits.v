@@ -2,7 +2,43 @@ Require Export Contexts.
 Require Import List.
 Import ListNotations.
 
+Inductive bools := 
+  | UT : bools
+  | BT : bool -> bools
+  | TT : bools -> bools -> bools
+.
+  
+Inductive Circuit : Set :=
+| output : Pat -> Circuit
+| gate   : forall {w1 w2}, Gate w1 w2 ->  Pat -> (Pat -> Circuit) -> Circuit
+| lift   : Pat -> (bools -> Circuit) -> Circuit
+.
 
+Inductive Lifts_Type : bools -> WType -> Set :=
+  | lifts_unit :  Lifts_Type UT One
+  | lifts_qubit :  forall b, Lifts_Type (BT b) Qubit
+  | lifts_bit :  forall b, Lifts_Type (BT b) Bit
+  | lifts_tensor : forall LL LC RL RC, Lifts_Type LC LL ->
+                                  Lifts_Type RC RL ->
+                                  Lifts_Type (TT LC RC) (Tensor LL RL).
+
+Inductive Types_Circuit : OCtx -> Circuit -> WType -> Set :=
+| types_output : forall {Γ Γ' w p} {pf : Γ = Γ'}, Types_Pat Γ p w -> 
+                                             Types_Circuit Γ' (output p) w
+| types_gate : forall {Γ Γ1 Γ1' Γ2 Γ2' p1 p2 w1 w2 w C} {g : Gate w1 w2} 
+                 {v1: is_valid Γ1'} {m1: Γ1' = Γ1 ⋓ Γ} 
+                 {v2: is_valid Γ2'} {m2: Γ2' = Γ2 ⋓ Γ},
+               Types_Pat Γ1 p1 w1 ->
+               Types_Pat Γ2 p2 w2 ->
+               Types_Circuit Γ2' (C p2) w ->
+               Types_Circuit Γ1' (gate g p1 C) w  
+| types_lift : forall {Γ1 Γ2 p Γ w w' f bs} {v : is_valid Γ} {m : Γ = Γ1 ⋓ Γ2},         
+               Types_Pat Γ1 p w -> 
+               Lifts_Type bs w ->
+               Types_Circuit Γ2 (f bs) w' ->
+               Types_Circuit Γ (lift p f) w'.
+
+(* Old def:
 Inductive Circuit : OCtx -> WType -> Set :=
 | output : forall {Γ Γ' w} {pf : Γ = Γ'}, Pat Γ w -> Circuit Γ' w
 | gate   : forall {Γ Γ1 Γ1' w1 w2 w}
@@ -16,7 +52,10 @@ Inductive Circuit : OCtx -> WType -> Set :=
          Pat Γ1 w
       -> (interpret w -> Circuit Γ2 w')
       -> Circuit Γ w'
-.
+. 
+*)
+
+(* Old Box / Unbox:
 
 Inductive Box : WType -> WType -> Set :=
 | box : forall {w1} {w2}, 
@@ -28,11 +67,24 @@ Proof.
   destruct b. subst. exact (c _ p).
 Defined.
 
+*)
+
+Inductive Box : Set := box : (Pat -> Circuit) -> Box.
+
+Definition unbox (b : Box )  (p : Pat) : Circuit := 
+  match b with
+  box c => c p
+  end.
+
+Definition Typed_Box (b : Box) (W1 W2 : WType) : Set := 
+  forall Γ p, Types_Pat Γ p W1 -> Types_Circuit Γ (unbox b p) W2.
+
 (* Prevent compute from unfolding important fixpoints *)
 Opaque merge.
 Opaque Ctx.
 Opaque is_valid.
 
+(* Need to rewrite *)
 Ltac validate :=
   repeat ((*idtac "validate";*) match goal with
   (* Pattern contexts are valid *)
@@ -52,31 +104,12 @@ Ltac validate :=
   | [|- is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) ]   => apply valid_join; validate
   end).
 
-Require Program. 
-
-Arguments gate Γ Γ1 {Γ1' w1 w2 w v1 m1} g p c. 
-Arguments lift Γ1 Γ2 {Γ w w' v m} p _.
-Program Fixpoint compose Γ1 {Γ1'} {W} (c : Circuit Γ1 W) {Γ W'} 
-        {v1 : is_valid Γ1'} {m1 : Γ1' = Γ1 ⋓ Γ}
-        (f : forall {Γ2 Γ2'} (m2 : Γ2' = Γ2 ⋓ Γ) (v2 : is_valid Γ2'), 
-             Pat Γ2 W -> Circuit Γ2' W')
-        : Circuit Γ1' W' :=
+Fixpoint compose (c : Circuit) (f : Pat -> Circuit) : Circuit :=
   match c with 
-  | output p1          => f _ _ p1
-  | gate Γ0 Γ01 g p1 h => gate (Γ0 ⋓ Γ) Γ01 g p1 (fun Γ02 _ _ _ q => 
-                          compose _ (h Γ02 (Γ02 ⋓ Γ0) _ _ q) (fun _ _ => f))
-  | lift Γ01 Γ02 p h   => lift Γ01 (Γ02 ⋓ Γ) p (fun x => 
-                          compose Γ02 (h x) (fun _ _ => f))
+  | output p     => f p
+  | gate g p c'  => gate g p (fun p' => compose (c' p') f)
+  | lift p c'    => lift p (fun bs => compose (c' bs) f)
   end.
-Next Obligation. monoid. Defined.
-Next Obligation. validate. Defined.
-Next Obligation. monoid.  Defined.
-Next Obligation. monoid. Defined.
-Next Obligation. validate. Defined.
-Arguments gate {Γ Γ1 Γ1' w1 w2 w v1 m1} g p c. 
-Arguments lift {Γ1 Γ2 Γ w w' v m} p _.
-Arguments compose {Γ1 Γ1' W} c {Γ W' v1 m1} f.
-
 
 (* Automation *)
 

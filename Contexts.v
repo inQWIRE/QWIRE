@@ -682,19 +682,38 @@ Defined.
 
 (* Patterns and Gates *)
 
-Inductive Pat : OCtx -> WType -> Set :=
-| unit : Pat ∅ One
-| qubit : forall x Γ, (SingletonCtx x Qubit Γ) -> Pat Γ Qubit 
-| bit : forall x Γ, (SingletonCtx x Bit Γ) -> Pat Γ Bit 
-| pair : forall Γ1 Γ2 Γ w1 w2,
+Inductive Pat : Set :=
+| unit : Pat
+| var : nat -> Pat
+| pair : Pat -> Pat -> Pat.
+
+(* Not sure if this is the right approach. See below. *)
+Inductive Types_Pat : OCtx -> Pat -> WType -> Set :=
+| types_unit : Types_Pat ∅ unit One
+| types_var : forall x Γ W, (SingletonCtx x W Γ) -> Types_Pat Γ (var x) W 
+| types_pair : forall Γ1 Γ2 Γ p1 p2 w1 w2,
         is_valid Γ 
       -> Γ = Γ1 ⋓ Γ2
-      -> Pat Γ1 w1
-      -> Pat Γ2 w2
-      -> Pat Γ (Tensor w1 w2).
+      -> Types_Pat Γ1 p1 w1
+      -> Types_Pat Γ2 p2 w2
+      -> Types_Pat Γ (pair p1 p2) (Tensor w1 w2).
 
-Lemma pat_ctx_valid : forall Γ W, Pat Γ W -> is_valid Γ.
-Proof. intros Γ W p. unfold is_valid. inversion p; eauto. Qed.
+(* Should we have a types_var instead? 
+   This doesn't allow us to type Var x at Qubit ⊗ Qubit
+Inductive Types_Pat : OCtx -> Pat -> WType -> Set :=
+| types_unit : Types_Pat ∅ unit One
+| types_qubit : forall x Γ, (SingletonCtx x Qubit Γ) -> Types_Pat Γ (var x) Qubit 
+| types_bit : forall x Γ, (SingletonCtx x Bit Γ) -> Types_Pat Γ (var x) Bit 
+| types_pair : forall Γ1 Γ2 Γ p1 p2 w1 w2,
+        is_valid Γ 
+      -> Γ = Γ1 ⋓ Γ2
+      -> Types_Pat Γ1 p1 w1
+      -> Types_Pat Γ2 p2 w2
+      -> Types_Pat Γ (pair p1 p2) (Tensor w1 w2).
+*)
+
+Lemma pat_ctx_valid : forall Γ p W, Types_Pat Γ p W -> is_valid Γ.
+Proof. intros Γ p W TP. unfold is_valid. inversion TP; eauto. Qed.
 
 Open Scope circ_scope.
 Inductive Unitary : WType -> Set := 
