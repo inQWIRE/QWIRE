@@ -1,50 +1,66 @@
 Require Export Contexts.
-Require Import Arith.
 Require Import List.
 Import ListNotations.
+
+(*
+Inductive CType := 
+  | C_Unit : CType
+  | C_Bit  : CType
+  | C_Pair : CType -> CType -> CType.
+  
+Fixpoint from_CType (c : CType) := 
+  match c with
+  | C_Unit => Datatypes.unit
+  | C_Bit => bool 
+  | C_Pair C1 C2 => Datatypes.prod (from_CType C1) (from_CType C2)
+  end.
+
+Inductive Lifts_Type : bools -> WType -> Set :=
+  | lifts_unit :  Lifts_Type UT One
+  | lifts_qubit :  forall b, Lifts_Type (BT b) Qubit
+  | lifts_bit :  forall b, Lifts_Type (BT b) Bit
+  | lifts_tensor : forall LL LC RL RC, Lifts_Type LC LL ->
+                                  Lifts_Type RC RL ->
+                                  Lifts_Type (TT LC RC) (Tensor LL RL).
+
+Fixpoint ctype_of_pat (p : Pat) : Set := 
+  match p with 
+  | unit => Datatypes.unit
+  | qubit n => bool 
+  | bit n => bool 
+  | pair C1 C2 => Datatypes.prod (ctype_of_pat C1) (ctype_of_pat C2)
+  end.
+*)
 
 Inductive Circuit : Set :=
 | output : Pat -> Circuit
 | gate   : forall {w1 w2}, Gate w1 w2 ->  Pat -> (Pat -> Circuit) -> Circuit
-| lift   : Pat -> (bool -> Circuit) -> Circuit 
-.
+| lift   : Pat -> (bool -> Circuit) -> Circuit.
 
-(* Subst x |-> p in p' *) 
-Fixpoint subst_pat (x : Var) (p p' : Pat) : Pat := 
-  match p' with
-  | unit => unit 
-  | var y => if x =? y then p else var y (* Is this the kind of check we want? *)
-  | pair p1 p2 => pair (subst_pat x p p1) (subst_pat x p p2)
-  end.
-
-(* Ensure that this is capture-avoiding! *)
-Fixpoint subst (x : Var) (p : Pat) (C : Circuit) : Circuit := 
-  match C with 
-  | output p' => output (subst_pat x p p')
-  | gate g p' C => gate g (subst_pat x p p') (fun y => subst x p (C y))
-  | lift v C => lift v (fun b => subst x p (C b))
-  | let_unit p' C => let_unit (subst_pat x p p') (subst x p C)
-  | let_pair p' C => let_pair (subst_pat x p p') (fun y z => subst x p (C y z))
-  end.
 
 Inductive Types_Circuit : OCtx -> Circuit -> WType -> Set :=
-| types_output : forall {Γ Γ' W p} {pf : Γ = Γ'}, Types_Pat Γ p W -> 
-                                             Types_Circuit Γ' (output p) W
-| types_gate : forall {Γ Γ1 Γ1' Γ2 Γ2' p1 p2 W1 W2 W C} {g : Gate W1 W2} 
-                 {V1: is_valid Γ1'} {M1: Γ1' = Γ1 ⋓ Γ} 
-                 {V2: is_valid Γ2'} {M2: Γ2' = Γ2 ⋓ Γ},
-               Types_Pat Γ1 p1 W1 ->
-               Types_Pat Γ2 p2 W2 ->
-               Types_Circuit Γ2' (C v) W ->
-               Types_Circuit Γ1' (gate g p C) W  
-.
+| types_output : forall {Γ Γ' w p} {pf : Γ = Γ'}, Types_Pat Γ p w -> 
+                                             Types_Circuit Γ' (output p) w
+| types_gate : forall {Γ Γ1 Γ1' p1 w1 w2 w C} {g : Gate w1 w2} 
+                 {v1: is_valid Γ1'} {m1: Γ1' = Γ1 ⋓ Γ},               
+                 Types_Pat Γ1 p1 w1 ->
+                 (forall Γ2 Γ2' p2 {v2: is_valid Γ2'} {m2: Γ2' = Γ2 ⋓ Γ}, 
+                   Types_Pat Γ2 p2 w2 ->
+                   Types_Circuit Γ2' (C p2) w) ->
+                 Types_Circuit Γ1' (gate g p1 C) w  
+| types_lift_bit : forall {Γ1 Γ2 p Γ w f} {v : is_valid Γ} {m : Γ = Γ1 ⋓ Γ2},         
+                     Types_Pat Γ1 p Bit -> 
+                     (forall b, Types_Circuit Γ2 (f b) w) ->
+                     Types_Circuit Γ (lift p f) w
+| types_lift_qubit : forall {Γ1 Γ2 p Γ w f} {v : is_valid Γ} {m : Γ = Γ1 ⋓ Γ2},     
+                     Types_Pat Γ1 p Qubit -> 
+                     (forall b, Types_Circuit Γ2 (f b) w) ->
+                     Types_Circuit Γ (lift p f) w.
 
 Inductive Box : Set := box : (Pat -> Circuit) -> Box.
 
 Definition unbox (b : Box)  (p : Pat) : Circuit := 
-  match b with
-  box c => c p
-  end.
+  match b with box c => c p end.
 
 Fixpoint compose (c : Circuit) (f : Pat -> Circuit) : Circuit :=
   match c with 
