@@ -2,16 +2,12 @@ Require Export Contexts.
 Require Import Arith.
 Require Import List.
 Import ListNotations.
-  
+
 Inductive Circuit : Set :=
 | output : Pat -> Circuit
-| gate   : forall {w1 w2}, Gate w1 w2 ->  Pat -> (Var -> Circuit) -> Circuit
-| lift   : Var -> (bool -> Circuit) -> Circuit (* Pat or Var *)
-| let_unit : Var -> Circuit -> Circuit
-| let_pair : Var -> (Var -> Var -> Circuit) -> Circuit
+| gate   : forall {w1 w2}, Gate w1 w2 ->  Pat -> (Pat -> Circuit) -> Circuit
+| lift   : Pat -> (bool -> Circuit) -> Circuit 
 .
-
-Fixpoint subst_var x y z  
 
 (* Subst x |-> p in p' *) 
 Fixpoint subst_pat (x : Var) (p p' : Pat) : Pat := 
@@ -34,65 +30,15 @@ Fixpoint subst (x : Var) (p : Pat) (C : Circuit) : Circuit :=
 Inductive Types_Circuit : OCtx -> Circuit -> WType -> Set :=
 | types_output : forall {Γ Γ' W p} {pf : Γ = Γ'}, Types_Pat Γ p W -> 
                                              Types_Circuit Γ' (output p) W
-| types_gate : forall {Γ Γ1 Γ1' Γ2 Γ2' p v W1 W2 W C} {g : Gate W1 W2} 
+| types_gate : forall {Γ Γ1 Γ1' Γ2 Γ2' p1 p2 W1 W2 W C} {g : Gate W1 W2} 
                  {V1: is_valid Γ1'} {M1: Γ1' = Γ1 ⋓ Γ} 
                  {V2: is_valid Γ2'} {M2: Γ2' = Γ2 ⋓ Γ},
-               Types_Pat Γ1 p W1 ->
-               Types_Pat Γ2 (var v) W2 ->
+               Types_Pat Γ1 p1 W1 ->
+               Types_Pat Γ2 p2 W2 ->
                Types_Circuit Γ2' (C v) W ->
                Types_Circuit Γ1' (gate g p C) W  
-| types_lift : forall {Γ Γq Γ' q W C b} 
-                 {V : is_valid Γ'} {M : Γ' = Γq ⋓ Γ},
-               Types_Pat Γq q Qubit -> 
-               Types_Circuit Γ (C b) W ->
-               Types_Circuit Γ' (lift q C) W
-| type_let_unit : forall{Γ Γ1 Γ' p W C} {M : Γ' = Γ1 ⋓ Γ},
-                  Types_Pat Γ1 p One ->
-                  Types_Circuit Γ C W ->                  
-                  Types_Circuit Γ' (let_unit p C) W
-| type_let_pair : forall {Γ Γ1 Γ2 Γ12 Γ' Γ'' p v1 v2 W1 W2 W C}
-                    {M1 : Γ' = Γ ⋓ Γ1 ⋓ Γ2} 
-                    {V : is_valid Γ''} {M2 : Γ'' = Γ ⋓ Γ12},
-                  Types_Pat Γ12 p (Tensor W1 W2) ->
-                  Types_Pat Γ1 (var v1) W1 ->
-                  Types_Pat Γ2 (var v2) W2 ->
-                  Types_Circuit Γ' (C v1 v2) W ->
-                  Types_Circuit Γ'' (let_pair p C) W
 .
 
-(* Old def:
-Inductive Circuit : OCtx -> WType -> Set :=
-| output : forall {Γ Γ' w} {pf : Γ = Γ'}, Pat Γ w -> Circuit Γ' w
-| gate   : forall {Γ Γ1 Γ1' w1 w2 w}
-           {v1 : is_valid Γ1'} {m1 : Γ1' = Γ1 ⋓ Γ},
-           Gate w1 w2
-        -> Pat Γ1 w1
-        -> (forall {Γ2 Γ2'} {v2 : is_valid Γ2'} {m2 : Γ2' = Γ2 ⋓ Γ},
-            Pat Γ2 w2 -> Circuit Γ2' w)
-        -> Circuit Γ1' w
-| lift : forall {Γ1 Γ2 Γ w w'} {v : is_valid Γ} {m : Γ = Γ1 ⋓ Γ2},
-         Pat Γ1 w
-      -> (interpret w -> Circuit Γ2 w')
-      -> Circuit Γ w'
-. 
-*)
-
-(* Old Box / Unbox:
-
-Inductive Box : WType -> WType -> Set :=
-| box : forall {w1} {w2}, 
-        (forall {Γ}, Pat Γ w1 -> Circuit Γ w2) -> Box w1 w2.
-
-Definition unbox {Γ Γ'} {w1} {w2} {pf : Γ = Γ'} (b : Box w1 w2)  (p : Pat Γ w1)
-           : Circuit Γ' w2.
-Proof.
-  destruct b. subst. exact (c _ p).
-Defined.
-
-*)
-
-(* Jen wants to change type to (Var -> Circuit) -> Box ? 
-   How would unbox work then? *)
 Inductive Box : Set := box : (Pat -> Circuit) -> Box.
 
 Definition unbox (b : Box)  (p : Pat) : Circuit := 
@@ -100,38 +46,18 @@ Definition unbox (b : Box)  (p : Pat) : Circuit :=
   box c => c p
   end.
 
-(*
 Fixpoint compose (c : Circuit) (f : Pat -> Circuit) : Circuit :=
   match c with 
   | output p     => f p
   | gate g p c'  => gate g p (fun p' => compose (c' p') f)
   | lift p c'    => lift p (fun bs => compose (c' bs) f)
   end.
-*)
-
-(* Let x <- C in C' *)
-Fixpoint compose (C : Circuit) (C' : Var -> Circuit) : Circuit :=
-  match C with 
-  | output p     => subst x p (C' x)
-  | gate g p C'' => gate g p (fun p' => compose x (C'' x) C')
-  | lift p C''    => lift p (fun b => compose x (C'' b) C')
-  end.
-
-
-Fixpoint compose (x : Var) (C : Circuit) (C' : Var -> Circuit) : Circuit :=
-  match C with 
-  | output p     => subst x p (C' x)
-  | gate g p C'' => gate g p (fun p' => compose x (C'' x) C')
-  | lift p C''    => lift p (fun b => compose x (C'' b) C')
-  end.
-
 
 (* Prevent compute from unfolding important fixpoints *)
 Opaque merge.
 Opaque Ctx.
 Opaque is_valid.
 
-(* Need to rewrite *)
 Ltac validate :=
   repeat ((*idtac "validate";*) match goal with
   (* Pattern contexts are valid *)
@@ -153,7 +79,6 @@ Ltac validate :=
 
 Definition Typed_Box (b : Box) (W1 W2 : WType) : Set := 
   forall Γ p, Types_Pat Γ p W1 -> Types_Circuit Γ (unbox b p) W2.
-
 
 (* Automation *)
 
