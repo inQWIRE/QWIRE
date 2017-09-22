@@ -38,7 +38,6 @@ Inductive OCtx :=
 | Invalid : OCtx 
 | Valid : Ctx -> OCtx.
 
-
 (* The size of a context is the number of wires it holds *)
 Fixpoint size_Ctx (Γ : Ctx) : nat :=
   match Γ with
@@ -684,7 +683,7 @@ Defined.
 
 Inductive Pat : Set :=
 | unit : Pat
-| var : nat -> Pat
+| var : Var -> Pat
 | pair : Pat -> Pat -> Pat.
 
 (* Not sure if this is the right approach. See below. *)
