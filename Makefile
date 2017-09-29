@@ -54,9 +54,12 @@ vo_to_obj = $(addsuffix .o,\
 #                        #
 ##########################
 
-COQLIBS?=
-COQCHKLIBS?=
-COQDOCLIBS?=
+COQLIBS?=\
+  -R "." QWIRE
+COQCHKLIBS?=\
+  -R "." QWIRE
+COQDOCLIBS?=\
+  -R "." QWIRE
 
 ##########################
 #                        #
@@ -110,7 +113,9 @@ VFILES:=MachineExamples.v\
   FlatCircuits.v\
   HOASExamples.v\
   Matrix.v\
-  FlatExamples.v
+  FlatExamples.v\
+  UntypedMatrix.v\
+  UntypedQuantum.v
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(VFILES))
@@ -200,22 +205,22 @@ userinstall:
 
 install:
 	cd "." && for i in $(VOFILES) $(VFILES) $(GLOBFILES) $(NATIVEFILES) $(CMOFILES) $(CMIFILES) $(CMAFILES); do \
-	 install -d "`dirname "$(DSTROOT)"$(COQLIBINSTALL)/Top/$$i`"; \
-	 install -m 0644 $$i "$(DSTROOT)"$(COQLIBINSTALL)/Top/$$i; \
+	 install -d "`dirname "$(DSTROOT)"$(COQLIBINSTALL)/QWIRE/$$i`"; \
+	 install -m 0644 $$i "$(DSTROOT)"$(COQLIBINSTALL)/QWIRE/$$i; \
 	done
 
 install-doc:
-	install -d "$(DSTROOT)"$(COQDOCINSTALL)/Top/html
+	install -d "$(DSTROOT)"$(COQDOCINSTALL)/QWIRE/html
 	for i in html/*; do \
-	 install -m 0644 $$i "$(DSTROOT)"$(COQDOCINSTALL)/Top/$$i;\
+	 install -m 0644 $$i "$(DSTROOT)"$(COQDOCINSTALL)/QWIRE/$$i;\
 	done
 
 uninstall_me.sh: Makefile
 	echo '#!/bin/sh' > $@
-	printf 'cd "$${DSTROOT}"$(COQLIBINSTALL)/Top && rm -f $(VOFILES) $(VFILES) $(GLOBFILES) $(NATIVEFILES) $(CMOFILES) $(CMIFILES) $(CMAFILES) && find . -type d -and -empty -delete\ncd "$${DSTROOT}"$(COQLIBINSTALL) && find "Top" -maxdepth 0 -and -empty -exec rmdir -p \{\} \;\n' >> "$@"
-	printf 'cd "$${DSTROOT}"$(COQDOCINSTALL)/Top \\\n' >> "$@"
+	printf 'cd "$${DSTROOT}"$(COQLIBINSTALL)/QWIRE && rm -f $(VOFILES) $(VFILES) $(GLOBFILES) $(NATIVEFILES) $(CMOFILES) $(CMIFILES) $(CMAFILES) && find . -type d -and -empty -delete\ncd "$${DSTROOT}"$(COQLIBINSTALL) && find "QWIRE" -maxdepth 0 -and -empty -exec rmdir -p \{\} \;\n' >> "$@"
+	printf 'cd "$${DSTROOT}"$(COQDOCINSTALL)/QWIRE \\\n' >> "$@"
 	printf '&& rm -f $(shell find "html" -maxdepth 1 -and -type f -print)\n' >> "$@"
-	printf 'cd "$${DSTROOT}"$(COQDOCINSTALL) && find Top/html -maxdepth 0 -and -empty -exec rmdir -p \{\} \;\n' >> "$@"
+	printf 'cd "$${DSTROOT}"$(COQDOCINSTALL) && find QWIRE/html -maxdepth 0 -and -empty -exec rmdir -p \{\} \;\n' >> "$@"
 	chmod +x $@
 
 uninstall: uninstall_me.sh

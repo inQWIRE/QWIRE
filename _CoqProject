@@ -1,14 +1,16 @@
--R . Top
-./MachineExamples.v
-./Quantum.v
-./HOASCircuits.v
-./Denotation.v
-./Matrix.v
-./Quantum.v
-./Denotation.v
-./MachineCircuits.v
-./Contexts.v
-./FlatCircuits.v
-./HOASExamples.v
-./Matrix.v
-./FlatExamples.v
+-R . QWIRE
+MachineExamples.v
+Quantum.v
+HOASCircuits.v
+Denotation.v
+Matrix.v
+Quantum.v
+Denotation.v
+MachineCircuits.v
+Contexts.v
+FlatCircuits.v
+HOASExamples.v
+Matrix.v
+FlatExamples.v
+UntypedMatrix.v
+UntypedQuantum.v
