@@ -37,6 +37,19 @@ Inductive Circuit : Set :=
 | gate   : forall {w1 w2}, Gate w1 w2 ->  Pat -> (Pat -> Circuit) -> Circuit
 | lift   : Pat -> (bool -> Circuit) -> Circuit.
 
+Inductive Box : Set := box : (Pat -> Circuit) -> Box.
+
+Definition unbox (b : Box)  (p : Pat) : Circuit := 
+  match b with box c => c p end.
+
+Fixpoint compose (c : Circuit) (f : Pat -> Circuit) : Circuit :=
+  match c with 
+  | output p     => f p
+  | gate g p c'  => gate g p (fun p' => compose (c' p') f)
+  | lift p c'    => lift p (fun bs => compose (c' bs) f)
+  end.
+
+(* Typed Circuits and Boxes *)
 
 Inductive Types_Circuit : OCtx -> Circuit -> WType -> Set :=
 | types_output : forall {Γ Γ' w p} {pf : Γ = Γ'}, Types_Pat Γ p w -> 
@@ -57,27 +70,20 @@ Inductive Types_Circuit : OCtx -> Circuit -> WType -> Set :=
                      (forall b, Types_Circuit Γ2 (f b) w) ->
                      Types_Circuit Γ (lift p f) w.
 
-Inductive Box : Set := box : (Pat -> Circuit) -> Box.
-
-Definition unbox (b : Box)  (p : Pat) : Circuit := 
-  match b with box c => c p end.
-
-Fixpoint compose (c : Circuit) (f : Pat -> Circuit) : Circuit :=
-  match c with 
-  | output p     => f p
-  | gate g p c'  => gate g p (fun p' => compose (c' p') f)
-  | lift p c'    => lift p (fun bs => compose (c' bs) f)
-  end.
+Definition Typed_Box (b : Box) (W1 W2 : WType) : Set := 
+  forall Γ p, Types_Pat Γ p W1 -> Types_Circuit Γ (unbox b p) W2.
 
 (* Prevent compute from unfolding important fixpoints *)
 Opaque merge.
 Opaque Ctx.
 Opaque is_valid.
 
+(* Automation *)
+
 Ltac validate :=
   repeat ((*idtac "validate";*) match goal with
   (* Pattern contexts are valid *)
-  | [p : Pat ?Γ ?W |- _ ]             => apply pat_ctx_valid in p
+  | [H : Types_Pat ?Γ ?p ?W |- _ ]    => apply pat_ctx_valid in H
   (* Solve trivial *)
   | [|- is_valid ∅ ]                  => apply valid_empty
   | [H : is_valid ?Γ |- is_valid ?Γ ] => exact H
@@ -93,10 +99,6 @@ Ltac validate :=
   | [|- is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) ]   => apply valid_join; validate
   end).
 
-Definition Typed_Box (b : Box) (W1 W2 : WType) : Set := 
-  forall Γ p, Types_Pat Γ p W1 -> Types_Circuit Γ (unbox b p) W2.
-
-(* Automation *)
 
 Ltac goal_has_evars := 
   match goal with 
@@ -104,11 +106,16 @@ Ltac goal_has_evars :=
   end.
 
 Ltac type_check_once := 
-  intros;
   compute in *; 
+  intros;
   subst; 
   repeat match goal with 
-  | [ p : Pat _ One |- _ ]         => inversion p; subst; clear p
+  | [ H : Types_Pat _ ?p One |- _ ]           => is_var p; inversion H; subst
+  | [ H : Types_Pat _ ?p (Tensor _ _) |- _ ]  => is_var p; inversion H; subst
+  | [ |- Types_Circuit _ _ _ ]                => econstructor; type_check_once
+  | [ |- Types_Circuit _ (if ?b then _ else _) _ ] => destruct b; type_check_once
+  | [ H : Types_Pat _ ?p ?W |- Types_Pat _ ?p ?W ] => apply H
+  | [ |- Types_Pat _ _ _ ]                   => econstructor; type_check_once
   end; 
   (* Runs monoid iff a single evar appears in context *)
   match goal with 
@@ -131,7 +138,50 @@ Ltac type_check_num :=
 
 Ltac type_check := let n := numgoals in do n [> type_check_once..].
 
+(* Composition lemma *)
 
+Lemma compose_typing : forall Γ1 Γ1' Γ c f W W'  
+        {v1 : is_valid Γ1'} {m1 : Γ1' = Γ1 ⋓ Γ},
+        Types_Circuit Γ1 c W ->
+        (forall p {Γ2 Γ2'} (m2 : Γ2' = Γ2 ⋓ Γ) (v2 : is_valid Γ2'), 
+                    Types_Pat Γ2 p W -> Types_Circuit Γ2' (f p) W') ->
+        Types_Circuit Γ1' (compose c f) W'.
+Proof.
+  intros Γ1 Γ1' Γ c f W W' v1 m1 H.
+  generalize dependent Γ.
+  generalize dependent Γ1'.
+  generalize dependent f.
+  induction H; intros; subst; simpl.
+  + eapply H; trivial. 
+  + econstructor; try apply t; subst; validate; monoid.
+    intros.
+    eapply H; try apply H4; subst; validate; monoid.
+    validate.
+    intros.
+    eapply H0; try apply H8; subst; validate; monoid.
+  + econstructor; try apply t; subst; validate; monoid.
+    intros.
+    simpl.
+    eapply H; validate; monoid.
+    intros.
+    eapply H0; try apply H4; subst; validate; monoid. 
+  + eapply (types_lift_qubit t).
+    Unshelve.
+    4: monoid.
+    2: validate.
+    intros.     
+    eapply H; validate; monoid.
+    intros.
+    eapply H0. 
+    subst; monoid.
+    validate.    
+    assumption.
+Qed.
+
+Lemma unbox_typing : forall Γ p W1 W2 c, Types_Pat Γ p W1 ->
+                                    Typed_Box c W1 W2 ->
+                                    Types_Circuit Γ (unbox c p) W2.
+Proof. unfold Typed_Box in *. auto. Qed.
 
 
 (* *)
