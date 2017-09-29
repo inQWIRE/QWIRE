@@ -1,7 +1,7 @@
 # QWIRE
 
 This is a Coq implementation of the QWIRE programming language described
-in [QWIRE: a core language for quantum circuits][1].
+in [QWIRE: a core language for quantum circuits][1]. This branch corresponds to the development described in [QWIRE Practice: Formal verification of quantum circuits in Coq][4]. Further developments in the code are present on the `master` branch.
 
 Compatible with Coq 8.5 and 8.6.
 
@@ -32,3 +32,4 @@ Files in this repository
 [1]: http://dl.acm.org/citation.cfm?id=3009894
 [2]: https://math-comp.github.io/math-comp/
 [3]: http://coquelicot.saclay.inria.fr/
+[4]: http://qpl.science.ru.nl/papers/QPL_2017_paper_45.pdf
