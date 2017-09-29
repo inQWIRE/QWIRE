@@ -1,6 +1,6 @@
 Require Import Program. 
 Require Import Reals.
-Require Import Coquelicot.Complex.
+Require Import Complex.
 Require Import Psatz.
 Require Import Omega.
 Require Import Coq.Strings.String.

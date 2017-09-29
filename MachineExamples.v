@@ -8,6 +8,8 @@ Require Import MachineCircuits.
 Require Import Omega.
 Import ListNotations.
 Open Scope list_scope.
+Require Denotation.
+
 
 Module M.
 
@@ -145,7 +147,7 @@ Close Scope circ_scope.
 
 (* *)
 
-Require Import Denotation.
+Import Denotation.
 
 (* Verifying Properties of MachineExamples *)
 

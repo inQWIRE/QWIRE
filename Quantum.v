@@ -3,7 +3,7 @@ Require Import Psatz.
 Require Import Omega.
 Require Import Reals.
 Require Import Bool.
-Require Export Coquelicot.Complex.
+Require Export Complex.
 Require Export Matrix.
 
 (* Using our (complex, unbounded) matrices, their complex numbers *)
