@@ -20,14 +20,10 @@ Class Denote_Correct {source target} `(Denote source target) :=
     denote_correct : forall (x : source), correctness (denote x)
 }.
 
-(** Wire and Context Denotation **)
-
+(** Unitary Denotation **)
 
 Instance Denote_WType : Denote WType nat := {| denote := size_WType |}.
-Instance Denote_Ctx : Denote Ctx nat := {| denote := size_Ctx |}.
-Instance Denote_OCtx : Denote OCtx nat := {| denote := size_OCtx |}.
 
-(** Unitary Denotation **)
 Fixpoint denote_unitary {W} (U : Unitary W) : Square (2^〚W〛) :=
   match U with  
   | H => hadamard 
@@ -66,7 +62,7 @@ Instance Denote_Unitary_Correct W : Denote_Correct (Denote_Unitary W) :=
     denote_correct := fun U => unitary_gate_unitary U
 |}.
 
-(** Gate Denotation *)
+(** Gate Denotation **)
 
 Definition denote_gate' n {w1 w2} (g : Gate w1 w2)
            : Superoperator (2^〚w1〛 * 2^n) (2^〚w2〛 * 2^n) :=
@@ -98,6 +94,7 @@ Proof.
   simpl. apply gt_trans with (2^n)%nat; auto. omega.
 Qed.
 
+
 Lemma WF_denote_gate : forall n W1 W2 (g : Gate W1 W2) ρ,
     WF_Matrix (2^〚W1〛 * 2^n) (2^〚W1〛 * 2^n) ρ 
  -> WF_Matrix (2^〚W2〛 * 2^n) (2^〚W2〛 * 2^n) (denote_gate' n g ρ).
@@ -114,6 +111,32 @@ Lemma denote_gate_correct : forall {W1} {W2} (g : Gate W1 W2),
                             WF_Superoperator (denote_gate g). 
 Proof.
   unfold WF_Superoperator.
+  intros.
+  induction g.
+  + simpl.
+    rewrite kron_1_r.
+    rewrite Nat.mul_1_r.
+    apply mixed_unitary.
+    apply WF_unitary.
+    apply unitary_gate_unitary.
+    assumption.
+  + simpl in *.
+    rewrite kron_1_r.
+    unfold super.
+    
+
+    inversion H.
+    inversion H0.
+    compute in H3.
+    unfold super.
+    unfold ket0, Mmult.
+    simpl.
+    rewrite Cplus_0_l.
+    autorewrite with C_db.
+    compute. 
+Msimpl.
+    simpl.
+    
 Admitted.
 
 Instance Denote_Gate W1 W2 : Denote (Gate W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)):=
@@ -267,7 +290,14 @@ Proof.
   apply swap_list_aux_id.
 Qed.
 
-(* Flat Circuits *)  
+(** Denoting Min Circuits **)
+Fixpoint denote_min_circuit (c : min_circuit)  := 
+  match c with 
+  | min_output p   => swap_list (pat_to_list p)
+  | min_gate p g c => (denote_gate g)
+
+
+(** Flat Circuits -- old, will remove later **)  
 
 
 Definition cross_list {A B} (ls1 : list A) (ls2 : list B) : list (A * B) :=
