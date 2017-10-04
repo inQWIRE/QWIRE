@@ -696,7 +696,23 @@ Proof.
     apply Mix_S; trivial.
 Qed.
 
-Lemma pure_state_1 : forall (ρ : Square 1), Pure_State ρ -> ρ = Id 1.
+Lemma mixed_state_trace_1 : forall {n} (ρ : Density n), Mixed_State ρ -> trace ρ = 1.
+Proof.
+  intros.
+  induction H.
+  + unfold Pure_State in H; intuition.
+  + (* Needs two lemmas we didn't prove in Matrix.v *)
+    Lemma trace_plus_dist : forall n (A B : Square n), trace (A .+ B) = trace A + trace B. 
+    Admitted.
+    Lemma trace_mult_dist : forall n p (A : Square n), trace (p .* A) = p * trace A. 
+    Admitted.
+    rewrite trace_plus_dist.
+    rewrite 2 trace_mult_dist.
+    rewrite IHMixed_State1, IHMixed_State2.
+    clra.
+Qed.
+
+Lemma pure_state_id1 : forall (ρ : Square 1), Pure_State ρ -> ρ = Id 1.
 Proof.
   intros ρ [WFP [TRP PPP]].
   prep_matrix_equality.
@@ -709,11 +725,11 @@ Proof.
   + rewrite WFP, WF_Id; trivial; omega.
 Qed.    
 
-Lemma mixed_state_1 : forall (ρ : Square 1), Mixed_State ρ -> ρ = Id 1.
+Lemma mixed_state_id1 : forall (ρ : Square 1), Mixed_State ρ -> ρ = Id 1.
 Proof.
   intros.  
   induction H.
-  + apply pure_state_1; trivial.
+  + apply pure_state_id1; trivial.
   + rewrite IHMixed_State1, IHMixed_State2.
     prep_matrix_equality.
     clra.

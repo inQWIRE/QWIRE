@@ -51,8 +51,8 @@ Inductive Min_Circuit : Set :=
 | min_lift  : Pat -> (bool -> Min_Circuit) -> Min_Circuit
 .
 
-Inductive Min_Box : Set :=
-| min_box : WType -> Min_Circuit -> Min_Box.
+Inductive Min_Box : WType -> Set :=
+| min_box : forall (W : WType), Min_Circuit -> Min_Box W.
 
 (* Uses Nats *)
 Definition qubit_to_bit (p : Pat) : Pat :=

@@ -877,6 +877,7 @@ About kron_1_l.
 
 
 Hint Rewrite kron_1_l kron_1_r Mmult_1_l Mmult_1_r id_conj_transpose_eq
+     Mmult_conj_transpose kron_conj_transpose
      id_conj_transpose_eq conj_transpose_involutive using 
      (auto 100 with wf_db; autorewrite with M_db; auto 100 with wf_db; omega) : M_db.
 

@@ -123,20 +123,36 @@ Proof.
   + simpl in *.
     rewrite kron_1_r.
     unfold super.
-    
-
-    inversion H.
-    inversion H0.
-    compute in H3.
+    rewrite (mixed_state_id1 ρ); trivial.
+    rewrite Mmult_1_r.
+    constructor; apply pure0.
+    auto with wf_db.
+  + simpl in *.
+    rewrite kron_1_r.
     unfold super.
-    unfold ket0, Mmult.
-    simpl.
-    rewrite Cplus_0_l.
-    autorewrite with C_db.
-    compute. 
-Msimpl.
-    simpl.
-    
+    rewrite (mixed_state_id1 ρ); trivial.
+    rewrite Mmult_1_r.
+    constructor; apply pure1.
+    auto with wf_db.
+  + simpl in *.
+    rewrite kron_1_r.
+    unfold super.
+    rewrite (mixed_state_id1 ρ); trivial.
+    rewrite Mmult_1_r.
+    constructor; apply pure0.
+    auto with wf_db.
+  + simpl in *.
+    rewrite kron_1_r.
+    unfold super.
+    rewrite (mixed_state_id1 ρ); trivial.
+    rewrite Mmult_1_r.
+    constructor; apply pure1.
+    auto with wf_db.
+  + admit.
+  + simpl in *.
+    rewrite 2 kron_1_r.
+    autounfold with M_db; simpl.
+    admit.
 Admitted.
 
 Instance Denote_Gate W1 W2 : Denote (Gate W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)):=
@@ -147,7 +163,7 @@ Instance Denote_Gate_Correct W1 W2 : Denote_Correct (Denote_Gate W1 W2) :=
     denote_correct := denote_gate_correct
 |}.
 
-Require Import Recdef.
+(* Require Import Recdef. *)
 
 (* m is to show structural decreasing *)
 Fixpoint swap_list_aux (m n : nat) (l : list (nat * nat)) : Square  (2^n) :=
@@ -159,28 +175,6 @@ Fixpoint swap_list_aux (m n : nat) (l : list (nat * nat)) : Square  (2^n) :=
              swap_list_aux m' n (map (fun z => if a =? snd z then (fst z, b) else z) xs)
            end
   end. 
-
-(*
-Function swap_list_aux (n : nat) (l : list (nat * nat)) {measure length l} : Square  (2^n) :=
-  match l with
-  | nil => Id (2^n)
-  | cons (a,b) xs => swap_two n a b × 
-        swap_list_aux n (map (fun z => if a =? snd z then (fst z, b) else z) xs)
-  end. 
-  intros n l p xs a b teq0 teq.
-  rewrite map_length.
-  simpl.
-  apply Nat.lt_succ_diag_r.
-Defined.
-*)
-  
-(* Old and missing remapping:
-Function swap_list_aux (n : nat) (l : list (nat * nat)) {measure length l} : Square  (2^n) :=
-  match l with
-  | nil => Id (2^n)
-  | cons (a,b) xs => swap_two n a b × (swap_list_aux n xs)
-  end. 
-*)
 
 Definition zip_to (m n : nat) (l : list nat) := combine (seq m n) l.
 
@@ -200,8 +194,6 @@ Proof.
   auto with wf_db.
 Qed.
 
-Local Obligation Tactic := program_simpl; unify_pows_two; try omega.
-
 (* Requires m < n *)
 Definition pad {m} n (A : Square (2^m)) : Square (2^n) := (A ⊗ Id (2^ (n - m))).
 
@@ -218,12 +210,12 @@ Definition apply_new0 {n} : Superoperator (2^n) (2^(n+1)) :=
 Definition apply_new1 {n} : Superoperator (2^n) (2^(n+1)) :=
   super (Id (2^n) ⊗ |1⟩).
 
-Program Definition apply_discard {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
+Definition apply_discard {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
   let S := swap_two n 0 k in 
   fun ρ => super ((⟨0| ⊗ Id (2^(n-1))) × S) ρ .+ super ((⟨1| ⊗ Id (2^(n-1))) × S) ρ.
 
 (* Confirm transposes are in the right place *)
-Program Definition apply_meas {n} (k : nat) : Superoperator (2^n) (2^n) :=
+Definition apply_meas {n} (k : nat) : Superoperator (2^n) (2^n) :=
   let S := swap_two n 0 k in 
   fun ρ => super (S × (|0⟩⟨0| ⊗ Id (2^(n-1))) × S†) ρ 
         .+ super (S × (|1⟩⟨1| ⊗ Id (2^(n-1))) × S†) ρ.
@@ -290,234 +282,59 @@ Proof.
   apply swap_list_aux_id.
 Qed.
 
-(** Denoting Min Circuits **)
-Fixpoint denote_min_circuit (c : min_circuit)  := 
-  match c with 
-  | min_output p   => swap_list (pat_to_list p)
-  | min_gate p g c => (denote_gate g)
-
-
-(** Flat Circuits -- old, will remove later **)  
-
-
-Definition cross_list {A B} (ls1 : list A) (ls2 : list B) : list (A * B) :=
-  let f := fun ls0 a => fold_left (fun ls0' b => (a,b)::ls0') ls2 ls0 in
-  fold_left f ls1 [].
-
-Lemma cross_nil_r : forall {A B} (ls : list A), cross_list ls ([] : list B) = [].
-Proof.
-  induction ls; simpl; auto.
-Defined.
-
-Lemma cross_list_distr_l : forall {A B} a (ls1 : list A) (ls2 : list B),
-      length (cross_list (a :: ls1) ls2) 
-    = (length ls2 + length (cross_list ls1 ls2))%nat.
-Admitted.
-
-Lemma cross_list_distr_r : forall {A B} b (ls1 : list A) (ls2 : list B),
-      length (cross_list ls1 (b :: ls2))
-    = (length ls1 + length (cross_list ls1 ls2))%nat.
-Admitted.
-
-Lemma length_cross_list : forall {A B} (ls1 : list A) (ls2 : list B),
-      length (cross_list ls1 ls2) = (length ls1 * length ls2)%nat.
-Proof.
-  induction ls1 as [ | a ls1]; destruct ls2 as [ | b ls2]; simpl; try omega.
-  - rewrite cross_nil_r. simpl. omega.
-  - rewrite cross_list_distr_l. simpl. rewrite cross_list_distr_r.
-    rewrite IHls1. 
-    f_equal.
-    f_equal.
-    apply eq_trans with ((length ls1 * 1 + length ls1 * length ls2))%nat; try omega.
-    rewrite <- Nat.mul_add_distr_l. simpl. reflexivity.
-Defined.
-Fixpoint get_interpretations (W : WType) : list (interpret W) :=
-  match W with
-  | One => [tt]
-  | Tensor W1 W2 => cross_list (get_interpretations W1) (get_interpretations W2)
-  | Qubit => [true;false]
-  | Bit   => [true;false]
-  end.
-Notation "# l " := (length l) (at level 0).
-
-
-Lemma interp_nonzero : forall W, (0 < #(get_interpretations W))%nat.
-Proof.
-  induction W; simpl; try omega.
-  rewrite length_cross_list.
-  apply Nat.mul_pos_pos; auto. 
-Defined.
-
 Definition SZero {n} : Superoperator n n := fun ρ => Zero n n.
 Definition Splus {m n} (S T : Superoperator m n) : Superoperator m n :=
   fun ρ => S ρ .+ T ρ.
 
-Definition sum_over_interpretations {W m n}
-           (f : interpret W -> Superoperator m n) 
-  := fold_left Splus (map f (get_interpretations W)) SZero.
 
-Program Fixpoint kets {W} : interpret W -> Matrix (2^〚W〛) 1 :=
-  match W with
-  | One     => fun _ => Id 1
-  | Qubit   => fun x => if x then ket1 else ket0
-  | Bit     => fun x => if x then ket1 else ket0
-  | Tensor W1 W2 => fun x => let (x1,x2) := x in
-                             kets x1 ⊗ kets x2
-  end.
+(** Denoting Min Circuits **)
 
-(* Often we want to consider a pattern as a swap list for a larger context *)
-Fixpoint pat_to_list {Γ W} (p : Pat Γ W) : list nat :=
+Fixpoint pat_size (p : Pat) : nat := 
   match p with
-  | pair Γ1 Γ2 Γ0 W1 W2 valid merge p1 p2 => 
-      let ls1 := pat_to_list p1 in
-      let ls2 := pat_to_list p2 in 
-      ls1 ++ ls2
-  | qubit x Γ sing => [x]
-  | bit   x Γ sing => [x]
-  | unit => []
-  end.
-Lemma pat_to_list_length : forall Γ W (p : Pat Γ W), length (pat_to_list p) = size_WType W.
-Proof.
-  induction p; simpl; auto.
-  rewrite app_length. auto.
-Qed.
-
-Fixpoint num_wires_before (Γ : Ctx) i : nat :=
-  match Γ, i with
-  | [], i => i
-  | _, 0 => 0
-  | None :: Γ', S i' => num_wires_before Γ' i'
-  | Some _ :: Γ', S i' => S (num_wires_before Γ' i')
-  end.
-Definition num_wires_before_o (Γ : OCtx) : nat -> nat :=
-  match Γ with
-  | Valid Γ' => num_wires_before Γ'
-  | Invalid => id
+  | unit       => 0
+  | bit x      => 1
+  | qubit x    => 1
+  | pair p1 p2 => (pat_size p1) + (pat_size p2)
   end.
 
-Definition denote_pat_in Γ' {Γ W} (p : Pat Γ W): Matrix (2^〚Γ ⋓ Γ'〛) (2^〚W〛 * 2^〚Γ'〛):=
-    let ls := map (num_wires_before_o (Γ ⋓ Γ')) (pat_to_list p) in
-    swap_list (〚Γ ⋓ Γ'〛) ls.
-
-
-Instance Denote_Pat {Γ W} : Denote (Pat Γ W) (Matrix (2^〚Γ〛) (2^〚W〛)) := 
-   {| denote := denote_pat_in ∅ |}.
-
-Fixpoint denote_flat_circuit {Γ W} (C : Flat_Circuit Γ W) 
-                 : Superoperator (2^〚Γ〛) (2^〚W〛) :=
-  match C with
-  | flat_output p => super (〚p〛)
-  | @flat_gate Γ Γ1 _ Γ2 Γ2' W1 W2 _ _ _ _ _ g p1 p2 C' => 
-                  (* Superoperator (2^Γ2') (2^W) *)
-    compose_super (denote_flat_circuit C') (
-                  (* Superoperator (2^〚W2〛 * 2^Γ) (2^Γ2') *)
-    compose_super (super (denote_pat_in Γ p2)†) (
-                  (* Superoperator (2^〚W1〛 * 2^Γ) (2^〚W2〛 * 2^Γ) *)
-    compose_super (denote_gate' (〚Γ〛) g) (
-                  (* Superoperator (2^(Γ1⋓Γ)) (2^W1 * 2^Γ) *)
-                  (super (denote_pat_in Γ p1)))))
-
-  | @flat_lift Γ1 Γ2 _ w _ _ _ p f => 
-     let supers   : interpret w -> Superoperator (2^〚Γ1 ⋓ Γ2〛) (2^〚Γ2〛)
-                  := fun x => compose_super (denote_flat_circuit (f x)) (
-                              compose_super (super ((kets x)† ⊗ Id (2^〚Γ2〛)))
-                                            (super (denote_pat_in Γ2 p)))
-     in
-     let branches := map supers (get_interpretations w) in
-     fold_left Splus branches SZero
+Fixpoint get_output_size (c : Min_Circuit) :=
+  match c with
+  | min_output p     => pat_size p
+  | min_gate g p c'  => get_output_size c'
+  | min_lift p c'    => get_output_size (c' true)
   end.
 
-(* Old version, using apply_gate:
-  | flat_gate _ _ _ _ Γ2' _ _ _ _ _ _ _ g p1 p2 C' => 
-    let l1 := pat_to_list p1 in
-    let l2 := pat_to_list p2 in
-                  (* Superoperator (2^Γ2') (2^W) *)
-    compose_super (denote_flat_circuit C') (
-                  (* Superoperator (2^Γ2') (2^Γ2') *)
-    compose_super (super (swap_list (〚Γ2'〛) l2)†) 
-                  (* Superoperator (2^Γ) (2^(Γ + 〚W2〛-〚W1〛)) *)
-                  (apply_gate g l1) )
-  | flat_lift _ _ _ _ _ _ _ _ f => denote_lift (fun x => denote_flat_circuit (f x))
-*)
+Fixpoint get_box_output_size {W} (c : Min_Box W) :=
+  match c with
+  | min_box W c'     => get_output_size c'
+  end. 
 
-
-Instance Denote_Flat_Circuit Γ W 
-    : Denote (Flat_Circuit Γ W) (Superoperator (2^〚Γ〛) (2^〚W〛)) :=
-    {| denote := denote_flat_circuit |}.
-Instance Denote_Flat_Circuit_Correct Γ W : Denote_Correct (Denote_Flat_Circuit Γ W):=
-    {| correctness := WF_Superoperator |}.
-Admitted.
-
-Definition denote_flat_box {W1 W2} (b : Flat_Box W1 W2) 
-                           : Superoperator (2^〚W1〛) (2^〚W2〛) :=
-  match b with
-  | flat_box p C => compose_super (denote_flat_circuit C)
-                                        (super (denote_pat_in ∅ p)†)
-                                        
+Fixpoint denote_min_circuit (c : Min_Circuit) (n m : nat) : Superoperator (2^n) (2^m) 
+  := 
+  match c with 
+  | min_output p            => super (swap_list m (pat_to_list p))
+  | @min_gate W1 W2 g p c'  => compose_super 
+                                (denote_min_circuit c' (n + 〚W2〛 - 〚W1〛) m)
+                                (apply_gate g (pat_to_list p))                                      
+  (* I think we need a weighing here - also a measure-discard *)
+  | min_lift p c'   => Splus (denote_min_circuit (c' true) n m) 
+                            (denote_min_circuit (c' false) n m)
   end.
 
-Instance Denote_Flat_Box W1 W2
-         : Denote (Flat_Box W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
-{| 
-    denote      := denote_flat_box;
-|}.
-Instance Denote_Flat_Box_Correct W1 W2 : Denote_Correct (Denote_Flat_Box W1 W2):=
-    {| correctness := WF_Superoperator |}.
-Proof.
-Admitted.
+Definition denote_min_box {W} (c : Min_Box W) : 
+  Superoperator (2 ^ 〚 W 〛) (2 ^ get_box_output_size c) :=
+  match c with
+  | min_box W c' => denote_min_circuit c' (〚W〛) (get_box_output_size c)
+  end.
 
-Definition I1 := Id (2^0).
-Lemma WF_I1 : WF_Matrix 1 1 I1. Proof. unfold I1. apply WF_Id. Qed.
-Hint Resolve WF_I1 : wf_db.
+(** Denoting hoas circuits **)
 
-(*Set Printing All.*)
-(* Unset Printing Notations.*)
-  
-Lemma size_singleton : forall x W, size_Ctx (singleton x W) = 1%nat.
-Proof.
-  induction x; auto.
-Qed.
-
-Lemma fresh_pat_empty : forall W, pat_to_list (fresh_pat ∅ W) = seq 0 (〚W〛).
-Proof.
-  intros W.
-  simpl.
-  induction W; trivial.
-  simpl in *.
-  specialize (fresh_ctx_valid W1 ∅); intros H.
-  destruct H as [Γ]. 
-(*  destruct (fresh_ctx ∅ W1).
-    rewrite H. *)
-Admitted.
-
-Lemma size_fresh_ctx : forall Γ_in W, size_OCtx (fresh_ctx Γ_in W) = 〚W〛.
-Proof.
-  intros Γ_in W.
-  revert Γ_in.
-  induction W; intros Γ_in; simpl; auto; try apply size_singleton.
-Admitted.
-Lemma map_num_wires_before : forall W, 
-      map (num_wires_before_o (fresh_ctx ∅ W)) (seq 0 (〚W〛)) = seq 0 (〚W〛).
-Admitted.
+Definition denote_box (W : WType) (c : Box) := denote_min_box (hoas_to_min_box c W).
 
 
-(****************** HOAS ********************)
 
-Instance Denote_HOAS_Circuit Γ W 
-    : Denote (Circuit Γ W) (Superoperator (2^〚Γ〛) (2^〚W〛)) :=
-{| 
-    denote      := fun C => 〚from_HOAS C〛;
-|}.
-Instance Denote_HOAS_Circuit_Correct Γ W : Denote_Correct (Denote_HOAS_Circuit Γ W):=
-    {| correctness := WF_Superoperator |}.
-Admitted.
 
-Instance Denote_HOAS_Box W1 W2 
-    : Denote (Box W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
-    {| denote := fun C => 〚from_HOAS_Box C〛 |}.
-Instance Denote_HOAS_Box_Correct W1 W2 : Denote_Correct (Denote_HOAS_Box W1 W2) :=
-    {| correctness := WF_Superoperator |}.
-Admitted.
+
  
 
 
