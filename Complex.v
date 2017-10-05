@@ -26,7 +26,7 @@ by Robert Rand and Jennifer Paykin (June 2017).
 
 *)
 
-Require Import Reals.
+Require Export Reals.
 Require Import Psatz.
 
 Open Scope R_scope.
@@ -446,3 +446,67 @@ apply Cinv_l.
 Qed.
 
 Add Field C_field_field : C_field_theory.
+
+(** Added Lemmas for QWIRE *)
+
+(** Notations *)
+
+Notation C0 := (RtoC 0). 
+Notation C1 := (RtoC 1).
+Notation C2 := (RtoC 2).
+Notation "√ n" := (sqrt n) (at level 20).
+
+Lemma c_proj_eq : forall (c1 c2 : C), fst c1 = fst c2 -> snd c1 = snd c2 -> c1 = c2.  
+Proof. intros c1 c2 H1 H2. destruct c1, c2. simpl in *. subst. reflexivity. Qed.
+
+Ltac clra := eapply c_proj_eq; simpl; lra.
+
+Lemma Copp_mult_distr_r : forall c1 c2 : C, - (c1 * c2) = c1 * - c2.
+Proof. intros; clra. Qed.
+Lemma Copp_mult_distr_l : forall c1 c2 : C, - (c1 * c2) = - c1 * c2.
+Proof. intros; clra. Qed.
+Lemma Cplus_opp_l : forall c : C, - c + c = 0. Proof. intros; clra. Qed.
+Lemma Cdouble : forall c : C, 2 * c = c + c. Proof. intros; clra. Qed.
+Lemma Copp_involutive: forall c : C, - - c = c. Proof. intros; clra. Qed.
+
+Lemma C0_imp : forall c : C, c <> 0 -> (fst c <> 0 \/ snd c <> 0)%R.  
+Proof. intros c H. destruct c. simpl.
+       destruct (Req_EM_T r 0), (Req_EM_T r0 0); subst; intuition. Qed.
+Lemma C0_fst : forall (c : C), fst c <> 0 -> c <> 0. 
+Proof. intros c. intros N E. apply N. rewrite E. reflexivity. Qed.
+Lemma C0_snd : forall (c : C), snd c <> 0 -> c <> 0. 
+Proof. intros c. intros N E. apply N. rewrite E. reflexivity. Qed.
+
+
+Lemma Rmult_div : forall r1 r2 r3 r4 : R, r2 <> 0 -> r4 <> 0 -> 
+                                     (r1 / r2 * (r3 / r4) = r1 * r3 / (r2 * r4))%R. 
+Proof. intros. unfold Rdiv. rewrite Rinv_mult_distr; trivial. lra. Qed.
+
+Lemma Rdiv_cancel :  forall r r1 r2 : R, (r1 = r2 -> r / r1 = r / r2)%R.
+Proof. intros. rewrite H. reflexivity. Qed.
+
+Lemma Cinv_mult_distr : forall c1 c2 : C, c1 <> 0 -> c2 <> 0 -> / (c1 * c2) = / c1 * / c2.
+Proof.
+  intros.
+  apply c_proj_eq.
+  simpl.
+  rewrite Rmult_div.
+  rewrite Rmult_div.
+  rewrite Rmult_opp_opp.
+  unfold Rminus.
+  rewrite <- RIneq.Ropp_div.
+  rewrite <- Rdiv_plus_distr.
+  rewrite Rmult_plus_distr_r.
+  rewrite Rmult_plus_distr_l.
+  apply Rdiv_cancel.
+  lra.
+  rewrite 2 Rmult_1_r.
+  apply C0_imp in H.
+  destruct H.
+Admitted.  
+  
+Lemma Csqrt_sqrt : forall x : R, 0 <= x -> ((RtoC (√ x)) * (RtoC (√ x)) = (RtoC x))%C.
+Proof. intros. eapply c_proj_eq. simpl. rewrite sqrt_sqrt. lra. assumption.
+       simpl. lra. Qed.
+
+

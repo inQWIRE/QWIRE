@@ -231,18 +231,19 @@ Definition hadamard_measure : Box :=
 Lemma hadamard_measure_WT : Typed_Box hadamard_measure Qubit Bit.
 Proof. type_check. Qed.
 
-Definition deutsch (U_f : Box) : Box :=
+Definition deutsch (U_f : Unitary (Qubit ⊗ Qubit)) : Box :=
   box_ () ⇒ 
     gate_ x ← init0 @();
     gate_ x ← H @x;
     gate_ y ← init1 @();
     gate_ y ← H @y;
-    let_ (x,y) ← unbox U_f (x,y);
+    gate_ (x,y) ← U_f @(x,y);
+    gate_ x ← H @x; (* found through verification! *)
+    gate_ y ← meas @y;
+    gate_ () ← discard @y;
     gate_ x ← meas @x;
-    gate_ x ← discard @x;
-    output y.
-Lemma deutsch_WT : forall U_f, Typed_Box U_f (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) ->
-                          Typed_Box (deutsch U_f) One Qubit.
+    output x.
+Lemma deutsch_WT : forall U_f, Typed_Box (deutsch U_f) One Bit.
 Proof. type_check. Qed.
 
 Definition lift_deutsch (U_f : Box) : Box :=
@@ -252,8 +253,10 @@ Definition lift_deutsch (U_f : Box) : Box :=
     gate_ y    ← init1 @();
     gate_ y    ← H @y;
     let_ (x,y) ← unbox U_f (x,y);
-    lift_ _    ← x;
-    output y.
+    gate_ x ← H @x;
+    lift_ _    ← y;
+    gate_ x ← meas @x;
+    output x.
 Lemma lift_deutsch_WT : forall U_f, Typed_Box U_f (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) ->
                                Typed_Box (lift_deutsch U_f) One Qubit.
 Proof. type_check. 

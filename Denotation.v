@@ -2,10 +2,10 @@ Require Import Program.
 Require Export Contexts.
 Require Import HOASCircuits.
 Require Import FlatCircuits.
-Require Import List.
 Require Import Arith.
 Require Export Quantum.
 Require Import Omega.
+Require Import List.
 Import ListNotations.
 Set Bullet Behavior "Strict Subproofs".
 Global Unset Asymmetric Patterns.
@@ -88,7 +88,7 @@ Definition denote_gate {W1 W2} (g : Gate W1 W2) :
   | discard => discard_op
   end.*)
 
-Lemma pow_gt_0 : forall n, 2^n > O.
+Lemma pow_gt_0 : forall n, (2^n > O)%nat.
 Proof.
   induction n; auto. 
   simpl. apply gt_trans with (2^n)%nat; auto. omega.

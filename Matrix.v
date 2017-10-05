@@ -16,19 +16,6 @@ Bind Scope nat_scope with nat.
 Bind Scope R_scope with R.
 Bind Scope C_scope with C.
 
-
-(** Useful C stuff *)
-
-Notation C0 := (RtoC 0). 
-Notation C1 := (RtoC 1).
-Notation C2 := (RtoC 2).
-Notation "√ n" := (sqrt n) (at level 20).
-
-Lemma c_proj_eq : forall (c1 c2 : C), fst c1 = fst c2 -> snd c1 = snd c2 -> c1 = c2.  
-Proof. intros c1 c2 H1 H2. destruct c1, c2. simpl in *. subst. reflexivity. Qed.
-
-Ltac clra := eapply c_proj_eq; simpl; lra.
-
 (* A bit of useful reflection from Software Foundations Vol 3 *)
 
 Lemma beq_reflect : forall x y, reflect (x = y) (x =? y).
