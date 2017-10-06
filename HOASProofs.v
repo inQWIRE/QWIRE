@@ -127,9 +127,7 @@ Proof.
   repeat (simpl; autounfold with den_db).
   rewrite hash_pat_pat_to_list.
   rewrite pat_size_hash_pat.
-  set (H' := swap_list_n_id (pat_size p)). 
-  unfold swap_list in H'.
-  rewrite H'.
+  setoid_rewrite (swap_list_n_id (pat_size p)).
   rewrite (fresh_pat_size W p 0 n); auto.  
   autorewrite with M_db.
   reflexivity.
@@ -167,9 +165,7 @@ Proof.
 
   rewrite hash_pat_pat_to_list.
   rewrite pat_size_hash_pat.
-  set (H' := swap_list_n_id (pat_size p)). 
-  unfold swap_list in H'.
-  rewrite H'.
+  setoid_rewrite (swap_list_n_id (pat_size p)).
   rewrite (fresh_pat_size W p 0 n); auto.  
   autorewrite with M_db.
 
