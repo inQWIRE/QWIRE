@@ -122,15 +122,16 @@ Proof.
   repeat (simpl; autounfold with den_db).
   remember (FlatCircuits.fresh_pat W 0) as r.
   destruct r.
-  repeat (simpl; autounfold with den_db). unfold zip_to.
-  repeat rewrite pat_size_hash_pat.
-  
+  repeat (simpl; autounfold with den_db).
 
+  Print swap_list.
+  (* I don't want it to unfold swap_list here... *)
   rewrite hash_pat_pat_to_list.
-  rewrite swap_list_aux_id.
-  autorewrite with M_db.
-
-  rewrite (fresh_pat_size W p 0 n); auto.
+  rewrite pat_size_hash_pat.
+  set (H' := swap_list_n_id (pat_size p)). 
+  unfold swap_list in H'.
+  rewrite H'.
+  rewrite (fresh_pat_size W p 0 n); auto.  
   autorewrite with M_db.
   reflexivity.
 Qed.
