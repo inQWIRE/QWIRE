@@ -115,6 +115,8 @@ Proof.
   rewrite (IHW2 _ _ _ H2).
   reflexivity.
 Qed.
+
+
 Lemma id_circ_Id : forall W ρ, WF_Matrix (2^〚W〛) (2^〚W〛) ρ -> 
     denote_box W id_circ ρ = ρ.
 Proof.
@@ -123,9 +125,6 @@ Proof.
   remember (FlatCircuits.fresh_pat W 0) as r.
   destruct r.
   repeat (simpl; autounfold with den_db).
-
-  Print swap_list.
-  (* I don't want it to unfold swap_list here... *)
   rewrite hash_pat_pat_to_list.
   rewrite pat_size_hash_pat.
   set (H' := swap_list_n_id (pat_size p)). 
@@ -135,7 +134,6 @@ Proof.
   autorewrite with M_db.
   reflexivity.
 Qed.
-
  
 Lemma unitary_transpose_id_qubit : forall (U : Unitary Qubit), forall ρ,
    WF_Matrix (2^〚Qubit〛) (2^〚Qubit〛) ρ -> 
@@ -152,46 +150,41 @@ Proof.
   reflexivity.
 Qed.
 
-(* I don't know how to reason parametrically about these denotations... *)
 Lemma unitary_transpose_id : forall W (U : Unitary W) (ρ : Density (2^〚W〛 )),
   WF_Matrix (2^〚W〛) (2^〚W〛) ρ ->
   denote_box W (unitary_transpose U) ρ = denote_box W id_circ ρ.
 Proof.
-  intros W U ρ pf_ρ.  
-  induction W.
-  + repeat (autounfold with den_db; simpl).
-    specialize (unitary_gate_unitary U). unfold is_unitary. simpl. 
-    intros [WFU UU].
-    autorewrite with M_db.
-    repeat rewrite Mmult_assoc.
-    rewrite UU.
-    repeat rewrite <- Mmult_assoc.
-    rewrite UU.
-    autorewrite with M_db.
-    reflexivity.
-  + repeat (autounfold with den_db; simpl).
-    specialize (unitary_gate_unitary U). unfold is_unitary. simpl. 
-    intros [WFU UU].
-    autorewrite with M_db.
-    repeat rewrite Mmult_assoc.
-    rewrite UU.
-    repeat rewrite <- Mmult_assoc.
-    rewrite UU.
-    autorewrite with M_db.
-    reflexivity.
-  + repeat (autounfold with den_db; simpl).
-    specialize (unitary_gate_unitary U). unfold is_unitary. simpl. 
-    intros [WFU UU].
-    autorewrite with M_db.
-    repeat rewrite Mmult_assoc.
-    rewrite UU.
-    repeat rewrite <- Mmult_assoc.
-    rewrite UU.
-    autorewrite with M_db.
-    reflexivity.
-  + repeat (autounfold with den_db; simpl).
-    simpl.
-Abort.
+Proof.
+  intros W U ρ wfρ. 
+  specialize (unitary_gate_unitary U); intros [WFU UU].
+  repeat (simpl; autounfold with den_db).
+  remember (FlatCircuits.fresh_pat W 0) as r.
+  destruct r.
+  repeat (simpl; autounfold with den_db).
+
+  rewrite minus_plus, Nat.leb_refl.
+  rewrite Nat.sub_diag.
+
+  rewrite hash_pat_pat_to_list.
+  rewrite pat_size_hash_pat.
+  set (H' := swap_list_n_id (pat_size p)). 
+  unfold swap_list in H'.
+  rewrite H'.
+  rewrite (fresh_pat_size W p 0 n); auto.  
+  autorewrite with M_db.
+
+  simpl.
+  autorewrite with M_db.
+  repeat setoid_rewrite kron_conj_transpose.
+  setoid_rewrite swap_list_n_id.
+  autorewrite with M_db.
+  repeat rewrite Mmult_assoc.
+  setoid_rewrite UU.
+  repeat rewrite <- Mmult_assoc.
+  setoid_rewrite UU.
+  autorewrite with M_db.
+  reflexivity.
+Qed.
 
 Definition fair_coin : Matrix 2 2 :=
   fun x y => match x, y with
