@@ -229,6 +229,7 @@ Proof.
     autounfold with M_db.
     destruct_m_eq; clra.
   + simpl. 
+    repeat (simpl; autounfold with den_db).
 Abort.
 
 Lemma cnot_eq : cnot = control pauli_x.
@@ -368,6 +369,25 @@ Ltac solve_matrix_c := repeat reduce_matrix_c; crunch_matrix.
 
 (** /computational matrix tactics **)
 
+Lemma swap_swap : swap × swap = Id 4.
+Proof.
+  intros.
+  reduce_matrix.
+  crunch_matrix.
+  destruct (x =? y); auto.
+Qed.
+
+Lemma swap_swap_r : forall n A, WF_Matrix n 4 A ->
+      A × swap × swap = A.
+Proof.
+  intros.
+  rewrite Mmult_assoc.
+  rewrite swap_swap. 
+  apply Mmult_1_r.
+  auto.
+Qed.
+
+Hint Rewrite swap_swap swap_swap_r using (auto 100 with wf_db): M_db.
 
 Definition EPR00 : Matrix 4 4 :=
   fun x y => match x, y with
@@ -390,6 +410,8 @@ Qed.
 
 (* Deutsch's Algorithm *)
 
+Delimit Scope circ_scope with qc.
+
 Ltac find_smallest M := 
   match M with 
   | ?A × ?B         => find_smallest A
@@ -399,43 +421,46 @@ Ltac find_smallest M :=
   | ?A .+ ?B        => M
   end.                    
 
+(* f(x) = 0. Unitary: Identity *)
+Definition f0 : Matrix 4 4 := Id 4.
 
+(* f(x) = x. Unitary: CNOT *)
+Definition f1 : Matrix 4 4 := control pauli_x.
+
+(* f(x) = 1 - x. Unitary: inverse CNOT *)
 Definition f2 : Matrix 4 4 := fun x y =>
   match x, y with
   | 0, 1 | 1, 0 | 2, 2 | 3, 3 => 1
   | _, _                      => 0
   end.
 
+(* f(x) = 1. Unitary: Id ⊗ X *)
+Definition f3 : Matrix 4 4 := Id 2 ⊗ pauli_x.
+
+Definition constant (U : Unitary (Qubit ⊗ Qubit)%qc) := 
+                       denote_unitary U = f0 \/ denote_unitary U = f3.
+Definition balanced (U : Unitary (Qubit ⊗ Qubit)%qc) := 
+                       denote_unitary U = f1 \/ denote_unitary U = f2.
+
 Lemma f2_WF : WF_Matrix 4 4 f2. Proof. show_wf. Qed.
 Hint Resolve f2_WF : wf_db.
 
+Ltac c_ineq := apply C0_fst; specialize Rlt_sqrt2_0; intros; simpl; Psatz.lra.
 
-Lemma swap_swap : swap × swap = Id 4.
-Proof.
-  intros.
-  reduce_matrix.
-  crunch_matrix.
-  destruct (x =? y); auto.
-Qed.
-
-Lemma swap_swap_r : forall {n A}, WF_Matrix n 4 A ->
-      A × swap × swap = A.
-Proof.
-  intros.
-  rewrite Mmult_assoc.
-  rewrite swap_swap. 
-  apply Mmult_1_r.
-  auto.
-Qed.
-
-
-Lemma deutsch2 : forall U_f, 
-    denote_unitary U_f = f2 -> 
-    denote_box One (deutsch U_f) I1 = |1⟩⟨1|.
+(* Maybe create new database for solving sqrt2 equalities? *)
+Hint Rewrite Cplus_opp_l Cplus_opp_r Copp_involutive Copp_0 : C_db. 
+Hint Rewrite Csqrt_sqrt using Psatz.lra : C_db.
+Hint Rewrite <- Copp_mult_distr_l Copp_mult_distr_r Cdouble : C_db. 
+Hint Rewrite <- Cinv_mult_distr using c_ineq : C_db.
+Hint Rewrite Cinv_l Cinv_r using c_ineq : C_db.
+  
+Lemma deutsch_constant : forall U_f, constant U_f -> 
+                                denote_box One (deutsch U_f) I1 = |0⟩⟨0|.
 Proof.
   intros U_f H.
   repeat (simpl; autounfold with den_db). 
-  rewrite H. clear H.
+  specialize (unitary_gate_unitary U_f). intros [WFU UU].
+  simpl in WFU.
   autorewrite with M_db.
   repeat setoid_rewrite kron_conj_transpose.
   autorewrite with M_db. 
@@ -445,51 +470,106 @@ Proof.
   repeat rewrite <- Mmult_assoc.
   repeat rewrite Mmult_plus_distr_l.
   repeat rewrite <- Mmult_assoc.
-
-  repeat rewrite swap_swap_r; auto with wf_db.
+  autorewrite with M_db. 
   repeat rewrite <- Mmult_assoc.
   repeat rewrite Mmult_plus_distr_r.
-  repeat rewrite swap_swap_r; 
-    try (repeat apply WF_mult; auto with wf_db).
-
-
-  repeat rewrite <- Mmult_assoc.
-  repeat rewrite Mmult_plus_distr_r.
-
-
-  repeat reduce_matrix.
-  crunch_matrix.
-
-  clra.
-  all: try clra.
-  all: try (destruct y; simpl; try rewrite divmod_eq; simpl; clra).
-
-  Ltac c_ineq := apply C0_fst; specialize Rlt_sqrt2_0; intros; simpl; Psatz.lra.
+  autorewrite with M_db. 
   
-  Hint Rewrite Cplus_opp_l Copp_involutive : C_db. 
-  Hint Rewrite Csqrt_sqrt using Psatz.lra : C_db.
-  Hint Rewrite <- Copp_mult_distr_l Copp_mult_distr_r Cdouble : C_db. 
-  Hint Rewrite <- Cinv_mult_distr using c_ineq : C_db.
-  Hint Rewrite Cinv_r using c_ineq : C_db.
-
-
-  autorewrite with C_db. 
-  unfold Cdiv.
-  autorewrite with C_db. 
-  repeat rewrite <- Cmult_assoc.
-  autorewrite with C_db.  
-  rewrite <- (Cmult_assoc 2 (√2) _).
-  rewrite (Cmult_assoc (√2) _ _).
-  autorewrite with C_db.
-  repeat rewrite Cmult_assoc.
-  autorewrite with C_db.
-  reflexivity.
+  destruct H; rewrite H; clear.
+  + (* f0 *)
+    unfold f0.
+    autorewrite with M_db. 
+    repeat reduce_matrix.
+    crunch_matrix.
+    all: try clra.
+    all: try (destruct y; simpl; try rewrite divmod_eq; simpl; clra).
+    autorewrite with C_db. 
+    unfold Cdiv.
+    autorewrite with C_db. 
+    repeat rewrite <- Cmult_assoc.
+    autorewrite with C_db.  
+    rewrite <- (Cmult_assoc 2 (√2) _).
+    rewrite (Cmult_assoc (√2) _ _).
+    autorewrite with C_db.
+    repeat rewrite Cmult_assoc.
+    autorewrite with C_db.
+    reflexivity.
+  + (* f3 *)
+    unfold f3.
+    repeat reduce_matrix.
+    crunch_matrix.
+    all: try clra.
+    all: try (destruct y; simpl; try rewrite divmod_eq; simpl; clra).
+    autorewrite with C_db. 
+    unfold Cdiv.
+    autorewrite with C_db. 
+    repeat rewrite <- Cmult_assoc.
+    autorewrite with C_db.  
+    rewrite <- (Cmult_assoc 2 (√2) _).
+    rewrite (Cmult_assoc (√2) _ _).
+    autorewrite with C_db.
+    repeat rewrite Cmult_assoc.
+    autorewrite with C_db.
+    reflexivity.
 Qed.
 
-About denote_box.
+Lemma deutsch_balanced : forall U_f, balanced U_f -> 
+                                denote_box One (deutsch U_f) I1 = |1⟩⟨1|.
+Proof.
+  intros U_f H.
+  repeat (simpl; autounfold with den_db). 
+  specialize (unitary_gate_unitary U_f). intros [WFU UU].
+  simpl in WFU.
+  autorewrite with M_db.
+  repeat setoid_rewrite kron_conj_transpose.
+  autorewrite with M_db. 
 
-
+  repeat rewrite <- Mmult_assoc.
+  repeat rewrite Mmult_plus_distr_l.
+  repeat rewrite <- Mmult_assoc.
+  repeat rewrite Mmult_plus_distr_l.
+  repeat rewrite <- Mmult_assoc.
+  autorewrite with M_db. 
+  repeat rewrite <- Mmult_assoc.
+  repeat rewrite Mmult_plus_distr_r.
+  autorewrite with M_db. 
   
+  destruct H; rewrite H; clear.
+  + (* f1 *)
+    unfold f1.
+    repeat reduce_matrix.
+    crunch_matrix.
+    all: try clra.
+    all: try (destruct y; simpl; try rewrite divmod_eq; simpl; clra).
+    autorewrite with C_db. 
+    unfold Cdiv.
+    autorewrite with C_db. 
+    repeat rewrite <- Cmult_assoc.
+    autorewrite with C_db.  
+    rewrite <- (Cmult_assoc 2 (√2) _).
+    rewrite (Cmult_assoc (√2) _ _).
+    autorewrite with C_db.
+    repeat rewrite Cmult_assoc.
+    autorewrite with C_db.
+    reflexivity.
+  + (* f2 *)
+    unfold f2.
+    repeat reduce_matrix.
+    crunch_matrix.
+    all: try clra.
+    all: try (destruct y; simpl; try rewrite divmod_eq; simpl; clra).
+    autorewrite with C_db. 
+    unfold Cdiv.
+    autorewrite with C_db. 
+    repeat rewrite <- Cmult_assoc.
+    autorewrite with C_db.  
+    rewrite <- (Cmult_assoc 2 (√2) _).
+    rewrite (Cmult_assoc (√2) _ _).
+    autorewrite with C_db.
+    repeat rewrite Cmult_assoc.
+    autorewrite with C_db.
+    reflexivity.
+Qed.
 
 
 (* These don't work yet... *)
