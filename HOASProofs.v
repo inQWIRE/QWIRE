@@ -25,6 +25,117 @@ Definition HOAS_Equiv (b1 b2 : Box) :=
   forall W ρ, WF_Matrix (2^〚W〛) (2^〚W〛) ρ -> 
          denote_box W b1 ρ = denote_box W b2 ρ.
 
+Require Import FlatCircuits.
+
+
+
+Fixpoint pat_map (f : Var -> Var) (p : Pat) : Pat :=
+  match p with
+  | unit => unit
+  | qubit x => qubit (f x)
+  | bit x => bit (f x)
+  | pair p1 p2 => pair (pat_map f p1) (pat_map f p2)
+  end.
+
+
+(* these are not done--need to add the preconditions. However, they should hold for the cases where we want them *)
+Lemma hash_pat_app_l : forall p ls1 ls2,
+      (* this only holds if (pat_to_list p) ⊆ ls1 *)
+      hash_pat p (ls1 ++ ls2) = hash_pat p ls1.
+Admitted. Print hash_pat.
+
+Lemma hash_pat_app_r : forall p ls1 ls2,
+      (* this only holds if (pat_to_list p) ⊆ ls2 and ls2 ⊥ ls1 *)
+      hash_pat p (ls1 ++ ls2) = pat_map (fun x => length ls1 + x)%nat (hash_pat p ls2).
+Admitted.
+
+Lemma pat_to_list_pat_map : forall p f, pat_to_list (pat_map f p) = map f (pat_to_list p).
+Proof.  
+  induction p; intros; auto.
+  simpl. rewrite IHp1, IHp2. 
+  rewrite map_app.
+  reflexivity.
+Qed.
+Lemma pat_size_length_list : forall p, pat_size p = length (pat_to_list p).
+Proof.
+  induction p; auto.
+  simpl. rewrite IHp1, IHp2.
+  rewrite app_length.
+  reflexivity.
+Qed.
+
+
+Lemma map_seq : forall len offset start,
+      map (fun x => offset + x)%nat (seq start len) = seq (offset + start) len.
+Proof.
+  induction len; intros; simpl; auto.
+  rewrite IHlen.
+  rewrite Nat.add_succ_r.
+  reflexivity.
+Qed.
+
+
+Lemma seq_app : forall offset1 offset2 start,
+      seq start offset1 ++ seq (start + offset1) offset2 
+    = seq start (offset1 + offset2).
+Proof.
+  induction offset1; intros; simpl; auto.
+  rewrite Nat.add_succ_r.
+  rewrite <- Nat.add_succ_l.
+  rewrite IHoffset1.
+  reflexivity.
+Qed.
+
+Lemma hash_pat_pat_to_list : forall p, 
+    pat_to_list (hash_pat p (pat_to_list p)) = seq 0 (pat_size p).
+Proof.
+  induction p; simpl; try rewrite Nat.eqb_refl; auto.
+  rewrite hash_pat_app_l.
+  rewrite IHp1.
+  rewrite hash_pat_app_r.
+  rewrite pat_to_list_pat_map.
+  rewrite IHp2.
+  rewrite <- pat_size_length_list.
+  rewrite map_seq.
+  rewrite Nat.add_0_r.
+  rewrite seq_app.
+  reflexivity.
+Qed.
+
+Lemma fresh_pat_size : forall W p m n,
+      fresh_pat W m = (p,n) ->
+      pat_size p = 〚W〛.
+Proof.
+  induction W; simpl; intros p m n H;
+    try (inversion H; auto; fail).
+  destruct (fresh_pat W1 m) as [p1 m1] eqn:H1.
+  destruct (fresh_pat W2 m1) as [p2 m2] eqn:H2.
+  inversion H; simpl.
+  rewrite (IHW1 _ _ _ H1).
+  rewrite (IHW2 _ _ _ H2).
+  reflexivity.
+Qed.
+Lemma id_circ_Id : forall W ρ, WF_Matrix (2^〚W〛) (2^〚W〛) ρ -> 
+    denote_box W id_circ ρ = ρ.
+Proof.
+  intros W ρ H. 
+  repeat (simpl; autounfold with den_db).
+  remember (FlatCircuits.fresh_pat W 0) as r.
+  destruct r.
+  repeat (simpl; autounfold with den_db). unfold zip_to.
+  repeat rewrite pat_size_hash_pat.
+  
+
+  rewrite hash_pat_pat_to_list.
+  rewrite swap_list_aux_id.
+  autorewrite with M_db.
+
+  rewrite (fresh_pat_size W p 0 n); auto.
+  autorewrite with M_db.
+  reflexivity.
+Qed.
+
+ 
 Lemma unitary_transpose_id_qubit : forall (U : Unitary Qubit), forall ρ,
    WF_Matrix (2^〚Qubit〛) (2^〚Qubit〛) ρ -> 
    denote_box Qubit (unitary_transpose U) ρ = denote_box Qubit id_circ ρ.
@@ -387,12 +498,6 @@ Qed.
 
 About denote_box.
 
-Lemma id_correct : forall W ρ, WF_Matrix (〚W〛) (〚W〛) ρ -> denote_box W id_circ ρ = ρ.
-Proof.
-  intros W ρ H.
-  repeat (simpl; autounfold with den_db).
-  unfold denote_min_box. simpl.
-Abort.
 
   
 

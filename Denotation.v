@@ -297,6 +297,12 @@ Fixpoint pat_size (p : Pat) : nat :=
   | pair p1 p2 => (pat_size p1) + (pat_size p2)
   end.
 
+Lemma pat_size_hash_pat : forall p ls, pat_size (hash_pat p ls) = pat_size p.
+Proof. 
+  induction p; intros; auto.
+  simpl. rewrite IHp1, IHp2. reflexivity.
+Qed.
+
 Fixpoint get_output_size (c : Min_Circuit) :=
   match c with
   | min_output p     => pat_size p
@@ -304,7 +310,7 @@ Fixpoint get_output_size (c : Min_Circuit) :=
   | min_lift p c'    => get_output_size (c' true)
   end.
 
-Fixpoint get_box_output_size {W} (c : Min_Box W) :=
+Definition get_box_output_size {W} (c : Min_Box W) :=
   match c with
   | min_box W c'     => get_output_size c'
   end. 

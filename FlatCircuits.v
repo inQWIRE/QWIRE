@@ -112,6 +112,8 @@ Fixpoint pat_to_list (p : Pat) : list Var :=
   | pair p1 p2 => (pat_to_list p1) ++ (pat_to_list p2)
   end.
 
+Require Import List.
+
 Definition hoas_to_min_box (B : Box) (W : WType) :=
   match B with
   | box c => let (p, n) := fresh_pat W 0 in
