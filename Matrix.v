@@ -366,6 +366,7 @@ Ltac show_wf :=
   | [ |- WF_Matrix _ _ (?A ⊗ ?B) ]  => apply WF_kron
   | [ |- WF_Matrix _ _ (?A⊤) ]      => apply WF_transpose 
   | [ |- WF_Matrix _ _ (?A†) ]      => apply WF_conj_transpose 
+  | [ |- WF_Matrix _ _ (Id _) ]     => apply WF_Id
   end;
   trivial;
   unfold WF_Matrix;

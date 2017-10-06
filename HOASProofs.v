@@ -308,6 +308,26 @@ Definition f2 : Matrix 4 4 := fun x y =>
 Lemma f2_WF : WF_Matrix 4 4 f2. Proof. show_wf. Qed.
 Hint Resolve f2_WF : wf_db.
 
+
+Lemma swap_swap : swap × swap = Id 4.
+Proof.
+  intros.
+  reduce_matrix.
+  crunch_matrix.
+  destruct (x =? y); auto.
+Qed.
+
+Lemma swap_swap_r : forall {n A}, WF_Matrix n 4 A ->
+      A × swap × swap = A.
+Proof.
+  intros.
+  rewrite Mmult_assoc.
+  rewrite swap_swap. 
+  apply Mmult_1_r.
+  auto.
+Qed.
+
+
 Lemma deutsch2 : forall U_f, 
     denote_unitary U_f = f2 -> 
     denote_box One (deutsch U_f) I1 = |1⟩⟨1|.
@@ -315,14 +335,26 @@ Proof.
   intros U_f H.
   repeat (simpl; autounfold with den_db). 
   rewrite H. clear H.
-  autorewrite with M_db. 
+  autorewrite with M_db.
   repeat setoid_rewrite kron_conj_transpose.
   autorewrite with M_db. 
+
   repeat rewrite <- Mmult_assoc.
   repeat rewrite Mmult_plus_distr_l.
   repeat rewrite <- Mmult_assoc.
   repeat rewrite Mmult_plus_distr_l.
   repeat rewrite <- Mmult_assoc.
+
+  repeat rewrite swap_swap_r; auto with wf_db.
+  repeat rewrite <- Mmult_assoc.
+  repeat rewrite Mmult_plus_distr_r.
+  repeat rewrite swap_swap_r; 
+    try (repeat apply WF_mult; auto with wf_db).
+
+
+  repeat rewrite <- Mmult_assoc.
+  repeat rewrite Mmult_plus_distr_r.
+
 
   repeat reduce_matrix.
   crunch_matrix.
@@ -352,6 +384,18 @@ Proof.
   autorewrite with C_db.
   reflexivity.
 Qed.
+
+About denote_box.
+
+Lemma id_correct : forall W ρ, WF_Matrix (〚W〛) (〚W〛) ρ -> denote_box W id_circ ρ = ρ.
+Proof.
+  intros W ρ H.
+  repeat (simpl; autounfold with den_db).
+  unfold denote_min_box. simpl.
+Abort.
+
+  
+
 
 (* These don't work yet... *)
 Ltac num_terms T := 
