@@ -37,17 +37,121 @@ Fixpoint pat_map (f : Var -> Var) (p : Pat) : Pat :=
   | pair p1 p2 => pair (pat_map f p1) (pat_map f p2)
   end.
 
+Fixpoint inb (a : Var) (ls : list Var) : bool :=
+  match ls with
+  | nil => false
+  | b :: ls' => (b =? a) || inb a ls'
+  end%bool.
 
-(* these are not done--need to add the preconditions. However, they should hold for the cases where we want them *)
-Lemma hash_pat_app_l : forall p ls1 ls2,
-      (* this only holds if (pat_to_list p) ⊆ ls1 *)
+Fixpoint subset (ls1 ls2 : list Var) : bool :=
+  match ls1 with
+  | nil => true
+  | a :: ls1' => inb a ls2 && subset ls1' ls2
+  end.
+Notation "ls1 ⊆ ls2" := (subset ls1 ls2 = true) (at level 30).
+
+Fixpoint disjoint (ls1 ls2 : list Var) : bool :=
+  match ls1 with
+  | nil => true
+  | a :: ls1' => (negb (inb a ls2)) && disjoint ls1' ls2
+  end.
+Notation "ls1 ⊥ ls2" := (disjoint ls1 ls2 = true) (at level 30).
+
+Lemma eqb_neq : forall x y, x <> y -> x =? y = false.
+Proof.
+  induction x as [ | x]; destruct y as [ | y]; intros H; auto.
+  - contradiction.
+  - simpl.
+    apply IHx.
+    intros H'.
+    subst.
+    contradiction.
+Qed.
+
+Lemma lookup_app : forall x ls1 ls2,
+      lookup x (ls1 ++ ls2) = if inb x ls1 then lookup x ls1 
+                                           else (lookup x ls2 + length ls1)%nat.
+Proof.
+  induction ls1; intros; simpl; auto. 
+  destruct (Nat.eq_dec x a) as [H_x_a | H_x_a].
+  * subst.
+    rewrite Nat.eqb_refl.
+    reflexivity.
+  * repeat rewrite eqb_neq; auto. simpl.
+    rewrite IHls1.
+    destruct (inb x ls1); auto.
+Qed.
+
+Lemma subset_app : forall ls1 ls2 ls, (ls1 ++ ls2) ⊆ ls -> ls1 ⊆ ls /\ ls2 ⊆ ls.
+Proof.
+  induction ls1; intros ls2 ls H; simpl in *; split; auto.
+  - apply Bool.andb_true_iff in H.
+    destruct H as [H_a_ls H].
+    rewrite H_a_ls; simpl.
+    apply IHls1 in H.
+    destruct H; auto.
+  - apply Bool.andb_true_iff in H.
+    destruct H as [H_a_ls H].
+    apply IHls1 in H.
+    destruct H; auto.
+Qed.
+
+Lemma disjoint_app_l : forall ls1 ls2 ls,
+      (ls1 ++ ls2) ⊥ ls ->
+      ls1 ⊥ ls /\ ls2 ⊥ ls.
+Proof.
+  induction ls1; intros ls2 ls H; simpl in *; split; auto.
+  - apply Bool.andb_true_iff in H.
+    destruct H as [H_a_ls H].
+    rewrite H_a_ls; simpl.
+    apply IHls1 in H.
+    destruct H; auto.
+  - apply Bool.andb_true_iff in H.
+    destruct H as [H_a_ls H].
+    apply IHls1 in H.
+    destruct H; auto.
+Qed.
+
+
+Lemma hash_pat_app_l : forall p ls1 ls2, 
+      (* dom p ∩ ls1 = dom p *)
+      pat_to_list p ⊆ ls1 ->
       hash_pat p (ls1 ++ ls2) = hash_pat p ls1.
-Admitted. Print hash_pat.
+Proof.
+  induction p; intros ls1 ls2 H_intersect; simpl in *; auto.
+    + rewrite lookup_app.
+      rewrite Bool.andb_true_r in H_intersect.
+      rewrite H_intersect.
+      reflexivity.
+    + rewrite lookup_app.
+      rewrite Bool.andb_true_r in H_intersect.
+      rewrite H_intersect.
+      reflexivity.
+    + apply subset_app in H_intersect.
+      destruct H_intersect as [H_intersect1 H_intersect2].
+      rewrite IHp1; auto. rewrite IHp2; auto.
+Qed.
 
-Lemma hash_pat_app_r : forall p ls1 ls2,
-      (* this only holds if (pat_to_list p) ⊆ ls2 and ls2 ⊥ ls1 *)
-      hash_pat p (ls1 ++ ls2) = pat_map (fun x => length ls1 + x)%nat (hash_pat p ls2).
-Admitted.
+Lemma hash_pat_app_r :  forall p ls1 ls2,
+      (* dom p ∩ ls1 = ∅ *)
+      (pat_to_list p) ⊥ ls1 ->
+      hash_pat p (ls1 ++ ls2)
+    = pat_map (fun x => x + length ls1)%nat (hash_pat p ls2).
+Proof.
+  induction p; intros ls1 ls2 H_intersect; simpl in *; auto.
+  - rewrite lookup_app. 
+    rewrite Bool.andb_true_r in H_intersect.
+    apply Bool.negb_true_iff in H_intersect.
+    rewrite H_intersect. reflexivity.
+  - rewrite lookup_app. 
+    rewrite Bool.andb_true_r in H_intersect.
+    apply Bool.negb_true_iff in H_intersect.
+    rewrite H_intersect. reflexivity.
+  - apply disjoint_app_l in H_intersect.
+    destruct H_intersect as [H_intersect1 H_intersect2].
+    rewrite IHp1; auto.
+    rewrite IHp2; auto.
+Qed.
 
 Lemma pat_to_list_pat_map : forall p f, pat_to_list (pat_map f p) = map f (pat_to_list p).
 Proof.  
@@ -66,11 +170,10 @@ Qed.
 
 
 Lemma map_seq : forall len offset start,
-      map (fun x => offset + x)%nat (seq start len) = seq (offset + start) len.
+      map (fun x => x + offset)%nat (seq start len) = seq (start + offset) len.
 Proof.
   induction len; intros; simpl; auto.
   rewrite IHlen.
-  rewrite Nat.add_succ_r.
   reflexivity.
 Qed.
 
@@ -86,18 +189,46 @@ Proof.
   reflexivity.
 Qed.
 
+Inductive WF_Pat : Pat -> Prop :=
+| WF_unit : WF_Pat unit
+| WF_qubit : forall x, WF_Pat (qubit x)
+| WF_bit : forall x, WF_Pat (bit x)
+| WF_pair : forall p1 p2, pat_to_list p2 ⊥ pat_to_list p1 -> 
+                          WF_Pat p1 -> WF_Pat p2 -> WF_Pat (pair p1 p2)
+.
+
+Lemma subset_cons_r : forall ls1 ls2 a, ls1 ⊆ ls2 -> ls1 ⊆ (a :: ls2).
+Proof.
+  induction ls1 as [ | b ls1]; intros; simpl in *; auto.
+    apply Bool.andb_true_iff in H.
+    destruct H as [H_b_ls2 H].
+    rewrite H_b_ls2.
+    rewrite IHls1; auto.
+    rewrite Bool.orb_true_r; auto.
+Qed.
+
+Lemma subset_refl : forall ls, ls ⊆ ls.
+Proof.
+  induction ls; simpl; auto.
+  rewrite Nat.eqb_refl. simpl.
+  apply subset_cons_r; auto.
+Qed.
+  
+
 Lemma hash_pat_pat_to_list : forall p, 
+    WF_Pat p ->
     pat_to_list (hash_pat p (pat_to_list p)) = seq 0 (pat_size p).
 Proof.
-  induction p; simpl; try rewrite Nat.eqb_refl; auto.
-  rewrite hash_pat_app_l.
-  rewrite IHp1.
-  rewrite hash_pat_app_r.
+  intros p wf_p.
+  induction wf_p; simpl; try rewrite Nat.eqb_refl; auto.
+  rewrite hash_pat_app_l; [ | apply subset_refl].
+  rewrite IHwf_p1.
+  rewrite hash_pat_app_r; auto.
   rewrite pat_to_list_pat_map.
-  rewrite IHp2.
+  rewrite IHwf_p2.
   rewrite <- pat_size_length_list.
   rewrite map_seq.
-  rewrite Nat.add_0_r.
+  simpl.
   rewrite seq_app.
   reflexivity.
 Qed.
@@ -117,15 +248,43 @@ Proof.
 Qed.
 
 
+Lemma fresh_pat_disjoint : forall W1 W2 n n1 n2 p1 p2,
+      fresh_pat W1 n = (p1,n1) ->
+      fresh_pat W2 n1 = (p2,n2) ->
+      pat_to_list p2 ⊥ pat_to_list p1.
+Proof.
+  induction W1; destruct W2; intros n n1 n2 p1 p2 H1 H2;
+  inversion H1; inversion H2; simpl in *; auto;
+  subst; try (rewrite eqb_neq; auto; fail).
+  destruct (fresh_pat W2_1 (S n)) as [p1 n'] eqn:H_p1.
+  destruct (fresh_pat W2_2 n') as [p2' n''] eqn:H_p2'.
+  inversion H4.
+  simpl.
+Admitted.
+
+Lemma fresh_pat_wf : forall W p m n, fresh_pat W m = (p,n) -> WF_Pat p.
+Proof.
+  induction W; simpl; intros.
+  - inversion H. constructor.
+  - inversion H; constructor.
+  - inversion H; constructor.
+  - destruct (fresh_pat W1) as [p1 m1] eqn:H1.
+    destruct (fresh_pat W2) as [p2 m2] eqn:H2.
+    inversion H.
+    constructor; auto; [ | eapply IHW1; eauto | eapply IHW2; eauto].
+    eapply fresh_pat_disjoint; eauto.
+Qed.
+
 Lemma id_circ_Id : forall W ρ, WF_Matrix (2^〚W〛) (2^〚W〛) ρ -> 
     denote_box W id_circ ρ = ρ.
 Proof.
   intros W ρ H. 
   repeat (simpl; autounfold with den_db).
   remember (FlatCircuits.fresh_pat W 0) as r.
-  destruct r.
+  destruct r as [p n].
+  assert (wf_p : WF_Pat p) by (apply (fresh_pat_wf W p 0 n); auto).
   repeat (simpl; autounfold with den_db).
-  rewrite hash_pat_pat_to_list.
+  rewrite hash_pat_pat_to_list; auto.
   rewrite pat_size_hash_pat.
   setoid_rewrite (swap_list_n_id (pat_size p)).
   rewrite (fresh_pat_size W p 0 n); auto.  
@@ -157,13 +316,14 @@ Proof.
   specialize (unitary_gate_unitary U); intros [WFU UU].
   repeat (simpl; autounfold with den_db).
   remember (FlatCircuits.fresh_pat W 0) as r.
-  destruct r.
+  destruct r as [p n].
+  assert (wf_p : WF_Pat p) by (apply (fresh_pat_wf W p 0 n); auto).
   repeat (simpl; autounfold with den_db).
 
   rewrite minus_plus, Nat.leb_refl.
   rewrite Nat.sub_diag.
 
-  rewrite hash_pat_pat_to_list.
+  rewrite hash_pat_pat_to_list; auto.
   rewrite pat_size_hash_pat.
   setoid_rewrite (swap_list_n_id (pat_size p)).
   rewrite (fresh_pat_size W p 0 n); auto.  
@@ -220,6 +380,18 @@ Proof.
   destruct x, y; simpl; autorewrite with C_db; destruct_m_eq; clra.
 Qed.
 
+(* Do these belong back in Denotation? *) Search Box. About denote_box.
+Lemma compose_correct : forall W1 W2 W3 (g f : Box),
+      Typed_Box g W2 W3 -> Typed_Box f W1 W2 ->
+      denote_box W1 (inSeq f g) = compose_super (denote_box W2 g) (denote_box W1 f).
+Proof.
+  intros.
+  autounfold with den_db; simpl.
+  destruct (fresh_pat W1 0) as [p n] eqn:H_p_n.
+  simpl.
+Abort.
+
+
 Lemma flips_correct : forall n, denote_box One (coin_flips n) I1 = biased_coin (2^n).
 Proof.
   induction n.  
@@ -228,8 +400,8 @@ Proof.
     prep_matrix_equality.
     autounfold with M_db.
     destruct_m_eq; clra.
-  + simpl. 
-    repeat (simpl; autounfold with den_db).
+  + simpl.
+    repeat (simpl; autounfold with den_db). 
 Abort.
 
 Lemma cnot_eq : cnot = control pauli_x.
@@ -622,10 +794,6 @@ Proof.
   solve_matrix.
 Abort.
 
-(* Do these belong back in Denotation? *)
-Program Lemma compose_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2),
-      〚inSeq f g〛 = compose_super (〚g〛) (〚f〛).
-Admitted.
 
 Lemma boxed_gate_correct : forall W1 W2 (g : Gate W1 W2) (ρ : Density (2^〚W1〛)) ,
       WF_Matrix (2^〚W1〛) (2^〚W1〛) ρ -> 〚boxed_gate g〛 ρ = 〚g〛 ρ.
