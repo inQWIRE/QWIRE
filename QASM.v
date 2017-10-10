@@ -1,8 +1,9 @@
 Require Import Reals.
+Require Import String.
 
 (* QASM.v - representation of QASM circuits *)
 
-Definition id := nat.
+Definition id := string.
 
 Inductive binop : Set :=
 | plus | minus 
