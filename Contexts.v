@@ -681,26 +681,27 @@ Defined.
 
 (* Patterns and Gates *)
 
-Inductive Pat : Set :=
-| unit : Pat
-| qubit : Var -> Pat
-| bit : Var -> Pat
-| pair : Pat -> Pat -> Pat.
+Open Scope circ_scope.
+Inductive Pat : WType ->  Set :=
+| unit : Pat One
+| qubit : Var -> Pat Qubit
+| bit : Var -> Pat Bit
+| pair : forall {W1 W2}, Pat W1 -> Pat W2 -> Pat (W1 ⊗ W2).
 
 (* Not sure if this is the right approach. See below. *)
-Inductive Types_Pat : OCtx -> Pat -> WType -> Set :=
-| types_unit : Types_Pat ∅ unit One
-| types_qubit : forall x Γ, (SingletonCtx x Qubit Γ) -> Types_Pat Γ (qubit x) Qubit
-| types_bit : forall x Γ, (SingletonCtx x Bit Γ) -> Types_Pat Γ (bit x) Bit
-| types_pair : forall Γ1 Γ2 Γ p1 p2 w1 w2,
+Inductive Types_Pat : OCtx -> forall {W : WType}, Pat W -> Set :=
+| types_unit : Types_Pat ∅ unit
+| types_qubit : forall x Γ, (SingletonCtx x Qubit Γ) -> Types_Pat Γ (qubit x)
+| types_bit : forall x Γ, (SingletonCtx x Bit Γ) -> Types_Pat Γ (bit x)
+| types_pair : forall Γ1 Γ2 Γ w1 w2 (p1 : Pat w1) (p2 : Pat w2),
         is_valid Γ 
       -> Γ = Γ1 ⋓ Γ2
-      -> Types_Pat Γ1 p1 w1
-      -> Types_Pat Γ2 p2 w2
-      -> Types_Pat Γ (pair p1 p2) (Tensor w1 w2).
+      -> Types_Pat Γ1 p1
+      -> Types_Pat Γ2 p2
+      -> Types_Pat Γ (pair p1 p2).
 
-Lemma pat_ctx_valid : forall Γ p W, Types_Pat Γ p W -> is_valid Γ.
-Proof. intros Γ p W TP. unfold is_valid. inversion TP; eauto. Qed.
+Lemma pat_ctx_valid : forall Γ W (p : Pat W), Types_Pat Γ p -> is_valid Γ.
+Proof. intros Γ W p TP. unfold is_valid. inversion TP; eauto. Qed.
 
 Open Scope circ_scope.
 Inductive Unitary : WType -> Set := 
