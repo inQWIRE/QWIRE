@@ -289,7 +289,7 @@ Definition Splus {m n} (S T : Superoperator m n) : Superoperator m n :=
 
 (** Denoting Min Circuits **)
 
-Fixpoint pat_size (p : Pat) : nat := 
+Fixpoint pat_size {W} (p : Pat W) : nat := 
   match p with
   | unit       => 0
   | bit x      => 1
@@ -297,13 +297,15 @@ Fixpoint pat_size (p : Pat) : nat :=
   | pair p1 p2 => (pat_size p1) + (pat_size p2)
   end.
 
-Lemma pat_size_hash_pat : forall p ls, pat_size (hash_pat p ls) = pat_size p.
+Lemma pat_size_hash_pat : forall w (p : Pat w) ls, 
+      pat_size (hash_pat p ls) = pat_size p.
 Proof. 
   induction p; intros; auto.
   simpl. rewrite IHp1, IHp2. reflexivity.
 Qed.
 
-Fixpoint get_output_size (c : Min_Circuit) :=
+(*
+Fixpoint get_output_size {w} (c : Min_Circuit w) :=
   match c with
   | min_output p     => pat_size p
   | min_gate g p c'  => get_output_size c'
@@ -314,33 +316,30 @@ Definition get_box_output_size {W} (c : Min_Box W) :=
   match c with
   | min_box W c'     => get_output_size c'
   end. 
+*)
 
-Fixpoint denote_min_circuit (c : Min_Circuit) (n m : nat) : Superoperator (2^n) (2^m) 
+(* n is the input size *)
+Fixpoint denote_min_circuit {w}  (n : nat) (c : Min_Circuit w) : Superoperator (2^n) (2^〚w〛) 
   := 
   match c with 
-  | min_output p            => super (swap_list m (pat_to_list p))
-  | @min_gate W1 W2 g p c'  => compose_super 
-                                (denote_min_circuit c' (n + 〚W2〛 - 〚W1〛) m)
+  | min_output p            => super (swap_list (〚w〛) (pat_to_list p))
+  | @min_gate _ W1 W2 g p c'  => compose_super 
+                                (denote_min_circuit (n + 〚W2〛 - 〚W1〛) c')
                                 (apply_gate g (pat_to_list p))                                      
   (* I think we need a weighing here - also a measure-discard *)
-  | min_lift p c'   => Splus (denote_min_circuit (c' true) n m) 
-                            (denote_min_circuit (c' false) n m)
+  | min_lift p c'   => Splus (denote_min_circuit n (c' true))
+                             (denote_min_circuit n (c' false))
   end.
 
-Definition denote_min_box {W} (c : Min_Box W) : 
-  Superoperator (2 ^ 〚 W 〛) (2 ^ get_box_output_size c) :=
+Definition denote_min_box {W1 W2} (c : Min_Box W1 W2) : 
+  Superoperator (2 ^ 〚 W1 〛) (2 ^ 〚 W2 〛) :=
   match c with
-  | min_box W c' => denote_min_circuit c' (〚W〛) (get_box_output_size c)
+  | min_box _ c' => denote_min_circuit (〚W1〛) c'  
   end.
 
 (** Denoting hoas circuits **)
 
-Definition denote_box (W : WType) (c : Box) := denote_min_box (hoas_to_min_box c W).
-
-
-
-
-
- 
-
-
+Definition denote_box {W1 W2 : WType} (c : Box W1 W2) := 
+    denote_min_box (hoas_to_min_box c).
+Instance Denote_Box {W1 W2} : Denote (Box W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
+         {| denote := denote_box |}.

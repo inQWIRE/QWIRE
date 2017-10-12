@@ -14,22 +14,22 @@ Hint Resolve WF_I1 : wf_db.
 
 Hint Unfold I1 apply_new0 apply_new1 apply_U apply_meas apply_discard compose_super super swap_list swap_two pad denote_box : den_db.
 
-Lemma Ex : denote_box One (init true) I1 = (|1⟩⟨1| : Density 2).
+Lemma Ex : 〚init true〛 I1 = (|1⟩⟨1| : Density 2).
 Proof.
   repeat (autounfold with den_db; simpl).
   autorewrite with M_db.
   reflexivity.
 Qed.
 
-Definition HOAS_Equiv (b1 b2 : Box) :=
-  forall W ρ, WF_Matrix (2^〚W〛) (2^〚W〛) ρ -> 
-         denote_box W b1 ρ = denote_box W b2 ρ.
+Definition HOAS_Equiv {W1 W2} (b1 b2 : Box W1 W2) :=
+  forall ρ, WF_Matrix (2^〚W1〛) (2^〚W1〛) ρ -> 
+         〚b1〛 ρ = 〚b2〛 ρ.
 
 Require Import FlatCircuits.
 
 
 
-Fixpoint pat_map (f : Var -> Var) (p : Pat) : Pat :=
+Fixpoint pat_map {w} (f : Var -> Var) (p : Pat w) : Pat w :=
   match p with
   | unit => unit
   | qubit x => qubit (f x)
@@ -113,7 +113,7 @@ Proof.
 Qed.
 
 
-Lemma hash_pat_app_l : forall p ls1 ls2, 
+Lemma hash_pat_app_l : forall {w} (p : Pat w) ls1 ls2, 
       (* dom p ∩ ls1 = dom p *)
       pat_to_list p ⊆ ls1 ->
       hash_pat p (ls1 ++ ls2) = hash_pat p ls1.
@@ -132,7 +132,7 @@ Proof.
       rewrite IHp1; auto. rewrite IHp2; auto.
 Qed.
 
-Lemma hash_pat_app_r :  forall p ls1 ls2,
+Lemma hash_pat_app_r :  forall {w} (p : Pat w) ls1 ls2,
       (* dom p ∩ ls1 = ∅ *)
       (pat_to_list p) ⊥ ls1 ->
       hash_pat p (ls1 ++ ls2)
@@ -153,14 +153,16 @@ Proof.
     rewrite IHp2; auto.
 Qed.
 
-Lemma pat_to_list_pat_map : forall p f, pat_to_list (pat_map f p) = map f (pat_to_list p).
+Lemma pat_to_list_pat_map : forall {w} (p : Pat w) f, 
+      pat_to_list (pat_map f p) = map f (pat_to_list p).
 Proof.  
   induction p; intros; auto.
   simpl. rewrite IHp1, IHp2. 
   rewrite map_app.
   reflexivity.
 Qed.
-Lemma pat_size_length_list : forall p, pat_size p = length (pat_to_list p).
+Lemma pat_size_length_list : forall {w} (p : Pat w), 
+      pat_size p = length (pat_to_list p).
 Proof.
   induction p; auto.
   simpl. rewrite IHp1, IHp2.
@@ -189,12 +191,13 @@ Proof.
   reflexivity.
 Qed.
 
-Inductive WF_Pat : Pat -> Prop :=
+Inductive WF_Pat : forall {w}, Pat w -> Prop :=
 | WF_unit : WF_Pat unit
 | WF_qubit : forall x, WF_Pat (qubit x)
 | WF_bit : forall x, WF_Pat (bit x)
-| WF_pair : forall p1 p2, pat_to_list p2 ⊥ pat_to_list p1 -> 
-                          WF_Pat p1 -> WF_Pat p2 -> WF_Pat (pair p1 p2)
+| WF_pair : forall w1 w2 (p1 : Pat w1) (p2 : Pat w2), 
+            pat_to_list p2 ⊥ pat_to_list p1 -> 
+            WF_Pat p1 -> WF_Pat p2 -> WF_Pat (pair p1 p2)
 .
 
 Lemma subset_cons_r : forall ls1 ls2 a, ls1 ⊆ ls2 -> ls1 ⊆ (a :: ls2).
@@ -215,11 +218,11 @@ Proof.
 Qed.
   
 
-Lemma hash_pat_pat_to_list : forall p, 
+Lemma hash_pat_pat_to_list : forall {w} (p : Pat w), 
     WF_Pat p ->
     pat_to_list (hash_pat p (pat_to_list p)) = seq 0 (pat_size p).
 Proof.
-  intros p wf_p.
+  intros w p wf_p.
   induction wf_p; simpl; try rewrite Nat.eqb_refl; auto.
   rewrite hash_pat_app_l; [ | apply subset_refl].
   rewrite IHwf_p1.
@@ -253,13 +256,16 @@ Lemma fresh_pat_disjoint : forall W1 W2 n n1 n2 p1 p2,
       fresh_pat W2 n1 = (p2,n2) ->
       pat_to_list p2 ⊥ pat_to_list p1.
 Proof.
-  induction W1; destruct W2; intros n n1 n2 p1 p2 H1 H2;
-  inversion H1; inversion H2; simpl in *; auto;
-  subst; try (rewrite eqb_neq; auto; fail).
-  destruct (fresh_pat W2_1 (S n)) as [p1 n'] eqn:H_p1.
-  destruct (fresh_pat W2_2 n') as [p2' n''] eqn:H_p2'.
-  inversion H4.
-  simpl.
+  induction W1; intros.
+  - inversion H. subst. admit.
+  - inversion H. subst. admit.
+  - inversion H. subst. simpl.
+    admit.
+  - inversion H.
+    destruct (fresh_pat W1_1 n) as [p1' n'] eqn:H_p1.
+    destruct (fresh_pat W1_2 n') as [p2' n''] eqn:H_p2.
+    inversion H2. subst.
+    admit.
 Admitted.
 
 Lemma fresh_pat_wf : forall W p m n, fresh_pat W m = (p,n) -> WF_Pat p.
@@ -275,8 +281,15 @@ Proof.
     eapply fresh_pat_disjoint; eauto.
 Qed.
 
+
+Lemma pat_WType_size : forall W (p : Pat W), pat_size p = size_WType W.
+Proof.
+  induction p; auto. simpl.
+  rewrite IHp1, IHp2. reflexivity.
+Qed.
+
 Lemma id_circ_Id : forall W ρ, WF_Matrix (2^〚W〛) (2^〚W〛) ρ -> 
-    denote_box W id_circ ρ = ρ.
+    〚@id_circ W〛 ρ = ρ.
 Proof.
   intros W ρ H. 
   repeat (simpl; autounfold with den_db).
@@ -285,16 +298,19 @@ Proof.
   assert (wf_p : WF_Pat p) by (apply (fresh_pat_wf W p 0 n); auto).
   repeat (simpl; autounfold with den_db).
   rewrite hash_pat_pat_to_list; auto.
-  rewrite pat_size_hash_pat.
-  setoid_rewrite (swap_list_n_id (pat_size p)).
-  rewrite (fresh_pat_size W p 0 n); auto.  
+(*  rewrite pat_size_hash_pat.*)
+  replace (swap_list_aux _ _ (zip_to 0 (size_WType W) (seq 0 (pat_size p)))) 
+    with (swap_list (size_WType W) (seq 0 (pat_size p))) 
+    by reflexivity. 
+  rewrite pat_WType_size.
+  rewrite swap_list_n_id.
   autorewrite with M_db.
   reflexivity.
 Qed.
  
 Lemma unitary_transpose_id_qubit : forall (U : Unitary Qubit), forall ρ,
    WF_Matrix (2^〚Qubit〛) (2^〚Qubit〛) ρ -> 
-   denote_box Qubit (unitary_transpose U) ρ = denote_box Qubit id_circ ρ.
+   〚unitary_transpose U〛 ρ = 〚@id_circ Qubit〛 ρ.
 Proof.
   intros U ρ pf_ρ.
   assert (unitary_U : is_unitary (denote_unitary U)) by apply unitary_gate_unitary.
@@ -309,8 +325,7 @@ Qed.
 
 Lemma unitary_transpose_id : forall W (U : Unitary W) (ρ : Density (2^〚W〛 )),
   WF_Matrix (2^〚W〛) (2^〚W〛) ρ ->
-  denote_box W (unitary_transpose U) ρ = denote_box W id_circ ρ.
-Proof.
+  〚unitary_transpose U〛 ρ = 〚@id_circ W〛 ρ.
 Proof.
   intros W U ρ wfρ. 
   specialize (unitary_gate_unitary U); intros [WFU UU].
@@ -324,16 +339,10 @@ Proof.
   rewrite Nat.sub_diag.
 
   rewrite hash_pat_pat_to_list; auto.
-  rewrite pat_size_hash_pat.
-  setoid_rewrite (swap_list_n_id (pat_size p)).
-  rewrite (fresh_pat_size W p 0 n); auto.  
+  rewrite pat_WType_size.
+  setoid_rewrite (swap_list_n_id (size_WType W)).
   autorewrite with M_db.
 
-  simpl.
-  autorewrite with M_db.
-  repeat setoid_rewrite kron_conj_transpose.
-  setoid_rewrite swap_list_n_id.
-  autorewrite with M_db.
   repeat rewrite Mmult_assoc.
   setoid_rewrite UU.
   repeat rewrite <- Mmult_assoc.
@@ -370,7 +379,7 @@ Proof.
   destruct_m_eq; clra.
 Qed.
 
-Lemma fair_toss : denote_box One coin_flip I1  = fair_coin.
+Lemma fair_toss : 〚coin_flip〛 I1  = fair_coin.
 Proof.
   repeat (autounfold with den_db; simpl).
   autorewrite with M_db.
@@ -380,19 +389,44 @@ Proof.
   destruct x, y; simpl; autorewrite with C_db; destruct_m_eq; clra.
 Qed.
 
-(* Do these belong back in Denotation? *) Search Box. About denote_box.
-Lemma compose_correct : forall W1 W2 W3 (g f : Box),
-      Typed_Box g W2 W3 -> Typed_Box f W1 W2 ->
-      denote_box W1 (inSeq f g) = compose_super (denote_box W2 g) (denote_box W1 f).
+Fixpoint upper_bound (li : list nat) : nat :=
+  match li with
+  | nil => 0
+  | n :: li' => max (S n) (upper_bound li')
+  end.
+
+Definition denote_circuit {w1 w2} (p : Pat w1) (c : Circuit w2) 
+                        : Superoperator (2^〚w1〛) (2^〚w2〛) :=
+  let li := pat_to_list p in
+  let n := upper_bound li in
+  denote_min_circuit (〚w1〛) (hoas_to_min c li (S n)).
+
+
+(* Do these belong back in Denotation? *) 
+Lemma compose_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2),
+      Typed_Box g -> Typed_Box f ->
+      〚inSeq f g〛 = compose_super (〚g〛) (〚f〛).
 Proof.
   intros.
-  autounfold with den_db; simpl.
+  autounfold with den_db; simpl. 
+  destruct f as [f]. 
+  autounfold with den_db; simpl. 
   destruct (fresh_pat W1 0) as [p n] eqn:H_p_n.
-  simpl.
+  autounfold with den_db; simpl. 
+  set (c := f p).
+  induction c.
+  - autounfold with den_db; simpl. 
+    replace (denote_min_circuit (size_WType W1) (hoas_to_min (unbox g p0) (pat_to_list p) n)) with (denote_circuit p0 (unbox g p0)).
+    * autounfold with den_db.
+      admit.
+
+    * unfold denote_circuit. simpl. admit.
+  - admit.
+  - admit.
 Abort.
 
 
-Lemma flips_correct : forall n, denote_box One (coin_flips n) I1 = biased_coin (2^n).
+Lemma flips_correct : forall n, 〚coin_flips n〛 I1 = biased_coin (2^n).
 Proof.
   induction n.  
   + repeat (autounfold with den_db; simpl).    
@@ -570,7 +604,7 @@ Definition EPR00 : Matrix 4 4 :=
              | _, _ => 0
              end.
 
-Lemma bell00_eq :  denote_box One bell00 I1  = EPR00.
+Lemma bell00_eq :  〚bell00〛 I1  = EPR00.
 Proof.
   repeat (simpl; autounfold with den_db). 
   autorewrite with M_db. 
@@ -627,7 +661,7 @@ Hint Rewrite <- Cinv_mult_distr using c_ineq : C_db.
 Hint Rewrite Cinv_l Cinv_r using c_ineq : C_db.
   
 Lemma deutsch_constant : forall U_f, constant U_f -> 
-                                denote_box One (deutsch U_f) I1 = |0⟩⟨0|.
+                                〚deutsch U_f〛 I1 = |0⟩⟨0|.
 Proof.
   intros U_f H.
   repeat (simpl; autounfold with den_db). 
@@ -686,7 +720,7 @@ Proof.
 Qed.
 
 Lemma deutsch_balanced : forall U_f, balanced U_f -> 
-                                denote_box One (deutsch U_f) I1 = |1⟩⟨1|.
+                                〚deutsch U_f〛 I1 = |1⟩⟨1|.
 Proof.
   intros U_f H.
   repeat (simpl; autounfold with den_db). 
