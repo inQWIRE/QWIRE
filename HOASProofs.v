@@ -27,8 +27,6 @@ Definition HOAS_Equiv {W1 W2} (b1 b2 : Box W1 W2) :=
 
 Require Import FlatCircuits.
 
-
-
 Fixpoint pat_map {w} (f : Var -> Var) (p : Pat w) : Pat w :=
   match p with
   | unit => unit
@@ -56,6 +54,9 @@ Fixpoint disjoint (ls1 ls2 : list Var) : bool :=
   | a :: ls1' => (negb (inb a ls2)) && disjoint ls1' ls2
   end.
 Notation "ls1 ⊥ ls2" := (disjoint ls1 ls2 = true) (at level 30).
+
+Lemma disjoint_nil_l : forall ls, nil ⊥ ls. Proof. reflexivity. Qed.
+Lemma disjoint_nil_r : forall ls, ls ⊥ nil. Proof. induction ls; trivial. Qed.
 
 Lemma eqb_neq : forall x y, x <> y -> x =? y = false.
 Proof.
@@ -250,6 +251,21 @@ Proof.
   reflexivity.
 Qed.
 
+
+Lemma pat_to_list_empty : forall W n p,
+    fresh_pat W n = (p, O) ->
+    pat_to_list p = nil.
+Proof.
+  intros W.
+  induction W; intros n p H; inversion H; subst.
+  reflexivity.
+  clear H1.
+  remember (Tensor W1 W2) as W.
+  destruct p; inversion HeqW; subst.
+  simpl.
+  erewrite IHW1, IHW2; trivial. 
+  inversion H.
+Admitted.  
 
 Lemma fresh_pat_disjoint : forall W1 W2 n n1 n2 p1 p2,
       fresh_pat W1 n = (p1,n1) ->
@@ -792,7 +808,7 @@ Ltac proof_size :=
 
 
 Lemma teleport_eq : forall (ρ : Density 2), 
-  WF_Matrix 2 2 ρ -> denote_box Qubit teleport ρ = ρ.
+  WF_Matrix 2 2 ρ -> denote_box teleport ρ = ρ.
 Proof.
   intros ρ H.
   idtac.
@@ -800,6 +816,16 @@ Proof.
   autorewrite with M_db.
   repeat (setoid_rewrite kron_conj_transpose).
   autorewrite with M_db.
+  idtac.
+  repeat rewrite <- Mmult_assoc.
+  repeat rewrite Mmult_plus_distr_l.
+  repeat rewrite <- Mmult_assoc.
+  repeat rewrite Mmult_plus_distr_l.
+  repeat rewrite <- Mmult_assoc.
+  repeat rewrite Mmult_plus_distr_l.
+  repeat rewrite <- Mmult_assoc.
+  
+  repeat reduce_matrix.
   
   
   repeat rewrite <- Mmult_assoc. 

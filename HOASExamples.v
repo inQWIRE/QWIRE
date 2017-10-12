@@ -660,13 +660,13 @@ Lemma OR_WT : Typed_Box OR.
 Proof. type_check. Qed.
 
 (** Invalid Circuits **)
-(*Program Definition absurd_circ : Box Qubit (Qubit ⊗ Bit) :=
+Definition absurd_circ : Box Qubit (Bit ⊗ Qubit) :=
   box_ w ⇒ 
     gate_ x  ← meas @w ;
     gate_ w' ← H @w ;
     output (x,w').
-Definition absurd_fail : Typed_Box absurd_circ Qubit (Qubit ⊗ Bit).
-Proof. type_check. Abort.*)
+Definition absurd_fail : Typed_Box absurd_circ.
+Proof. type_check. Abort.
 
 Definition unmeasure : Box Qubit Qubit :=
   box_ q ⇒ 
@@ -688,15 +688,12 @@ Definition clone : Box Qubit (Qubit ⊗ Qubit) := box_ p ⇒ (output (p,p)).
 Lemma clone_WT : Typed_Box clone.
 Proof. type_check. Abort.
 
-(*
 Program Definition split_qubit : Box Qubit (Qubit ⊗ Qubit) :=
   box_ w ⇒ 
     let_ (w1,w2)  ← output w ;
     gate_ w2'     ← H @w2 ; 
     output (w1,w2').
-Lemma split_qubit_fail : Typed_Box split_qubit Qubit (Qubit ⊗ Qubit).
-Proof. type_check. Abort.
-*)
+Next Obligation. Abort.
 
 Close Scope circ_scope.
 (* *)
