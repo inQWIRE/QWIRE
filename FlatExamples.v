@@ -12,8 +12,8 @@ Open Scope list_scope.
 Module F.
 
 (** Projecting out elements of tensors **)
-
-Definition wproj (p : Pat) : Pat * Pat :=
+Open Scope circ_scope.
+Definition wproj {w1 w2} (p : Pat (w1 ⊗ w2)) : Pat w1 * Pat w2 :=
   match p with
   | unit => (unit, unit)
   | qubit n => (unit, unit)
@@ -23,7 +23,6 @@ Definition wproj (p : Pat) : Pat * Pat :=
 
 (*** Typechecking Tactic ***)
 
-Open Scope circ_scope.
 Opaque wproj.
 
 
@@ -83,26 +82,26 @@ Notation box_f p C  := (flat_box p C).
 Notation "'gate_f' p' ← g @ p ; C" := (gate g p p' C) 
                                           (at level 10, right associativity). 
 
-
+About pair.
 Notation "()" := unit : circ_scope.
-Notation "( x , y , .. , z )" := (pair _ _ _ _ _ _ _ .. (pair _ _ _ _ _ _ _ x y) .. z) (at level 0) : circ_scope.
+Notation "( x , y , .. , z )" := (pair .. (pair x y) .. z) (at level 0) : circ_scope.
 
 (****************
 Examples 
 *****************)
 
-Definition id_circ (W : WType) : Flat_Box :=
+Definition id_circ (W : WType) : Flat_Box W W :=
   let (p,n) := fresh_pat W 0 in
   box_f p (output_f p).
 
-Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Flat_Box :=
+Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Flat_Box W1 W2 :=
   let (p,n) := fresh_pat W1 0 in
   let (p',n') := fresh_pat W2 n in
   box_f p (
     gate_f p' ← g @p;
     output_f p'). 
 
-Definition unitary_transpose {W} (U : Unitary W) : Flat_Box :=
+Definition unitary_transpose {W} (U : Unitary W) : Flat_Box W W :=
   let (p,_) := fresh_pat W 0 in
   box_f p (
     gate_f p ← U @p;
@@ -110,31 +109,35 @@ Definition unitary_transpose {W} (U : Unitary W) : Flat_Box :=
     output_f p
   ).
 
-Definition new_discard : Flat_Box :=
+Definition new_discard : Flat_Box One One :=
   let (p,_) := fresh_pat Bit 0 in
   box_f unit (
     gate_f p    ← new0 @(); 
     gate_f unit ← discard @p;
     output_f () ).
 
-Definition init_discard : Flat_Box One One.
-  new_pat q Qubit ∅.
-  new_pat b Bit ∅.
+Ltac new_pat q W n :=
+  let n' := fresh "n" in
+  set (q := fst (fresh_pat W n));
+  set (n' := snd (fresh_pat W n));
+  simpl in q, n'.
+
+Definition init_discard : Flat_Box One One :=
+  let (q,_) := fresh_pat Qubit 0 in
+  let (b,_) := fresh_pat Bit 0 in
   box_f () ( 
     gate_f q    ← init0 @();
     gate_f b    ← meas @q;
     gate_f unit ← discard @b;
-    output_f () ). 
-Defined.
+    output_f () ).
 
-Definition hadamard_measure : Flat_Box Qubit Bit.
-  new_pat q Qubit ∅.
-  new_pat b Bit ∅.
+Definition hadamard_measure : Flat_Box Qubit Bit :=
+  let (q,_) := fresh_pat Qubit 0 in
+  let (b,_) := fresh_pat Bit 0 in
   box_f q ( 
     gate_f q ← H @q;
     gate_f b ← meas @q;
     output_f b).
-Defined.
 
 (*
 Definition lift_deutsch (U_f : Gate (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Qubit.
@@ -151,10 +154,11 @@ Definition lift_deutsch (U_f : Gate (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box O
 Defined.
 *)
 
-Definition deutsch (U_f : Gate (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Flat_Box One Qubit.
-  new_pat x Qubit ∅.
-  new_pat y Qubit Γ.
-  new_pat b Bit (Γ ⋓ Γ0).
+Definition deutsch (U_f : Gate (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) 
+                 : Flat_Box One Qubit :=
+  let (x,n) := fresh_pat Qubit 0 in
+  let (y,n') := fresh_pat Qubit n in
+  let (b,_) := fresh_pat Bit n' in
   box_f () (
     gate_f x     ← init0 @();
     gate_f x     ← H @x;
@@ -164,41 +168,44 @@ Definition deutsch (U_f : Gate (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Flat_Box O
     gate_f b     ← meas @x;
     gate_f ()    ← discard @b;
     output_f y).
-Defined.
 
 Definition init (b : bool) : Flat_Box One Qubit :=
   if b then boxed_gate init1 else boxed_gate init0.
 
-Definition coin_flip : Flat_Box One Bit .
-  new_pat x Qubit ∅.
-  new_pat y Bit ∅.
+Definition coin_flip : Flat_Box One Bit :=
+  let (x,_) := fresh_pat Qubit 0 in
+  let (y,_) := fresh_pat Bit 0 in
   box_f () (
     gate_f x ← init0 @();
     gate_f x ← H @x;
     gate_f y ← meas @x;
     output_f y).
-Defined.
 
-Definition bell00 : Flat_Box One (Qubit ⊗ Qubit).
-  new_pat a Qubit ∅.
-  new_pat b Qubit Γ.
-  new_pat z (Qubit ⊗ Qubit) ∅.  
+Definition bell00 : Flat_Box One (Qubit ⊗ Qubit) :=
+  let (a,n) := fresh_pat Qubit 0 in
+  let (b,n') := fresh_pat Qubit n in
+  let (z,_) := fresh_pat (Qubit ⊗ Qubit) 0 in
   box_f () (  
     gate_f a ← init0 @();
     gate_f b ← init0 @();
     gate_f a ← H @a;
     gate_f z ← CNOT @(a,b);
     output_f z).
-Defined.
 
 
-Definition teleport_direct : Flat_Box Qubit Qubit.
+Definition teleport_direct : Flat_Box Qubit Qubit :=
+  let (q,n0) := fresh_pat Qubit 0 in
+  let (a,n1) := fresh_pat Qubit n0 in
+  let (b,n2) := fresh_pat Qubit n1 in
+  let (x,n3) := fresh_pat Bit 0 in
+  let (y,_)  := fresh_pat Bit n3 in
+(*
   new_pat q Qubit ∅.
   new_pat a Qubit Γ.          
   new_pat b Qubit (Γ ⋓ Γ0).          
   new_pat x Bit ∅.
   new_pat y Bit Γ2.
-
+*)
   box_f q (  
   (* bell00 *)
     gate_f a     ← init0 @();
@@ -218,7 +225,8 @@ Definition teleport_direct : Flat_Box Qubit Qubit.
     gate_f ()     ← discard @y;   
     gate_f ()     ← discard @x;
     output_f b).
-Defined.
+
+
 
 (* A different approach to effecient typechecking of concrete circuits *)
 

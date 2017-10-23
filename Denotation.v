@@ -325,7 +325,7 @@ Fixpoint denote_min_circuit {w}  (n : nat) (c : Min_Circuit w) : Superoperator (
   | min_output p            => super (swap_list (〚w〛) (pat_to_list p))
   | @min_gate _ W1 W2 g p c'  => compose_super 
                                 (denote_min_circuit (n + 〚W2〛 - 〚W1〛) c')
-                                (apply_gate g (pat_to_list p))                                      
+                                (apply_gate g (pat_to_list p))
   (* I think we need a weighing here - also a measure-discard *)
   | min_lift p c'   => Splus (denote_min_circuit n (c' true))
                              (denote_min_circuit n (c' false))
