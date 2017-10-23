@@ -252,6 +252,24 @@ Proof.
 Qed.
 
 
+Lemma fresh_pat_increasing : forall W n n' p,
+  fresh_pat W n = (p, n') ->
+  (n <= n')%nat.
+Proof.
+  intros W.
+  induction W; intros n n' p H.
+  + inversion H. omega.
+  + inversion H. omega.
+  + inversion H. omega.
+  + inversion H. 
+    destruct (fresh_pat W1 n) as [p1 m] eqn:E. 
+    destruct (fresh_pat W2 m) as [p2 m'] eqn:E'.
+    inversion H1; subst.
+    apply IHW2 in E'.
+    apply IHW1 in E.
+    omega.
+Qed.  
+
 Lemma pat_to_list_empty : forall W n p,
     fresh_pat W n = (p, O) ->
     pat_to_list p = nil.
@@ -259,13 +277,16 @@ Proof.
   intros W.
   induction W; intros n p H; inversion H; subst.
   reflexivity.
-  clear H1.
-  remember (Tensor W1 W2) as W.
-  destruct p; inversion HeqW; subst.
+  destruct (fresh_pat W1 n) as [p1 n'] eqn:E.
+  destruct (fresh_pat W2 n') as [p2 n''] eqn:E'.
+  inversion H1; subst.
   simpl.
-  erewrite IHW1, IHW2; trivial. 
-  inversion H.
-Admitted.  
+  replace n' with O in * by (specialize (fresh_pat_increasing _ _ _ _ E'); omega).
+  replace n with O in * by (specialize (fresh_pat_increasing _ _ _ _ E); omega).
+  rewrite (IHW2 _ _ E').
+  rewrite (IHW1 _ _ E).
+  reflexivity.
+Qed.  
 
 Lemma fresh_pat_disjoint : forall W1 W2 n n1 n2 p1 p2,
       fresh_pat W1 n = (p1,n1) ->
@@ -825,33 +846,11 @@ Proof.
   repeat rewrite Mmult_plus_distr_l.
   repeat rewrite <- Mmult_assoc.
   
+  (* This makes progress. Haven't managed to run to completion yet. *)
   repeat reduce_matrix.
-  
-  
-  repeat rewrite <- Mmult_assoc. 
-
-
-  
-  let n := proof_size in idtac n.
-
-
-
-  reduce_matrix.
-
-  
-
-
-  rewrite Mmult_plus_distr_l.
-  
-
-
-
-  Set Printing Depth 100.
-  reduce_matrix.
-  
-  Search ".+".
-  reduce_matrix.
   solve_matrix.
+  
+
 Abort.
 
 
