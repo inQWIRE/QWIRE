@@ -343,3 +343,32 @@ Definition denote_box {W1 W2 : WType} (c : Box W1 W2) :=
     denote_min_box (hoas_to_min_box c).
 Instance Denote_Box {W1 W2} : Denote (Box W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
          {| denote := denote_box |}.
+
+Print compose.
+Program Fixpoint hoas_to_min_aux {w} (c: Circuit w) (li : list Var) (n : nat) 
+                          : list Var * nat * Min_Circuit w :=
+
+  match c with
+  | output p        => (li,n,min_output (hash_pat p li))
+  | gate g p c' => 
+    let p0 := hash_pat p li in
+    match g with
+    | U u           => let (ls0,n0,c0) := hoas_to_min_aux (c' p) li n in
+                       (ls0,n0,min_gate g p0 c0)
+    | init0 | init1 => let li0 := li ++ [n] in
+                       let n0 := S n in
+                       let (ls0',n0',c0') := hoas_to_min_aux (c' (qubit n)) li0 n0 in
+                       (ls0',n0',min_gate g p0 c0')
+    | new0 | new1   => let li0 := li ++ [n] in
+                       let n0 := S n in
+                       let (ls0',n0',c0') := hoas_to_min_aux (c' (bit n)) li0 n0 in
+                       (ls0',n0',min_gate g p0 c0')
+    | meas          => let (ls0,n0,c0) := hoas_to_min_aux (c' (qubit_to_bit p)) li n in
+                       (ls0,n0, min_gate g p0 c0)
+    | discard       => let li' := List.remove Nat.eq_dec (get_var p) li in
+                       let (ls0,n0,c0) := has_to_min_aux (c' unit) li' n in
+                       (ls0,n0,min_gate g p0 c0)
+    end
+  | lift p c'   =>  let li' := List.remove Nat.eq_dec (get_var p) li in
+                    min_lift (hash_pat p li) (fun b => hoas_to_min (c' b) li' n) 
+  end.

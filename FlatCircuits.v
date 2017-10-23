@@ -74,6 +74,32 @@ Arguments min_gate {w w1 w2}.
 Arguments min_lift {w}.
 Arguments min_box w1 {w2}.
 
+(*
+Fixpoint pat_subst (f : nat -> nat) {w} (p : Pat w) : Pat w :=
+  match p with
+  | unit => unit
+  | qubit x => qubit (f x)
+  | bit x => bit (f x)
+  | pair p1 p2 => pair (pat_subst f p1) (pat_subst f p2)
+  end.
+Fixpoint min_subst (f : nat -> nat) {w} (c : Min_Circuit w) : Min_Circuit w :=
+  match c with
+  | min_output p => min_output (pat_subst f p)
+  | min_gate g p c' => min_gate g (pat_subst f p) (min_subst _ c')
+
+Admitted.
+Definition pat_to_subst {w} (p : Pat w) : nat -> nat.
+Admitted.
+
+(* min_compose c c' plugs the $n$ outputs of c into the first n inputs of c' *)
+Fixpoint min_compose {w w'} (c : Min_Circuit w) (c' : Min_Circuit w') : Min_Circuit w' :=
+  match c with
+  | min_output p => min_subst (pat_to_subst p) c'
+  | min_gate g p c0 => min_gate g p (min_compose c0 c')
+  | min_lift p f => min_lift p (fun b => min_compose (f b) c')
+  end.
+*)
+
 (* Uses Nats *)
 Definition qubit_to_bit (p : Pat Qubit) : Pat Bit :=
   match p with 
@@ -104,6 +130,20 @@ Fixpoint hash_pat {w} (p : Pat w) (li : list Var) : Pat w :=
   | pair p1 p2 => pair (hash_pat p1 li) (hash_pat p2 li)
   end.
 
+
+
+(* The type of a gate tells us whether we are 
+   - keeping the same # of wires,
+   - adding some number of wires, or
+   - removing some number of wires
+*)
+
+(*
+Definition update_pat {w1 w2} (g : Gate w1 w2) (p : Pat w1) : Pat w2 :=
+  match g with
+  | 
+*)
+
 (* li maps free variables of c to qubit indices, 
    n is an upper bound on variables in c *) 
 Program Fixpoint hoas_to_min {w} (c: Circuit w) (li : list Var) (n : nat) 
@@ -111,7 +151,16 @@ Program Fixpoint hoas_to_min {w} (c: Circuit w) (li : list Var) (n : nat)
 
   match c with
   | output p        => min_output (hash_pat p li)
-  | gate g p c' => 
+  | @gate _ w1 w2 g p c' => 
+(*  let n1 := size_WType w1 in
+    let n2 := size_WType w2 in
+    let li' := if n2 < n1 then (* shrink the list by p--the only time the list shrinks is discard *)
+                               List.remove Nat.eq_dec (get_var p) li
+                          else (* expand the list *) li ++ (seq n (n2-n1)) in
+    let n' := n + (n2-n1) (* never want n to decrease *) in
+    
+    min_gate g (hash_pat p li) (hoas_to_min (c' _) li' n')
+*)    
     match g with
     | U u           => min_gate g (hash_pat p li) (hoas_to_min (c' p) li n)
     | init0 | init1 => min_gate g unit (hoas_to_min (c' (qubit n)) (li ++ [n]) (S n))
