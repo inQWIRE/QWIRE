@@ -289,20 +289,12 @@ Definition Splus {m n} (S T : Superoperator m n) : Superoperator m n :=
 
 (** Denoting Min Circuits **)
 
-Fixpoint pat_size {W} (p : Pat W) : nat := 
-  match p with
-  | unit       => 0
-  | bit x      => 1
-  | qubit x    => 1
-  | pair p1 p2 => (pat_size p1) + (pat_size p2)
-  end.
+(* Redefining to simply be the WType size *)
+Definition pat_size {W} (p : Pat W) : nat := size_WType W.
 
 Lemma pat_size_hash_pat : forall w (p : Pat w) ls, 
       pat_size (hash_pat p ls) = pat_size p.
-Proof. 
-  induction p; intros; auto.
-  simpl. rewrite IHp1, IHp2. reflexivity.
-Qed.
+Proof. intros. destruct p; reflexivity. Qed.
 
 (*
 Fixpoint get_output_size {w} (c : Min_Circuit w) :=
@@ -322,7 +314,7 @@ Definition get_box_output_size {W} (c : Min_Box W) :=
 Fixpoint denote_min_circuit {w}  (n : nat) (c : Min_Circuit w) : Superoperator (2^n) (2^〚w〛) 
   := 
   match c with 
-  | min_output p            => super (swap_list (〚w〛) (pat_to_list p))
+  | min_output p              => super (swap_list (〚w〛) (pat_to_list p))
   | @min_gate _ W1 W2 g p c'  => compose_super 
                                 (denote_min_circuit (n + 〚W2〛 - 〚W1〛) c')
                                 (apply_gate g (pat_to_list p))
@@ -344,31 +336,3 @@ Definition denote_box {W1 W2 : WType} (c : Box W1 W2) :=
 Instance Denote_Box {W1 W2} : Denote (Box W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
          {| denote := denote_box |}.
 
-Print compose.
-Program Fixpoint hoas_to_min_aux {w} (c: Circuit w) (li : list Var) (n : nat) 
-                          : list Var * nat * Min_Circuit w :=
-
-  match c with
-  | output p        => (li,n,min_output (hash_pat p li))
-  | gate g p c' => 
-    let p0 := hash_pat p li in
-    match g with
-    | U u           => let (ls0,n0,c0) := hoas_to_min_aux (c' p) li n in
-                       (ls0,n0,min_gate g p0 c0)
-    | init0 | init1 => let li0 := li ++ [n] in
-                       let n0 := S n in
-                       let (ls0',n0',c0') := hoas_to_min_aux (c' (qubit n)) li0 n0 in
-                       (ls0',n0',min_gate g p0 c0')
-    | new0 | new1   => let li0 := li ++ [n] in
-                       let n0 := S n in
-                       let (ls0',n0',c0') := hoas_to_min_aux (c' (bit n)) li0 n0 in
-                       (ls0',n0',min_gate g p0 c0')
-    | meas          => let (ls0,n0,c0) := hoas_to_min_aux (c' (qubit_to_bit p)) li n in
-                       (ls0,n0, min_gate g p0 c0)
-    | discard       => let li' := List.remove Nat.eq_dec (get_var p) li in
-                       let (ls0,n0,c0) := has_to_min_aux (c' unit) li' n in
-                       (ls0,n0,min_gate g p0 c0)
-    end
-  | lift p c'   =>  let li' := List.remove Nat.eq_dec (get_var p) li in
-                    min_lift (hash_pat p li) (fun b => hoas_to_min (c' b) li' n) 
-  end.

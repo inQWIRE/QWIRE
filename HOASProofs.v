@@ -35,6 +35,7 @@ Fixpoint pat_map {w} (f : Var -> Var) (p : Pat w) : Pat w :=
   | pair p1 p2 => pair (pat_map f p1) (pat_map f p2)
   end.
 
+(* Why are we defining this from scratch??? *)
 Fixpoint inb (a : Var) (ls : list Var) : bool :=
   match ls with
   | nil => false
@@ -57,6 +58,48 @@ Notation "ls1 ⊥ ls2" := (disjoint ls1 ls2 = true) (at level 30).
 
 Lemma disjoint_nil_l : forall ls, nil ⊥ ls. Proof. reflexivity. Qed.
 Lemma disjoint_nil_r : forall ls, ls ⊥ nil. Proof. induction ls; trivial. Qed.
+
+(*
+Lemma disjoint_cons : forall a ls1 ls2, (negb (inb a ls1)) = true ->
+                                   ls1 ⊥ ls2 ->
+                                   ls1 ⊥ (a :: ls2).
+Proof.
+  intros a ls1 ls2 H H0.
+  induction ls1.
+  apply disjoint_nil_l.
+  simpl in *.
+  Search ((_ =? _) = (_ =? _)).
+  rewrite Nat.eqb_sym.
+  destruct (a0 =? a). simpl in *. inversion H.
+  destruct (inb a0 ls2). simpl in *. inversion H0.
+  simpl in *.
+  apply IHls1; assumption.
+Qed.  
+*)
+
+Lemma disjoint_cons : forall a ls1 ls2, 
+    ((negb (inb a ls1)) && disjoint ls1 ls2 = disjoint ls1 (a :: ls2))%bool.
+Proof.
+  intros a ls1 ls2.
+  induction ls1. reflexivity.
+  simpl.
+  rewrite <- IHls1.
+  rewrite Nat.eqb_sym.
+  destruct (a =? a0), (inb a ls1), (inb a0 ls2); auto.
+Qed.  
+
+Lemma disjoint_symm : forall ls1 ls2, disjoint ls1 ls2 = disjoint ls2 ls1.
+Proof. intros. 
+       induction ls1.
+       - simpl.
+         symmetry.
+         apply disjoint_nil_r.
+       - simpl.
+         rewrite <- disjoint_cons.
+         rewrite IHls1.
+         reflexivity.
+Qed.         
+         
 
 Lemma eqb_neq : forall x y, x <> y -> x =? y = false.
 Proof.
@@ -113,6 +156,20 @@ Proof.
     destruct H; auto.
 Qed.
 
+Lemma disjoint_app_r : forall ls1 ls2 ls,
+      ls1 ⊥ ls -> 
+      ls2 ⊥ ls ->
+      (ls1 ++ ls2) ⊥ ls.
+Proof.
+  induction ls1; intros ls2 ls H H0.
+  - simpl. assumption.
+  - simpl in *.
+    apply Bool.andb_true_iff in H.
+    destruct H as [H_a_ls H].
+    rewrite H_a_ls.
+    simpl.
+    apply IHls1; assumption.
+Qed.
 
 Lemma hash_pat_app_l : forall {w} (p : Pat w) ls1 ls2, 
       (* dom p ∩ ls1 = dom p *)
@@ -166,7 +223,7 @@ Lemma pat_size_length_list : forall {w} (p : Pat w),
       pat_size p = length (pat_to_list p).
 Proof.
   induction p; auto.
-  simpl. rewrite IHp1, IHp2.
+  unfold pat_size in *. simpl. rewrite IHp1, IHp2.
   rewrite app_length.
   reflexivity.
 Qed.
@@ -237,20 +294,13 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma fresh_pat_size : forall W p m n,
-      fresh_pat W m = (p,n) ->
+(*
+Lemma fresh_pat_size : forall W p m,
+      fresh_pat W m = p ->
       pat_size p = 〚W〛.
 Proof.
-  induction W; simpl; intros p m n H;
-    try (inversion H; auto; fail).
-  destruct (fresh_pat W1 m) as [p1 m1] eqn:H1.
-  destruct (fresh_pat W2 m1) as [p2 m2] eqn:H2.
-  inversion H; simpl.
-  rewrite (IHW1 _ _ _ H1).
-  rewrite (IHW2 _ _ _ H2).
   reflexivity.
 Qed.
-
 
 Lemma fresh_pat_increasing : forall W n n' p,
   fresh_pat W n = (p, n') ->
@@ -271,7 +321,7 @@ Proof.
 Qed.  
 
 Lemma pat_to_list_empty : forall W n p,
-    fresh_pat W n = (p, O) ->
+    fresh_pat W n = (p,0) ->
     pat_to_list p = nil.
 Proof.
   intros W.
@@ -287,52 +337,78 @@ Proof.
   rewrite (IHW1 _ _ E).
   reflexivity.
 Qed.  
+*)
 
-Lemma fresh_pat_disjoint : forall W1 W2 n n1 n2 p1 p2,
-      fresh_pat W1 n = (p1,n1) ->
-      fresh_pat W2 n1 = (p2,n2) ->
+Lemma n_nm_neq : forall n m, n =? n + 1 + m = false.
+Proof. intros. induction n. simpl. reflexivity.
+       simpl. assumption.
+Qed.
+
+Lemma fresh_pat_disjoint_aux : forall W1 W2 n m p1 p2,
+      p1 = fresh_pat W1 n ->
+      p2 = fresh_pat W2 (n + size_WType W1 + m ) ->
       pat_to_list p2 ⊥ pat_to_list p1.
 Proof.
   induction W1; intros.
-  - inversion H. subst. admit.
-  - inversion H. subst. admit.
-  - inversion H. subst. simpl.
-    admit.
-  - inversion H.
-    destruct (fresh_pat W1_1 n) as [p1' n'] eqn:H_p1.
-    destruct (fresh_pat W1_2 n') as [p2' n''] eqn:H_p2.
-    inversion H2. subst.
-    admit.
-Admitted.
+  - simpl in *. subst. 
+    generalize dependent m.
+    induction W2; intros. 
+    + simpl. rewrite n_nm_neq. reflexivity. 
+    + simpl. rewrite n_nm_neq. reflexivity. 
+    + simpl. reflexivity.
+    + simpl. apply disjoint_app_r. apply IHW2_1. rewrite <- plus_assoc. apply IHW2_2.
+  - simpl in *. subst. 
+    generalize dependent m.
+    induction W2; intros. 
+    + simpl. rewrite n_nm_neq. reflexivity. 
+    + simpl. rewrite n_nm_neq. reflexivity. 
+    + simpl. reflexivity.
+    + simpl. apply disjoint_app_r. apply IHW2_1. rewrite <- plus_assoc. apply IHW2_2.
+  - simpl in H. subst. simpl. apply disjoint_nil_r.
+  - subst.
+    simpl.
+    rewrite disjoint_symm.
+    apply disjoint_app_r; rewrite disjoint_symm.
+    eapply IHW1_1.
+    reflexivity.
+    rewrite plus_assoc.
+    rewrite <- plus_assoc.
+    reflexivity.
+    eapply IHW1_2.
+    reflexivity.
+    rewrite plus_assoc.
+    reflexivity.
+Qed.
 
-Lemma fresh_pat_wf : forall W p m n, fresh_pat W m = (p,n) -> WF_Pat p.
+Lemma fresh_pat_disjoint : forall W1 W2 n p1 p2,
+      p1 = fresh_pat W1 n ->
+      p2 = fresh_pat W2 (n + size_WType W1) ->
+      pat_to_list p2 ⊥ pat_to_list p1.
+Proof. intros. apply fresh_pat_disjoint_aux with (n:=n) (m:=O). 
+       apply H. rewrite plus_0_r. apply H0.
+Qed.    
+
+Lemma fresh_pat_wf : forall W p m, fresh_pat W m = p -> WF_Pat p.
 Proof.
   induction W; simpl; intros.
   - inversion H. constructor.
   - inversion H; constructor.
   - inversion H; constructor.
-  - destruct (fresh_pat W1) as [p1 m1] eqn:H1.
-    destruct (fresh_pat W2) as [p2 m2] eqn:H2.
-    inversion H.
+  - inversion H.
     constructor; auto; [ | eapply IHW1; eauto | eapply IHW2; eauto].
     eapply fresh_pat_disjoint; eauto.
 Qed.
 
-
 Lemma pat_WType_size : forall W (p : Pat W), pat_size p = size_WType W.
-Proof.
-  induction p; auto. simpl.
-  rewrite IHp1, IHp2. reflexivity.
-Qed.
+Proof. reflexivity. Qed.
 
 Lemma id_circ_Id : forall W ρ, WF_Matrix (2^〚W〛) (2^〚W〛) ρ -> 
     〚@id_circ W〛 ρ = ρ.
 Proof.
   intros W ρ H. 
   repeat (simpl; autounfold with den_db).
-  remember (FlatCircuits.fresh_pat W 0) as r.
-  destruct r as [p n].
-  assert (wf_p : WF_Pat p) by (apply (fresh_pat_wf W p 0 n); auto).
+  remember (FlatCircuits.fresh_pat W 0) as p.
+  assert (wf_p : WF_Pat p) by (apply (fresh_pat_wf W p 0); auto).
   repeat (simpl; autounfold with den_db).
   rewrite hash_pat_pat_to_list; auto.
 (*  rewrite pat_size_hash_pat.*)
@@ -367,9 +443,8 @@ Proof.
   intros W U ρ wfρ. 
   specialize (unitary_gate_unitary U); intros [WFU UU].
   repeat (simpl; autounfold with den_db).
-  remember (FlatCircuits.fresh_pat W 0) as r.
-  destruct r as [p n].
-  assert (wf_p : WF_Pat p) by (apply (fresh_pat_wf W p 0 n); auto).
+  remember (FlatCircuits.fresh_pat W 0) as p.
+  assert (wf_p : WF_Pat p) by (apply (fresh_pat_wf W p 0); auto).
   repeat (simpl; autounfold with den_db).
 
   rewrite minus_plus, Nat.leb_refl.
@@ -446,20 +521,23 @@ Lemma compose_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2),
 Proof.
   intros.
   autounfold with den_db; simpl. 
-  destruct f as [f]. 
+  destruct f as [f], g as [g]. 
   autounfold with den_db; simpl. 
-  destruct (fresh_pat W1 0) as [p n] eqn:H_p_n.
+  remember (fresh_pat W1 0) as p eqn:H_p_n.
   autounfold with den_db; simpl. 
   set (c := f p).
-  induction c.
+  induction c eqn:E.
   - autounfold with den_db; simpl. 
-    replace (denote_min_circuit (size_WType W1) (hoas_to_min (unbox g p0) (pat_to_list p) n)) with (denote_circuit p0 (unbox g p0)).
-    * autounfold with den_db.
+    unfold denote_min_box.
+    simpl.
+    apply FunctionalExtensionality.functional_extensionality.
+    intros ρ.
+    simpl.
+    remember (fresh_pat W2 0) as p2' eqn:H_p_n2.
+    assert (size_WType W1 = size_WType W2).
+      unfold Typed_Box in H0.
+      simpl in H0.
       admit.
-
-    * unfold denote_circuit. simpl. admit.
-  - admit.
-  - admit.
 Abort.
 
 

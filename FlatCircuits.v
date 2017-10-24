@@ -20,16 +20,25 @@ Inductive Flat_Box w1 w2 : Set :=
 | flat_box : Pat w1 -> Flat_Circuit w2 -> Flat_Box w1 w2.
 Arguments flat_box {w1 w2}.
 
-Fixpoint fresh_pat (W : WType) (n : nat) : Pat W * nat := 
+(* Fixpoint fresh_pat (W : WType) (n : nat) : Pat W * nat :=  *)
+(*   match W with  *)
+(*   | One => (unit, n)  *)
+(*   | Qubit => (qubit n, S n) *)
+(*   | Bit => (bit n, S n) *)
+(*   | W1 ⊗ W2 => let (p1,n') := fresh_pat W1 n in *)
+(*                let (p2,n'') := fresh_pat W2 n' in *)
+(*                ((pair p1 p2), n'') *)
+(*   end. *)
+
+Fixpoint fresh_pat (W : WType) (n : nat) : Pat W := 
   match W with 
-  | One => (unit, n) 
-  | Qubit => (qubit n, S n)
-  | Bit => (bit n, S n)
-  | W1 ⊗ W2 => let (p1,n') := fresh_pat W1 n in
-               let (p2,n'') := fresh_pat W2 n' in
-               ((pair p1 p2), n'')
+  | One => unit 
+  | Qubit => qubit n
+  | Bit => bit n
+  | W1 ⊗ W2 => pair (fresh_pat W1 n) (fresh_pat W2 (n + (size_WType W1)))
   end.
-Print gate.
+
+(*
 Definition hoas_to_flat {w} (c : Circuit w) (n : nat): Flat_Circuit w.
 Proof.
   generalize dependent n.
@@ -39,24 +48,25 @@ Proof.
     refine (flat_gate g p p' (H p' n')).
   - refine (flat_lift p (fun b => H b n)).
 Defined.
-(*
+*)
+
+Search "size".
+
 Fixpoint hoas_to_flat {w} (c : Circuit w) (n : nat): Flat_Circuit w :=
   match c with
-  | output p          => flat_output p
+  | output p             => flat_output p
   (* This case isn't necessary, but it saves us from constructing extra patterns *)
 (*  | gate (U u) p c'      => flat_gate (U u) p p (hoas_to_flat _ (c' p) n)*)
-  | gate g p c' => let (p',n') := fresh_pat _ n in
-                   flat_gate g p p' (hoas_to_flat (c p') n')
-  | lift p c          => _ (*flat_lift p (fun b => hoas_to_flat  (c b) n)*)
+  | @gate _ W1 W2 g p c' => let p' := fresh_pat W2 n in
+                           flat_gate g p p' (hoas_to_flat (c' p') (n + size_WType W2))
+  | lift p c             => flat_lift p (fun b => hoas_to_flat  (c b) n)
   end.
-*)
 
 Definition hoas_to_flat_box {w1 w2} (B : Box w1 w2) : Flat_Box w1 w2 :=
   match B with
-  | box c => let (p, n) := fresh_pat w1 0  in 
-            flat_box p (hoas_to_flat (c p) n)
+  | box c => let p := fresh_pat w1 0  in 
+            flat_box p (hoas_to_flat (c p) (size_WType w1))
   end.
-
 
 Fixpoint pat_to_list {w} (p : Pat w) : list Var := 
   match p with
@@ -65,7 +75,6 @@ Fixpoint pat_to_list {w} (p : Pat w) : list Var :=
   | qubit x => [x]
   | pair p1 p2 => (pat_to_list p1) ++ (pat_to_list p2)
   end.
-
 
 
 (* Uses Nats *)
@@ -77,7 +86,7 @@ Definition qubit_to_bit (p : Pat Qubit) : Pat Bit :=
 (* Original:
 Parameter decrement_above : nat -> Circuit -> Circuit. *)
 
-(* Expects a bit - otherwise returns 0 *)
+(* Expects a (qu)bit - otherwise returns 0 *)
 Definition get_var {w} (p : Pat w) := match p with 
                                 | bit n => n 
                                 | qubit n => n
@@ -117,8 +126,6 @@ Arguments min_output {w}.
 Arguments min_gate {w w1 w2}.
 Arguments min_lift {w}.
 Arguments min_box w1 {w2}.
-
-Search (?a -> list ?a -> option nat).
 
 About pat_to_list.
 Definition substitution := list nat.
@@ -207,7 +214,6 @@ Definition update_pat {w1 w2} (g : Gate w1 w2) (p : Pat w1) : Pat w2 :=
 *)
 
 Require Import Monad.
-Print hash_pat.
 Definition MyState := State (substitution * Var).
 Definition state_get {τ} : State τ τ :=
   fun z => (z,z).
@@ -241,8 +247,8 @@ Definition hash_pat_M {w} (p : Pat w) : MyState (Pat w) :=
 
 Definition fresh_pat_M {w} : MyState (Pat w) :=
   do m ← get_fresh;
-  let (p,n) := fresh_pat w m in
-  do _ ← put_fresh n;
+  let p := fresh_pat w m in
+  do _ ← put_fresh (size_WType w);
   do _ ← update_σ (pat_to_list p);
   return_ p.
 
@@ -310,9 +316,9 @@ Program Fixpoint hoas_to_min {w} (c: Circuit w) (li : list Var) (n : nat)
 
 Definition hoas_to_min_box {w1 w2} (B : Box w1 w2) :=
   match B with
-  | box c => let (p, n) := fresh_pat w1 0 in
+  | box c => let p := fresh_pat w1 0 in
              let li := pat_to_list p in 
-             min_box w1 (hoas_to_min (c p) li n)
+             min_box w1 (hoas_to_min (c p) li (size_WType w1))
   end.
 
 (* Flat Circuit Examples *)
