@@ -55,7 +55,7 @@ Definition size_OCtx (Γ : OCtx) : nat :=
 Lemma ctx_octx : forall Γ Γ', Valid Γ = Valid Γ' <-> Γ = Γ'.
 Proof. intuition; congruence. Defined.
 
-Inductive SingletonCtx : Var -> WType -> Ctx -> Set :=
+Inductive SingletonCtx : Var -> WType -> Ctx -> Prop :=
 | SingletonHere : forall w, SingletonCtx 0 w [Some w]
 | SingletonLater : forall x w Γ, SingletonCtx x w Γ -> SingletonCtx (S x) w (None::Γ)
 .
