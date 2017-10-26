@@ -6,6 +6,9 @@ MachineProofs.vo: MachineProofs.v MachineExamples.vo Denotation.vo
 MachineCircuits.vo : MachineCircuits.v Contexts.vo FlatCircuits.vo HOASCircuits.vo Denotation.vo
 	coqc MachineCircuits.v
 
+DBCircuits.vo : DBCircuits.v Contexts.vo HOASCircuits.vo Monad.vo
+	coqc DBCircuits.v
+
 MachineExamples.vo: MachineExamples.v MachineCircuits.vo
 	coqc MachineExamples
 

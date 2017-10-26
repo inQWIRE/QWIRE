@@ -121,7 +121,7 @@ Arguments min_box w1 {w2}.
 Search (?a -> list ?a -> option nat).
 
 About pat_to_list.
-Definition substitution := list nat.
+Definition substitutionx := list nat.
 Definition apply_substitution (σ : substitution) (x : nat) := lookup x σ.
 
 
