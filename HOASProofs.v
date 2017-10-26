@@ -557,8 +557,10 @@ Lemma denote_min_unbox : forall { w2} (b : Box One w2),
       〚b〛 = denote_min_circuit 0 0 (evalState (hoas_to_min_aux (unbox b ())) (nil,0%nat)%core).
 Admitted.
 
+Require Import Program.
+Open Scope circ_scope.
 
-
+Hint Unfold super_Zero : den_db.
 Lemma flips_correct : forall n, 〚coin_flips n〛 I1 = biased_coin (2^n).
 Proof.
   induction n.  
@@ -613,63 +615,37 @@ Proof.
       }
       rewrite IHn'.
       replace d' with (evalState (hoas_to_min_aux (f (get_output c 0))) s')
-    
-        rewrite denote_min_unbox in IHn.
-        rewrite IHn.
-
-        simpl in IHn.
-        repeat autounfold with den_db in IHn.
-        rewrite 
-
-    
-        unfold denote_min_box, hoas_to_min_box in IHn.
-      }
-      
-      unfold c.
-    -
-
-
-repeat (autounfold with monad_db; simpl).
-      unfold remove_pat_M.
+        by (unfold substitution, Var in *; repeat autounfold with monad_db in *; 
+            rewrite H_d'; reflexivity).
+      unfold f. 
       repeat (autounfold with monad_db; simpl).
-    }
+      destruct (remove_pat_M (get_output c 0) (fst s' ++ snd s' :: nil, S (snd s'))%core) eqn:H_remove_pat.
+      unfold substitution, Var in *. rewrite H_remove_pat. simpl.
+      set (p0 := get_output c 0).
+      dependent destruction p0. rewrite <- x.
+      simpl.
 
-    * autounfold with den_db. 
-    *
-    *
-    *
-
-
-    Unshelve.
-
-with (pf_typed := ).
-
-
-About denote_min_compose. About hoas_to_min_compose.
-
-  fold_evalState. 
-
-
-
-  
-  
-
-  compose_super (denote_min_circuit pad (n - size_WType w + 
-  
-  simpl.
-  Search denote_min_circuit min_compose.
-  erewrite denote_min_compose.
-  replace a with (evalState (hoas_to_min_aux c) s)
-    by (repeat autounfold with monad_db; rewrite H_a; reflexivity).
-  replace a' with (evalState (hoas_to_min_aux (f (get_output a))))
-
-  compose_super (denote_min_circuit pad _ (evalState (hoas
-
-    unfold hoas_to_min_compose. 
-
-    repeat (autounfold with monad_db; simpl).
-    
-Abort.
+      autounfold with den_db.
+      set (y := lookup (snd s') (fst p)).
+      set (y' := lookup v (fst s' ++ [snd s'])).
+      destruct y.
+      * simpl. destruct y'.
+        ++ autounfold with den_db.
+           autorewrite with M_db.
+           admit (* clearly a bug in the dimensions *).
+        ++ simpl.
+           autounfold with den_db. simpl.
+           autorewrite with M_db.
+           admit.
+      * simpl. destruct y'.
+        ++ simpl.
+           autounfold with den_db. simpl.
+           autorewrite with M_db.
+           admit.
+        ++ simpl.
+           autounfold with den_db. simpl.
+           autorewrite with M_db.
+Admitted.
 
 Lemma cnot_eq : cnot = control pauli_x.
 Proof.
