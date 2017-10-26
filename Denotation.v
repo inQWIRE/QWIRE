@@ -1,4 +1,5 @@
 Require Import Program. 
+Require Import Monad.
 Require Export Contexts.
 Require Import HOASCircuits.
 Require Import FlatCircuits.
@@ -23,6 +24,20 @@ Class Denote_Correct {source target} `(Denote source target) :=
 (** Unitary Denotation **)
 
 Instance Denote_WType : Denote WType nat := {| denote := size_WType |}.
+
+Fixpoint denote_Ctx (Γ : Ctx) : nat :=
+  match Γ with
+  | nil => 0
+  | Some _ :: Γ' => S (denote_Ctx Γ')
+  | None :: Γ' => denote_Ctx Γ'
+  end.
+Definition denote_OCtx (Γ : OCtx) : nat :=
+  match Γ with
+  | Invalid => 0
+  | Valid Γ' => denote_Ctx Γ'
+  end.
+Instance Denote_OCtx : Denote OCtx nat := {| denote := denote_OCtx |}.
+
 
 Fixpoint denote_unitary {W} (U : Unitary W) : Square (2^〚W〛) :=
   match U with  
@@ -318,23 +333,24 @@ Definition get_box_output_size {W} (c : Min_Box W) :=
   end. 
 *)
 
-(* n is the input size *)
-Fixpoint denote_min_circuit {w}  (n : nat) (c : Min_Circuit w) : Superoperator (2^n) (2^〚w〛) 
+(* n is the input size *) About apply_gate.
+Fixpoint denote_min_circuit {w}  (pad n : nat) (c : Min_Circuit w) 
+                          : Superoperator (2^(n+pad)) (2^(〚w〛 + pad))
   := 
   match c with 
   | min_output p            => super (swap_list (〚w〛) (pat_to_list p))
   | @min_gate _ W1 W2 g p c'  => compose_super 
-                                (denote_min_circuit (n + 〚W2〛 - 〚W1〛) c')
+                                (denote_min_circuit pad (n + 〚W2〛 - 〚W1〛) c')
                                 (apply_gate g (pat_to_list p))
   (* I think we need a weighing here - also a measure-discard *)
-  | min_lift p c'   => Splus (denote_min_circuit n (c' true))
-                             (denote_min_circuit n (c' false))
+  | min_lift p c'   => Splus (denote_min_circuit pad n (c' true))
+                             (denote_min_circuit pad n (c' false))
   end.
 
 Definition denote_min_box {W1 W2} (c : Min_Box W1 W2) : 
   Superoperator (2 ^ 〚 W1 〛) (2 ^ 〚 W2 〛) :=
   match c with
-  | min_box _ c' => denote_min_circuit (〚W1〛) c'  
+  | min_box _ c' => denote_min_circuit 0 (〚W1〛) c'  
   end.
 
 (** Denoting hoas circuits **)
@@ -344,31 +360,110 @@ Definition denote_box {W1 W2 : WType} (c : Box W1 W2) :=
 Instance Denote_Box {W1 W2} : Denote (Box W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
          {| denote := denote_box |}.
 
-Print compose.
-Program Fixpoint hoas_to_min_aux {w} (c: Circuit w) (li : list Var) (n : nat) 
-                          : list Var * nat * Min_Circuit w :=
+About min_compose.
 
-  match c with
-  | output p        => (li,n,min_output (hash_pat p li))
-  | gate g p c' => 
-    let p0 := hash_pat p li in
-    match g with
-    | U u           => let (ls0,n0,c0) := hoas_to_min_aux (c' p) li n in
-                       (ls0,n0,min_gate g p0 c0)
-    | init0 | init1 => let li0 := li ++ [n] in
-                       let n0 := S n in
-                       let (ls0',n0',c0') := hoas_to_min_aux (c' (qubit n)) li0 n0 in
-                       (ls0',n0',min_gate g p0 c0')
-    | new0 | new1   => let li0 := li ++ [n] in
-                       let n0 := S n in
-                       let (ls0',n0',c0') := hoas_to_min_aux (c' (bit n)) li0 n0 in
-                       (ls0',n0',min_gate g p0 c0')
-    | meas          => let (ls0,n0,c0) := hoas_to_min_aux (c' (qubit_to_bit p)) li n in
-                       (ls0,n0, min_gate g p0 c0)
-    | discard       => let li' := List.remove Nat.eq_dec (get_var p) li in
-                       let (ls0,n0,c0) := has_to_min_aux (c' unit) li' n in
-                       (ls0,n0,min_gate g p0 c0)
-    end
-  | lift p c'   =>  let li' := List.remove Nat.eq_dec (get_var p) li in
-                    min_lift (hash_pat p li) (fun b => hoas_to_min (c' b) li' n) 
-  end.
+
+Lemma denote_min_subst : forall pad n σ w (c : Min_Circuit w),
+      denote_min_circuit pad n (min_subst σ c)
+    = compose_super (denote_min_circuit pad n c)
+                    (super (swap_list (length σ) σ)).
+Admitted.
+
+
+Lemma size_WType_length : forall {w} (p : Pat w),
+      length (pat_to_list p) = size_WType w.
+Admitted.
+
+Lemma compose_super_assoc : forall {m n p q}
+      (f : Superoperator m n) (g : Superoperator n p) (h : Superoperator p q), 
+      compose_super (compose_super f g) h
+    = compose_super f (compose_super h h).
+Admitted.
+
+(* n is the number of inputs to c'. the number of inputs to c might be less than
+that. *)
+(* TODO: might need to add a hypothesis relating n1 and n2 to the actual inputs
+of c1 and c2 *)
+Lemma denote_min_compose : forall n1 n2 n pad w1 w2 
+                                  (c1 : Min_Circuit w1) (c2 : Min_Circuit w2),
+      (n = n1 + n2)%nat (* n1 is the number of wires going into c1, n is the
+      total number of input wires, so n2 is the number of wires going ONLY into
+      c2. Thus the total number of wires into c2 is (n - |w1| + n2) *) ->
+      denote_min_circuit pad n (min_compose c1 c2)
+    = compose_super
+      (denote_min_circuit pad (n - size_WType w1 + n2) c2)
+      (denote_min_circuit (pad + n2) n1 c1).
+Proof.
+  intros.
+  generalize dependent w2.
+  generalize dependent n.
+  generalize dependent n1.
+  generalize dependent n2. 
+  generalize dependent pad0.
+  induction c1; intros; simpl.
+  - rewrite denote_min_subst. unfold mk_subst.
+    rewrite size_WType_length.
+    admit.
+  - erewrite IHc1 with (n1 := (n1 + size_WType w2 - size_WType w0)%nat) (n2 := n2) by admit.
+    admit (* some problem with implicit arguments? *).
+    (*rewrite (compose_super_assoc (denote_min_circuit pad0 (n + size_WType w2 - size_WType w0) c2)
+                                 (denote_min_circuit (pad0 + n2) (n1 + size_WType w2 - size_WType w0) c1)
+                                 (apply_gate g (pat_to_list p))).*)
+  - admit.
+Admitted.
+
+
+
+Record valid_merge Γ1 Γ2 Γ :=
+  { pf_valid : is_valid Γ
+  ; pf_merge : Γ = Γ1 ⋓ Γ2 }.
+(* pretty bad notation *)
+Notation "Γ ↝ Γ1 ∙ Γ2" := (valid_merge Γ1 Γ2 Γ) (at level 20).
+
+Record Types_Compose {w w'} (c : Circuit w) (f : Pat w -> Circuit w') :=
+  { ctx_c : OCtx  (* Γ1 *)
+  ; ctx_out: OCtx (* Γ1' *)
+  ; ctx_in : OCtx (* Γ *)
+  ; pf_ctx : ctx_out ↝ ctx_c ∙ ctx_in (* Γ1' = Γ1 ⋓ Γ *)
+  ; types_c : Types_Circuit ctx_c c 
+  ; types_f : forall p Γ2 Γ2', Γ2' ↝ Γ2 ∙ ctx_in -> 
+                               Types_Pat Γ2 p -> Types_Circuit Γ2' (f p) 
+  }.
+
+Arguments ctx_c {w w' c f}.
+Arguments ctx_out {w w' c f}.
+Arguments ctx_in  {w w' c f}.
+Arguments pf_ctx {w w' c f}.
+Arguments types_c {w w' c f}.
+Hint Unfold fresh_pat_M : monad_db.
+
+
+
+Lemma merge_size : forall Γ1 Γ2 Γ,
+      Γ ↝ Γ1 ∙ Γ2 -> (〚Γ〛 = 〚Γ1〛 + 〚Γ2〛)%nat.
+Admitted.
+
+(*〚〛*)
+Lemma denote_min_compose' : forall {w w'}  pad n s s' s''
+                                   (c : Circuit w) (f : Pat w -> Circuit w') d d'
+      (pf_typed : Types_Compose c f),
+      n = 〚ctx_out pf_typed〛 ->
+      
+      runState (hoas_to_min_aux c) s = (d,s') ->
+      runState (hoas_to_min_aux (f (get_output c (snd s)))) s' = (d',s'') ->
+      denote_min_circuit pad n (evalState (hoas_to_min_compose c f) s) 
+    = compose_super 
+       (denote_min_circuit pad (〚ctx_out pf_typed〛 - 〚w〛 + 〚ctx_in pf_typed〛) d')
+       (denote_min_circuit (pad + 〚ctx_in pf_typed〛) (〚ctx_c pf_typed〛) d).
+Proof. 
+  intros w w' pad n s s' s'' c f d d' pf_typed pf_n H_d H_d'. 
+  unfold hoas_to_min_compose.
+  repeat (autounfold with monad_db in *; simpl).
+  rewrite H_d.
+  rewrite H_d'. simpl.
+  rewrite denote_min_compose 
+    with (n1 := 〚ctx_c pf_typed〛) (n2 := 〚ctx_in pf_typed〛)
+    by (subst; apply merge_size; apply (pf_ctx pf_typed)).
+  subst. 
+  reflexivity.
+Qed.

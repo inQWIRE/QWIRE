@@ -688,12 +688,14 @@ Definition clone : Box Qubit (Qubit ⊗ Qubit) := box_ p ⇒ (output (p,p)).
 Lemma clone_WT : Typed_Box clone.
 Proof. type_check. Abort.
 
+(*
 Program Definition split_qubit : Box Qubit (Qubit ⊗ Qubit) :=
   box_ w ⇒ 
     let_ (w1,w2)  ← output w ;
     gate_ w2'     ← H @w2 ; 
     output (w1,w2').
 Next Obligation. Abort.
+*)
 
 Close Scope circ_scope.
 (* *)

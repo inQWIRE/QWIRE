@@ -37,6 +37,7 @@ Class Monad (m: Type -> Type) `{M : Applicative m} : Type :=
 Definition return_ {m : Type -> Type} `{M : Monad m} {A : Type} : A -> m A := pure.
 Notation "a >>= f" := (bind a f) (at level 50, left associativity).
 
+Hint Unfold bind return_ : monad_db.
 
 Class Monad_Correct (m : Type -> Type) `{M : Monad m} := {
   bind_right_unit: forall A (a: m A), a = a >>= return_;
@@ -47,9 +48,9 @@ Class Monad_Correct (m : Type -> Type) `{M : Monad m} := {
 }.
 
 Arguments Functor f.
-Arguments Functor_Correct f [F].
-Arguments Applicative f [F].
-Arguments Applicative_Correct f [F].
+Arguments Functor_Correct f {F}.
+Arguments Applicative f [F]. 
+Arguments Applicative_Correct f {F} {A} : rename.
 Arguments Monad m [F] [M].
 Arguments Monad_Correct m [F] [A] [M] : rename.
 
@@ -67,10 +68,60 @@ Section monadic_functions.
 
  Definition join {A: Type} (mma: m (m A)): m A :=
  mma >>= (fun  ma => ma).
+
 End monadic_functions.
 
 Notation "a >> f" := (wbind _ a f) (at level 50, left associativity).
 Notation "'do' a ← e ; c" := (e >>= (fun  a => c)) (at level 60, right associativity).
+
+
+Fixpoint foldM {A B m} `{Monad m} 
+               (f : B -> A -> m B) (b : B) (ls : list A) : m B :=
+  match ls with
+  | nil      => return_ b
+  | x :: ls' => do y ← f b x;
+                foldM f y ls'
+  end.
+Hint Unfold foldM : monad_db.
+
+Require Import Program.
+Lemma bind_eq : forall {A B m} `{Monad m} (a a' : m A) (f f' : A -> m B),
+      a = a' ->
+      (forall x, f x = f' x) ->
+      bind a f = bind a' f'.
+Proof.
+  intros. subst.
+  f_equal.
+  apply functional_extensionality.
+  auto.
+Qed.
+
+Ltac simplify_monad_LHS :=
+  repeat match goal with
+  | [ |- bind (return_ _) _ = _ ] => rewrite <- bind_left_unit
+  | [ |- bind (bind _ _) _ = _ ]  => rewrite <- bind_associativity
+  | [ |- _ = _ ]                  => reflexivity
+  | [ |- bind ?a ?f = _ ]         => erewrite bind_eq; intros; 
+                                     [ | simplify_monad_LHS | simplify_monad_LHS ]
+  end.
+
+Ltac simplify_monad :=
+  simplify_monad_LHS;
+  apply eq_sym;
+  simplify_monad_LHS;
+  apply eq_sym.
+
+Ltac simpl_m :=
+  repeat (try match goal with
+  [ |- bind ?a _ = bind ?a _ ] => apply bind_eq; [ reflexivity | intros ]
+  end; simplify_monad).
+
+Lemma test : forall {m} `{Monad m} `{Monad_Correct m} (a b c : m unit),
+        do x ← a; do y ← b;  c
+      = do y ← (do x ← a; b); c.
+Proof. intros.
+simplify_monad.
+Abort.
 
 (** * Some classic Monads *)
 
@@ -83,6 +134,7 @@ Definition list_fmap {A B} (f : A -> B) :=
   | nil => nil
   | a :: t => f a :: map t
   end.
+Hint Unfold list_fmap : monad_db.
 (*
 Fixpoint list_fmap {A B} (f : A -> B) (ls : list A) : list B :=
   match ls with
@@ -100,12 +152,14 @@ Definition list_liftA {A B} (fs : list (A -> B)) (xs : list A) : list B :=
   let g := fun a => list_fmap (fun f => f a) fs
   in
   concat (list_fmap g xs).
+Hint Unfold list_liftA : monad_db.
 
 Fixpoint list_bind {A} (xs : list A) {B} (f : A -> list B) : list B :=
   match xs with
   | nil => nil
   | a :: xs' => f a ++ list_bind xs' f
   end.
+Hint Unfold list_bind : monad_db.
 
 Instance listF : Functor list := { fmap := @list_fmap }.
 Instance listA : Applicative list := { pure := fun _ x => x :: nil
@@ -216,37 +270,94 @@ Defined.
 *)
 (** ** The State monad *)
 
-Axiom Ext: forall A (B: A->Type) (f g: forall a, B a), (forall a, f a = g a) -> f = g.
+Require Import Program.
+Section State.
+(*Axiom Ext: forall A (B: A->Type) (f g: forall a, B a), (forall a, f a = g a) -> f = g.*)
 
-Definition State (S : Type) (A : Type) := S -> A * S.
-Definition state_fmap S A B (f : A -> B) (st : State S A) : State S B :=
-  fun  s => let (a,s) := st s in (f a,s).
-Definition state_liftA S A B (st_f : State S (A -> B)) (st_a : State S A) :=
-  fun  s => let (f,s) := st_f s in
-        let (a,s) := st_a s in
-        (f a,s).
-Definition state_bind S A (st_a : State S A) B  (f : A -> State S B) :=
-  fun  s => let (a,s) := st_a s in
-        f a s.
+  Variable S : Type.
 
-Instance stateF S : Functor (State S) :=
-  { fmap := @state_fmap S }.
-Instance stateA S : Applicative (State S) :=
-  { pure := fun  A a s=> (a,s);
-    liftA := @state_liftA S }.
-Instance stateM S : Monad (State S) :=
-  { bind := @state_bind S }.
+  Definition State (A : Type) := S -> A * S.
+  Definition state_fmap A B (f : A -> B) (st : State A) : State B :=
+    fun  s => let (a,s) := st s in (f a,s).
+  Definition state_liftA A B (st_f : State (A -> B)) (st_a : State A) :=
+    fun  s => let (f,s) := st_f s in
+              let (a,s) := st_a s in
+              (f a,s).
+  Definition state_bind A (st_a : State A) B  (f : A -> State B) :=
+    fun  s => let (a,s) := st_a s in
+              f a s.
 
-(*
-(* Checking the 3 laws *)
- (* unit_left *)
- abstract (intros;apply Ext;intros s;destruct (a s);split).
- (* unit_right *)
- abstract (intros;apply Eta).
- (* associativity *)
- abstract (intros;apply Ext;intros s;destruct (ma s);reflexivity).
-Defined.
-*)
+  Definition put (x : S) : State () :=
+    fun _ => (tt,x).
+  Definition get : State S :=
+    fun x => (x,x).
+  Definition runState  {A} (op : State A) : S -> A * S := op.
+  Definition evalState {A} (op : State A) : S -> A := fst ∘ op.
+  Definition execState {A} (op : State A) : S -> S := snd ∘ op.
+
+
+
+End State.
+Hint Unfold put get runState evalState execState state_fmap state_liftA state_bind : monad_db.
+Ltac fold_evalState :=
+  match goal with
+  | [ |- context[fst (?c ?v)] ] => replace (fst (c v)) with (evalState c v)
+                                                       by reflexivity
+  end.
+
+
+Arguments get {S}.
+Arguments put {S}.
+
+Instance stateF {A} : Functor (State A) :=
+    { fmap := @state_fmap A }.
+Instance stateA {A} : Applicative (State A) :=
+    { pure := fun  A a s=> (a,s);
+      liftA := @state_liftA A }.
+Instance stateM {A} : Monad (State A) :=
+    { bind := @state_bind A }.
+
+
+Instance stateF_correct {A} : Functor_Correct (State A).
+  Proof.
+    split; intros;
+      apply functional_extensionality; intros op;
+      apply functional_extensionality; intros x;
+      simpl; unfold state_fmap.
+    - destruct (op x); reflexivity.
+    - destruct (op x); reflexivity.
+  Qed.
+
+Instance stateA_correct {A} : Applicative_Correct (State A).
+  Proof. 
+    split; intros;
+      apply functional_extensionality; intros op; 
+      simpl; unfold state_liftA.
+    - apply functional_extensionality; intros x.
+      destruct (op x); reflexivity.
+    - destruct (u op).
+      destruct (v a).
+      destruct (w a0).
+      reflexivity.
+    - reflexivity.
+    - destruct (u op). 
+      reflexivity.
+  Qed.
+
+Instance stateM_correct {A} : Monad_Correct (State A).
+  Proof.
+    split; intros; simpl; unfold state_bind.
+    - apply functional_extensionality; intros x. 
+      destruct (a x); reflexivity.
+    - reflexivity.
+    - apply functional_extensionality; intros x.
+      destruct (ma x).
+      reflexivity.
+  Qed.
+
+Hint Unfold Basics.compose : monad_db.
+Hint Unfold stateM : monad_db.
+
 
 (*
 

@@ -192,7 +192,7 @@ Proof.
   reflexivity.
 Qed.
 
-Inductive WF_Pat : forall {w}, Pat w -> Prop :=
+Inductive WF_Pat : forall {w}, Pat w -> Set :=
 | WF_unit : WF_Pat unit
 | WF_qubit : forall x, WF_Pat (qubit x)
 | WF_bit : forall x, WF_Pat (bit x)
@@ -325,6 +325,11 @@ Proof.
   rewrite IHp1, IHp2. reflexivity.
 Qed.
 
+(*
+Require Import Monad. 
+Opaque bind return_.
+*)
+
 Lemma id_circ_Id : forall W ρ, WF_Matrix (2^〚W〛) (2^〚W〛) ρ -> 
     〚@id_circ W〛 ρ = ρ.
 Proof.
@@ -333,14 +338,23 @@ Proof.
   remember (FlatCircuits.fresh_pat W 0) as r.
   destruct r as [p n].
   assert (wf_p : WF_Pat p) by (apply (fresh_pat_wf W p 0 n); auto).
-  repeat (simpl; autounfold with den_db).
+  repeat (simpl; autounfold with den_db).  
+  
+
+  unfold Monad.evalState. unfold Monad.state_bind. simpl.
+  unfold Basics.compose. unfold fresh_pat_M. simpl.
+  unfold Monad.state_bind; simpl.
+  rewrite <- Heqr. simpl.
+
+
   rewrite hash_pat_pat_to_list; auto.
-(*  rewrite pat_size_hash_pat.*)
   replace (swap_list_aux _ _ (zip_to 0 (size_WType W) (seq 0 (pat_size p)))) 
     with (swap_list (size_WType W) (seq 0 (pat_size p))) 
     by reflexivity. 
   rewrite pat_WType_size.
   rewrite swap_list_n_id.
+  unfold super.
+
   autorewrite with M_db.
   reflexivity.
 Qed.
@@ -372,15 +386,25 @@ Proof.
   assert (wf_p : WF_Pat p) by (apply (fresh_pat_wf W p 0 n); auto).
   repeat (simpl; autounfold with den_db).
 
+  unfold Monad.state_bind, Monad.evalState, Basics.compose, fresh_pat_M; simpl.
+  unfold Monad.state_bind, Monad.evalState, Basics.compose, fresh_pat_M; simpl.
+  rewrite <- Heqr; simpl.
+
+  repeat rewrite Nat.add_0_r.
+
   rewrite minus_plus, Nat.leb_refl.
-  rewrite Nat.sub_diag.
+  autounfold with den_db. 
 
   rewrite hash_pat_pat_to_list; auto.
   rewrite pat_WType_size.
   setoid_rewrite (swap_list_n_id (size_WType W)).
   autorewrite with M_db.
 
-  repeat rewrite Mmult_assoc.
+  autounfold with den_db. 
+  rewrite Nat.sub_diag.
+  autorewrite with M_db.
+  
+  repeat rewrite Mmult_assoc. 
   setoid_rewrite UU.
   repeat rewrite <- Mmult_assoc.
   setoid_rewrite UU.
@@ -432,12 +456,41 @@ Fixpoint upper_bound (li : list nat) : nat :=
   | n :: li' => max (S n) (upper_bound li')
   end.
 
+(*
 Definition denote_circuit {w1 w2} (p : Pat w1) (c : Circuit w2) 
                         : Superoperator (2^〚w1〛) (2^〚w2〛) :=
   let li := pat_to_list p in
   let n := upper_bound li in
   denote_min_circuit (〚w1〛) (hoas_to_min c li (S n)).
+*)
 
+Require Import Monad.
+
+
+Fixpoint pat_to_ctx {w} (p : Pat w) : OCtx :=
+  match p with
+  | unit => ∅
+  | qubit x => singleton x Qubit
+  | bit x   => singleton x Bit
+  | pair p1 p2 => pat_to_ctx p1 ⋓ pat_to_ctx p2
+  end.
+
+
+Lemma wf_pat_typed : forall {w} (p : Pat w) m n,
+      fresh_pat w m = (p,n) -> 
+      Types_Pat (pat_to_ctx p) p.
+Proof.
+  induction w; intros p m n H.
+  - inversion H; subst; simpl. type_check. apply singleton_singleton.
+  - inversion H; subst; simpl. type_check. apply singleton_singleton.
+  - inversion H; subst; simpl. type_check.
+  - simpl in *. 
+    destruct (fresh_pat w1 m) as [p1 m1] eqn:H_p1.
+    destruct (fresh_pat w2 m1) as [p2 m2] eqn:H_p2.
+    inversion H; subst. simpl in *.
+    econstructor; [ | reflexivity | eapply IHw1; eauto | eapply IHw2; eauto ].
+    admit (* lemma to prove *).
+Admitted.
 
 (* Do these belong back in Denotation? *) 
 Lemma compose_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2),
@@ -447,32 +500,175 @@ Proof.
   intros.
   autounfold with den_db; simpl. 
   destruct f as [f]. 
+  destruct g as [g].
   autounfold with den_db; simpl. 
-  destruct (fresh_pat W1 0) as [p n] eqn:H_p_n.
+  destruct (fresh_pat W1 0) as [p1 n1] eqn:H_p1_n1.
+  destruct (fresh_pat W2 0) as [p2 n2] eqn:H_p2_n2.
   autounfold with den_db; simpl. 
-  set (c := f p).
-  induction c.
-  - autounfold with den_db; simpl. 
-    replace (denote_min_circuit (size_WType W1) (hoas_to_min (unbox g p0) (pat_to_list p) n)) with (denote_circuit p0 (unbox g p0)).
-    * autounfold with den_db.
-      admit.
 
-    * unfold denote_circuit. simpl. admit.
-  - admit.
-  - admit.
+  repeat autounfold with monad_db; simpl.
+  rewrite H_p1_n1, H_p2_n2. simpl.
+
+  fold_evalState.
+  rewrite hoas_to_min_compose_correct.
+  set (Γ1 := pat_to_ctx p1).
+  assert (pf_p1 : Types_Pat Γ1 p1) by (eapply wf_pat_typed; eauto).
+  assert (pf_f  : Types_Circuit Γ1 (f p1)). 
+  { unfold Typed_Box in *. simpl in *.
+    apply H0. auto.
+  }
+  assert (pf_typed : Types_Compose (f p1) g).
+  { eapply Build_Types_Compose with (ctx_c := Γ1) (ctx_in := ∅) (ctx_out := Γ1); 
+      auto.
+    * split; [validate | monoid].
+    * unfold Typed_Box in H. simpl in H.
+      intros. destruct H1.
+      rewrite merge_nil_r in pf_merge. subst.
+      apply H; auto.
+  }
+
+  destruct (hoas_to_min_aux (f p1) (pat_to_list p1, n1)) as [d s] eqn:H_d.
+
+
+  destruct (hoas_to_min_aux (g p2) (pat_to_list p2, n2)) as [d' s'] eqn:H_d'.
+  unfold substitution, Var in *; rewrite H_d, H_d'; simpl.
+    assert (H_w_c : 〚ctx_c pf_typed〛 = 〚W1〛) by admit.
+    assert (H_w_in : 〚ctx_in pf_typed〛 = 0%nat) by admit.
+    assert (H_w_out : 〚ctx_out pf_typed〛 = 〚W1〛) by admit.
+
+  rewrite denote_min_compose' with (pf_typed0 := pf_typed) (d0 := d) (d'0 := d')
+                                   (s'0 := s) (s'' := s'); unfold runState; auto.
+  * unfold compose_super.
+    rewrite H_w_c, H_w_in, H_w_out.
+    replace (〚W1〛 - 〚W2〛 + 0)%nat with (〚W1〛 - 〚W2〛)%nat by omega.
+    replace (0 + 0)%nat with 0%nat by auto.
+    admit (* so close! *).
+  * simpl. unfold substitution, Var in *.
+    rewrite <- H_d'.
+    admit (* so close! *).
 Abort.
+
+Search Types_Circuit compose.
+
+Open Scope circ_scope.
+
+(* probably a more general form of this *)
+Lemma denote_min_unbox : forall { w2} (b : Box One w2),
+      〚b〛 = denote_min_circuit 0 0 (evalState (hoas_to_min_aux (unbox b ())) (nil,0%nat)%core).
+Admitted.
+
 
 
 Lemma flips_correct : forall n, 〚coin_flips n〛 I1 = biased_coin (2^n).
 Proof.
   induction n.  
-  + repeat (autounfold with den_db; simpl).    
+  + repeat (autounfold with den_db; simpl).
     autorewrite with M_db.
     prep_matrix_equality.
     autounfold with M_db.
     destruct_m_eq; clra.
   + simpl.
     repeat (simpl; autounfold with den_db). 
+    repeat (autounfold with monad_db; simpl).
+    rewrite hoas_to_min_compose_correct.
+    fold_evalState.
+
+    set (f := fun c => gate_ q ← init1 @ unit;
+                       gate_ (c,q) ← bit_ctrl H @ pair c q;
+                       gate_ () ← discard @c;
+                       gate_ b ← meas @q;
+                       output b).
+    assert (pf_typed : Types_Compose (unbox (coin_flips n) unit) f).
+    { apply Build_Types_Compose with (ctx_c := ∅) (ctx_in := ∅) (ctx_out := ∅).
+      * split; type_check. 
+      * apply coin_flips_WT; type_check.
+      * intros. destruct H. unfold f.
+        rewrite merge_nil_r in pf_merge. subst.
+        admit (* why doesn't type_check work here? is there a bug? *).
+    }
+
+    set (c := unbox (coin_flips n) ()).
+    destruct (hoas_to_min_aux c (nil,0%nat)%core) 
+      as [d s'] eqn:H_d. 
+    destruct (runState (hoas_to_min_aux (f (get_output c 0%nat))) s') 
+      as [d' s''] eqn:H_d'.
+
+
+    rewrite denote_min_compose' with (pf_typed0 := pf_typed) 
+                                     (d0 := d) (s'0 := s')
+                                     (d'0 := d') (s''0 := s''); auto.
+    - unfold compose_super.
+      assert (H_in :  〚 ctx_in pf_typed 〛 = 0%nat) by admit.
+      assert (H_out :  〚 ctx_out pf_typed 〛 = 0%nat) by admit.
+      assert (H_c :  〚 ctx_c pf_typed 〛 = 0%nat) by admit.
+      rewrite H_in, H_out, H_c in *. simpl.
+      assert (IHn' : denote_min_circuit 0 0 d (Id 1)
+                   = biased_coin (2^n)).
+      { replace d with (evalState (hoas_to_min_aux c) (nil, 0%nat)%core)
+          by (repeat autounfold with monad_db; rewrite H_d; auto).
+        unfold c.
+        rewrite <- denote_min_unbox.
+        unfold I1 in IHn. simpl in IHn. simpl. rewrite IHn.
+        reflexivity.
+      }
+      rewrite IHn'.
+      replace d' with (evalState (hoas_to_min_aux (f (get_output c 0))) s')
+    
+        rewrite denote_min_unbox in IHn.
+        rewrite IHn.
+
+        simpl in IHn.
+        repeat autounfold with den_db in IHn.
+        rewrite 
+
+    
+        unfold denote_min_box, hoas_to_min_box in IHn.
+      }
+      
+      unfold c.
+    -
+
+
+repeat (autounfold with monad_db; simpl).
+      unfold remove_pat_M.
+      repeat (autounfold with monad_db; simpl).
+    }
+
+    * autounfold with den_db. 
+    *
+    *
+    *
+
+
+    Unshelve.
+
+with (pf_typed := ).
+
+
+About denote_min_compose. About hoas_to_min_compose.
+
+  fold_evalState. 
+
+
+
+  
+  
+
+  compose_super (denote_min_circuit pad (n - size_WType w + 
+  
+  simpl.
+  Search denote_min_circuit min_compose.
+  erewrite denote_min_compose.
+  replace a with (evalState (hoas_to_min_aux c) s)
+    by (repeat autounfold with monad_db; rewrite H_a; reflexivity).
+  replace a' with (evalState (hoas_to_min_aux (f (get_output a))))
+
+  compose_super (denote_min_circuit pad _ (evalState (hoas
+
+    unfold hoas_to_min_compose. 
+
+    repeat (autounfold with monad_db; simpl).
+    
 Abort.
 
 Lemma cnot_eq : cnot = control pauli_x.

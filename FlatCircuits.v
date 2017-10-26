@@ -92,9 +92,9 @@ Fixpoint lookup (x : Var) (li : list Var) : nat :=
  
 Fixpoint hash_pat {w} (p : Pat w) (li : list Var) : Pat w :=
   match p with 
-  | unit => unit 
-  | qubit x => qubit (lookup x li)
-  | bit x => bit (lookup x li)
+  | unit       => unit 
+  | qubit x    => qubit (lookup x li)
+  | bit x      => bit (lookup x li)
   | pair p1 p2 => pair (hash_pat p1 li) (hash_pat p2 li)
   end.
 
@@ -126,7 +126,8 @@ Definition apply_substitution (σ : substitution) (x : nat) := lookup x σ.
 
 
 (* pat_subst ls p means replace all variables x in p with ls[x] if it is
-defined; x otherwise*)
+defined; x otherwise Here, p is an index-pat, meaning that its values are
+indices from 0 to n-1, not named variables*)
 Fixpoint pat_subst (σ : substitution) {w} (p : Pat w) : Pat w :=
   match p with
   | unit => unit
@@ -140,7 +141,8 @@ Definition update_subst (σ : substitution) {w1 w2} (g : Gate w1 w2) (p : Pat w1
            : substitution :=
   match g with
   | U _ | meas => (* no change *) σ
-  | init0 | init1 | new0 | new1 => σ ++ [length σ]
+  | init0 | init1 | new0 | new1 => σ ++ [length σ] (* since we're dealing with
+    index-path, fresh variables should map to themselves *)
   | discard => remove_from_subst p σ
   end.
 
@@ -209,23 +211,21 @@ Definition update_pat {w1 w2} (g : Gate w1 w2) (p : Pat w1) : Pat w2 :=
 Require Import Monad.
 Print hash_pat.
 Definition MyState := State (substitution * Var).
-Definition state_get {τ} : State τ τ :=
-  fun z => (z,z).
-Definition state_put {τ} (x : τ) : State τ () :=
-  fun _ => ((),x).
+Search State.
+About stateM. 
 
 Definition get_σ : MyState substitution :=
-  do z ← state_get;
+  do z ← get;
   return_ (fst z).
 Definition get_fresh : MyState Var :=
-  do z ← state_get;
+  do z ← get;
   return_ (snd z).
 Definition put_fresh (x : Var) : MyState () :=
   do σ ← get_σ;
-  state_put (σ,x).
+  put (σ,x).
 Definition put_σ (σ : substitution) : MyState () :=
   do x ← get_fresh;
-  state_put (σ,x).
+  put (σ,x).
 Definition update_σ (σ : substitution) : MyState () :=
   do σ' ← get_σ;
   put_σ (σ' ++ σ).
@@ -246,9 +246,33 @@ Definition fresh_pat_M {w} : MyState (Pat w) :=
   do _ ← update_σ (pat_to_list p);
   return_ p.
 
+About foldM.
+About fold_left.
 
-Definition process_gate {w1 w2} (g : Gate w1 w2) : MyState ().
-Admitted.
+Definition remove_var_M (x : Var) : MyState () :=
+  do σ ← get_σ;
+  put_σ (List.remove Nat.eq_dec x σ).
+
+Definition remove_pat_M {w} (p : Pat w) : MyState () :=
+  let li := pat_to_list p in
+  foldM (fun _ => remove_var_M) () li.
+
+(* process_gate takes as input a gate and the Var-pattern input to a gate, and
+produces a Var-pattern than may have some new variables. All new variables are
+added to the underlying list, and all expired variables are removed. The fresh
+counter is also incremented if necessary
+
+A Var-pattern is one populated by named variables coming from the HOAS
+representation. e.g. the input of hash_pat_M is a Var-pattern, and the output of
+hash_pat_M is a nat_pattern. *)
+Definition process_gate {w1 w2} (g : Gate w1 w2) : Pat w1 -> MyState (Pat w2) :=
+  match g with
+  | U _                         => fun p => return_ p
+  | init0 | init1 | new0 | new1 => fun _ => fresh_pat_M
+  | meas                        => fun p => return_ (qubit_to_bit p)
+  | discard                     => fun p => do _ ← remove_pat_M p;
+                                            return_ unit
+  end.
 
 
 (* not at all sure we can do this *)
@@ -270,14 +294,14 @@ Fixpoint hoas_to_min_aux {w} (c : Circuit w)
                   return_ (min_output p)
   | gate g p f => do p' ← hash_pat_M p;
                   (* should we do fresh_pat_M before or after process_gate? *)
-                  do _  ← process_gate g;
-                  do q  ← fresh_pat_M;
+                  do q  ← process_gate g p;
                   do c' ← hoas_to_min_aux (f q);
                   return_ (min_gate g p' c')
   | lift p f   => do p' ← hash_pat_M p;
                   min_lift_M p' (fun x => hoas_to_min_aux (f x))
   end.
 
+(*
 (* li maps free variables of c to qubit indices, 
    n is an upper bound on variables in c *) 
 Program Fixpoint hoas_to_min {w} (c: Circuit w) (li : list Var) (n : nat) 
@@ -307,12 +331,15 @@ Program Fixpoint hoas_to_min {w} (c: Circuit w) (li : list Var) (n : nat)
   | lift p c'   =>  let li' := List.remove Nat.eq_dec (get_var p) li in
                     min_lift (hash_pat p li) (fun b => hoas_to_min (c' b) li' n) 
   end.
+*)
 
 Definition hoas_to_min_box {w1 w2} (B : Box w1 w2) :=
   match B with
   | box c => let (p, n) := fresh_pat w1 0 in
-             let li := pat_to_list p in 
-             min_box w1 (hoas_to_min (c p) li n)
+             let m := do p ← fresh_pat_M; hoas_to_min_aux (c p) in
+             let c := evalState m ([],0) in
+             min_box w1 c
+(*             min_box w1 (hoas_to_min (c p) li n)*)
   end.
 
 (* Flat Circuit Examples *)
@@ -338,8 +365,6 @@ Require Import HOASCircuits.
 About compose. Search compose.
 About compose_typing.
 
-Fixpoint flatten_ctx (Γ : OCtx) : substitution.
-Admitted.
 
 About hoas_to_min.
 
@@ -371,15 +396,58 @@ Proof.
 Qed.
 *)
 
+Close Scope circ_scope.
+Definition state_proj_2 {A B C} (op : State (A*B) C) (a : A) : State B C :=
+  do b ← get;
+  let (c,x) := runState op (a,b) in
+  do _ ← put (snd x);
+  return_ c.
+Definition state_lift_2 {C} (op : State nat C) : MyState C :=
+  do fresh ← get_fresh;
+  let (c,fresh') := runState op fresh in
+  do _ ← put_fresh fresh';
+  return_ c.
 
+Open Scope circ_scope.
+
+Definition process_gate' {w1 w2}(g : Gate w1 w2)(p : Pat w1) : State nat (Pat w2) :=
+  state_proj_2 (process_gate g p) [].
+
+Fixpoint get_output' {w} (c : Circuit w) : State nat (Pat w) :=
+  match c with
+  | output p   => return_ p
+  | gate g p f => do p' ← process_gate' g p;
+                  get_output' (f p')
+  | lift p f   => get_output' (f true) (* this is a cheat *)
+  end.
+Definition get_output {w} (c : Circuit w) (fresh : nat) : Pat w :=
+  evalState (get_output' c) fresh.
+
+Lemma get_output_gate : forall {w1 w2 w} 
+      (g : Gate w1 w2) (p : Pat w1) (f : Pat w2 -> Circuit w) (fresh : nat),
+      get_output (gate g p f) fresh = 
+        let (p',fresh') := runState (process_gate' g p) fresh in
+        get_output (f p') fresh'.
+Admitted.
 
 Definition hoas_to_min_compose {w w'} (c : Circuit w) (f : Pat w -> Circuit w')
    : MyState (Min_Circuit w') :=
+  do fresh ← get_fresh;
   do c' ← hoas_to_min_aux c;
-  do p ← fresh_pat_M; 
-  fmap (min_compose c') (hoas_to_min_aux (f p)).
+                          (* the idea is to figure out the output pattern of c,
+                             and plug that into f *)
+  do d  ← hoas_to_min_aux (f (get_output c fresh));
+  return_ (min_compose c' d).
 
-Opaque bind. Opaque fmap. Opaque return_.
+
+Lemma hoas_to_min_aux_subst : 
+      forall {w w'} (p : Pat w) (f : Pat w -> Circuit w'),
+      hoas_to_min_aux (f p) = do p' ← hash_pat_M p;
+                              do c  ← hoas_to_min_aux (f p);
+                              return_ (min_subst (mk_subst p') c).
+Proof.
+  intros. unfold hash_pat_M.
+Admitted.
 
 
 Lemma hoas_to_min_compose_correct : 
@@ -387,75 +455,48 @@ Lemma hoas_to_min_compose_correct :
       hoas_to_min_aux (compose c f) = hoas_to_min_compose c f.
 Proof.
   intros.
-  induction c; simpl.
-  - unfold hoas_to_min_compose.
+  induction c.
+  - simpl.
+    unfold hoas_to_min_compose.
     unfold hoas_to_min_aux at 2.
-    unfold hash_pat_M.
-    transitivity (do c' ← (do σ ← get_σ;
-                           do p0 ← return_ (hash_pat p σ);
-                           return_ (min_output p0));
-                  do p0 ← fresh_pat_M;
-                  fmap (min_compose c') (hoas_to_min_aux (f p0)));
-      [ | auto].
-   transitivity (do c' ← (do σ ← get_σ;
-                          return_ (min_output (hash_pat p σ)));
-                 do p0 ← fresh_pat_M;
-                 fmap (min_compose c') (hoas_to_min_aux (f p0))); [ | auto].
-  transitivity (do σ ← get_σ;
-                do c' ← return_ (min_output (hash_pat p σ));
-                do p0 ← fresh_pat_M;
-                fmap (min_compose c') (hoas_to_min_aux (f p0))); [ | auto].
-  transitivity (do σ ← get_σ;
-                do p0 ← fresh_pat_M;
-                fmap (min_compose (min_output (hash_pat p σ))) 
-                     (hoas_to_min_aux (f p0))); [ | auto].
-  simpl.
-  admit (* not quite... in the RHS we are calling (f p0) where p0 is fresh *).
-  - unfold hoas_to_min_compose in *. simpl.
+    simpl_m. 
+    rewrite hoas_to_min_aux_subst.
+
+    apply functional_extensionality; intros [σ fresh].
+    simpl_m.
+  - 
+Opaque return_ bind. 
+    unfold hoas_to_min_compose.
+    simpl.
+    simpl_m.
+Transparent return_ bind.
+    (* apply the IH *)
     transitivity (do p' ← hash_pat_M p;
-                  do c' ← (do _ ← process_gate g;
-                           do q ← fresh_pat_M;
-                           do c' ← hoas_to_min_aux (c q);
-                           return_ (min_gate g p' c'));
-                  do p0 ← fresh_pat_M;
-                  fmap (min_compose c') (hoas_to_min_aux (f p0))); [ | auto].
-    apply f_equal; apply functional_extensionality; intros p'.
-    transitivity (do _ ← process_gate g;
-                  do c' ← (do q ← fresh_pat_M;
-                           do c' ← hoas_to_min_aux (c q);
-                           return_ (min_gate g p' c'));
-                  do p0 ← fresh_pat_M;
-                  fmap (min_compose c') (hoas_to_min_aux (f p0))); [ | admit ].
-    apply f_equal; apply functional_extensionality; intros _.
-    transitivity (do q ← fresh_pat_M;
-                  do c' ← (do c' ← hoas_to_min_aux (c q);
-                           return_ (min_gate g p' c'));
-                  do p0 ← fresh_pat_M;
-                  fmap (min_compose c') (hoas_to_min_aux (f p0))); [ | admit ].
-    apply f_equal; apply functional_extensionality; intros q.
-    rewrite H.
-    transitivity (do c' ← hoas_to_min_aux (c q);
-                  do c' ← return_ (min_gate g p' c');
-                  do p0 ← fresh_pat_M;
-                  fmap (min_compose c') (hoas_to_min_aux (f p0))); [ | admit ].
-    transitivity (do c' ← hoas_to_min_aux (c q);
-                  do c' ← (do p0 ← fresh_pat_M; 
-                           fmap (min_compose c') (hoas_to_min_aux (f p0)));
-                  return_ (min_gate g p' c')); [admit | ].
-    apply f_equal; apply functional_extensionality; intros c'.
-    transitivity (do p0 ← fresh_pat_M; 
-                  fmap (min_compose (min_gate g p' c')) (hoas_to_min_aux (f p0))); 
-        [ | auto].
-    transitivity (do p0 ← fresh_pat_M;
-                  do c'0 ← fmap (min_compose c') (hoas_to_min_aux (f p0));
-                  return_ (min_gate g p' c'0)); [admit | ].
-    apply f_equal; apply functional_extensionality; intros p0.
-    simpl.    
-    assert (Functor_Correct MyState) by admit.
-    rewrite (fmap_compose (min_compose c') (min_gate g p')).
-    admit (* yes, this is true by monad laws! *).
-  - unfold hoas_to_min_compose. simpl. admit.
+                  do q ← process_gate g p;
+                  do c' ← hoas_to_min_compose (c q) f;
+                  return_ (min_gate g p' c'));
+      [ repeat (apply bind_eq; auto; intros) | ].
+    unfold hoas_to_min_compose.
+
+    apply functional_extensionality; intros x.
+    repeat (autounfold with monad_db; simpl).
+    rewrite get_output_gate.
+
+    destruct (process_gate g p x) as [p2 x2] eqn:Hg.
+    destruct (hoas_to_min_aux (c p2) x2) as [c2 x2'] eqn:H_c_p2.
+
+    assert (step : runState (process_gate' g p) (snd x) = (p2,snd x2)%core)
+      by admit.
+    rewrite step. simpl.
+    destruct (hoas_to_min_aux (f (get_output (c p2) (snd x2))) x2') 
+      as [c' x'].
+    reflexivity.
+  - unfold hoas_to_min_compose. simpl. 
+    unfold hash_pat_M.
+    simpl_m.
+    admit.
 Admitted.
+
 
 
 
