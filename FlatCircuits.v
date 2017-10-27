@@ -146,7 +146,7 @@ Definition remove_from_subst {w} (p : Pat w) (σ : substitution) :=
 Definition update_subst (σ : substitution) {w1 w2} (g : Gate w1 w2) (p : Pat w1) 
            : substitution :=
   match g with
-  | U _ | meas => (* no change *) σ
+  | U _ | meas | NOT => (* no change *) σ
   | init0 | init1 | new0 | new1 => σ ++ [length σ]
   | discard => remove_from_subst p σ
   end.
@@ -303,6 +303,7 @@ Program Fixpoint hoas_to_min {w} (c: Circuit w) (li : list Var) (n : nat)
 *)    
     match g with
     | U u           => min_gate g (hash_pat p li) (hoas_to_min (c' p) li n)
+    | NOT           => min_gate g (hash_pat p li) (hoas_to_min (c' p) li n)
     | init0 | init1 => min_gate g unit (hoas_to_min (c' (qubit n)) (li ++ [n]) (S n))
     | new0 | new1   => min_gate g unit (hoas_to_min (c' (bit n)) (li ++ [n]) (S n))
     | meas          => min_gate g (hash_pat p li) 

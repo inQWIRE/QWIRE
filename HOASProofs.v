@@ -12,7 +12,12 @@ Definition I1 := Id (2^0).
 Lemma WF_I1 : WF_Matrix 1 1 I1. Proof. unfold I1. apply WF_Id. Qed.
 Hint Resolve WF_I1 : wf_db.
 
-Hint Unfold I1 apply_new0 apply_new1 apply_U apply_meas apply_discard compose_super super swap_list swap_two pad denote_box : den_db.
+Definition HOAS_Equiv {W1 W2} (b1 b2 : Box W1 W2) :=
+  forall ρ, Mixed_State ρ -> 〚b1〛 ρ = 〚b2〛 ρ.
+
+Infix "≡" := HOAS_Equiv.
+
+Hint Unfold I1 apply_new0 apply_new1 apply_U apply_meas apply_discard compose_super super swap_list swap_two pad denote_box HOAS_Equiv : den_db.
 
 Lemma Ex : 〚init true〛 I1 = (|1⟩⟨1| : Density 2).
 Proof.
@@ -20,10 +25,6 @@ Proof.
   autorewrite with M_db.
   reflexivity.
 Qed.
-
-Definition HOAS_Equiv {W1 W2} (b1 b2 : Box W1 W2) :=
-  forall ρ, WF_Matrix (2^〚W1〛) (2^〚W1〛) ρ -> 
-         〚b1〛 ρ = 〚b2〛 ρ.
 
 Require Import FlatCircuits.
 
@@ -553,7 +554,7 @@ Proof.
     repeat (simpl; autounfold with den_db). 
 Abort.
 
-Lemma cnot_eq : cnot = control pauli_x.
+Lemma cnot_eq : cnot = control σx.
 Proof.
   autounfold with M_db.
   simpl.
@@ -746,7 +747,7 @@ Ltac find_smallest M :=
 Definition f0 : Matrix 4 4 := Id 4.
 
 (* f(x) = x. Unitary: CNOT *)
-Definition f1 : Matrix 4 4 := control pauli_x.
+Definition f1 : Matrix 4 4 := control σx.
 
 (* f(x) = 1 - x. Unitary: inverse CNOT *)
 Definition f2 : Matrix 4 4 := fun x y =>
@@ -756,7 +757,7 @@ Definition f2 : Matrix 4 4 := fun x y =>
   end.
 
 (* f(x) = 1. Unitary: Id ⊗ X *)
-Definition f3 : Matrix 4 4 := Id 2 ⊗ pauli_x.
+Definition f3 : Matrix 4 4 := Id 2 ⊗ σx.
 
 Definition constant (U : Unitary (Qubit ⊗ Qubit)%qc) := 
                        denote_unitary U = f0 \/ denote_unitary U = f3.
@@ -775,6 +776,7 @@ Hint Rewrite <- Copp_mult_distr_l Copp_mult_distr_r Cdouble : C_db.
 Hint Rewrite <- Cinv_mult_distr using c_ineq : C_db.
 Hint Rewrite Cinv_l Cinv_r using c_ineq : C_db.
   
+(* Temporarily commented out for efficient compilation
 Lemma deutsch_constant : forall U_f, constant U_f -> 
                                 〚deutsch U_f〛 I1 = |0⟩⟨0|.
 Proof.
@@ -891,7 +893,7 @@ Proof.
     autorewrite with C_db.
     reflexivity.
 Qed.
-
+*)
 
 (* These don't work yet... *)
 Ltac num_terms T := 
@@ -906,8 +908,9 @@ Ltac proof_size :=
   end.
 
 
+(*
 Lemma teleport_eq : forall (ρ : Density 2), 
-  WF_Matrix 2 2 ρ -> denote_box teleport ρ = ρ.
+  Mixed_State ρ -> denote_box teleport ρ = ρ.
 Proof.
   intros ρ H.
   idtac.
@@ -930,10 +933,11 @@ Proof.
   
 
 Abort.
+*)
 
-
+(* Lemmas out of date
 Lemma boxed_gate_correct : forall W1 W2 (g : Gate W1 W2) (ρ : Density (2^〚W1〛)) ,
-      WF_Matrix (2^〚W1〛) (2^〚W1〛) ρ -> 〚boxed_gate g〛 ρ = 〚g〛 ρ.
+      Mixed_State (2^〚W1〛) (2^〚W1〛) ρ -> 〚boxed_gate g〛 ρ = 〚g〛 ρ.
 Proof.
   intros W1 W2 g ρ wf_ρ. simpl.
   unfold denote_pat_in.
@@ -951,8 +955,7 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma lift_meas_correct : forall (ρ : Density 2), WF_Matrix 2 2 ρ
-      -> 〚lift_meas〛 ρ = 〚boxed_gate meas〛 ρ.
+Lemma lift_meas_correct : lift_meas ≡ boxed_gate meas.
 Proof.
   intros ρ wf_ρ.
   simpl.
@@ -982,6 +985,7 @@ Abort (* This is only true if ρ is a classical state *).
   Csimpl.
   destruct x; Csimpl. 
   destruct y; Csimpl.
+*)
 *)
 
 

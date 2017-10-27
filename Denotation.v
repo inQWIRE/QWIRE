@@ -1,10 +1,10 @@
 Require Import Program. 
+Require Import Arith.
+Require Import Omega.
 Require Export Contexts.
 Require Import HOASCircuits.
 Require Import FlatCircuits.
-Require Import Arith.
 Require Export Quantum.
-Require Import Omega.
 Require Import List.
 Import ListNotations.
 Set Bullet Behavior "Strict Subproofs".
@@ -27,9 +27,9 @@ Instance Denote_WType : Denote WType nat := {| denote := size_WType |}.
 Fixpoint denote_unitary {W} (U : Unitary W) : Square (2^〚W〛) :=
   match U with  
   | H => hadamard 
-  | σx => pauli_x
-  | σy => pauli_y
-  | σz => pauli_z
+  | X => σx
+  | Y => σy
+  | Z => σz
   | ctrl g => control (denote_unitary g)
   | bit_ctrl g => control (denote_unitary g)  
   | Contexts.transpose g => (denote_unitary g)†
@@ -67,7 +67,8 @@ Instance Denote_Unitary_Correct W : Denote_Correct (Denote_Unitary W) :=
 Definition denote_gate' n {w1 w2} (g : Gate w1 w2)
            : Superoperator (2^〚w1〛 * 2^n) (2^〚w2〛 * 2^n) :=
   match g with 
-  | U u   => super (〚u〛 ⊗ Id (2^n))
+  | U u     => super (〚u〛 ⊗ Id (2^n))
+  | NOT     => super (σx ⊗ Id (2^n))
   | init0   => super (|0⟩ ⊗ Id (2^n))
   | init1   => super (|1⟩ ⊗ Id (2^n))
   | new0    => super (|0⟩ ⊗ Id (2^n))
@@ -119,6 +120,12 @@ Proof.
     apply mixed_unitary.
     apply WF_unitary.
     apply unitary_gate_unitary.
+    assumption.
+  + simpl.
+    rewrite kron_1_r.
+    apply mixed_unitary.
+    apply WF_σx.
+    apply σx_unitary.
     assumption.
   + simpl in *.
     rewrite kron_1_r.
@@ -228,6 +235,10 @@ Definition apply_gate {n w1 w2} (g : Gate w1 w2) (l : list nat)
   match g with 
   | U u   => match 〚w1〛 <=? n with
               | true => apply_U (denote_unitary u) l
+              | false => super_Zero
+              end
+  | NOT   => match 1 <=? n with
+              | true => apply_U σx l (m := 1)
               | false => super_Zero
               end
   | init0   => apply_new0 

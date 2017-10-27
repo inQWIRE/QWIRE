@@ -1,3 +1,4 @@
+Require Import Program.
 Require Export Contexts.
 Require Import List.
 Import ListNotations.
@@ -86,7 +87,7 @@ Opaque merge.
 Opaque Ctx.
 Opaque is_valid.
 
-(* Automation *)
+(* Validate *)
 
 Ltac validate :=
   repeat ((*idtac "validate";*) match goal with
@@ -107,44 +108,6 @@ Ltac validate :=
   | [|- is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) ]   => apply valid_join; validate
   end).
 
-
-Ltac goal_has_evars := 
-  match goal with 
-  [|- ?G ] => has_evars G
-  end.
-
-Ltac type_check_once := 
-  compute in *; 
-  intros;
-  subst; 
-  repeat match goal with 
-  | [ H : Types_Pat _ ?p One |- _ ]           => is_var p; inversion H; subst
-  | [ H : Types_Pat _ ?p (Tensor _ _) |- _ ]  => is_var p; inversion H; subst
-  | [ |- Types_Circuit _ _ _ ]                => econstructor; type_check_once
-  | [ |- Types_Circuit _ (if ?b then _ else _) _ ] => destruct b; type_check_once
-  | [ H : Types_Pat _ ?p ?W |- Types_Pat _ ?p ?W ] => apply H
-  | [ |- Types_Pat _ _ _ ]                   => econstructor; type_check_once
-  end; 
-  (* Runs monoid iff a single evar appears in context *)
-  match goal with 
-  | [|- is_valid ?Γ] => tryif (has_evar Γ)   
-                        then (idtac (*"can't validate"; print_goal*))
-                        else (idtac (*"validate"; print_goal*); validate)
-  | [|- ?G ]         => tryif (has_evars G)  
-                        then (idtac (*"can't monoid"; print_goal*))
-                        else (idtac (*"monoid"; print_goal*); monoid)
-  end.
-
-(* Useful for debugging *)
-Ltac type_check_num := 
-  let pre := numgoals in idtac "Goals before: " pre "";
-  [> type_check_once..];
-  let post := numgoals in idtac "Goals after: " post "";
-  tryif (guard post < pre) then type_check_num else idtac "done".
-
-(* Easiest solution *)
-
-Ltac type_check := let n := numgoals in do n [> type_check_once..].
 
 (* Composition lemma *)
 
@@ -178,7 +141,5 @@ Lemma unbox_typing : forall Γ W1 W2 (p : Pat W1) (c : Box W1 W2),
                                     Typed_Box c ->
                                     Types_Circuit Γ (unbox c p).
 Proof. unfold Typed_Box in *. auto. Qed.
-
-
 
 (* *)

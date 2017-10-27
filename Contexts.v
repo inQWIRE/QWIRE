@@ -706,25 +706,26 @@ Proof. intros Γ W p TP. unfold is_valid. inversion TP; eauto. Qed.
 Open Scope circ_scope.
 Inductive Unitary : WType -> Set := 
   | H         : Unitary Qubit 
-  | σx        : Unitary Qubit
-  | σy        : Unitary Qubit
-  | σz        : Unitary Qubit
+  | X         : Unitary Qubit
+  | Y         : Unitary Qubit
+  | Z         : Unitary Qubit
+(*  | R         : C -> Unitary Qubit (* may add. see also T and S *) *)
   | ctrl      : forall {W} (U : Unitary W), Unitary (Qubit ⊗ W) 
   | bit_ctrl  : forall {W} (U : Unitary W), Unitary (Bit ⊗ W) 
   | transpose : forall {W} (U : Unitary W), Unitary W.
 
 (* NOT, CNOT and Tofolli notation *)
-Notation NOT := σx.
-Notation CNOT := (ctrl σx).
-Notation T := (ctrl (ctrl σx)).
+Notation CNOT := (ctrl X).
+Notation CCNOT := (ctrl (ctrl X)).
 
 Inductive Gate : WType -> WType -> Set := 
   | U : forall {W} (u : Unitary W), Gate W W
-  | init0 : Gate One Qubit
-  | init1 : Gate One Qubit
-  | new0 : Gate One Bit
-  | new1 : Gate One Bit
-  | meas : Gate Qubit Bit
+  | NOT     : Gate Bit Bit
+  | init0   : Gate One Qubit
+  | init1   : Gate One Qubit
+  | new0    : Gate One Bit
+  | new1    : Gate One Bit
+  | meas    : Gate Qubit Bit
   | discard : Gate Bit One.
 
 Coercion U : Unitary >-> Gate.

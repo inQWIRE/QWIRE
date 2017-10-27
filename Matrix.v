@@ -426,6 +426,24 @@ Hint Rewrite Cconj_R Cconj_rad2 square_rad2 Cplus_0_l Cplus_0_r
 
 (** Basic Matrix Lemmas **)
 
+Lemma trace_plus_dist : forall (n : nat) (A B : Square n), 
+    trace (A .+ B) = (trace A + trace B)%C. 
+Proof. 
+  intros.
+  unfold trace, Mplus.
+  induction n.
+  - simpl. clra.
+  - simpl. rewrite IHn. clra.
+Qed.
+
+Lemma trace_mult_dist : forall n p (A : Square n), trace (p .* A) = (p * trace A)%C. 
+  intros.
+  unfold trace, scale.
+  induction n.
+  - simpl. clra.
+  - simpl. rewrite IHn. clra.
+Qed.
+
 Lemma Mplus_0_l : forall (m n : nat) (A : Matrix m n), Zero m n .+ A = A.
 Proof. intros. mlra. Qed.
 

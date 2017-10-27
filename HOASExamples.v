@@ -34,10 +34,6 @@ Set Printing Coercions.
 (* These tactics construct circuits by calling out to type_check *)
 
 
-Tactic Notation (at level 0) "make_circ" uconstr(C) := refine C; type_check.
-
-Tactic Notation (at level 0) "box_" uconstr(C) := refine(C); type_check.
-
 Notation letpair p1 p2 p c := (let (p1,p2) := wproj p in c).
 
 Notation "'box_' p ⇒ C" := (box (fun p => C)) (at level 8).
@@ -161,8 +157,6 @@ Ltac invert_patterns :=
 
 
 Ltac type_check_once := 
-  (* Should not use compute. Unfold what we have to. *)
-  (* compute in *; *)
   intros;
   try match goal with 
   | [|- @Typed_Box  ?W1 ?W2 ?c] => unfold Typed_Box in *; try unfold c
@@ -177,7 +171,7 @@ Ltac type_check_once :=
   | [ |- @Types_Circuit _ _ _ ]     => econstructor; type_check_once
   | [ |- @Types_Circuit _ _ (if ?b then _ else _) ] => destruct b; type_check_once
   (* compose_typing : specify goal. *)                                  
-  | [ |- @Types_Circuit _ _ _ ]               =>  eapply compose_typing; type_check_once 
+  | [ |- @Types_Circuit _ _ _ ]          =>  eapply compose_typing; type_check_once 
   | [ H : forall a b, Types_Pat _ _ -> Types_Circuit _ _ |- Types_Circuit _ _] 
     => apply H; type_check_once
   | [ H : @Types_Pat _ _ ?p |- @Types_Pat _ _ ?p ] => apply H
@@ -323,8 +317,8 @@ Proof. type_check. Qed.
 Definition bob : Box (Bit ⊗ Bit ⊗ Qubit) Qubit:=
   box_ xyb ⇒ 
     let_ ((x,y),b) ← output xyb ; 
-    gate_ (y,b)  ← bit_ctrl σx @(y,b);
-    gate_ (x,b)  ← bit_ctrl σz @(x,b);
+    gate_ (y,b)  ← bit_ctrl X @(y,b);
+    gate_ (x,b)  ← bit_ctrl Z @(x,b);
     gate_ ()     ← discard @y ;   
     gate_ ()     ← discard @x ;
     output b.
@@ -360,8 +354,8 @@ Definition bob_lift : Box (Bit ⊗ Bit ⊗ Qubit) Qubit :=
   box_ xyb ⇒
     let_ (xy, b) ← output xyb; 
     lift_ (u,v)  ← xy;
-    gate_ b      ← (if v then σx else id_gate) @b;
-    gate_ b      ← (if u then σz else id_gate) @b;
+    gate_ b      ← (if v then X else id_gate) @b;
+    gate_ b      ← (if u then Z else id_gate) @b;
     output b.
 Lemma bob_lift_WT : Typed_Box bob_lift.
 Proof. type_check. Defined.
@@ -371,9 +365,9 @@ Definition bob_lift' :=
     let_ (xy, b) ← output xyb; 
     lift_ (u,v)  ← xy;
     match u,v with
-    | true,  true  => gate_ b ← σx @b; gate_ b ← σz @b; output b
-    | true,  false => gate_ b ← σz @b; output b
-    | false, true  => gate_ b ← σx @b; output b
+    | true,  true  => gate_ b ← X @b; gate_ b ← Z @b; output b
+    | true,  false => gate_ b ← Z @b; output b
+    | false, true  => gate_ b ← X @b; output b
     | false, false => output b
     end.
 Lemma bob_lift_WT' : Typed_Box bob_lift'.
@@ -391,8 +385,8 @@ Proof. type_check. Defined.
 (* teleport lift outside of bob *)
 Definition bob_distant (u v : bool) : Box Qubit Qubit :=
   box_ b ⇒
-    gate_ b      ← (if v then σx else id_gate) @b;
-    gate_ b      ← (if u then σz else id_gate) @b;
+    gate_ b      ← (if v then X else id_gate) @b;
+    gate_ b      ← (if u then Z else id_gate) @b;
     output b.
 Lemma bob_distant_WT : forall b1 b2, Typed_Box (bob_distant b1 b2).
 Proof. type_check. Defined.
@@ -421,8 +415,8 @@ Definition teleport_direct :=
     gate_ y     ← meas @a;
 
   (* bob *)
-    gate_ (y,b)  ← bit_ctrl σx @(y,b);
-    gate_ (x,b)  ← bit_ctrl σz @(x,b);
+    gate_ (y,b)  ← bit_ctrl X @(y,b);
+    gate_ (x,b)  ← bit_ctrl Z @(x,b);
     gate_ ()     ← discard @y;   
     gate_ ()     ← discard @x;
     output b.
@@ -638,7 +632,7 @@ Definition AND : Box (Qubit ⊗ Qubit) Qubit :=
   box_ ab ⇒
     let_ (a,b)      ← output ab;
     gate_ z         ← init0 @();
-    gate_ (a,(b,z)) ← T @(a,(b,z));
+    gate_ (a,(b,z)) ← CCNOT @(a,(b,z));
     gate_ a         ← meas @a;
     gate_ b         ← meas @b;
     gate_ ()        ← discard @a;   
@@ -650,10 +644,10 @@ Proof. type_check. Qed.
 Definition OR : Box (Qubit ⊗ Qubit) Qubit :=
   box_ ab ⇒ 
     let_ (a,b)       ← output ab;
-    gate_ a'         ← NOT @a;
-    gate_ b'         ← NOT @b;
+    gate_ a'         ← X @a;
+    gate_ b'         ← X @b;
     let_ z           ← unbox AND (a',b');
-    gate_ z'         ← NOT @z;
+    gate_ z'         ← X @z;
     output z'.
 Lemma OR_WT : Typed_Box OR.
 Proof. type_check. Qed.
