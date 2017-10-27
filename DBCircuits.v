@@ -205,9 +205,25 @@ Fixpoint subst_db (σ : subst_state) {w} (c : DeBruijn_Circuit w)
                       db_lift p' (fun b => subst_db σ' (f b))
   end.
 
+About index. About lookup.
+(* starting at i=|Γ|-1, finds the x such that x ↦ i ∈ σ, then looks up the type W of
+   x in Γ. Adds the binding W to the head of the resulting DB_Ctx; by the end
+   the process, this binding will be at index i in the list. *)
+Fixpoint subst_ctx' (Γ : DB_Ctx) (σ : substitution) (i : nat) : option DB_Ctx :=
+  match i with
+  | 0   => return_ []
+  | S j => do x  ← index j σ;
+           do W  ← index x Γ;
+           do Γ' ← subst_ctx' Γ σ j;
+           return_ (W :: Γ')
+  end.
+Definition subst_ctx (Γ : DB_Ctx) (σ : substitution) : DB_Ctx :=
+  match subst_ctx' Γ σ (length Γ) with
+  | Some Γ' => Γ'
+  | None => []
+  end.
 
-Print Gate_State.
-
+(*
 Definition Types_subst (Γ : DB_Ctx) (σ : substitution) (Γ' : DB_Ctx) :=
   forall x x', lookup x σ = x' ->
                (forall w, index x Γ = Some w <-> index x' Γ' = Some w).
@@ -217,7 +233,7 @@ Lemma types_subst_length : forall Γ σ Γ',
 Proof.
   induction Γ; intros σ Γ' pf.
 Admitted (* this will take some work, but it should be true *).
-
+*)
   
 
 Lemma singleton_index : forall x w Γ,
@@ -244,81 +260,129 @@ Proof.
       destruct x; inversion H1.
 Qed.
 
+
+(* A well-formed (linear) substitution on debruijn indices is an isomorphism on
+   the set [1..n] *) 
+Require Import Permutation.
+(*Definition subst_iso (σ : substitution) :=
+  Permutation σ (seq 0 (length σ - 1)).*)
+
+Definition WF_subst (Γ : DB_Ctx) σ : Prop := Permutation σ (seq 0 (length Γ)).
+
+Lemma wf_subst_length : forall Γ σ, WF_subst Γ σ -> length Γ = length σ.
+Admitted.
+
+Lemma subst_ctx_nil : forall σ,
+      subst_ctx [] σ = [].
+Proof. 
+  intros.
+  unfold subst_ctx.
+  reflexivity.
+Qed.
+
+
+Lemma singleton_db_ctx : forall x w Γ,
+      SingletonCtx x w (DB_to_Ctx Γ) <->
+      x = 0 /\ Γ = [w].
+Proof.
+  intros. split.
+  * destruct Γ as [ | y [ | z Γ' ]]; intros pf_singleton; simpl in *.
+    - inversion pf_singleton.
+    - inversion pf_singleton. auto.
+    - inversion pf_singleton.
+  * intros H; destruct H; subst.
+    unfold DB_to_Ctx.
+    simpl.
+    constructor.
+Qed.
+
+
+Lemma wf_subst_lookup_0 : forall σ w,
+      WF_subst [w] σ ->
+      lookup 0 σ = 0.
+Admitted.
+
+  
+Lemma subst_ctx_singleton : forall w σ,
+      WF_subst [w] σ -> 
+      subst_ctx [w] σ = [w].
+Proof. 
+  intros.
+  assert (length σ = 1).
+  { erewrite <- wf_subst_length; eauto. auto.
+  }
+    destruct σ as [ | i [ |  ]]; inversion H0.
+    assert (i = 0).
+    { unfold WF_subst in H. simpl in H.
+      apply Permutation_length_1; auto.
+    }
+  subst.
+  unfold subst_ctx.
+  reflexivity.
+Qed.
+(*
+Lemma wf_subst_merge : 
+      WF_subt Γ σ ->
+      Γ = Γ1 ⋓ Γ2 -> 
+*)
 Lemma types_subst_pat_db : forall w (p : Pat w) Γ Γ' σ ,
-      Types_subst Γ (get_σ σ) Γ' ->
+      Γ' = subst_ctx Γ (get_σ σ) ->
+      WF_subst Γ (get_σ σ) ->
       Types_DB_Pat Γ p ->
       Types_DB_Pat Γ' (subst_pat σ p).
 Proof.
-  induction p; intros Γ Γ' σ types_σ types_p; simpl.
-  - assert (Γ = []) by (destruct Γ; auto; inversion types_p).
-    assert (eq_len : length Γ = length Γ') by (apply types_subst_length with (σ := get_σ σ); auto).
-    destruct Γ'; [ | subst; inversion eq_len].
-    constructor.
+  induction p; intros Γ Γ' σ types_σ σ_iso types_p; simpl.
+  - assert (Γ = []) by (destruct Γ; auto; inversion types_p). subst.
+    rewrite subst_ctx_nil. constructor.
   - unfold subst_var. inversion types_p. subst.
-    set (v' := lookup v (get_σ σ)).
-    set (eq_len := types_subst_length Γ (get_σ σ) Γ' types_σ).
-    set (types_σ' := types_σ v v' eq_refl Qubit).
-    set (singleton_index_pf := singleton_index v Qubit Γ).
-    assert (lookup_v' : index v' Γ' = Some Qubit).
-    { apply types_σ'. 
-      apply singleton_index_pf.
-      auto.
+
+    apply singleton_db_ctx in H1.
+    destruct H1; subst.
+
+    assert ( H : lookup 0 (get_σ σ) = 0).
+    { eapply wf_subst_lookup_0; eauto.
     }
-    constructor.
-    apply singleton_index.
-    split.
-    + apply types_σ'.
-      apply singleton_index.
-      auto.
-    + replace 1 with (length Γ)
-        by (apply singleton_index_pf; auto).
-      apply eq_sym.
-      eapply types_subst_length; eauto.
-  - (* Same as above *)
-    unfold subst_var. inversion types_p. subst.
-    set (v' := lookup v (get_σ σ)).
-    set (eq_len := types_subst_length Γ (get_σ σ) Γ' types_σ).
-    set (types_σ' := types_σ v v' eq_refl Bit).
-    set (singleton_index_pf := singleton_index v Bit Γ).
-    assert (lookup_v' : index v' Γ' = Some Bit).
-    { apply types_σ'. 
-      apply singleton_index_pf.
-      auto.
+    rewrite H.
+    rewrite subst_ctx_singleton; auto.
+  - unfold subst_var. inversion types_p. subst.
+
+    apply singleton_db_ctx in H1.
+    destruct H1; subst.
+
+    assert ( H : lookup 0 (get_σ σ) = 0).
+    { eapply wf_subst_lookup_0; eauto.
     }
-    constructor.
-    apply singleton_index.
-    split.
-    + apply types_σ'.
-      apply singleton_index.
-      auto.
-    + replace 1 with (length Γ)
-        by (apply singleton_index_pf; auto).
-      apply eq_sym.
-      eapply types_subst_length; eauto.
-  - unfold Types_DB_Pat.
-    (* requires an extra lemma here *)
+    rewrite H.
+    rewrite subst_ctx_singleton; auto.
+  - unfold Types_DB_Pat in types_p.
+    dependent destruction types_p. 
+    admit (* need facts about mergine with DB_Ctx's *).
 
 Admitted.
+
 
   
 
 Lemma types_subst_db : forall w (c : DeBruijn_Circuit w) Γ ,
       Types_DB Γ c ->
       forall {σ Γ'},
-      Types_subst Γ (get_σ σ) Γ' ->
+      Γ' = subst_ctx Γ (get_σ σ) ->
+      WF_subst Γ (get_σ σ) ->
       Types_DB Γ' (subst_db σ c).
 Proof.
-  induction 1; intros σ Γ' types_σ; simpl.
+  induction 1; intros σ Γ' pf_Γ' types_σ; simpl.
   - constructor.
     eapply types_subst_pat_db; eauto.
   - econstructor; eauto.
     * admit (* requires an extra lemma about merging and substituting *).
-    * eapply types_subst_pat_db; [ | eauto].
-      admit (* requires an extra lemma, possibly the same one as above *).
+    * eapply types_subst_pat_db; [ reflexivity | | eauto]. 
+      admit. (* redefined WF_subst *)
     * apply IHTypes_DB.
-      admit (* requires another lemma... *).
-  - econstructor. admit. admit.
-    intros b. apply H2. admit.
+      + admit (* lemma *).
+      + admit (* lemma *).
+  - econstructor. admit. 
+    eapply types_subst_pat_db; [ reflexivity | | eauto ]. admit.
+    intros b. apply H2. reflexivity. admit.
 Admitted.
     
       
@@ -329,7 +393,8 @@ Admitted.
 (***************)
 (* composition *)
 (***************)
-Print subst_state.
+
+
 Fixpoint db_compose {w w'} (c : DeBruijn_Circuit w) (c' : DeBruijn_Circuit w') 
                   : DeBruijn_Circuit w' :=
   match c with
@@ -338,7 +403,30 @@ Fixpoint db_compose {w w'} (c : DeBruijn_Circuit w) (c' : DeBruijn_Circuit w')
   | db_lift p f   => db_lift p (fun b => db_compose (f b) c')
   end.
 
-Lemma db_compose_correct : forall {w w'} (c : DeBruijn_Circuit w) (c' : DeBruijn_Circuit w') 
-                                  Γ1 Γ2 Γ,
+Fixpoint WType_to_DB_Ctx w :=
+  match w with
+  | One => []
+  | Qubit => [Qubit] 
+  | Bit => [Bit] 
+  | W1 ⊗ W2 => WType_to_DB_Ctx W1 ++ WType_to_DB_Ctx W2
+  end.
+
+Lemma db_compose_correct : forall {w Γ1} (c : DeBruijn_Circuit w), Types_DB Γ1 c ->
+                           forall {w' Γ2 Γ} (c' : DeBruijn_Circuit w'),
     Γ2 = WType_to_DB_Ctx w ->
-    Types_DB Γ1 c -> Types_DB (Γ2 ++ Γ) c' -> Types_DB (Γ1 ++ Γ) (db_compose c c').
+    Types_DB (Γ2 ++ Γ) c' -> Types_DB (Γ1 ++ Γ) (db_compose c c').
+Proof.
+  induction 1; intros w' Γ02 Γ0 c' H_Γ types_c'.
+  - simpl. subst.
+    eapply types_subst_db; eauto.
+    admit.
+    admit.
+  - simpl.
+    econstructor; [ | eauto | ]. admit.
+    admit (* IH here *).
+  - simpl.
+    econstructor; [ | eauto | ]. admit. intros.
+    eapply H2; [ | apply types_c'].
+    admit.
+Admitted.
+  
