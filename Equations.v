@@ -30,6 +30,7 @@ Definition meas_NOT : Box Qubit Bit :=
     gate_ b ← meas @q;
     gate_ b ← NOT @b;
     output b.
+
 Lemma meas_NOT_WT : Typed_Box meas_NOT.
 Proof. type_check. Qed.
 
@@ -219,5 +220,12 @@ Proof.
   rewrite (WFU _ 2%nat) ; autorewrite with C_db; auto.
   rewrite (WFU _ (S (S (S y)))); autorewrite with C_db; trivial; right; omega.
 Qed.
-    
-   
+       
+(** Equality 4: init; meas = new **)
+
+Definition new (b : bool) : Box One Bit :=
+  if b then boxed_gate new1 else boxed_gate new0.
+Lemma new_WT : forall b, Typed_Box (new b).
+Proof. intros. type_check.  simpl.
+
+init new
