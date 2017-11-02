@@ -24,8 +24,11 @@ FlatExamples.vo: FlatExamples.v FlatCircuits.vo
 HOASExamples.vo: HOASExamples.v HOASCircuits.vo
 	coqc HOASExamples.v
 
-Denotation.vo: Denotation.v Quantum.vo HOASCircuits.vo FlatCircuits.vo
+Denotation.vo: Denotation.v Quantum.vo HOASCircuits.vo DBCircuits.vo
 	coqc Denotation.v
+
+DBCircuits.vo: DBCircuits.v Contexts.vo HOASCircuits.vo Monad.vo
+	coqc DBCircuits.v
 
 FlatCircuits.vo: FlatCircuits.v HOASCircuits.vo Monad.vo
 	coqc FlatCircuits.v

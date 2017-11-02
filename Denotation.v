@@ -2,7 +2,8 @@ Require Import Program.
 Require Import Monad.
 Require Export Contexts.
 Require Import HOASCircuits.
-Require Import FlatCircuits.
+(*Require Import FlatCircuits.*)
+Require Import DBCircuits.
 Require Import Arith.
 Require Export Quantum.
 Require Import Omega.
@@ -313,7 +314,7 @@ Fixpoint pat_size {W} (p : Pat W) : nat :=
   end.
 
 Lemma pat_size_hash_pat : forall w (p : Pat w) ls, 
-      pat_size (hash_pat p ls) = pat_size p.
+      pat_size (subst_pat ls p) = pat_size p.
 Proof. 
   induction p; intros; auto.
   simpl. rewrite IHp1, IHp2. reflexivity.
@@ -334,45 +335,52 @@ Definition get_box_output_size {W} (c : Min_Box W) :=
 *)
 
 (* n is the input size *) About apply_gate.
-Fixpoint denote_min_circuit {w}  (pad n : nat) (c : Min_Circuit w) 
+Fixpoint denote_db_circuit {w}  (pad n : nat) (c : DeBruijn_Circuit w) 
                           : Superoperator (2^(n+pad)) (2^(〚w〛 + pad))
   := 
   match c with 
-  | min_output p            => super (swap_list (〚w〛) (pat_to_list p))
-  | @min_gate _ W1 W2 g p c'  => compose_super 
-                                (denote_min_circuit pad (n + 〚W2〛 - 〚W1〛) c')
+  | db_output p            => super (swap_list (〚w〛) (pat_to_list p))
+  | @db_gate _ W1 W2 g p c'  => compose_super 
+                                (denote_db_circuit pad (n + 〚W2〛 - 〚W1〛) c')
                                 (apply_gate g (pat_to_list p))
   (* I think we need a weighing here - also a measure-discard *)
-  | min_lift p c'   => Splus (denote_min_circuit pad n (c' true))
-                             (denote_min_circuit pad n (c' false))
+  | db_lift p c'   => Splus (denote_db_circuit pad n (c' true))
+                             (denote_db_circuit pad n (c' false))
   end.
 
-Definition denote_min_box {W1 W2} (c : Min_Box W1 W2) : 
+Definition denote_db_box {W1 W2} (c : DeBruijn_Box W1 W2) : 
   Superoperator (2 ^ 〚 W1 〛) (2 ^ 〚 W2 〛) :=
   match c with
-  | min_box _ c' => denote_min_circuit 0 (〚W1〛) c'  
+  | db_box _ c' => denote_db_circuit 0 (〚W1〛) c'  
   end.
 
 (** Denoting hoas circuits **)
 
 Definition denote_box {W1 W2 : WType} (c : Box W1 W2) := 
-    denote_min_box (hoas_to_min_box c).
+    denote_db_box (hoas_to_db_box c).
 Instance Denote_Box {W1 W2} : Denote (Box W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
          {| denote := denote_box |}.
 
 About min_compose.
 
 
-Lemma denote_min_subst : forall pad n σ w (c : Min_Circuit w),
-      denote_min_circuit pad n (min_subst σ c)
-    = compose_super (denote_min_circuit pad n c)
-                    (super (swap_list (length σ) σ)).
+(*
+Lemma denote_db_subst : forall pad n σ w (c : DeBruijn_Circuit w),
+      denote_db_circuit pad n (subst_db σ c)
+    = compose_super (denote_db_circuit pad n c)
+                    (super (swap_list (length (get_σ σ)) (get_σ σ))).
 Admitted.
+*)
 
 
 Lemma size_WType_length : forall {w} (p : Pat w),
-      length (pat_to_list p) = size_WType w.
-Admitted.
+    length (pat_to_list p) = size_WType w.
+Proof.
+  induction p; simpl; auto.
+  rewrite app_length.
+  rewrite IHp1, IHp2.
+  auto.
+Qed.
 
 Lemma compose_super_assoc : forall {m n p q}
       (f : Superoperator m n) (g : Superoperator n p) (h : Superoperator p q), 
@@ -384,9 +392,15 @@ Admitted.
 that. *)
 (* TODO: might need to add a hypothesis relating n1 and n2 to the actual inputs
 of c1 and c2 *)
-Lemma denote_min_compose : forall n1 n2 n pad w1 w2 
-                                  (c1 : Min_Circuit w1) (c2 : Min_Circuit w2),
-      (n = n1 + n2)%nat (* n1 is the number of wires going into c1, n is the
+〚  〛
+Lemma denote_db_compose : forall n1 n2 n pad w1 w2 
+                          (c1 : DeBruijn_Circuit w1) (c2 : DeBruijn_Circuit w2),
+    Types_DB Γ1 c1 ->
+    Types_DB Γ2 c2 ->
+
+    denote_db_circuit pad (〚Γ1〛) c1
+
+    (n = n1 + n2)%nat (* n1 is the number of wires going into c1, n is the
       total number of input wires, so n2 is the number of wires going ONLY into
       c2. Thus the total number of wires into c2 is (n - |w1| + n2) *) ->
       denote_min_circuit pad n (min_compose c1 c2)
