@@ -7,10 +7,19 @@ Set Bullet Behavior "Strict Subproofs".
 Global Unset Asymmetric Patterns.
 
 Open Scope circ_scope.
-Opaque wproj.
 Opaque merge.
 Opaque Ctx.
 Opaque is_valid.
+
+Ltac solve_ill_formed := 
+  repeat match goal with 
+  | [H : WF_Matrix _ _ ?M |- context[?M ?a ?b] ] => 
+      rewrite (H a b) by (left; simpl; omega) 
+  | [H : WF_Matrix _ _ ?M |- context[?M ?a ?b] ] => 
+      rewrite (H a b) by (right; simpl; omega) 
+  end;
+  autorewrite with C_db; auto.
+
 
 (* Note: All of these circuits should in principle end with an arbitrary circuit -
          here I'm just outputting the mentioned (qu)bits *)
@@ -47,7 +56,7 @@ Proof.
   symmetry.
   repeat reduce_matrix.
   reflexivity.
-  all: rewrite WF; trivial; simpl; right; omega.
+  all: solve_ill_formed.
 Qed.
 
 (** Equality 2: meas x; lift x; if x then U else b = alt x U V; meas-discard x **) 
@@ -213,12 +222,7 @@ Proof.
   } 
   rewrite H0. 
   reflexivity.
-  rewrite 2 (WFU 2%nat); autorewrite with C_db; auto.
-  rewrite 2 (WFU (S (S (S y)))); autorewrite with C_db; trivial; left; omega.
-  rewrite 2 (WFρ _ 2%nat); autorewrite with C_db; trivial; right; omega.
-  rewrite 2 (WFρ _ (S (S (S y)))); autorewrite with C_db; trivial; right; omega.
-  rewrite (WFU _ 2%nat) ; autorewrite with C_db; auto.
-  rewrite (WFU _ (S (S (S y)))); autorewrite with C_db; trivial; right; omega.
+  all: solve_ill_formed.
 Qed.
        
 (** Equality 4: init; meas = new **)
@@ -226,6 +230,130 @@ Qed.
 Definition new (b : bool) : Box One Bit :=
   if b then boxed_gate new1 else boxed_gate new0.
 Lemma new_WT : forall b, Typed_Box (new b).
-Proof. intros. type_check.  simpl.
+Proof. destruct b; type_check. Qed.
 
-init new
+Definition init_meas (b : bool) : Box One Bit := 
+  box_ () ⇒ 
+    let_ q ← unbox (init b) ();
+    gate_ b ← meas @q;
+    output b. 
+Lemma init_meas_WT : forall b, Typed_Box (init_meas b).
+Proof. destruct b; type_check. Qed.
+
+Definition init_meas_new : forall b, init_meas b ≡ new b.
+Proof.
+  destruct b; simpl.
+  - repeat (autounfold with den_db; intros; simpl).
+    specialize (WF_Mixed _ H); intros WFρ.
+    autorewrite with M_db.
+    repeat reduce_matrix.
+    symmetry.
+    repeat reduce_matrix.
+    reflexivity.
+    rewrite WFρ; auto.
+    rewrite WFρ; auto.
+    right. simpl. omega.
+  - repeat (autounfold with den_db; intros; simpl).
+    specialize (WF_Mixed _ H); intros WFρ.
+    autorewrite with M_db.
+    repeat reduce_matrix.
+    symmetry.
+    repeat reduce_matrix.
+    reflexivity.
+    all: solve_ill_formed.
+Qed.
+
+(** Equality 5: init b; alt b U V = init b; if b then U else V **) 
+
+Definition init_alt {W}  (b : bool) (U V : Unitary W) : Box W (Qubit ⊗ W) := 
+  box_ qs ⇒ 
+    let_ q   ← unbox (init b) ();
+    let_ (q,qs) ← unbox (alternate U V) (q,qs);
+    output (q,qs).
+Lemma init_alt_WT : forall W b (U V : Unitary W), Typed_Box (init_alt b U V).
+Proof. destruct b; type_check. Qed.
+
+Definition init_if {W}  (b : bool) (U V : Unitary W) : Box W (Qubit ⊗ W) := 
+  box_ qs ⇒ 
+    let_ q   ← unbox (init b) ();
+    gate_ qs ← (if b then U else V) @qs;
+    output (q,qs).
+Lemma init_if_WT : forall W b (U V : Unitary W), Typed_Box (init_if b U V).
+Proof. destruct b; type_check. Qed.
+
+(* Works but takes >5 minutes *)
+(*
+Lemma init_alt_if_qubit : forall b (U V : Unitary Qubit), init_alt b U V ≡ init_if b U V.
+Proof.
+  destruct b; simpl.
+  - repeat (autounfold with den_db; intros; simpl).
+    specialize (WF_Mixed _ H); intros WFρ.
+    specialize (WF_unitary U). simpl; intros WFU.
+    specialize (WF_unitary V). simpl; intros WFV.
+    autorewrite with M_db.
+    repeat rewrite <- Mmult_assoc.
+    repeat rewrite (Mmult_assoc _ _ _ _ _ swap swap).
+    autorewrite with M_db.    
+    repeat rewrite <- Mmult_assoc.
+    repeat reduce_matrix.
+    symmetry.
+    repeat reduce_matrix.
+    reflexivity.    
+    all: solve_ill_formed.
+  - repeat (autounfold with den_db; intros; simpl).
+    specialize (WF_Mixed _ H); intros WFρ.
+    specialize (WF_unitary U). simpl; intros WFU.
+    specialize (WF_unitary V). simpl; intros WFV.
+    autorewrite with M_db.
+    repeat rewrite <- Mmult_assoc.
+    repeat rewrite (Mmult_assoc _ _ _ _ _ swap swap).
+    autorewrite with M_db.    
+    repeat rewrite <- Mmult_assoc.
+    repeat reduce_matrix.
+    symmetry.
+    repeat reduce_matrix.
+    reflexivity.    
+    all: solve_ill_formed.
+Qed.
+*)
+
+Lemma init_alt_if : forall W b (U V : Unitary W), init_alt b U V ≡ init_if b U V.
+Proof.
+  destruct b; simpl.
+  - repeat (autounfold with den_db; intros; simpl).
+    specialize (WF_Mixed _ H); intros WFρ.
+Admitted.  
+
+(** Equality 6: init b; X b = init ~b **) 
+
+Definition init_X (b : bool) : Box One Qubit :=
+  box_ () ⇒ 
+    let_ q  ← unbox (init b) ();
+    gate_ q ← X @q;
+    output q. 
+Lemma init_X_WT : forall b, Typed_Box (init_X b).
+Proof. destruct b; type_check. Qed.
+
+(* The proof of 4 works here two, but this is faster / more algebraic. *)
+(* The four replacements could be lemmas *)
+Lemma init_X_init : forall b, init_X b ≡ init (negb b).
+Proof.
+  destruct b; simpl.
+  - repeat (autounfold with den_db; intros; simpl).
+    specialize (WF_Mixed _ H); intros WFρ.
+    autorewrite with M_db.
+    repeat rewrite <- Mmult_assoc.
+    replace (σx × |1⟩) with (|0⟩) by crunch_matrix.
+    repeat rewrite Mmult_assoc.
+    replace (⟨1| × σx) with (⟨0|) by crunch_matrix.
+    reflexivity.    
+  - repeat (autounfold with den_db; intros; simpl).
+    specialize (WF_Mixed _ H); intros WFρ.
+    autorewrite with M_db.
+    repeat rewrite <- Mmult_assoc.
+    replace (σx × |0⟩) with (|1⟩) by crunch_matrix.
+    repeat rewrite Mmult_assoc.
+    replace (⟨0| × σx) with (⟨1|) by crunch_matrix.
+    reflexivity.    
+Qed.
+  
