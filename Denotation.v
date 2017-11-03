@@ -392,8 +392,8 @@ Admitted.
 that. *)
 (* TODO: might need to add a hypothesis relating n1 and n2 to the actual inputs
 of c1 and c2 *)
-〚  〛
-Lemma denote_db_compose : forall n1 n2 n pad w1 w2 
+(*〚  〛*)
+Lemma denote_db_compose : forall pad w1 w2 Γ1 Γ2
                           (c1 : DeBruijn_Circuit w1) (c2 : DeBruijn_Circuit w2),
     Types_DB Γ1 c1 ->
     Types_DB Γ2 c2 ->
@@ -403,10 +403,10 @@ Lemma denote_db_compose : forall n1 n2 n pad w1 w2
     (n = n1 + n2)%nat (* n1 is the number of wires going into c1, n is the
       total number of input wires, so n2 is the number of wires going ONLY into
       c2. Thus the total number of wires into c2 is (n - |w1| + n2) *) ->
-      denote_min_circuit pad n (min_compose c1 c2)
+      denote_db_circuit pad n (db_compose c1 c2)
     = compose_super
-      (denote_min_circuit pad (n - size_WType w1 + n2) c2)
-      (denote_min_circuit (pad + n2) n1 c1).
+      (denote_db_circuit pad (n - size_WType w1 + n2) c2)
+      (denote_db_circuit (pad + n2) n1 c1).
 Proof.
   intros.
   generalize dependent w2.
