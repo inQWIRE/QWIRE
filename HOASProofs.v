@@ -605,6 +605,39 @@ Ltac evar_list_2d m n :=
 Ltac evar_matrix m n := let ls2d := (evar_list_2d m n) 
                         in constr:(list2D_to_matrix ls2d).   
 
+(* Tactic version of Nat.lt *)
+Ltac tac_lt m n := 
+  match n with 
+  | S ?n' => match m with 
+            | O => idtac
+            | S ?m' => tac_lt m' n'
+            end
+  end.
+
+(* Reassociate matrices so that smallest dimensions are multiplied first:
+ m n o    p
+(A × B) × C => A × (B × C) iff
+  1) p < o && p < m
+  2) n < o && n < m
+
+m n    o p
+A × (B × C) => (A × B) × C iff
+  1) m < n && m < p
+  2) o < n && o < p
+*)
+Ltac assoc_least := 
+  repeat (simpl; match goal with
+  | [|- context[@Mmult ?m ?o ?p (@Mmult ?m ?n ?o ?A ?B) ?C]] => tac_lt p o; tac_lt p m; 
+       setoid_rewrite (Mmult_assoc _ _ _ _ A B C)
+  | [|- context[@Mmult ?m ?o ?p (@Mmult ?m ?n ?o ?A ?B) ?C]] => tac_lt n o; tac_lt n m; 
+       setoid_rewrite (Mmult_assoc _ _ _ _ A B C)
+  | [|- context[@Mmult ?m ?n ?p ?A (@Mmult ?n ?o ?p ?B ?C)]] => tac_lt m n; tac_lt m p; 
+       setoid_rewrite <- (Mmult_assoc _ _ _ _ A B C)
+  | [|- context[@Mmult ?m ?n ?p ?A (@Mmult ?n ?o ?p ?B ?C)]] => tac_lt o n; tac_lt o p; 
+       setoid_rewrite <- (Mmult_assoc _ _ _ _ A B C)
+  end).
+
+(* Helper function for crunch_matrix *)
 Ltac solve_out_of_bounds := 
   repeat match goal with 
   | [H : WF_Matrix _ _ ?M |- context[?M ?a ?b] ] => 
@@ -636,63 +669,6 @@ Ltac crunch_matrix := match goal with
                       try reflexivity;
                       try solve_out_of_bounds. 
 
-Ltac reduce_aux M := 
-  match M with 
-  | ?A × ?B     => reduce_aux A  (* will fail if A is not a product/sum *)
-  | ?A .+ ?B    => reduce_aux A  (* will fail if A is not a product/sum *)
-  | ?A .+ ?B    => reduce_aux B  (* for addition, reduce both sides first *)
-  |  @Mmult ?m ?n ?o ?A ?B        => let M' := evar_matrix m o in
-                                    replace M with M';
-                                    [| crunch_matrix ] 
-  | @Mplus ?m ?n ?A ?B            => let M' := evar_matrix m n in
-                                    replace M with M';
-                                    [| crunch_matrix ] 
-  end.
-
-(* Replace smallest A × B with their product *)
-Ltac reduce_matrix := match goal with [ |- ?M = _] => reduce_aux M end;
-                      repeat match goal with | [ H : C |- _ ] => unfold H; clear H end.
-
-Ltac solve_matrix := repeat reduce_matrix; crunch_matrix.
-
-
-(* Faster version, puts goal has the form (... × |φ⟩) × (⟨φ| × ...) *)
-(* Should generalize to a sum of these products. *)
-(* Rewrite to focus on specific parts, use has_bra and has_ket subroutines. *)
-
-Ltac tac_lt m n := 
-  match n with 
-  | S ?n' => match m with 
-            | O => idtac
-            | S ?m' => tac_lt m' n'
-            end
-  end.
-
-
-(*
- m n o    p
-(A × B) × C => A × (B × C) iff
-  1) p < o && p < m
-  2) n < o && n < m
-
-m n    o p
-A × (B × C) => (A × B) × C iff
-  1) m < n && m < p
-  2) o < n && o < p
-*)
-
-Ltac assoc_least := 
-  repeat (simpl; match goal with
-  | [|- context[@Mmult ?m ?o ?p (@Mmult ?m ?n ?o ?A ?B) ?C]] => tac_lt p o; tac_lt p m; 
-       setoid_rewrite (Mmult_assoc _ _ _ _ A B C)
-  | [|- context[@Mmult ?m ?o ?p (@Mmult ?m ?n ?o ?A ?B) ?C]] => tac_lt n o; tac_lt n m; 
-       setoid_rewrite (Mmult_assoc _ _ _ _ A B C)
-  | [|- context[@Mmult ?m ?n ?p ?A (@Mmult ?n ?o ?p ?B ?C)]] => tac_lt m n; tac_lt m p; 
-       setoid_rewrite <- (Mmult_assoc _ _ _ _ A B C)
-  | [|- context[@Mmult ?m ?n ?p ?A (@Mmult ?n ?o ?p ?B ?C)]] => tac_lt o n; tac_lt o p; 
-       setoid_rewrite <- (Mmult_assoc _ _ _ _ A B C)
-  end).
-
 Ltac compound M := 
   match M with
   | ?A × ?B  => idtac
@@ -700,12 +676,13 @@ Ltac compound M :=
   | ?A †     => compound A
   end.
 
-Ltac reduce_aux' M := 
+(* Reduce inner matrices first *)
+Ltac reduce_aux M := 
   match M with 
-  | ?A .+ ?B     => compound A; reduce_aux' A
-  | ?A .+ ?B     => compound B; reduce_aux' B
-  | ?A × ?B      => compound A; reduce_aux' A
-  | ?A × ?B      => compound B; reduce_aux' B
+  | ?A .+ ?B     => compound A; reduce_aux A
+  | ?A .+ ?B     => compound B; reduce_aux B
+  | ?A × ?B      => compound A; reduce_aux A
+  | ?A × ?B      => compound B; reduce_aux B
   |  @Mmult ?m ?n ?o ?A ?B        => let M' := evar_matrix m o in
                                     replace M with M';
                                     [| crunch_matrix ] 
@@ -714,44 +691,19 @@ Ltac reduce_aux' M :=
                                     [| crunch_matrix ] 
   end.
 
-
-Ltac reduce_aux_l M := 
-  match M with 
-  | ?A × ?B     => reduce_aux_l A  (* will fail if A is not a product/sum *)
-  | ?A .+ ?B    => reduce_aux_l A  (* will fail if A is not a product/sum *)
-  |  @Mmult ?m ?n ?o ?A ?B        => let M' := evar_matrix m o in
-                                    replace M with M';
-                                    [| crunch_matrix ] 
-  | @Mplus ?m ?n ?A ?B            => let M' := evar_matrix m n in
-                                    replace M with M';
-                                    [| crunch_matrix ] 
-  end.
-
-Ltac reduce_aux_r M := 
-  match M with 
-  | ?A × ?B     => reduce_aux_r B  (* will fail if A is not a product/sum *)
-  | ?A .+ ?B    => reduce_aux_r B  (* will fail if A is not a product/sum *)
-  |  @Mmult ?m ?n ?o ?A ?B        => let M' := evar_matrix m o in
-                                    replace M with M';
-                                    [| crunch_matrix ] 
-  | @Mplus ?m ?n ?A ?B            => let M' := evar_matrix m n in
-                                    replace M with M';
-                                    [| crunch_matrix ] 
-  end.
-
-Ltac reduce_matrix' := match goal with 
-                       | [ |- ?M = _] => reduce_aux' M
-                       | [ |- _ = ?M] => reduce_aux' M
+Ltac reduce_matrix := match goal with 
+                       | [ |- ?M = _] => reduce_aux M
+                       | [ |- _ = ?M] => reduce_aux M
                        end;
                        repeat match goal with | [ H : C |- _ ] => unfold H; clear H end.
 
-Ltac solve_matrix' := repeat reduce_matrix'; crunch_matrix.
+Ltac solve_matrix := assoc_least; repeat reduce_matrix; crunch_matrix.
 
 (** /computational matrix tactics **)
 
 Lemma swap_swap : swap × swap = Id 4.
 Proof.
-  solve_matrix'.
+  solve_matrix.
   destruct (x =? y); auto.
 Qed.
 
@@ -782,8 +734,7 @@ Proof.
   autorewrite with M_db. 
   repeat setoid_rewrite kron_conj_transpose.
   autorewrite with M_db.
-  assoc_least.
-  solve_matrix'.
+  solve_matrix.
 Qed.
 
 (* Deutsch's Algorithm *)
@@ -832,7 +783,7 @@ Hint Rewrite <- Copp_mult_distr_l Copp_mult_distr_r Cdouble : C_db.
 Hint Rewrite <- Cinv_mult_distr using c_ineq : C_db.
 Hint Rewrite Cinv_l Cinv_r using c_ineq : C_db.
   
-(* Temporarily commented out for efficient compilation 
+(* Temporarily commented out for efficient compilation *)
 Lemma deutsch_constant : forall U_f, constant U_f -> 
                                 〚deutsch U_f〛 I1 = |0⟩⟨0|.
 Proof.
@@ -856,12 +807,9 @@ Proof.
   destruct H; rewrite H; clear.
   + (* f0 *)
     unfold f0.
-    autorewrite with M_db. 
     repeat reduce_matrix.
     crunch_matrix.
-    all: try clra.
     all: try (destruct y; simpl; try rewrite divmod_eq; simpl; clra).
-    autorewrite with C_db. 
     unfold Cdiv.
     autorewrite with C_db. 
     repeat rewrite <- Cmult_assoc.
@@ -876,9 +824,7 @@ Proof.
     unfold f3.
     repeat reduce_matrix.
     crunch_matrix.
-    all: try clra.
     all: try (destruct y; simpl; try rewrite divmod_eq; simpl; clra).
-    autorewrite with C_db. 
     unfold Cdiv.
     autorewrite with C_db. 
     repeat rewrite <- Cmult_assoc.
@@ -917,7 +863,6 @@ Proof.
     unfold f1.
     repeat reduce_matrix.
     crunch_matrix.
-    all: try clra.
     all: try (destruct y; simpl; try rewrite divmod_eq; simpl; clra).
     autorewrite with C_db. 
     unfold Cdiv.
@@ -934,7 +879,6 @@ Proof.
     unfold f2.
     repeat reduce_matrix.
     crunch_matrix.
-    all: try clra.
     all: try (destruct y; simpl; try rewrite divmod_eq; simpl; clra).
     autorewrite with C_db. 
     unfold Cdiv.
@@ -948,20 +892,48 @@ Proof.
     autorewrite with C_db.
     reflexivity.
 Qed.
-*)
 
-(* These don't work yet... *)
-Ltac num_terms T := 
-  match T with 
-  | ?f ?a ?b => num_terms a + num_terms b
-  | _        => 1
-  end.
-
-Ltac proof_size := 
-  match goal with 
-  | [|- ?A = ?B] => num_terms A + num_terms B
-  end.
-
+(* Let's see if not distributing is faster *)
+Lemma deutsch_balanced' : forall U_f, balanced U_f -> 
+                                〚deutsch U_f〛 I1 = |1⟩⟨1|.
+Proof.
+  intros U_f H.
+  repeat (simpl; autounfold with den_db). 
+  specialize (unitary_gate_unitary U_f). intros [WFU UU].
+  simpl in WFU.
+  autorewrite with M_db.
+  repeat setoid_rewrite kron_conj_transpose.
+  autorewrite with M_db. 
+  destruct H; rewrite H; clear.
+  + (* f1 *)
+    unfold f1.
+    solve_matrix.
+    rewrite (Cmult_comm (1/√2) (1/2)).
+    repeat rewrite <- Cmult_assoc.
+    rewrite (Cmult_comm (1/√2) _).
+    repeat rewrite <- Cmult_assoc.
+    autorewrite with C_db. 
+    unfold Cdiv.
+    autorewrite with C_db. 
+    repeat rewrite Cmult_assoc.
+    rewrite <- (Cmult_assoc 2 2 _).
+    autorewrite with C_db.
+    reflexivity.
+  + (* f2 *)
+    unfold f2.
+    solve_matrix.
+    rewrite (Cmult_comm (1/√2) (1/2)).
+    repeat rewrite <- Cmult_assoc.
+    rewrite (Cmult_comm (1/√2) _).
+    repeat rewrite <- Cmult_assoc.
+    autorewrite with C_db. 
+    unfold Cdiv.
+    autorewrite with C_db. 
+    repeat rewrite Cmult_assoc.
+    rewrite <- (Cmult_assoc 2 2 _).
+    autorewrite with C_db.
+    reflexivity.
+Qed.
 
 (* We convert the matrices back to functional representation for 
    unification. Simply comparing the matrices may be more efficient,

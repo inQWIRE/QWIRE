@@ -128,8 +128,7 @@ Proof.
   autorewrite with M_db.
   rewrite Mmult_plus_distr_l.
   rewrite Mmult_plus_distr_r.
-  assoc_least.
-  solve_matrix'.
+  solve_matrix.
   specialize (mixed_state_trace_1 _ H); intros trρ.
   unfold trace in trρ. simpl in trρ. rewrite Cplus_0_l in trρ.
   rewrite trρ.
@@ -242,13 +241,11 @@ Proof.
   - repeat (autounfold with den_db; intros; simpl).
     specialize (WF_Mixed _ H); intros WFρ.
     autorewrite with M_db.
-    assoc_least.
-    solve_matrix'.
+    solve_matrix.
   - repeat (autounfold with den_db; intros; simpl).
     specialize (WF_Mixed _ H); intros WFρ.
     autorewrite with M_db.
-    assoc_least.
-    solve_matrix'.
+    solve_matrix.
 Qed.
 
 (** Equality 5: init b; alt b U V = init b; if b then U else V **) 
@@ -284,8 +281,7 @@ Proof.
     Search kron.
     setoid_rewrite kron_conj_transpose.
     autorewrite with M_db.    
-    assoc_least.
-    solve_matrix'.
+    solve_matrix.
   - repeat (autounfold with den_db; intros; simpl).
     specialize (WF_Mixed _ H); intros WFρ.
     specialize (WF_unitary U). simpl; intros WFU.
@@ -294,8 +290,7 @@ Proof.
     repeat rewrite <- Mmult_assoc.
     repeat rewrite (Mmult_assoc _ _ _ _ _ swap swap).
     autorewrite with M_db.    
-    assoc_least.
-    solve_matrix'.
+    solve_matrix.
 Qed.
 
 Lemma init_alt_if : forall W b (U V : Unitary W), init_alt b U V ≡ init_if b U V.
