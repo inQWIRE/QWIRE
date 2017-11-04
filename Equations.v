@@ -11,15 +11,16 @@ Opaque merge.
 Opaque Ctx.
 Opaque is_valid.
 
-Ltac solve_ill_formed := 
-  repeat match goal with 
-  | [H : WF_Matrix _ _ ?M |- context[?M ?a ?b] ] => 
-      rewrite (H a b) by (left; simpl; omega) 
-  | [H : WF_Matrix _ _ ?M |- context[?M ?a ?b] ] => 
-      rewrite (H a b) by (right; simpl; omega) 
-  end;
-  autorewrite with C_db; auto.
 
+(* Notations *)
+Notation "a ^*" := (Cconj a) (at level 10).
+
+(* Lemmas *)
+Lemma MmultX1 : σx × |1⟩ = |0⟩. Proof. crunch_matrix. Qed.
+Lemma Mmult1X : ⟨1| × σx = ⟨0|. Proof. crunch_matrix. Qed.
+Lemma MmultX0 : σx × |0⟩ = |1⟩. Proof. crunch_matrix. Qed.
+Lemma Mmult0X : ⟨0| × σx = ⟨1|. Proof. crunch_matrix. Qed.
+Hint Rewrite Mmult0X Mmult1X MmultX0 MmultX1 : M_db.
 
 (* Note: All of these circuits should in principle end with an arbitrary circuit -
          here I'm just outputting the mentioned (qu)bits *)
@@ -43,7 +44,6 @@ Definition meas_NOT : Box Qubit Bit :=
 Lemma meas_NOT_WT : Typed_Box meas_NOT.
 Proof. type_check. Qed.
 
-(* Could do this algebraically as well. *)
 Lemma NOT_meas_comm : X_meas ≡ meas_NOT.
 Proof.
   repeat (autounfold with den_db; intros; simpl).
@@ -52,11 +52,13 @@ Proof.
   rewrite Mmult_plus_distr_l.
   rewrite Mmult_plus_distr_r.
   repeat rewrite <- Mmult_assoc.
-  repeat reduce_matrix.
-  symmetry.
-  repeat reduce_matrix.
+  repeat rewrite (Mmult_assoc _ _ _ _ _ ⟨0| σx).
+  repeat rewrite (Mmult_assoc _ _ _ _ _ ⟨1| σx).
+  repeat rewrite (Mmult_assoc _ _ _ _ _ σx |0⟩).
+  repeat rewrite (Mmult_assoc _ _ _ _ _ σx |1⟩).
+  autorewrite with M_db.
+  rewrite Mplus_comm.
   reflexivity.
-  all: solve_ill_formed.
 Qed.
 
 (** Equality 2: meas x; lift x; if x then U else b = alt x U V; meas-discard x **) 
@@ -117,9 +119,6 @@ Definition meas_discard :=
 Lemma meas_discard_WT : Typed_Box meas_discard.  
 Proof. type_check. Qed.
 
-(* Move to Complex.v *)
-Notation "a ^*" := (Cconj a) (at level 10).
-
 Lemma U_meas_eq_meas : forall U, U_meas_discard U ≡ meas_discard.
 Proof.
   repeat (autounfold with den_db; intros; simpl).
@@ -129,10 +128,8 @@ Proof.
   autorewrite with M_db.
   rewrite Mmult_plus_distr_l.
   rewrite Mmult_plus_distr_r.
-  repeat rewrite <- Mmult_assoc.
-  repeat reduce_matrix.
-  symmetry.
-  repeat reduce_matrix.
+  assoc_least.
+  solve_matrix'.
   specialize (mixed_state_trace_1 _ H); intros trρ.
   unfold trace in trρ. simpl in trρ. rewrite Cplus_0_l in trρ.
   rewrite trρ.
@@ -222,7 +219,6 @@ Proof.
   } 
   rewrite H0. 
   reflexivity.
-  all: solve_ill_formed.
 Qed.
        
 (** Equality 4: init; meas = new **)
@@ -246,21 +242,13 @@ Proof.
   - repeat (autounfold with den_db; intros; simpl).
     specialize (WF_Mixed _ H); intros WFρ.
     autorewrite with M_db.
-    repeat reduce_matrix.
-    symmetry.
-    repeat reduce_matrix.
-    reflexivity.
-    rewrite WFρ; auto.
-    rewrite WFρ; auto.
-    right. simpl. omega.
+    assoc_least.
+    solve_matrix'.
   - repeat (autounfold with den_db; intros; simpl).
     specialize (WF_Mixed _ H); intros WFρ.
     autorewrite with M_db.
-    repeat reduce_matrix.
-    symmetry.
-    repeat reduce_matrix.
-    reflexivity.
-    all: solve_ill_formed.
+    assoc_least.
+    solve_matrix'.
 Qed.
 
 (** Equality 5: init b; alt b U V = init b; if b then U else V **) 
@@ -281,8 +269,6 @@ Definition init_if {W}  (b : bool) (U V : Unitary W) : Box W (Qubit ⊗ W) :=
 Lemma init_if_WT : forall W b (U V : Unitary W), Typed_Box (init_if b U V).
 Proof. destruct b; type_check. Qed.
 
-(* Works but takes >5 minutes *)
-(*
 Lemma init_alt_if_qubit : forall b (U V : Unitary Qubit), init_alt b U V ≡ init_if b U V.
 Proof.
   destruct b; simpl.
@@ -295,11 +281,11 @@ Proof.
     repeat rewrite (Mmult_assoc _ _ _ _ _ swap swap).
     autorewrite with M_db.    
     repeat rewrite <- Mmult_assoc.
-    repeat reduce_matrix.
-    symmetry.
-    repeat reduce_matrix.
-    reflexivity.    
-    all: solve_ill_formed.
+    Search kron.
+    setoid_rewrite kron_conj_transpose.
+    autorewrite with M_db.    
+    assoc_least.
+    solve_matrix'.
   - repeat (autounfold with den_db; intros; simpl).
     specialize (WF_Mixed _ H); intros WFρ.
     specialize (WF_unitary U). simpl; intros WFU.
@@ -308,14 +294,9 @@ Proof.
     repeat rewrite <- Mmult_assoc.
     repeat rewrite (Mmult_assoc _ _ _ _ _ swap swap).
     autorewrite with M_db.    
-    repeat rewrite <- Mmult_assoc.
-    repeat reduce_matrix.
-    symmetry.
-    repeat reduce_matrix.
-    reflexivity.    
-    all: solve_ill_formed.
+    assoc_least.
+    solve_matrix'.
 Qed.
-*)
 
 Lemma init_alt_if : forall W b (U V : Unitary W), init_alt b U V ≡ init_if b U V.
 Proof.
@@ -343,17 +324,17 @@ Proof.
     specialize (WF_Mixed _ H); intros WFρ.
     autorewrite with M_db.
     repeat rewrite <- Mmult_assoc.
-    replace (σx × |1⟩) with (|0⟩) by crunch_matrix.
+    autorewrite with M_db.
     repeat rewrite Mmult_assoc.
-    replace (⟨1| × σx) with (⟨0|) by crunch_matrix.
+    autorewrite with M_db.
     reflexivity.    
   - repeat (autounfold with den_db; intros; simpl).
     specialize (WF_Mixed _ H); intros WFρ.
     autorewrite with M_db.
     repeat rewrite <- Mmult_assoc.
-    replace (σx × |0⟩) with (|1⟩) by crunch_matrix.
+    autorewrite with M_db.
     repeat rewrite Mmult_assoc.
-    replace (⟨0| × σx) with (⟨1|) by crunch_matrix.
+    autorewrite with M_db.
     reflexivity.    
 Qed.
   
