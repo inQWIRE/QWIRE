@@ -729,3 +729,109 @@ Inductive Gate : WType -> WType -> Set :=
 
 Coercion U : Unitary >-> Gate.
 Close Scope circ_scope.
+
+
+Record valid_merge Γ1 Γ2 Γ :=
+  { pf_valid : is_valid Γ
+  ; pf_merge : Γ = Γ1 ⋓ Γ2 }.
+(* pretty bad notation *)
+Notation "Γ == Γ1 ∙ Γ2" := (valid_merge Γ1 Γ2 Γ) (at level 20).
+
+
+
+
+
+Ltac simplify_invalid := repeat rewrite merge_I_l in *;
+                         repeat rewrite merge_I_r in *.
+  
+Ltac invalid_contradiction :=
+  (* don't want any of the proofs to be used in conclusion *)
+  absurd False; [ inversion 1 | ]; 
+  try match goal with
+  | [ H : ?Γ == ?Γ1 ∙ ?Γ2 |- _ ] => destruct H
+  end;
+  subst; simplify_invalid;
+  match goal with
+  | [ H : is_valid Invalid  |- _ ] => apply (False_rect _ (not_valid H))
+  | [ H : Valid _ = Invalid |- _ ] => inversion H
+  end.
+
+
+Inductive merge_o {A} : option A -> option A -> option A -> Prop :=
+| merge_None : merge_o None None None
+| merge_Some_l : forall w, merge_o (Some w) None (Some w)
+| merge_Some_r : forall w, merge_o None (Some w) (Some w).
+
+    
+Inductive merge_ind : OCtx -> OCtx -> OCtx -> Prop :=
+| m_nil_l : forall Γ, merge_ind ∅ (Valid Γ) (Valid Γ)
+| m_nil_r : forall Γ, merge_ind (Valid Γ) ∅ (Valid Γ)
+| m_cons  : forall o1 o2 o Γ1 Γ2 Γ,
+    merge_o o1 o2 o ->
+    merge_ind (Valid Γ1) (Valid Γ2) (Valid Γ) ->
+    merge_ind (Valid (o1 :: Γ1)) (Valid (o2 :: Γ2)) (Valid (o :: Γ)).
+
+Lemma merge_o_ind_fun : forall o1 o2 o,
+    merge_o o1 o2 o -> merge_wire o1 o2 = Valid [o].
+Proof.
+  induction 1; auto.
+Qed.
+
+
+
+Lemma merge_ind_fun : forall Γ1 Γ2 Γ,
+    merge_ind Γ1 Γ2 Γ ->
+    Γ == Γ1 ∙ Γ2.
+Proof.
+  induction 1.
+  * split; [apply valid_valid | auto ].
+  * split; [apply valid_valid | rewrite merge_nil_r; auto ].
+  * destruct IHmerge_ind.
+    split; [apply valid_valid | ].
+    simpl. erewrite merge_o_ind_fun; [ | eauto].
+    unfold merge in pf_merge0.
+    rewrite <- pf_merge0.
+    auto.
+Qed.
+
+Lemma merge_o_fun_ind : forall o1 o2 o,
+    merge_wire o1 o2 = Valid [o] -> merge_o o1 o2 o.
+Proof.
+  intros [w1 | ] [w2 | ] [w | ]; simpl; inversion 1; constructor.
+Qed.
+
+Lemma merge_fun_ind : forall Γ1 Γ2 Γ,
+    Γ == Γ1 ∙ Γ2 ->
+    merge_ind Γ1 Γ2 Γ.
+Proof.
+  intros [ | Γ1] [ | Γ2] [ | Γ]; intros; try invalid_contradiction.
+  generalize dependent Γ.
+  generalize dependent Γ2.
+  induction Γ1 as [ | o1 Γ1]; intros Γ2 Γ [pf_valid pf_merge].
+  * simpl in pf_merge. rewrite pf_merge. constructor.
+  * destruct Γ2 as [ | o2 Γ2].
+    + rewrite merge_nil_r in pf_merge.
+      rewrite pf_merge.
+      constructor.
+    + destruct o1 as [w1 | ], o2 as [w2 | ].
+      - simpl in *. invalid_contradiction.
+      - simpl in pf_merge.
+        destruct (merge' Γ1 Γ2) as [ | Γ'] eqn:H_Γ'; [invalid_contradiction | ].
+        rewrite pf_merge.
+        constructor; [apply merge_o_fun_ind; auto | ].
+        apply IHΓ1.
+        split; [apply valid_valid | auto].
+      - simpl in pf_merge.
+        destruct (merge' Γ1 Γ2) as [ | Γ'] eqn:H_Γ'; [invalid_contradiction | ].
+        rewrite pf_merge.
+        constructor; [apply merge_o_fun_ind; auto | ].
+        apply IHΓ1.
+        split; [apply valid_valid | auto].
+      - simpl in pf_merge.
+        destruct (merge' Γ1 Γ2) as [ | Γ'] eqn:H_Γ'; [invalid_contradiction | ].
+        rewrite pf_merge.
+        constructor; [apply merge_o_fun_ind; auto | ].
+        apply IHΓ1.
+        split; [apply valid_valid | auto].
+Qed.
+      

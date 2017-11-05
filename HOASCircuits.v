@@ -180,5 +180,21 @@ Lemma unbox_typing : forall Γ W1 W2 (p : Pat W1) (c : Box W1 W2),
 Proof. unfold Typed_Box in *. auto. Qed.
 
 
+Record Types_Compose {w w'} (c : Circuit w) (f : Pat w -> Circuit w') :=
+  { ctx_c : OCtx  (* Γ1 *)
+  ; ctx_out: OCtx (* Γ1' *)
+  ; ctx_in : OCtx (* Γ *)
+  ; pf_ctx : ctx_out == ctx_c ∙ ctx_in (* Γ1' = Γ1 ⋓ Γ *)
+  ; types_c : Types_Circuit ctx_c c 
+  ; types_f : forall p Γ2 Γ2', Γ2' == Γ2 ∙ ctx_in -> 
+                               Types_Pat Γ2 p -> Types_Circuit Γ2' (f p) 
+  }.
+
+Arguments ctx_c {w w' c f}.
+Arguments ctx_out {w w' c f}.
+Arguments ctx_in  {w w' c f}.
+Arguments pf_ctx {w w' c f}.
+Arguments types_c {w w' c f}.
+
 
 (* *)

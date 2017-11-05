@@ -3,19 +3,17 @@ Require Import HOASCircuits.
 Require Import Program.
 Require Import List.
 Require Import Monad.
+Require Import Arith.
+Require Import Omega.
+
 Import Arith.
 Open Scope circ_scope.
 
-(* A minimal circuit *)
-(* A well-formed DeBruijn_Circuit n w has exactly n input wires. 
-*)
-Inductive DeBruijn_Circuit (*n : nat*) (w : WType) : Set :=
-| db_output : (*forall {pf : n = size_WType w},*)
-              Pat w -> DeBruijn_Circuit w
-| db_gate   : forall {w1 w2} (*{pf : n + size_WType w2 = n' + size_WType w1}*),
+Inductive DeBruijn_Circuit (w : WType) : Set :=
+| db_output : Pat w -> DeBruijn_Circuit w
+| db_gate   : forall {w1 w2},
                Gate w1 w2 -> Pat w1 -> DeBruijn_Circuit w -> DeBruijn_Circuit w
-| db_lift   :  (*{pf : n = S n'}*)
-               Pat Bit -> (bool -> DeBruijn_Circuit w) -> DeBruijn_Circuit w
+| db_lift   : Pat Bit -> (bool -> DeBruijn_Circuit w) -> DeBruijn_Circuit w
 .
 
 Inductive DeBruijn_Box (w1 w2 : WType) : Set :=
@@ -57,6 +55,22 @@ Fixpoint pat_to_list {w} (p : Pat w) : list Var :=
 Definition remove_pat {A} `{Gate_State A} {w} (p : Pat w) (a : A) : A :=
   fold_left (fun a x => remove_var x a)  (pat_to_list p) a.
 
+Fixpoint Ctx_dom (Γ : Ctx) :=
+  match Γ with
+  | [] => []
+  | Some w :: Γ' => 0 :: fmap S (Ctx_dom Γ')
+  | None :: Γ' => fmap S (Ctx_dom Γ')
+  end.
+Definition OCtx_dom (Γ : OCtx) : list nat :=
+  match Γ with
+  | Valid Γ' => Ctx_dom Γ'
+  | Invalid => []
+  end.
+
+Definition remove_Ctx {A} `{Gate_State A} (Γ : Ctx) (a : A) : A :=
+  fold_left (fun a x => remove_var x a) (Ctx_dom Γ) a.
+Definition remove_OCtx {A} `{Gate_State A} (Γ : OCtx) (a : A) : A :=
+  fold_left (fun a x => remove_var x a) (OCtx_dom Γ) a.
 
 
 (* process_gate_pat g p a returns the pattern that is obtained from running the
@@ -113,8 +127,8 @@ Fixpoint update_at {A} (ls : list A) (i : nat) (a : A) : list A :=
 
 Instance Ctx_State : Gate_State Ctx :=
   { get_fresh w  := do Γ ← get;
-                    do _ ← put (Some w :: Γ);
-                    return_ 0
+                    do _ ← put (Γ ++ [Some w]);
+                    return_ (length Γ)
   ; remove_var := remove_at
   ; change_type x w Γ := update_at Γ x (Some w)
   }.
@@ -152,40 +166,19 @@ WTypes (as opposed to list (option WType)). However, because of context
 splitting, this will only be enforcable at the top level. *)
 
 
-Definition is_Some {A} (a : option A) :=
-  match a with
-  | Some _ => True
-  | None => False
-  end.
-
-Fixpoint all_Some (Γ : Ctx) :=
-  fold_left (fun prop x => is_Some x /\ prop) Γ True.
-Definition Min (Γ : OCtx) :=
-  match Γ with
-  | Valid Γ' => all_Some Γ'
-  | Invalid  => False
-  end.
-
-Definition OCtx_app (Γ1 Γ2 : OCtx) : OCtx :=
-  match Γ1, Γ2 with
-  | Valid Γ1', Valid Γ2' => Valid (Γ1' ++ Γ2')
-  | _, _ => Invalid
-  end.
-Notation "Γ1 +++ Γ2" := (OCtx_app Γ1 Γ2) (right associativity, at level 30).
-
                          
 Inductive Types_DB {w} (Γ : OCtx) : DeBruijn_Circuit w -> Prop :=
 | types_db_output : forall p, Types_Pat Γ p -> Types_DB Γ (db_output p)
 | types_db_gate   : forall Γ1 Γ2 w1 w2 (g : Gate w1 w2) p c,
                     Types_Pat Γ1 p ->
                     Types_DB (process_gate_state g p Γ) c ->
-                    Γ = Γ1 ⋓ Γ2 -> is_valid Γ ->
+                    Γ == Γ1 ∙ Γ2 ->
                     Types_DB Γ (db_gate g p c)
                              
 | types_db_lift   : forall Γ1 Γ2 Γ' p f,
                     Types_Pat Γ1 p ->
                     (forall b, Types_DB Γ' (f b)) ->
-                    Γ = Γ1 ⋓ Γ2 -> is_valid Γ ->
+                    Γ == Γ1 ∙ Γ2 ->
                     Γ' = remove_pat p Γ -> (* Γ' is NOT Γ2 *)
                     Types_DB Γ (db_lift p f)
 .
@@ -201,20 +194,26 @@ Inductive Types_DB {w} (Γ : OCtx) : DeBruijn_Circuit w -> Prop :=
 *)
 Definition substitution := list Var.
 
-Print Gate_State.
 Record subst_state := Mk_subst_state
   { get_σ : substitution
   ; fresh : nat }. 
 
-Instance substitution_Gate_State : Gate_State subst_state :=
-  { get_fresh w st := let x := fresh st in 
-                      (x, Mk_subst_state (x :: get_σ st) (S x))
+(* This should be used for HOAS *)
+Instance subst_state_Gate_State : Gate_State subst_state :=
+  { get_fresh w st := let x := fresh st in
+                      let σ := get_σ st in
+                      (x, Mk_subst_state (σ ++ [x]) (S x))
   ; remove_var x st := let σ' := List.remove Nat.eq_dec x (get_σ st) in
                         Mk_subst_state σ' (fresh st)
   ; change_type x w st := st
   }.
-                      
 
+Instance substitution_Gate_State : Gate_State substitution :=
+  { get_fresh w σ := let x := length σ in
+                     (x, σ ++ [x])
+  ; remove_var x σ := List.remove Nat.eq_dec x σ
+  ; change_type x w σ := σ
+  }.
 
 Lemma in_S_fmap : forall x ls,
     In (S x) (fmap S ls) <->
@@ -235,15 +234,15 @@ Fixpoint index {A} (i : nat) (li : list A) : option A :=
   end.
 
 Definition subst_var (σ : substitution) (x : Var) := lookup x σ.
-Fixpoint subst_pat (σ : subst_state) {w} (p : Pat w) : Pat w :=
+Fixpoint subst_pat (σ : substitution) {w} (p : Pat w) : Pat w :=
   match p with
   | unit    => unit
-  | qubit x => qubit (subst_var (get_σ σ) x)
-  | bit   x => bit (subst_var (get_σ σ) x)
+  | qubit x => qubit (subst_var σ x)
+  | bit   x => bit (subst_var σ x)
   | pair p1 p2 => pair (subst_pat σ p1) (subst_pat σ p2)
   end.
 
-Fixpoint subst_db (σ : subst_state) {w} (c : DeBruijn_Circuit w) 
+Fixpoint subst_db (σ : substitution) {w} (c : DeBruijn_Circuit w) 
                 : DeBruijn_Circuit w :=
   match c with
   | db_output p    => db_output (subst_pat σ p)
@@ -729,8 +728,8 @@ Admitted.
 
 Lemma types_subst_pat_db : forall Γ w (p : Pat w),
     Types_Pat Γ p ->
-    forall Γ' σ, WF_σ Γ (get_σ σ) ->
-    Γ' = subst_ctx Γ (get_σ σ) ->
+    forall Γ' σ, WF_σ Γ σ ->
+    Γ' = subst_ctx Γ σ ->
     Types_Pat Γ' (subst_pat σ p).
 Proof.
   intros Γ w p pf_p.
@@ -769,15 +768,15 @@ Admitted.
 
 Lemma types_subst_db : forall w (c : DeBruijn_Circuit w) Γ ,
       Types_DB Γ c ->
-      forall {σ Γ'}, WF_σ Γ (get_σ σ) ->
-      Γ' = subst_ctx Γ (get_σ σ) ->
+      forall {σ Γ'}, WF_σ Γ σ ->
+      Γ' = subst_ctx Γ σ ->
       Types_DB Γ' (subst_db σ c).
 Proof.
   induction 1; intros σ Γ'' pf_wf pf_Γ''.
   * subst. simpl.
     constructor.
     eapply types_subst_pat_db; eauto.
-  * subst. simpl.
+  * subst. simpl. destruct H1; subst.
     apply wf_merge_proj in pf_wf; destruct pf_wf.
     econstructor.
     + eapply types_subst_pat_db; [eauto | auto | reflexivity ].
@@ -785,18 +784,16 @@ Proof.
       - admit.
       - rewrite subst_ctx_merge.
         admit.
-    + apply subst_ctx_merge.
-    + apply subst_ctx_valid. auto.
-  * subst. simpl.
+    + split; [apply subst_ctx_valid; auto | apply subst_ctx_merge].
+  * subst. simpl. destruct H2; subst.
     apply wf_merge_proj in pf_wf; destruct pf_wf.
     econstructor.
     + eapply types_subst_pat_db; [eauto | auto | reflexivity].
     + intros b.
       apply H1; [ | reflexivity].
       admit.
-    + apply subst_ctx_merge.
-    + apply subst_ctx_valid; auto.
-Admitted.      
+    + split; [apply subst_ctx_valid; auto | apply subst_ctx_merge].
+Admitted.     
  
 (***************************************************************    
 
@@ -850,17 +847,6 @@ Qed.
 
 
 (*
-Fixpoint Ctx_dom (Γ : Ctx) :=
-  match Γ with
-  | [] => []
-  | Some w :: Γ' => 0 :: fmap S (Ctx_dom Γ')
-  | None :: Γ' => fmap S (Ctx_dom Γ')
-  end.
-Definition OCtx_dom (Γ : OCtx) : list nat :=
-  match Γ with
-  | Valid Γ' => Ctx_dom Γ'
-  | Invalid => []
-  end.
 *)
 
 
@@ -1331,7 +1317,7 @@ Fixpoint db_compose {w w'} (in_c' : nat) (*|w| + in_c' is the number of inputs t
                            (c : DeBruijn_Circuit w) (c' : DeBruijn_Circuit w')
                   : DeBruijn_Circuit w' :=
   match c with
-  | db_output p   => subst_db (mk_subst_state p in_c') c'
+  | db_output p   => subst_db (mk_subst p in_c') c'
   | db_gate g p c => db_gate g p (db_compose in_c' c c')
   | db_lift p f   => db_lift p (fun b => db_compose in_c' (f b) c')
   end.
@@ -1364,23 +1350,19 @@ Proof.
   - simpl. subst.
     eapply types_subst_db.
     * apply types_c'.
-    *
-        
-      admit.
-    * unfold mk_subst_state. simpl.
+    * admit.
+    * simpl.
       admit.
   - simpl. subst.
     econstructor.
     * eauto.
     * eapply IHTypes_DB; [reflexivity | apply types_c' | ]. admit (*?*).
-    * admit.
-    * apply valid_valid.
+    * split; [apply valid_valid | ]. admit.
   - simpl. subst.
     econstructor.
     * eauto.
     * intros b. eapply H1; [ reflexivity | apply types_c' | reflexivity].
     * admit.
-    * apply valid_valid.
     * admit.
 Admitted.
 
@@ -1397,16 +1379,15 @@ Fixpoint hoas_to_db {w} (c : Circuit w) (σ : subst_state) : DeBruijn_Circuit w 
   | gate g p f => (* p' will be the input to f, so a hoas-level pat *)
                   let p' := process_gate_pat g p σ in
                   (* p0 is the db-pat corresponding to p *)
-                  let p0 := subst_pat σ p in
+                  let p0 := subst_pat (get_σ σ) p in
                   (* σ' is the updated substitution,to go with p' *)
                   let σ' := process_gate_state g p σ in
                   db_gate g p0 (hoas_to_db (f p') σ')
-  | lift p f   => let p0 := subst_pat σ p in
+  | lift p f   => let p0 := subst_pat (get_σ σ) p in
                   let σ' := remove_pat p σ in
-                  db_lift (subst_pat σ p) (fun b => hoas_to_db (f b) σ')
+                  db_lift (subst_pat (get_σ σ) p) (fun b => hoas_to_db (f b) σ')
   end.
 
-About get_fresh.
 Fixpoint get_fresh_pat {A} `{Gate_State A} (w : WType) : State A (Pat w) :=
   match w with
   | One   => return_ unit
@@ -1419,12 +1400,239 @@ Fixpoint get_fresh_pat {A} `{Gate_State A} (w : WType) : State A (Pat w) :=
                return_ (pair p1 p2)
   end.
 
-  
+Definition fresh_pat {A} `{Gate_State A} (w : WType) (a : A) : (Pat w) :=
+  fst (get_fresh_pat w a).
 
-Definition empty_subst_state := Mk_subst_state [] 0.
+Notation "σ_{ n }" := (seq 0 n) (at level 20).
+
+Definition subst_state_at n := Mk_subst_state (σ_{n}) n.
+Notation "st_{ n }" := (subst_state_at n) (at level 20).
 
 Definition hoas_to_db_box {w1 w2} (B : Box w1 w2) : DeBruijn_Box w1 w2 :=
   match B with
-  | box f => let (p,σ) := get_fresh_pat w1 empty_subst_state in
+  | box f => let (p,σ) := get_fresh_pat w1 (st_{0}) in
              db_box w1 (hoas_to_db (f p) σ)
   end.
+
+
+
+Lemma fmap_S_seq : forall len start,
+    fmap S (seq start len) = seq (S start) len.
+Proof. 
+  induction len as [ | len]; intros start; simpl in *; auto.
+  f_equal.
+  rewrite IHlen.
+  auto.
+Qed.
+  
+
+Lemma seq_S : forall len start, seq start (S len) = seq start len ++ [start + len].
+Proof.
+  induction len; intros; simpl.
+  * f_equal. omega.
+  * f_equal.
+    replace (start + S len) with (S start + len)%nat by omega.
+    rewrite <- IHlen.
+    simpl.
+    auto.
+Qed.
+
+
+Lemma fresh_pat_eq : forall w n,  
+    get_fresh_pat w (σ_{n})
+    = (fresh_pat w (σ_{n}), σ_{(n + size_WType w)})%core.
+Proof.
+  unfold fresh_pat.
+  induction w; intros; simpl.
+  * repeat autounfold with monad_db.
+    replace (n+1)%nat with (S n) by omega.
+    repeat rewrite seq_length.
+    simpl.
+    f_equal.
+    rewrite <- seq_S.
+    simpl.
+    auto.
+
+  * repeat autounfold with monad_db.
+    replace (n+1)%nat with (S n) by omega.
+    repeat rewrite seq_length.
+    simpl.
+    f_equal.
+    rewrite <- seq_S.
+    simpl.
+    auto.
+  * f_equal. f_equal. omega.
+  * repeat autounfold with monad_db.
+    rewrite IHw1.
+    rewrite IHw2.
+    simpl.
+    f_equal.
+    f_equal.
+    omega.
+Qed.
+
+Lemma fresh_pat_eq' : forall w n,  
+    get_fresh_pat w (st_{n})
+    = (fresh_pat w (st_{n}), st_{(n + size_WType w)})%core.
+Proof.
+  unfold fresh_pat.
+  induction w; intros; simpl.
+  * repeat autounfold with monad_db.
+    replace (n+1)%nat with (S n) by omega.
+    repeat rewrite seq_length.
+    simpl.
+    f_equal.
+    rewrite <- seq_S.
+    simpl.
+    auto.
+  *repeat autounfold with monad_db.
+    replace (n+1)%nat with (S n) by omega.
+    repeat rewrite seq_length.
+    simpl.
+    f_equal.
+    rewrite <- seq_S.
+    simpl.
+    auto.
+  * replace (n + 0) with n by omega.
+    auto.
+  * repeat autounfold with monad_db.
+    rewrite IHw1.
+    rewrite IHw2.
+    simpl.
+    f_equal.
+    rewrite Nat.add_assoc.
+    auto.
+Qed.    
+
+
+Lemma subst_var_seq : forall len start x, x < len ->
+                                         subst_var (seq start len) (start + x) = x.
+Proof.
+  induction len as [ | len]; intros start x pf; [inversion pf | ].
+  * simpl.
+    destruct x; auto.
+    + rewrite Nat.add_0_r.
+      rewrite Nat.eqb_refl.
+      auto.
+    + replace (start + S x =? start) with false.
+      - replace (start + S x) with (S start + x) by omega.
+        rewrite IHlen; auto.
+        apply lt_S_n; auto.
+      - apply eq_sym.
+        apply Nat.eqb_neq.
+        omega.
+Qed.
+Lemma subst_var_σ_n : forall n x, x < n ->
+                                  subst_var (σ_{n}) x = x.
+Proof.
+  intros.
+  replace x with (0 + x) at 1 by auto.
+  apply subst_var_seq; auto.
+Qed.
+
+
+
+Lemma in_seq_S : forall len start x,
+    In x (seq (S start) len) -> In x (seq start len).
+Admitted.
+
+Lemma in_seq_lt : forall len start x, In x (seq start len) -> x < start + len.    
+Proof.
+  induction len; intros start x pf; simpl in *.
+  * contradiction.
+  * destruct pf.
+    + subst. omega.
+    + apply lt_trans with (start + len); [ | omega].
+      apply IHlen.
+      apply in_seq_S.
+      auto.
+Qed.
+
+Lemma in_σ_n_lt : forall n x, In x (σ_{n}) -> x < n.
+Proof.
+  intros.
+  replace n with (0 + n) by auto.
+  apply in_seq_lt.
+  auto.
+Qed.
+
+
+Lemma subst_id : forall {w} (p : Pat w) Γ,
+  Types_Pat Γ p ->
+  forall n, WF_σ Γ (σ_{n}) ->
+  subst_pat (σ_{n}) p = p.
+Proof.
+  induction 1; intros n pf_wf; simpl; auto.
+  * rewrite subst_var_σ_n; auto.
+    destruct pf_wf.
+    apply in_σ_n_lt.
+    eapply pf_subset0.
+    apply singleton_index; eauto.
+  * rewrite subst_var_σ_n; auto.
+    destruct pf_wf.
+    apply in_σ_n_lt.
+    eapply pf_subset0.
+    apply singleton_index; eauto.
+  * subst. apply wf_merge_proj in pf_wf.
+    destruct pf_wf.
+    rewrite IHTypes_Pat1; auto.
+    rewrite IHTypes_Pat2; auto.
+Qed.
+
+
+
+Fixpoint pat_to_ctx {w} (p : Pat w) : OCtx :=
+  match p with
+  | unit => ∅
+  | qubit x => singleton x Qubit
+  | bit x   => singleton x Bit
+  | pair p1 p2 => pat_to_ctx p1 ⋓ pat_to_ctx p2
+  end.
+
+
+Lemma fresh_pat_typed : forall {w} (p : Pat w) (σ : subst_state),
+      p = fresh_pat w σ ->
+      Types_Pat (pat_to_ctx p) p.
+Proof.
+  unfold fresh_pat.
+  induction w; intros p σ H.
+  - simpl in H. subst. simpl. constructor. apply singleton_singleton.
+  - simpl in H. subst. simpl. constructor. apply singleton_singleton.
+  - simpl in *. subst. simpl. constructor.
+  - simpl in *. subst. autounfold with monad_db.
+    rewrite surjective_pairing with (p := get_fresh_pat w1 σ).
+    rewrite surjective_pairing with (p := get_fresh_pat w2 _).
+    simpl.
+    econstructor; [ | reflexivity | | ].
+    * admit. (* lemma *)
+    * eapply IHw1; auto.
+    * eapply IHw2; auto.
+Admitted.
+
+
+(* consequence of previous lemma *)
+Lemma subst_fresh_id : forall {w},
+    subst_pat (σ_{size_WType w}) (fresh_pat w (st_{0}))
+    = fresh_pat w (st_{0}).
+Proof.
+  intros.
+  eapply subst_id.
+  eapply fresh_pat_typed; auto.
+  admit. (* lemma *)
+Admitted.
+
+About hoas_to_db. About db_compose.
+Print Types_Compose.
+Require Import HOASCircuits. About compose.
+        
+Lemma hoas_to_db_compose_correct : forall {w w'}
+                                          (c : Circuit w) (f : Pat w -> Circuit w')
+    (types : Types_Compose c f) σ σ' σ'' p,
+    σ' = remove_OCtx (ctx_in types) σ ->
+    (p, σ'') = get_fresh_pat w σ' ->
+    
+      hoas_to_db (compose c f) σ
+      = db_compose (size_OCtx (ctx_c types)) (hoas_to_db c σ) (hoas_to_db (f p) σ').
+Admitted.
+
+

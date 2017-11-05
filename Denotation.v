@@ -37,6 +37,7 @@ Definition denote_OCtx (Γ : OCtx) : nat :=
   | Invalid => 0
   | Valid Γ' => denote_Ctx Γ'
   end.
+Instance Denote_Ctx : Denote Ctx nat := {| denote := denote_Ctx |}.
 Instance Denote_OCtx : Denote OCtx nat := {| denote := denote_OCtx |}.
 
 
@@ -393,82 +394,66 @@ that. *)
 (* TODO: might need to add a hypothesis relating n1 and n2 to the actual inputs
 of c1 and c2 *)
 (*〚  〛*)
-Lemma denote_db_compose : forall pad w1 w2 Γ1 Γ2
+Lemma denote_db_compose : forall pad w1 w2 Γ1 Γ n m
                           (c1 : DeBruijn_Circuit w1) (c2 : DeBruijn_Circuit w2),
     Types_DB Γ1 c1 ->
-    Types_DB Γ2 c2 ->
-
-    denote_db_circuit pad (〚Γ1〛) c1
-
-    (n = n1 + n2)%nat (* n1 is the number of wires going into c1, n is the
-      total number of input wires, so n2 is the number of wires going ONLY into
-      c2. Thus the total number of wires into c2 is (n - |w1| + n2) *) ->
-      denote_db_circuit pad n (db_compose c1 c2)
-    = compose_super
-      (denote_db_circuit pad (n - size_WType w1 + n2) c2)
-      (denote_db_circuit (pad + n2) n1 c1).
-Proof.
+    Types_DB (Valid (WType_to_Ctx w1 ++ Γ)) c2 ->
+    
+    n = (〚Γ1〛+ 〚Γ〛)%nat ->
+    m = (〚Γ〛) ->
+    denote_db_circuit pad n (db_compose m c1 c2)
+  = compose_super (denote_db_circuit pad (〚w1〛+ 〚Γ〛) c2)
+                  (denote_db_circuit (pad +〚Γ〛) (〚Γ1〛) c1).
+(*Proof.
   intros.
   generalize dependent w2.
+  generalize dependent Γ.
   generalize dependent n.
-  generalize dependent n1.
-  generalize dependent n2. 
   generalize dependent pad0.
-  induction c1; intros; simpl.
-  - rewrite denote_min_subst. unfold mk_subst.
-    rewrite size_WType_length.
-    admit.
-  - erewrite IHc1 with (n1 := (n1 + size_WType w2 - size_WType w0)%nat) (n2 := n2) by admit.
-    admit (* some problem with implicit arguments? *).
-    (*rewrite (compose_super_assoc (denote_min_circuit pad0 (n + size_WType w2 - size_WType w0) c2)
-                                 (denote_min_circuit (pad0 + n2) (n1 + size_WType w2 - size_WType w0) c1)
-                                 (apply_gate g (pat_to_list p))).*)
-  - admit.
+  induction H; intros pad n Γ0 pf_n w2' c2 types_c2.
+  * simpl. admit (* lemma about db_subst *).
+  * simpl.
+    rewrite IHTypes_DB; auto.
+    + replace (〚process_gate_state g p Γ〛) with (〚Γ〛+ 〚w2〛- 〚w0〛)%nat by admit.
+      admit.
+    + subst.
+      replace (〚process_gate_state g p Γ〛) with (〚Γ〛+ 〚w2〛- 〚w0〛)%nat by admit.
+      simpl. admit (* problem with subtraction? *).
+  * simpl. admit. *)
 Admitted.
 
 
 
-Record valid_merge Γ1 Γ2 Γ :=
-  { pf_valid : is_valid Γ
-  ; pf_merge : Γ = Γ1 ⋓ Γ2 }.
-(* pretty bad notation *)
-Notation "Γ ↝ Γ1 ∙ Γ2" := (valid_merge Γ1 Γ2 Γ) (at level 20).
-
-Record Types_Compose {w w'} (c : Circuit w) (f : Pat w -> Circuit w') :=
-  { ctx_c : OCtx  (* Γ1 *)
-  ; ctx_out: OCtx (* Γ1' *)
-  ; ctx_in : OCtx (* Γ *)
-  ; pf_ctx : ctx_out ↝ ctx_c ∙ ctx_in (* Γ1' = Γ1 ⋓ Γ *)
-  ; types_c : Types_Circuit ctx_c c 
-  ; types_f : forall p Γ2 Γ2', Γ2' ↝ Γ2 ∙ ctx_in -> 
-                               Types_Pat Γ2 p -> Types_Circuit Γ2' (f p) 
-  }.
-
-Arguments ctx_c {w w' c f}.
-Arguments ctx_out {w w' c f}.
-Arguments ctx_in  {w w' c f}.
-Arguments pf_ctx {w w' c f}.
-Arguments types_c {w w' c f}.
-Hint Unfold fresh_pat_M : monad_db.
 
 
 
 Lemma merge_size : forall Γ1 Γ2 Γ,
-      Γ ↝ Γ1 ∙ Γ2 -> (〚Γ〛 = 〚Γ1〛 + 〚Γ2〛)%nat.
+      Γ == Γ1 ∙ Γ2 -> (〚Γ〛 = 〚Γ1〛 + 〚Γ2〛)%nat.
 Admitted.
 
 (*〚〛*)
+(*
 Lemma denote_min_compose' : forall {w w'}  pad n s s' s''
                                    (c : Circuit w) (f : Pat w -> Circuit w') d d'
       (pf_typed : Types_Compose c f),
       n = 〚ctx_out pf_typed〛 ->
+
+      (p,σ') = get_fresh_pat w σ ->
+      denote_db_circuit pad n (db_compose (hoas_to_db c σ)
+                                          (hoas_to_db (f p) σ'))
+      = compose_super 
       
+                                            
+*)                                         
+(*      
       runState (hoas_to_min_aux c) s = (d,s') ->
       runState (hoas_to_min_aux (f (get_output c (snd s)))) s' = (d',s'') ->
       denote_min_circuit pad n (evalState (hoas_to_min_compose c f) s) 
     = compose_super 
        (denote_min_circuit pad (〚ctx_out pf_typed〛 - 〚w〛 + 〚ctx_in pf_typed〛) d')
        (denote_min_circuit (pad + 〚ctx_in pf_typed〛) (〚ctx_c pf_typed〛) d).
+ *)
+(*
 Proof. 
   intros w w' pad n s s' s'' c f d d' pf_typed pf_n H_d H_d'. 
   unfold hoas_to_min_compose.
@@ -481,3 +466,6 @@ Proof.
   subst. 
   reflexivity.
 Qed.
+ *)
+
+                                                        

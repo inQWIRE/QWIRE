@@ -5,6 +5,7 @@ Require Import Arith.
 Require Import Omega.
 Require Import Psatz.
 Require Import List.
+Require Import DBCircuits.
 Set Bullet Behavior "Strict Subproofs".
 Global Unset Asymmetric Patterns.
 
@@ -25,7 +26,6 @@ Definition HOAS_Equiv {W1 W2} (b1 b2 : Box W1 W2) :=
   forall ρ, WF_Matrix (2^〚W1〛) (2^〚W1〛) ρ -> 
          〚b1〛 ρ = 〚b2〛 ρ.
 
-Require Import FlatCircuits.
 
 Fixpoint pat_map {w} (f : Var -> Var) (p : Pat w) : Pat w :=
   match p with
@@ -113,11 +113,11 @@ Proof.
     destruct H; auto.
 Qed.
 
-
+(*
 Lemma hash_pat_app_l : forall {w} (p : Pat w) ls1 ls2, 
       (* dom p ∩ ls1 = dom p *)
       pat_to_list p ⊆ ls1 ->
-      hash_pat p (ls1 ++ ls2) = hash_pat p ls1.
+      subst_pat p (ls1 ++ ls2) = subst_pat p ls1.
 Proof.
   induction p; intros ls1 ls2 H_intersect; simpl in *; auto.
     + rewrite lookup_app.
@@ -153,6 +153,7 @@ Proof.
     rewrite IHp1; auto.
     rewrite IHp2; auto.
 Qed.
+*)
 
 Lemma pat_to_list_pat_map : forall {w} (p : Pat w) f, 
       pat_to_list (pat_map f p) = map f (pat_to_list p).
@@ -162,6 +163,7 @@ Proof.
   rewrite map_app.
   reflexivity.
 Qed.
+
 Lemma pat_size_length_list : forall {w} (p : Pat w), 
       pat_size p = length (pat_to_list p).
 Proof.
@@ -219,6 +221,7 @@ Proof.
 Qed.
   
 
+(*
 Lemma hash_pat_pat_to_list : forall {w} (p : Pat w), 
     WF_Pat p ->
     pat_to_list (hash_pat p (pat_to_list p)) = seq 0 (pat_size p).
@@ -236,7 +239,9 @@ Proof.
   rewrite seq_app.
   reflexivity.
 Qed.
+*)
 
+(*
 Lemma fresh_pat_size : forall W p m n,
       fresh_pat W m = (p,n) ->
       pat_size p = 〚W〛.
@@ -269,7 +274,9 @@ Proof.
     apply IHW1 in E.
     omega.
 Qed.  
+ *)
 
+(*
 Lemma pat_to_list_empty : forall W n p,
     fresh_pat W n = (p, O) ->
     pat_to_list p = nil.
@@ -304,7 +311,9 @@ Proof.
     inversion H2. subst.
     admit.
 Admitted.
+*)
 
+(*
 Lemma fresh_pat_wf : forall W p m n, fresh_pat W m = (p,n) -> WF_Pat p.
 Proof.
   induction W; simpl; intros.
@@ -317,7 +326,7 @@ Proof.
     constructor; auto; [ | eapply IHW1; eauto | eapply IHW2; eauto].
     eapply fresh_pat_disjoint; eauto.
 Qed.
-
+*)
 
 Lemma pat_WType_size : forall W (p : Pat W), pat_size p = size_WType W.
 Proof.
@@ -328,35 +337,62 @@ Qed.
 (*
 Require Import Monad. 
 Opaque bind return_.
-*)
+ *)
+
+
+Lemma get_fresh_pat_state : 
+  forall w σ σ', σ' = snd (get_fresh_pat w σ) ->
+                 fresh σ' = (fresh σ + 〚w〛)%nat.
+Proof.
+  induction w; intros; subst; simpl; try omega.
+
+  autounfold with monad_db.
+  destruct (get_fresh_pat w1 σ) as [p1 σ1] eqn:H1.
+  destruct (get_fresh_pat w2 σ1) as [p2 σ2] eqn:H2.
+  simpl.
+  rewrite (IHw2 σ1 σ2); [ | rewrite H2; auto].
+  rewrite (IHw1 σ σ1); [ | rewrite H1; auto].
+  simpl. omega.
+Qed.
+
+
+Lemma swap_fresh_seq : forall {w} σ,
+    pat_to_list (fresh_pat w σ) = seq (fresh σ) (〚w〛).
+Proof.
+  induction w; intros σ; simpl; auto.
+  unfold fresh_pat. simpl.
+  autounfold with monad_db.
+    destruct (get_fresh_pat w1 σ) as [p1 σ1] eqn:H1.
+    destruct (get_fresh_pat w2 σ1) as [p2 σ2] eqn:H2.
+    rewrite <- seq_app; simpl.
+    replace p1 with (fresh_pat w1 σ) by (unfold fresh_pat; rewrite H1; auto).
+    replace p2 with (fresh_pat w2 σ1) by (unfold fresh_pat; rewrite H2; auto).
+    rewrite IHw1, IHw2.
+    simpl.
+    rewrite (get_fresh_pat_state w1 σ σ1); auto.
+    rewrite H1; auto.
+Qed.
+    
+
+
+Lemma swap_list_id : forall w,
+      swap_list (〚w〛) (pat_to_list (fresh_pat w (st_{0}))) = Id (2^〚w〛).
+Proof.
+  intros.
+  rewrite swap_fresh_seq. 
+  apply swap_list_n_id.
+Qed.
+
 
 Lemma id_circ_Id : forall W ρ, WF_Matrix (2^〚W〛) (2^〚W〛) ρ -> 
     〚@id_circ W〛 ρ = ρ.
 Proof.
-  intros W ρ H. 
+  intros W ρ H.
   repeat (simpl; autounfold with den_db).
-  remember (FlatCircuits.fresh_pat W 0) as r.
-  destruct r as [p n].
-  assert (wf_p : WF_Pat p) by (apply (fresh_pat_wf W p 0 n); auto).
-  repeat (simpl; autounfold with den_db).  
-  
-
-  unfold Monad.evalState. unfold Monad.state_bind. simpl.
-  unfold Basics.compose. unfold fresh_pat_M. simpl.
-  unfold Monad.state_bind; simpl.
-  rewrite <- Heqr. simpl.
-
-
-  rewrite hash_pat_pat_to_list; auto.
-  replace (swap_list_aux _ _ (zip_to 0 (size_WType W) (seq 0 (pat_size p)))) 
-    with (swap_list (size_WType W) (seq 0 (pat_size p))) 
-    by reflexivity. 
-  rewrite pat_WType_size.
-  rewrite swap_list_n_id.
-  unfold super.
-
-  autorewrite with M_db.
-  reflexivity.
+  rewrite fresh_pat_eq'.
+  simpl.
+  rewrite swap_list_id; auto.
+  unfold super. autorewrite with M_db. reflexivity.
 Qed.
  
 Lemma unitary_transpose_id_qubit : forall (U : Unitary Qubit), forall ρ,
@@ -374,6 +410,8 @@ Proof.
   reflexivity.
 Qed.
 
+
+
 Lemma unitary_transpose_id : forall W (U : Unitary W) (ρ : Density (2^〚W〛 )),
   WF_Matrix (2^〚W〛) (2^〚W〛) ρ ->
   〚unitary_transpose U〛 ρ = 〚@id_circ W〛 ρ.
@@ -381,30 +419,24 @@ Proof.
   intros W U ρ wfρ. 
   specialize (unitary_gate_unitary U); intros [WFU UU].
   repeat (simpl; autounfold with den_db).
-  remember (FlatCircuits.fresh_pat W 0) as r.
-  destruct r as [p n].
-  assert (wf_p : WF_Pat p) by (apply (fresh_pat_wf W p 0 n); auto).
-  repeat (simpl; autounfold with den_db).
 
-  unfold Monad.state_bind, Monad.evalState, Basics.compose, fresh_pat_M; simpl.
-  unfold Monad.state_bind, Monad.evalState, Basics.compose, fresh_pat_M; simpl.
-  rewrite <- Heqr; simpl.
+  rewrite fresh_pat_eq'.
+  simpl.
+  rewrite swap_list_id; auto.
 
-  repeat rewrite Nat.add_0_r.
+  (* do some arithmetic *)
+  rewrite minus_plus, Nat.add_0_r.
+  rewrite Nat.leb_refl.
 
-  rewrite minus_plus, Nat.leb_refl.
-  autounfold with den_db. 
+  repeat rewrite subst_fresh_id.
+  erewrite swap_fresh_seq by (unfold fresh_pat; auto).  
 
-  rewrite hash_pat_pat_to_list; auto.
-  rewrite pat_WType_size.
-  setoid_rewrite (swap_list_n_id (size_WType W)).
-  autorewrite with M_db.
+  repeat (autounfold with den_db; simpl).
+  setoid_rewrite swap_list_n_id.
 
-  autounfold with den_db. 
   rewrite Nat.sub_diag.
   autorewrite with M_db.
-  
-  repeat rewrite Mmult_assoc. 
+  repeat rewrite Mmult_assoc.
   setoid_rewrite UU.
   repeat rewrite <- Mmult_assoc.
   setoid_rewrite UU.
@@ -467,30 +499,6 @@ Definition denote_circuit {w1 w2} (p : Pat w1) (c : Circuit w2)
 Require Import Monad.
 
 
-Fixpoint pat_to_ctx {w} (p : Pat w) : OCtx :=
-  match p with
-  | unit => ∅
-  | qubit x => singleton x Qubit
-  | bit x   => singleton x Bit
-  | pair p1 p2 => pat_to_ctx p1 ⋓ pat_to_ctx p2
-  end.
-
-
-Lemma wf_pat_typed : forall {w} (p : Pat w) m n,
-      fresh_pat w m = (p,n) -> 
-      Types_Pat (pat_to_ctx p) p.
-Proof.
-  induction w; intros p m n H.
-  - inversion H; subst; simpl. type_check. apply singleton_singleton.
-  - inversion H; subst; simpl. type_check. apply singleton_singleton.
-  - inversion H; subst; simpl. type_check.
-  - simpl in *. 
-    destruct (fresh_pat w1 m) as [p1 m1] eqn:H_p1.
-    destruct (fresh_pat w2 m1) as [p2 m2] eqn:H_p2.
-    inversion H; subst. simpl in *.
-    econstructor; [ | reflexivity | eapply IHw1; eauto | eapply IHw2; eauto ].
-    admit (* lemma to prove *).
-Admitted.
 
 (* Do these belong back in Denotation? *) 
 Lemma compose_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2),
@@ -501,51 +509,56 @@ Proof.
   autounfold with den_db; simpl. 
   destruct f as [f]. 
   destruct g as [g].
-  autounfold with den_db; simpl. 
-  destruct (fresh_pat W1 0) as [p1 n1] eqn:H_p1_n1.
-  destruct (fresh_pat W2 0) as [p2 n2] eqn:H_p2_n2.
-  autounfold with den_db; simpl. 
+  autounfold with den_db; simpl.
+  rewrite fresh_pat_eq'. simpl.
 
-  repeat autounfold with monad_db; simpl.
-  rewrite H_p1_n1, H_p2_n2. simpl.
 
-  fold_evalState.
-  rewrite hoas_to_min_compose_correct.
+  (*
   set (Γ1 := pat_to_ctx p1).
   assert (pf_p1 : Types_Pat Γ1 p1) by (eapply wf_pat_typed; eauto).
   assert (pf_f  : Types_Circuit Γ1 (f p1)). 
   { unfold Typed_Box in *. simpl in *.
     apply H0. auto.
+  }*)
+  assert (pf_typed : Types_Compose (f (fresh_pat W1 (st_{0}))) g).
+  { eapply Build_Types_Compose with (ctx_in := ∅).
+    Focus 2. apply H0. eapply fresh_pat_typed; auto.
+    Focus 2. intros. apply H. destruct H1. rewrite merge_nil_r in pf_merge.
+    subst. auto.
+    split; [ | reflexivity].
+    rewrite merge_nil_r.
+    admit (*lemma *).
   }
-  assert (pf_typed : Types_Compose (f p1) g).
-  { eapply Build_Types_Compose with (ctx_c := Γ1) (ctx_in := ∅) (ctx_out := Γ1); 
-      auto.
-    * split; [validate | monoid].
-    * unfold Typed_Box in H. simpl in H.
-      intros. destruct H1.
-      rewrite merge_nil_r in pf_merge. subst.
-      apply H; auto.
-  }
+  
+  
+  erewrite hoas_to_db_compose_correct with (types := pf_typed);
+    [ | auto | apply eq_sym; apply surjective_pairing].
+  rewrite fresh_pat_eq'.
+  simpl.
 
-  destruct (hoas_to_min_aux (f p1) (pat_to_list p1, n1)) as [d s] eqn:H_d.
+  rewrite denote_db_compose with (Γ := nil)
+                             (Γ1 := pat_to_ctx (fresh_pat W2 (σ_{size_WType W1}))).
+  *
+  unfold compose_super.
+  
+  assert (pf_ctx_in : ctx_in pf_typed = ∅) by admit.
 
+  rewrite pf_ctx_in. 
+  replace (@remove_OCtx subst_state subst_state_Gate_State ∅ (st_{size_WType W1}))
+    with (st_{size_WType W1}) by admit.
+  set (p1 := fresh_pat W1 (st_{0})).
 
-  destruct (hoas_to_min_aux (g p2) (pat_to_list p2, n2)) as [d' s'] eqn:H_d'.
-  unfold substitution, Var in *; rewrite H_d, H_d'; simpl.
-    assert (H_w_c : 〚ctx_c pf_typed〛 = 〚W1〛) by admit.
-    assert (H_w_in : 〚ctx_in pf_typed〛 = 0%nat) by admit.
-    assert (H_w_out : 〚ctx_out pf_typed〛 = 〚W1〛) by admit.
-
-  rewrite denote_min_compose' with (pf_typed0 := pf_typed) (d0 := d) (d'0 := d')
-                                   (s'0 := s) (s'' := s'); unfold runState; auto.
-  * unfold compose_super.
-    rewrite H_w_c, H_w_in, H_w_out.
-    replace (〚W1〛 - 〚W2〛 + 0)%nat with (〚W1〛 - 〚W2〛)%nat by omega.
-    replace (0 + 0)%nat with 0%nat by auto.
-    admit (* so close! *).
-  * simpl. unfold substitution, Var in *.
-    rewrite <- H_d'.
-    admit (* so close! *).
+  replace (fst (get_fresh_pat W2 (st_{size_WType W1})))
+    with (fresh_pat W2 (st_{size_WType W1}))
+    by (unfold fresh_pat; auto).
+  set (p2 := fresh_pat W2 (st_{0})).
+  set (p2' := fresh_pat W2 (st_{size_WType W1})).
+  
+  simpl.
+  replace (size_WType W2 + 0)%nat with (size_WType W2) by omega.
+  replace (denote_OCtx (pat_to_ctx (fresh_pat W2 (σ_{size_WType W1}))))
+    with (size_WType W1) by admit.
+  admit (* so close! *).
 Abort.
 
 Search Types_Circuit compose.
