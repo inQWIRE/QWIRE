@@ -1375,7 +1375,7 @@ Admitted.
 
 Fixpoint hoas_to_db {w} (c : Circuit w) (σ : subst_state) : DeBruijn_Circuit w :=
   match c with
-  | output p   => db_output p
+  | output p   => db_output (subst_pat (get_σ σ) p)
   | gate g p f => (* p' will be the input to f, so a hoas-level pat *)
                   let p' := process_gate_pat g p σ in
                   (* p0 is the db-pat corresponding to p *)

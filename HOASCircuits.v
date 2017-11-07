@@ -197,4 +197,12 @@ Arguments pf_ctx {w w' c f}.
 Arguments types_c {w w' c f}.
 
 
+(*
+Lemma types_compose : forall w (c : Circuit w) Γ w' (f : Pat w -> Circuit w'),
+      Types_Circuit Γ (compose c f) ->
+      Types_Compose c f.
+Proof.
+*)
+
+
 (* *)

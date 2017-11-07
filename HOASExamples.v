@@ -562,11 +562,11 @@ Fixpoint coin_flips (n : nat) : Box One Bit :=
   match n with
   | 0    => gate_ x ← new1 @(); output x
   | S n' => let_  c     ← unbox (coin_flips n') ();
-           gate_ q     ← init1 @();
-           gate_ (c,q) ← bit_ctrl H @(c,q);
-           gate_ ()    ← discard @c;
-           gate_ b     ← meas @q;
-           output b
+            gate_ q     ← init0 @();
+            gate_ (c,q) ← bit_ctrl H @(c,q);
+            gate_ ()    ← discard @c;
+            gate_ b     ← meas @q;
+            output b
   end.
 Lemma coin_flips_WT : forall n, Typed_Box (coin_flips n).
 Proof. intros. induction n; type_check. Qed.

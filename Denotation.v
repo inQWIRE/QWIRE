@@ -181,9 +181,13 @@ Instance Denote_Gate_Correct W1 W2 : Denote_Correct (Denote_Gate W1 W2) :=
     denote_correct := denote_gate_correct
 |}.
 
-(* Require Import Recdef. *)
 
-(* m is to show structural decreasing *)
+(* for (i,x) ∈ l, 
+    swaps the position of qubits i and x in the n-qubit system 
+*)
+(* Requires: (i,x) ∈ l implies i < n and x < n *)
+(* Requires: m <= n (m is structurally decreasing) *)
+(* Invariant: m = length l *)
 Fixpoint swap_list_aux (m n : nat) (l : list (nat * nat)) : Square  (2^n) :=
   match m with
   | 0 => Id (2^n)
@@ -196,6 +200,9 @@ Fixpoint swap_list_aux (m n : nat) (l : list (nat * nat)) : Square  (2^n) :=
 
 Definition zip_to (m n : nat) (l : list nat) := combine (seq m n) l.
 
+(* for l[i]=x, swaps the position of qubits i and x in the n-qubit system *)
+(* Requires: length l <= n *)
+(* Requires: x ∈ l implies x < n *)
 Definition swap_list (n : nat) (l : list nat) : Square (2^n) := 
   swap_list_aux n n (zip_to 0 n l). 
 
@@ -228,6 +235,8 @@ Definition apply_new0 {n} : Superoperator (2^n) (2^(n+1)) :=
 Definition apply_new1 {n} : Superoperator (2^n) (2^(n+1)) :=
   super (Id (2^n) ⊗ |1⟩).
 
+(* Discard the qubit k in an n-qubit system *)
+(* Requires: k < n *)
 Definition apply_discard {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
   let S := swap_two n 0 k in 
   fun ρ => super ((⟨0| ⊗ Id (2^(n-1))) × S) ρ .+ super ((⟨1| ⊗ Id (2^(n-1))) × S) ρ.
@@ -414,6 +423,7 @@ Admitted.
 
 About denote_db_circuit. Print Types_Compose. 
 About hoas_to_db_compose_correct.
+
 Lemma denote_compose : forall {w} (c : Circuit w) Γ1,
   Types_Circuit Γ1 c ->
   forall Γ Γ1' w' (f : Pat w -> Circuit w') σ σ' p pad n,

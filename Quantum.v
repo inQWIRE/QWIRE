@@ -165,7 +165,8 @@ Definition swap_to_0 (n i : nat) : Matrix (2^n) (2^n) :=
   | O => Id (2^n) 
   | S i' => swap_to_0_aux n i'
   end.
- 
+
+(* Swapping qubits i and j in an n-qubit system, where i < j *) 
 (* Requires i < j, j < n *)
 Fixpoint swap_two_aux (n i j : nat) : Matrix (2^n) (2^n) := 
   match i with 
@@ -173,6 +174,7 @@ Fixpoint swap_two_aux (n i j : nat) : Matrix (2^n) (2^n) :=
   | S i' => Id 2 ⊗ swap_two_aux (n-1) (i') (j-1)
   end.
 
+(* Swapping qubits i and j in an n-qubit system *)
 (* Requires i < n, j < n *)
 Definition swap_two (n i j : nat) : Matrix (2^n) (2^n) :=
   if i =? j then Id (2^n) 
