@@ -1,3 +1,4 @@
+Require Import Monad.
 Require Import HOASCircuits.
 Require Import HOASExamples.
 Require Import Denotation.
@@ -8,6 +9,7 @@ Require Import List.
 Require Import DBCircuits.
 Set Bullet Behavior "Strict Subproofs".
 Global Unset Asymmetric Patterns.
+Require Import Program.
 
 Definition I1 := Id (2^0).
 Lemma WF_I1 : WF_Matrix 1 1 I1. Proof. unfold I1. apply WF_Id. Qed.
@@ -488,15 +490,8 @@ Fixpoint upper_bound (li : list nat) : nat :=
   | n :: li' => max (S n) (upper_bound li')
   end.
 
-(*
-Definition denote_circuit {w1 w2} (p : Pat w1) (c : Circuit w2) 
-                        : Superoperator (2^〚w1〛) (2^〚w2〛) :=
-  let li := pat_to_list p in
-  let n := upper_bound li in
-  denote_min_circuit (〚w1〛) (hoas_to_min c li (S n)).
-*)
 
-Require Import Monad.
+
 
 
 
@@ -514,6 +509,16 @@ Admitted.
 
 
 Lemma size_OCtx_WType : forall Γ w (p : Pat w), Types_Pat Γ p -> 〚 Γ 〛=〚 w 〛.
+Admitted.
+
+
+
+Lemma OCtx_dom_pat : forall w (p : Pat w),
+      OCtx_dom (pat_to_ctx p) = pat_to_list p.
+Admitted.
+
+Lemma remove_refl : forall σ,
+  fold_left (fun σ x => remove_var x σ) (get_σ σ) σ = st_{0}.
 Admitted.
 
 
@@ -540,29 +545,35 @@ Proof.
 (*  set (σ0 := remove_OCtx Γ1 (st_{〚W1〛})).*)
   set (p2 := fresh_pat W2 (st_{0})).
 
-  erewrite denote_compose with (Γ1' := Γ1) (Γ := ∅) (Γ2 := Γ1)
-                               (σ' := st_{0}) (* (p := p1)*);
+  erewrite denote_compose with (Γ1' := Γ1) (Γ := ∅) (Γ2 := Γ1);
     [ | apply types_f; auto 
     | split; [auto | monoid]
     | intros p' Γ Γ2' [pf_merge pf_valid] types_p';
       apply types_g; rewrite merge_nil_r in pf_valid; subst; apply types_p'
-    | simpl; erewrite size_OCtx_WType; [ | eauto]; simpl; omega
-    | 
-    | rewrite surjective_pairing; auto ].
+    | simpl; erewrite size_OCtx_WType; [ | eauto]; simpl; omega 
+    | rewrite surjective_pairing; f_equal ].
  
+  replace (remove_OCtx Γ1 (st_{size_WType W1})) with (st_{0}).
   -- 
   simpl. unfold compose_super. 
-  rewrite fresh_pat_eq'.
-  simpl.
   rewrite (Nat.add_0_r (size_WType W2)).
-  unfold p2. 
   replace (size_WType W1) with (denote_OCtx Γ1) by (eapply size_OCtx_WType; eauto).
+  rewrite fresh_pat_eq'; simpl.
+  unfold p2, fresh_pat. 
   reflexivity.
 
-  -- admit (* if Γ = pat_to_ctx (fresh_pat W1 (st_{0})) then remove_OCtx Γ st_{w} = st_{0} *).
-Admitted.
+  -- 
+    unfold remove_OCtx.
+    unfold Γ1.
+    rewrite OCtx_dom_pat.
+    unfold p1.
+    rewrite swap_fresh_seq.
+    replace (fresh (st_{0})) with 0%nat by auto.
+    replace (σ_{〚 W1 〛}) with (get_σ (st_{〚 W1 〛})) by auto. 
+    rewrite remove_refl; auto.
+Qed.
 
-Search Types_Circuit compose.
+
 
 Open Scope circ_scope.
 
@@ -576,7 +587,7 @@ Proof.
   reflexivity.
 Qed.
 
-Require Import Program.
+
 Open Scope circ_scope.
 
 Hint Unfold super_Zero : den_db.
@@ -591,86 +602,37 @@ Proof.
   + simpl.
     repeat (simpl; autounfold with den_db). 
 
-    erewrite hoas_to_db_compose_correct; [ | eauto | ].
-    repeat (simpl; autounfold with den_db). 
+    erewrite denote_compose with (Γ := ∅) (Γ1 := ∅) (Γ1' := ∅);
+      [ | apply unbox_typing; [type_check | apply coin_flips_WT]
+      | split; [validate | monoid]
+      | 
+      | auto
+      | replace (remove_OCtx ∅ (st_{0})) with (st_{0})
+          by (unfold remove_OCtx; auto);
+         rewrite fresh_pat_eq'; auto
+      ].
+    -- simpl.
+       repeat (autounfold with den_db; simpl).
+       autorewrite with M_db.
+       admit (* dimension mismatch! *) (* rewrite Mmult_1_r *).
 
-    
-    simpl in IHn.
-    unfold denote_box in IHn.
-    
-
-    fold_evalState.
-
-    set (f := fun c => gate_ q ← init1 @ unit;
-                       gate_ (c,q) ← bit_ctrl H @ pair c q;
-                       gate_ () ← discard @c;
-                       gate_ b ← meas @q;
-                       output b).
-    assert (pf_typed : Types_Compose (unbox (coin_flips n) unit) f).
-    { apply Build_Types_Compose with (ctx_c := ∅) (ctx_in := ∅) (ctx_out := ∅).
-      * split; type_check. 
-      * apply coin_flips_WT; type_check.
-      * intros. destruct H. unfold f.
-        rewrite merge_nil_r in pf_merge. subst.
-        admit (* why doesn't type_check work here? is there a bug? *).
-    }
-
-    set (c := unbox (coin_flips n) ()).
-    destruct (hoas_to_min_aux c (nil,0%nat)%core) 
-      as [d s'] eqn:H_d. 
-    destruct (runState (hoas_to_min_aux (f (get_output c 0%nat))) s') 
-      as [d' s''] eqn:H_d'.
-
-
-    rewrite denote_min_compose' with (pf_typed0 := pf_typed) 
-                                     (d0 := d) (s'0 := s')
-                                     (d'0 := d') (s''0 := s''); auto.
-    - unfold compose_super.
-      assert (H_in :  〚 ctx_in pf_typed 〛 = 0%nat) by admit.
-      assert (H_out :  〚 ctx_out pf_typed 〛 = 0%nat) by admit.
-      assert (H_c :  〚 ctx_c pf_typed 〛 = 0%nat) by admit.
-      rewrite H_in, H_out, H_c in *. simpl.
-      assert (IHn' : denote_min_circuit 0 0 d (Id 1)
-                   = biased_coin (2^n)).
-      { replace d with (evalState (hoas_to_min_aux c) (nil, 0%nat)%core)
-          by (repeat autounfold with monad_db; rewrite H_d; auto).
-        unfold c.
-        rewrite <- denote_min_unbox.
-        unfold I1 in IHn. simpl in IHn. simpl. rewrite IHn.
+    --
+      intros p Γ2 Γ2' [pf_valid pf_merge] types_p.
+      rewrite merge_nil_r in pf_merge. subst. 
+      type_check; auto.
+      * rewrite merge_nil_r.
+        replace (merge' Γ0 Γ) with (Γ0 ⋓ Γ) by auto.
+        monoid.
+      * simpl in *.
+        replace (merge' Γ Γ0) with (Γ ⋓ Γ0) by auto.
+        replace (merge' Γ0 Γ) with (Γ0 ⋓ Γ) in v2 by auto.
+        validate.
+      * rewrite merge_nil_r.    
+        replace (merge' Γ2 Γ3) with (Γ2 ⋓ Γ3) by auto.
         reflexivity.
-      }
-      rewrite IHn'.
-      replace d' with (evalState (hoas_to_min_aux (f (get_output c 0))) s')
-        by (unfold substitution, Var in *; repeat autounfold with monad_db in *; 
-            rewrite H_d'; reflexivity).
-      unfold f. 
-      repeat (autounfold with monad_db; simpl).
-      destruct (remove_pat_M (get_output c 0) (fst s' ++ snd s' :: nil, S (snd s'))%core) eqn:H_remove_pat.
-      unfold substitution, Var in *. rewrite H_remove_pat. simpl.
-      set (p0 := get_output c 0).
-      dependent destruction p0. rewrite <- x.
-      simpl.
-
-      autounfold with den_db.
-      set (y := lookup (snd s') (fst p)).
-      set (y' := lookup v (fst s' ++ [snd s'])).
-      destruct y.
-      * simpl. destruct y'.
-        ++ autounfold with den_db.
-           autorewrite with M_db.
-           admit (* clearly a bug in the dimensions *).
-        ++ simpl.
-           autounfold with den_db. simpl.
-           autorewrite with M_db.
-           admit.
-      * simpl. destruct y'.
-        ++ simpl.
-           autounfold with den_db. simpl.
-           autorewrite with M_db.
-           admit.
-        ++ simpl.
-           autounfold with den_db. simpl.
-           autorewrite with M_db.
+      * rewrite merge_nil_r. auto.
+      * simpl. replace (merge' Γ4 []) with (Γ4 ⋓ ∅) by auto.
+        monoid.
 Admitted.
 
 Lemma cnot_eq : cnot = control pauli_x.

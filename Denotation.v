@@ -231,12 +231,14 @@ Definition apply_new1 {n} : Superoperator (2^n) (2^(n+1)) :=
 Definition apply_discard {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
   let S := swap_two n 0 k in 
   fun ρ => super ((⟨0| ⊗ Id (2^(n-1))) × S) ρ .+ super ((⟨1| ⊗ Id (2^(n-1))) × S) ρ.
+  (* super ((⟨0| ⊗ Id (2^{n-1})) × S) *)
 
 (* Confirm transposes are in the right place *)
 Definition apply_meas {n} (k : nat) : Superoperator (2^n) (2^n) :=
   let S := swap_two n 0 k in 
   fun ρ => super (S × (|0⟩⟨0| ⊗ Id (2^(n-1))) × S†) ρ 
         .+ super (S × (|1⟩⟨1| ⊗ Id (2^(n-1))) × S†) ρ.
+  (* super S ∘ super (|0⟩⟨0| ⊗ Id (2^(n-1))) *)
 
 Definition super_Zero {m n} : Superoperator m n  :=
   fun _ => Zero _ _.
@@ -347,7 +349,7 @@ Fixpoint denote_db_circuit {w}  (pad n : nat) (c : DeBruijn_Circuit w)
                                 (apply_gate g (pat_to_list p))
   (* I think we need a weighing here - also a measure-discard *)
   | db_lift p c'   => Splus (denote_db_circuit pad n (c' true))
-                             (denote_db_circuit pad n (c' false))
+                            (denote_db_circuit pad n (c' false))
   end.
 
 Definition denote_db_box' {W1 W2} (c : DeBruijn_Box W1 W2) n : 
