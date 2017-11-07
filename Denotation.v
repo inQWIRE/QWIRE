@@ -14,6 +14,7 @@ Global Unset Asymmetric Patterns.
 
 
 Class Denote source target := {denote : source -> target}.
+
 Notation "〚 s 〛" := (denote s) (at level 10).
 
 Class Denote_Correct {source target} `(Denote source target) :=
@@ -349,20 +350,22 @@ Fixpoint denote_db_circuit {w}  (pad n : nat) (c : DeBruijn_Circuit w)
                              (denote_db_circuit pad n (c' false))
   end.
 
-Definition denote_db_box {W1 W2} (c : DeBruijn_Box W1 W2) : 
+Definition denote_db_box' {W1 W2} (c : DeBruijn_Box W1 W2) n : 
   Superoperator (2 ^ 〚 W1 〛) (2 ^ 〚 W2 〛) :=
   match c with
-  | db_box _ c' => denote_db_circuit 0 (〚W1〛) c'  
+  | db_box _ c' => denote_db_circuit n (〚W1〛) c'  
   end.
+Definition denote_db_box {w1 w2} (c : DeBruijn_Box w1 w2) := denote_db_box' c 0%nat.
 
 (** Denoting hoas circuits **)
+
+Notation "⟨ c ⟩_{ n }" := (denote_db_box (hoas_to_db_box' c n)) (at level 30).
 
 Definition denote_box {W1 W2 : WType} (c : Box W1 W2) := 
     denote_db_box (hoas_to_db_box c).
 Instance Denote_Box {W1 W2} : Denote (Box W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
          {| denote := denote_box |}.
 
-About min_compose.
 
 
 (*
@@ -404,27 +407,43 @@ Lemma denote_db_compose : forall pad w1 w2 Γ1 Γ n m
     denote_db_circuit pad n (db_compose m c1 c2)
   = compose_super (denote_db_circuit pad (〚w1〛+ 〚Γ〛) c2)
                   (denote_db_circuit (pad +〚Γ〛) (〚Γ1〛) c1).
-(*Proof.
-  intros.
-  generalize dependent w2.
-  generalize dependent Γ.
-  generalize dependent n.
-  generalize dependent pad0.
-  induction H; intros pad n Γ0 pf_n w2' c2 types_c2.
-  * simpl. admit (* lemma about db_subst *).
-  * simpl.
-    rewrite IHTypes_DB; auto.
-    + replace (〚process_gate_state g p Γ〛) with (〚Γ〛+ 〚w2〛- 〚w0〛)%nat by admit.
-      admit.
-    + subst.
-      replace (〚process_gate_state g p Γ〛) with (〚Γ〛+ 〚w2〛- 〚w0〛)%nat by admit.
-      simpl. admit (* problem with subtraction? *).
-  * simpl. admit. *)
+
 Admitted.
 
+About denote_db_circuit. Print Types_Compose. 
+About hoas_to_db_compose_correct.
+Lemma denote_compose : forall {w} (c : Circuit w) Γ1,
+  Types_Circuit Γ1 c ->
+  forall Γ Γ1' w' (f : Pat w -> Circuit w') σ σ' p pad n,
+    Γ1' == Γ1 ∙ Γ ->
+    (forall (p : Pat w) Γ2 Γ2', Γ2' == Γ2 ∙ Γ -> Types_Pat Γ2 p -> Types_Circuit Γ2' (f p)) ->
 
+    n = (〚 Γ1 〛+ 〚 Γ 〛)%nat ->
+    (p,σ') = get_fresh_pat w (remove_OCtx Γ1 σ) ->
+    
+    denote_db_circuit pad n (hoas_to_db (compose c f) σ)
+(*= denote_db_circuit pad n (db_compose (〚 Γ 〛) (hoas_to_db c σ) (hoas_to_db (f p) σ')) *)
+  = compose_super (denote_db_circuit pad (〚w〛+〚Γ〛) (hoas_to_db (f p) σ'))
+                  (denote_db_circuit (pad + 〚Γ〛) (〚Γ1〛) (hoas_to_db c σ)).
+Proof.
+  intros.
+  Print Types_Compose.
+  (* ctx_c := Γ1 *) (* ctx_out := Γ1' *) (* ctx_in := Γ *)
+  set (pf := Build_Types_Compose _ _ c f Γ1 Γ1' Γ H0 H H1). 
+  destruct H0. 
+  destruct Γ1 as [ | Γ1]; [simpl in pf_merge; subst; dependent destruction  pf_valid | ].
+  destruct Γ as [ | Γ]; [simpl in pf_merge; subst; dependent destruction  pf_valid | ].
+  erewrite hoas_to_db_compose_correct with (types := pf); 
+    [| reflexivity | rewrite surjective_pairing; eauto].
+  erewrite denote_db_compose with (Γ := Γ) (Γ1 := Γ1);
+    [ | admit | admit (* lemmas about typing judgments *)
+    | auto
+    | simpl; reflexivity ].
+  simpl. 
 
-
+  inversion H3. simpl.
+  reflexivity.
+Admitted.
 
 
 Lemma merge_size : forall Γ1 Γ2 Γ,

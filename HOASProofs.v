@@ -500,75 +500,81 @@ Require Import Monad.
 
 
 
+Lemma size_singleton : forall x w, size_Ctx (singleton x w) = 1%nat.
+Proof.
+  induction x; intros; simpl; auto.
+Qed.
+
+Lemma size_pat_to_ctx : forall {w} (p : Pat w) Γ, Types_Pat Γ p ->
+    〚pat_to_ctx p〛= 〚w〛.
+Proof.
+  induction 1; simpl; auto; try apply size_singleton.
+  admit (* lemma about denote_OCtx (_ ⋓ _) *).
+Admitted.
+
+
+Lemma size_OCtx_WType : forall Γ w (p : Pat w), Types_Pat Γ p -> 〚 Γ 〛=〚 w 〛.
+Admitted.
+
+
+
 (* Do these belong back in Denotation? *) 
 Lemma compose_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2),
       Typed_Box g -> Typed_Box f ->
-      〚inSeq f g〛 = compose_super (〚g〛) (〚f〛).
+     〚inSeq f g〛 = compose_super (〚g〛) (〚f〛).
 Proof.
-  intros.
+  intros W1 W2 W3 g f types_g types_f.
   autounfold with den_db; simpl. 
   destruct f as [f]. 
   destruct g as [g].
   autounfold with den_db; simpl.
-  rewrite fresh_pat_eq'. simpl.
+  repeat rewrite fresh_pat_eq'. simpl.
 
-
-  (*
+  set (p1 := fresh_pat W1 (st_{0})).
   set (Γ1 := pat_to_ctx p1).
-  assert (pf_p1 : Types_Pat Γ1 p1) by (eapply wf_pat_typed; eauto).
-  assert (pf_f  : Types_Circuit Γ1 (f p1)). 
-  { unfold Typed_Box in *. simpl in *.
-    apply H0. auto.
-  }*)
-  assert (pf_typed : Types_Compose (f (fresh_pat W1 (st_{0}))) g).
-  { eapply Build_Types_Compose with (ctx_in := ∅).
-    Focus 2. apply H0. eapply fresh_pat_typed; auto.
-    Focus 2. intros. apply H. destruct H1. rewrite merge_nil_r in pf_merge.
-    subst. auto.
-    split; [ | reflexivity].
-    rewrite merge_nil_r.
-    admit (*lemma *).
-  }
-  
-  
-  erewrite hoas_to_db_compose_correct with (types := pf_typed);
-    [ | auto | apply eq_sym; apply surjective_pairing].
+  assert (types_p : Types_Pat Γ1 p1).
+  { apply fresh_pat_typed with (σ := st_{0}). auto. }
+  assert (valid_Γ1 : is_valid Γ1).
+  { eapply pat_ctx_valid; eauto. }
+
+(*  set (σ0 := remove_OCtx Γ1 (st_{〚W1〛})).*)
+  set (p2 := fresh_pat W2 (st_{0})).
+
+  erewrite denote_compose with (Γ1' := Γ1) (Γ := ∅) (Γ2 := Γ1)
+                               (σ' := st_{0}) (* (p := p1)*);
+    [ | apply types_f; auto 
+    | split; [auto | monoid]
+    | intros p' Γ Γ2' [pf_merge pf_valid] types_p';
+      apply types_g; rewrite merge_nil_r in pf_valid; subst; apply types_p'
+    | simpl; erewrite size_OCtx_WType; [ | eauto]; simpl; omega
+    | 
+    | rewrite surjective_pairing; auto ].
+ 
+  -- 
+  simpl. unfold compose_super. 
   rewrite fresh_pat_eq'.
   simpl.
+  rewrite (Nat.add_0_r (size_WType W2)).
+  unfold p2. 
+  replace (size_WType W1) with (denote_OCtx Γ1) by (eapply size_OCtx_WType; eauto).
+  reflexivity.
 
-  rewrite denote_db_compose with (Γ := nil)
-                             (Γ1 := pat_to_ctx (fresh_pat W2 (σ_{size_WType W1}))).
-  *
-  unfold compose_super.
-  
-  assert (pf_ctx_in : ctx_in pf_typed = ∅) by admit.
-
-  rewrite pf_ctx_in. 
-  replace (@remove_OCtx subst_state subst_state_Gate_State ∅ (st_{size_WType W1}))
-    with (st_{size_WType W1}) by admit.
-  set (p1 := fresh_pat W1 (st_{0})).
-
-  replace (fst (get_fresh_pat W2 (st_{size_WType W1})))
-    with (fresh_pat W2 (st_{size_WType W1}))
-    by (unfold fresh_pat; auto).
-  set (p2 := fresh_pat W2 (st_{0})).
-  set (p2' := fresh_pat W2 (st_{size_WType W1})).
-  
-  simpl.
-  replace (size_WType W2 + 0)%nat with (size_WType W2) by omega.
-  replace (denote_OCtx (pat_to_ctx (fresh_pat W2 (σ_{size_WType W1}))))
-    with (size_WType W1) by admit.
-  admit (* so close! *).
-Abort.
+  -- admit (* if Γ = pat_to_ctx (fresh_pat W1 (st_{0})) then remove_OCtx Γ st_{w} = st_{0} *).
+Admitted.
 
 Search Types_Circuit compose.
 
 Open Scope circ_scope.
 
 (* probably a more general form of this *)
-Lemma denote_min_unbox : forall { w2} (b : Box One w2),
-      〚b〛 = denote_min_circuit 0 0 (evalState (hoas_to_min_aux (unbox b ())) (nil,0%nat)%core).
-Admitted.
+Lemma denote_db_unbox : forall { w2} (b : Box One w2),
+    〚b〛 = denote_db_circuit 0 0 ((hoas_to_db (unbox b ())) (st_{0})).
+Proof.
+  destruct b.
+  simpl. unfold denote_box.
+  simpl.
+  reflexivity.
+Qed.
 
 Require Import Program.
 Open Scope circ_scope.
@@ -584,8 +590,15 @@ Proof.
     destruct_m_eq; clra.
   + simpl.
     repeat (simpl; autounfold with den_db). 
-    repeat (autounfold with monad_db; simpl).
-    rewrite hoas_to_min_compose_correct.
+
+    erewrite hoas_to_db_compose_correct; [ | eauto | ].
+    repeat (simpl; autounfold with den_db). 
+
+    
+    simpl in IHn.
+    unfold denote_box in IHn.
+    
+
     fold_evalState.
 
     set (f := fun c => gate_ q ← init1 @ unit;

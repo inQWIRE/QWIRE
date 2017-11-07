@@ -1408,11 +1408,14 @@ Notation "σ_{ n }" := (seq 0 n) (at level 20).
 Definition subst_state_at n := Mk_subst_state (σ_{n}) n.
 Notation "st_{ n }" := (subst_state_at n) (at level 20).
 
-Definition hoas_to_db_box {w1 w2} (B : Box w1 w2) : DeBruijn_Box w1 w2 :=
+Definition hoas_to_db_box' {w1 w2} (B : Box w1 w2) n : DeBruijn_Box w1 w2 :=
   match B with
-  | box f => let (p,σ) := get_fresh_pat w1 (st_{0}) in
+  | box f => let (p,σ) := get_fresh_pat w1 (st_{n}) in
              db_box w1 (hoas_to_db (f p) σ)
   end.
+
+Definition hoas_to_db_box {w1 w2} (B : Box w1 w2) : DeBruijn_Box w1 w2 :=
+  hoas_to_db_box' B 0.
 
 
 
@@ -1628,11 +1631,9 @@ Require Import HOASCircuits. About compose.
 Lemma hoas_to_db_compose_correct : forall {w w'}
                                           (c : Circuit w) (f : Pat w -> Circuit w')
     (types : Types_Compose c f) σ σ' σ'' p,
-    σ' = remove_OCtx (ctx_in types) σ ->
+    σ' = remove_OCtx (ctx_c types) σ ->
     (p, σ'') = get_fresh_pat w σ' ->
     
       hoas_to_db (compose c f) σ
-      = db_compose (size_OCtx (ctx_c types)) (hoas_to_db c σ) (hoas_to_db (f p) σ').
+      = db_compose (size_OCtx (ctx_in types)) (hoas_to_db c σ) (hoas_to_db (f p) σ'').
 Admitted.
-
-
