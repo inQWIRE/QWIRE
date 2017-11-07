@@ -888,8 +888,7 @@ Proof.
   autorewrite with M_db. 
   repeat setoid_rewrite kron_conj_transpose.
   autorewrite with M_db. 
-  assoc_center.
-  solve_matrix_c.
+  solve_matrix.
 Qed.
 
 (* Deutsch's Algorithm *)
@@ -917,6 +916,8 @@ Definition f2 : Matrix 4 4 := fun x y =>
   | 0, 1 | 1, 0 | 2, 2 | 3, 3 => 1
   | _, _                      => 0
   end.
+
+Close Scope circ_scope. 
 
 (* f(x) = 1. Unitary: Id ⊗ X *)
 Definition f3 : Matrix 4 4 := Id 2 ⊗ pauli_x.

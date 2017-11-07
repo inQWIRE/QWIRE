@@ -34,9 +34,11 @@ Set Printing Coercions.
 (* These tactics construct circuits by calling out to type_check *)
 
 
-Tactic Notation (at level 0) "make_circ" uconstr(C) := refine C; type_check.
+(*
+Tactic Notation (at level 0) "make_circ" uconstr(C) := refine C.
 
-Tactic Notation (at level 0) "box_" uconstr(C) := refine(C); type_check.
+Tactic Notation (at level 0) "box_" uconstr(C) := refine(C).
+*)
 
 Notation letpair p1 p2 p c := (let (p1,p2) := wproj p in c).
 
@@ -121,27 +123,7 @@ Definition WT (b : Box) (W1 W2 : WType) :=
 
 
 (* Automation *)
-(*
-Ltac validate :=
-  repeat ((*idtac "validate";*) match goal with
-  (* Pattern contexts are valid *)
-  | [H : Types_Pat ?Γ ?p ?W |- _ ]    => apply pat_ctx_valid in H
-  (* Solve trivial *)
-  | [|- is_valid ∅ ]                  => apply valid_empty
-  | [H : is_valid ?Γ |- is_valid ?Γ ] => exact H
-  | [H: is_valid (?Γ1 ⋓ ?Γ2) |- is_valid (?Γ2 ⋓ ?Γ1) ] => rewrite merge_comm; exact H
-  (* Remove nils *)
-  | [|- context [∅ ⋓ ?Γ] ]             => rewrite (merge_nil_l Γ)
-  | [|- context [?Γ ⋓ ∅] ]             => rewrite (merge_nil_r Γ)
-  (* Reduce hypothesis to binary disjointness *)
-  | [H: is_valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) |- _ ] => rewrite (merge_assoc Γ1 Γ2 Γ3) in H
-  | [H: is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) |- _ ]   => apply valid_split in H as [? [? ?]]
-  (* Reduce goal to binary disjointness *)
-  | [|- is_valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) ] => rewrite (merge_assoc Γ1 Γ2 Γ3)
-  | [|- is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) ]   => apply valid_join; validate
-  end).
 
-*)
 Ltac goal_has_evars := 
   match goal with 
   [|- ?G ] => has_evars G

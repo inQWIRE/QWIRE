@@ -86,65 +86,7 @@ Opaque merge.
 Opaque Ctx.
 Opaque is_valid.
 
-(* Automation *)
 
-Ltac validate :=
-  repeat ((*idtac "validate";*) match goal with
-  (* Pattern contexts are valid *)
-  | [H : Types_Pat _ _ |- _ ]    => apply pat_ctx_valid in H
-  (* Solve trivial *)
-  | [|- is_valid ∅ ]                  => apply valid_empty
-  | [H : is_valid ?Γ |- is_valid ?Γ ] => exact H
-  | [H: is_valid (?Γ1 ⋓ ?Γ2) |- is_valid (?Γ2 ⋓ ?Γ1) ] => rewrite merge_comm; exact H
-  (* Remove nils *)
-  | [|- context [∅ ⋓ ?Γ] ]             => rewrite (merge_nil_l Γ)
-  | [|- context [?Γ ⋓ ∅] ]             => rewrite (merge_nil_r Γ)
-  (* Reduce hypothesis to binary disjointness *)
-  | [H: is_valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) |- _ ] => rewrite (merge_assoc Γ1 Γ2 Γ3) in H
-  | [H: is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) |- _ ]   => apply valid_split in H as [? [? ?]]
-  (* Reduce goal to binary disjointness *)
-  | [|- is_valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) ] => rewrite (merge_assoc Γ1 Γ2 Γ3)
-  | [|- is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) ]   => apply valid_join; validate
-  end).
-
-
-Ltac goal_has_evars := 
-  match goal with 
-  [|- ?G ] => has_evars G
-  end.
-
-Ltac type_check_once := 
-  compute in *; 
-  intros;
-  subst; 
-  repeat match goal with 
-  | [ H : Types_Pat _ ?p One |- _ ]           => is_var p; inversion H; subst
-  | [ H : Types_Pat _ ?p (Tensor _ _) |- _ ]  => is_var p; inversion H; subst
-  | [ |- Types_Circuit _ _ _ ]                => econstructor; type_check_once
-  | [ |- Types_Circuit _ (if ?b then _ else _) _ ] => destruct b; type_check_once
-  | [ H : Types_Pat _ ?p ?W |- Types_Pat _ ?p ?W ] => apply H
-  | [ |- Types_Pat _ _ _ ]                   => econstructor; type_check_once
-  end; 
-  (* Runs monoid iff a single evar appears in context *)
-  match goal with 
-  | [|- is_valid ?Γ] => tryif (has_evar Γ)   
-                        then (idtac (*"can't validate"; print_goal*))
-                        else (idtac (*"validate"; print_goal*); validate)
-  | [|- ?G ]         => tryif (has_evars G)  
-                        then (idtac (*"can't monoid"; print_goal*))
-                        else (idtac (*"monoid"; print_goal*); monoid)
-  end.
-
-(* Useful for debugging *)
-Ltac type_check_num := 
-  let pre := numgoals in idtac "Goals before: " pre "";
-  [> type_check_once..];
-  let post := numgoals in idtac "Goals after: " post "";
-  tryif (guard post < pre) then type_check_num else idtac "done".
-
-(* Easiest solution *)
-
-Ltac type_check := let n := numgoals in do n [> type_check_once..].
 
 (* Composition lemma *)
 
@@ -185,11 +127,10 @@ Record Types_Compose {w w'} (c : Circuit w) (f : Pat w -> Circuit w') :=
   ; ctx_out: OCtx (* Γ1' *)
   ; ctx_in : OCtx (* Γ *)
   ; pf_ctx : ctx_out == ctx_c ∙ ctx_in (* Γ1' = Γ1 ⋓ Γ *)
-  ; types_c : Types_Circuit ctx_c c 
+  ; types_c : Types_Circuit ctx_c c (* Γ1 ⊢ c *)
   ; types_f : forall p Γ2 Γ2', Γ2' == Γ2 ∙ ctx_in -> 
                                Types_Pat Γ2 p -> Types_Circuit Γ2' (f p) 
   }.
-
 Arguments ctx_c {w w' c f}.
 Arguments ctx_out {w w' c f}.
 Arguments ctx_in  {w w' c f}.
@@ -197,12 +138,24 @@ Arguments pf_ctx {w w' c f}.
 Arguments types_c {w w' c f}.
 
 
+Lemma types_compose : forall w w' (c : Circuit w) (f : Pat w -> Circuit w')
+      (types : Types_Compose c f),
+      Types_Circuit (ctx_out types) (compose c f).
+Proof.
+  intros.
+  destruct types. simpl. destruct pf_ctx0.
+  Search Types_Circuit compose.
+  eapply compose_typing; eauto.
+  intros. eapply types_f0; eauto. split; auto.
+Qed.
+
+
+
 (*
-Lemma types_compose : forall w (c : Circuit w) Γ w' (f : Pat w -> Circuit w'),
+Lemma types_compose_inv : forall w (c : Circuit w) Γ w' (f : Pat w -> Circuit w'),
       Types_Circuit Γ (compose c f) ->
       Types_Compose c f.
-Proof.
+Admitted.
 *)
-
 
 (* *)

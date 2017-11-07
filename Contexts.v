@@ -835,3 +835,25 @@ Proof.
         split; [apply valid_valid | auto].
 Qed.
       
+
+(* Validate tactic *)
+
+
+Ltac validate :=
+  repeat ((*idtac "validate";*) match goal with
+  (* Pattern contexts are valid *)
+  | [H : Types_Pat _ _ |- _ ]    => apply pat_ctx_valid in H
+  (* Solve trivial *)
+  | [|- is_valid ∅ ]                  => apply valid_empty
+  | [H : is_valid ?Γ |- is_valid ?Γ ] => exact H
+  | [H: is_valid (?Γ1 ⋓ ?Γ2) |- is_valid (?Γ2 ⋓ ?Γ1) ] => rewrite merge_comm; exact H
+  (* Remove nils *)
+  | [|- context [∅ ⋓ ?Γ] ]             => rewrite (merge_nil_l Γ)
+  | [|- context [?Γ ⋓ ∅] ]             => rewrite (merge_nil_r Γ)
+  (* Reduce hypothesis to binary disjointness *)
+  | [H: is_valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) |- _ ] => rewrite (merge_assoc Γ1 Γ2 Γ3) in H
+  | [H: is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) |- _ ]   => apply valid_split in H as [? [? ?]]
+  (* Reduce goal to binary disjointness *)
+  | [|- is_valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) ] => rewrite (merge_assoc Γ1 Γ2 Γ3)
+  | [|- is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) ]   => apply valid_join; validate
+  end).
