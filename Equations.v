@@ -278,7 +278,6 @@ Proof.
     repeat rewrite (Mmult_assoc _ _ _ _ _ swap swap).
     autorewrite with M_db.    
     repeat rewrite <- Mmult_assoc.
-    Search kron.
     setoid_rewrite kron_conj_transpose.
     autorewrite with M_db.    
     solve_matrix.
@@ -310,8 +309,6 @@ Definition init_X (b : bool) : Box One Qubit :=
 Lemma init_X_WT : forall b, Typed_Box (init_X b).
 Proof. destruct b; type_check. Qed.
 
-(* The proof of 4 works here two, but this is faster / more algebraic. *)
-(* The four replacements could be lemmas *)
 Lemma init_X_init : forall b, init_X b ≡ init (negb b).
 Proof.
   destruct b; simpl.
@@ -331,5 +328,52 @@ Proof.
     repeat rewrite Mmult_assoc.
     autorewrite with M_db.
     reflexivity.    
+Qed.
+  
+(* Additional Equalities *)
+
+(** Equation 7: lift x <- b; new x = id b **)
+
+Definition lift_new : Box Bit Bit :=
+  box_ b ⇒ 
+    lift_ x ← b; 
+    unbox (new x) ().
+Lemma lift_new_WT : Typed_Box lift_new.
+Proof. type_check. destruct b; type_check. Qed.
+
+Hint Unfold Splus : den_db.
+
+Definition classical {n} (ρ : Density n) := forall i j, i <> j -> ρ i j = 0.
+
+Lemma lift_new_new : forall (ρ : Density 2), Mixed_State ρ -> 
+                                        classical ρ -> 
+                                        〚lift_new〛 ρ = 〚@id_circ Bit〛 ρ.
+Proof. 
+  intros ρ M C.
+  repeat (autounfold with den_db; intros; simpl).
+  specialize (WF_Mixed _ M); intros WFρ.
+  autorewrite with M_db.
+  solve_matrix.
+  rewrite C; trivial; omega.
+  rewrite C; trivial; omega.
+Qed.  
+  
+(** Equation 7': meas q; lift x <- p; new x = meas q **)
+
+Definition meas_lift_new : Box Qubit Bit :=
+  box_ q ⇒ 
+    gate_ b ← meas @q;
+    lift_ x ← b; 
+    unbox (new x) ().
+Lemma meas_lift_new_WT : Typed_Box meas_lift_new.
+Proof. type_check. destruct b; type_check. Qed.
+
+Lemma meas_lift_new_new : meas_lift_new ≡ boxed_gate meas.
+Proof. 
+  intros ρ M.
+  repeat (autounfold with den_db; intros; simpl).
+  specialize (WF_Mixed _ M); intros WFρ.
+  autorewrite with M_db.
+  solve_matrix.
 Qed.
   
