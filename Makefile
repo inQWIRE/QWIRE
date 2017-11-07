@@ -1,55 +1,61 @@
 all: HOASProofs.vo FlatProofs.vo MachineProofs.vo 
 
-MachineProofs.vo: MachineProofs.v MachineExamples.vo Denotation.vo
-	coqc MachineProofs.v
+Monad.vo: Monad.v
+	coqc Monad.v
 
-MachineCircuits.vo : MachineCircuits.v Contexts.vo FlatCircuits.vo HOASCircuits.vo Denotation.vo
-	coqc MachineCircuits.v
+Prelim.vo: Prelim.v
+	coqc Prelim.v
 
-DBCircuits.vo : DBCircuits.v Contexts.vo HOASCircuits.vo Monad.vo
-	coqc DBCircuits.v
+Complex.vo: Complex.v Prelim.vo
+	coqc Complex.v
 
-MachineExamples.vo: MachineExamples.v MachineCircuits.vo
-	coqc MachineExamples
+Matrix.vo: Matrix.v Complex.vo 
+	coqc Matrix.v 
 
-FlatProofs.vo: FlatProofs.v FlatExamples.vo Denotation.vo
-	coqc FlatProofs.v
+Quantum.vo: Quantum.v Matrix.vo
+	coqc Quantum.v
 
-HOASProofs.vo: HOASProofs.v HOASExamples.vo Denotation.vo
-	coqc HOASProofs.v
+###
+Contexts.vo: Contexts.v
+	coqc Contexts.v 
 
-FlatExamples.vo: FlatExamples.v FlatCircuits.vo
-	coqc FlatExamples.v
+HOASCircuits.vo: HOASCircuits.v Contexts.vo
+	coqc HOASCircuits.v
 
-HOASExamples.vo: HOASExamples.v HOASCircuits.vo
+TypeChecking.vo: TypeChecking.v Prelim.vo Contexts.vo HOASCircuits.vo
+	coqc TypeChecking.v
+
+HOASExamples.vo: HOASExamples.v HOASCircuits.vo TypeChecking.vo
 	coqc HOASExamples.v
 
-Denotation.vo: Denotation.v Quantum.vo HOASCircuits.vo DBCircuits.vo
-	coqc Denotation.v
-
-DBCircuits.vo: DBCircuits.v Contexts.vo HOASCircuits.vo Monad.vo
+DBCircuits.vo : DBCircuits.v Contexts.vo HOASCircuits.vo Monad.vo
 	coqc DBCircuits.v
 
 FlatCircuits.vo: FlatCircuits.v HOASCircuits.vo Monad.vo
 	coqc FlatCircuits.v
 
-Monad.vo: Monad.v
-	coqc Monad.v
+Denotation.vo: Denotation.v Complex.vo Quantum.vo HOASCircuits.vo DBCircuits.vo
+	coqc Denotation.v
 
-HOASCircuits.vo: HOASCircuits.v Contexts.vo
-	coqc HOASCircuits.v
+HOASProofs.vo: HOASProofs.v HOASExamples.vo Denotation.vo
+	coqc HOASProofs.v
 
-Contexts.vo: Contexts.v
-	coqc Contexts.v 
+Equations.vo: Equations.v TypeChecking.vo
+	coqc Equations.v
 
-Quantum.vo: Quantum.v Matrix.vo
-	coqc Quantum.v
 
-Matrix.vo: Matrix.v Complex.vo
-	coqc Matrix.v 
+#MachineProofs.vo: MachineProofs.v MachineExamples.vo Denotation.vo
+#	coqc MachineProofs.v
 
-Complex.vo: Complex.v
-	coqc Complex.v
+#MachineCircuits.vo : MachineCircuits.v Contexts.vo FlatCircuits.vo HOASCircuits.vo Denotation.vo
+#	coqc MachineCircuits.v
+
+#MachineExamples.vo: MachineExamples.v MachineCircuits.vo
+#	coqc MachineExamples
+
+#FlatProofs.vo: FlatProofs.v FlatExamples.vo Denotation.vo
+#	coqc FlatProofs.v
+
 
 clean:
 	rm *.vo

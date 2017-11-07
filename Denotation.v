@@ -1,12 +1,14 @@
 Require Import Program. 
+Require Import Arith.
+Require Import Omega.
+
 Require Import Monad.
 Require Export Contexts.
 Require Import HOASCircuits.
-(*Require Import FlatCircuits.*)
 Require Import DBCircuits.
-Require Import Arith.
 Require Export Quantum.
-Require Import Omega.
+
+
 Require Import List.
 Import ListNotations.
 Set Bullet Behavior "Strict Subproofs".
@@ -15,7 +17,7 @@ Global Unset Asymmetric Patterns.
 
 Class Denote source target := {denote : source -> target}.
 
-Notation "〚 s 〛" := (denote s) (at level 10).
+Notation "⟦ s ⟧" := (denote s) (at level 10).
 
 Class Denote_Correct {source target} `(Denote source target) :=
 {
@@ -42,27 +44,27 @@ Instance Denote_Ctx : Denote Ctx nat := {| denote := denote_Ctx |}.
 Instance Denote_OCtx : Denote OCtx nat := {| denote := denote_OCtx |}.
 
 
-Fixpoint denote_unitary {W} (U : Unitary W) : Square (2^〚W〛) :=
+Fixpoint denote_unitary {W} (U : Unitary W) : Square (2^⟦W⟧) :=
   match U with  
   | H => hadamard 
-  | σx => pauli_x
-  | σy => pauli_y
-  | σz => pauli_z
+  | X => σx
+  | Y => σy
+  | Z => σz
   | ctrl g => control (denote_unitary g)
   | bit_ctrl g => control (denote_unitary g)  
   | Contexts.transpose g => (denote_unitary g)†
   end. 
-Instance Denote_Unitary W : Denote (Unitary W) (Square (2^〚W〛)) := 
+Instance Denote_Unitary W : Denote (Unitary W) (Square (2^⟦W⟧)) := 
     {| denote := denote_unitary |}.
 
 Lemma WF_unitary : forall {W} (U : Unitary W), 
-      WF_Matrix (2^〚W〛) (2^〚W〛) (〚U〛).
+      WF_Matrix (2^⟦W⟧) (2^⟦W⟧) (⟦U⟧).
 Proof.
   induction U; simpl; auto with wf_db.
 Qed.
 Hint Resolve WF_unitary : wf_db.
 
-Lemma unitary_gate_unitary : forall {W} (U : Unitary W), is_unitary (〚U〛).
+Lemma unitary_gate_unitary : forall {W} (U : Unitary W), is_unitary (⟦U⟧).
 Proof.
   induction U.
   + apply H_unitary.
@@ -83,9 +85,10 @@ Instance Denote_Unitary_Correct W : Denote_Correct (Denote_Unitary W) :=
 (** Gate Denotation **)
 
 Definition denote_gate' n {w1 w2} (g : Gate w1 w2)
-           : Superoperator (2^〚w1〛 * 2^n) (2^〚w2〛 * 2^n) :=
+           : Superoperator (2^⟦w1⟧ * 2^n) (2^⟦w2⟧ * 2^n) :=
   match g with 
-  | U u   => super (〚u〛 ⊗ Id (2^n))
+  | U u     => super (⟦u⟧ ⊗ Id (2^n))
+  | NOT     => super (σx ⊗ Id (2^n))
   | init0   => super (|0⟩ ⊗ Id (2^n))
   | init1   => super (|1⟩ ⊗ Id (2^n))
   | new0    => super (|0⟩ ⊗ Id (2^n))
@@ -95,9 +98,9 @@ Definition denote_gate' n {w1 w2} (g : Gate w1 w2)
   end.
 
 Definition denote_gate {W1 W2} (g : Gate W1 W2) : 
-  Superoperator (2^〚W1〛) (2^〚W2〛) := denote_gate' 0 g.
+  Superoperator (2^⟦W1⟧) (2^⟦W2⟧) := denote_gate' 0 g.
 (*  match g with
-  | U _ u  => super (〚u〛)
+  | U _ u  => super (⟦u⟧)
   | init0 => new0_op 
   | init1 => new1_op
   | new0 => new0_op
@@ -114,8 +117,8 @@ Qed.
 
 
 Lemma WF_denote_gate : forall n W1 W2 (g : Gate W1 W2) ρ,
-    WF_Matrix (2^〚W1〛 * 2^n) (2^〚W1〛 * 2^n) ρ 
- -> WF_Matrix (2^〚W2〛 * 2^n) (2^〚W2〛 * 2^n) (denote_gate' n g ρ).
+    WF_Matrix (2^⟦W1⟧ * 2^n) (2^⟦W1⟧ * 2^n) ρ 
+ -> WF_Matrix (2^⟦W2⟧ * 2^n) (2^⟦W2⟧ * 2^n) (denote_gate' n g ρ).
 Proof.
   intros n W1 W2 g ρ wf_ρ.
   assert (0 < 2^n)%nat by apply pow_gt_0.
@@ -137,6 +140,12 @@ Proof.
     apply mixed_unitary.
     apply WF_unitary.
     apply unitary_gate_unitary.
+    assumption.
+  + simpl.
+    rewrite kron_1_r.
+    apply mixed_unitary.
+    apply WF_σx.
+    apply σx_unitary.
     assumption.
   + simpl in *.
     rewrite kron_1_r.
@@ -173,7 +182,7 @@ Proof.
     admit.
 Admitted.
 
-Instance Denote_Gate W1 W2 : Denote (Gate W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)):=
+Instance Denote_Gate W1 W2 : Denote (Gate W1 W2) (Superoperator (2^⟦W1⟧) (2^⟦W2⟧)):=
     {| denote := denote_gate |}.
 Instance Denote_Gate_Correct W1 W2 : Denote_Correct (Denote_Gate W1 W2) :=
 {|
@@ -253,10 +262,14 @@ Definition super_Zero {m n} : Superoperator m n  :=
   fun _ => Zero _ _.
 
 Definition apply_gate {n w1 w2} (g : Gate w1 w2) (l : list nat) 
-           : Superoperator (2^n) (2^(n+〚w2〛-〚w1〛)) :=
+           : Superoperator (2^n) (2^(n+⟦w2⟧-⟦w1⟧)) :=
   match g with 
-  | U u   => match 〚w1〛 <=? n with
+  | U u   => match ⟦w1⟧ <=? n with
               | true => apply_U (denote_unitary u) l
+              | false => super_Zero
+              end
+  | NOT   => match 1 <=? n with
+              | true => apply_U σx l (m := 1)
               | false => super_Zero
               end
   | init0   => apply_new0 
@@ -318,63 +331,48 @@ Definition Splus {m n} (S T : Superoperator m n) : Superoperator m n :=
 
 (** Denoting Min Circuits **)
 
-Fixpoint pat_size {W} (p : Pat W) : nat := 
-  match p with
-  | unit       => 0
-  | bit x      => 1
-  | qubit x    => 1
-  | pair p1 p2 => (pat_size p1) + (pat_size p2)
-  end.
+(* Redefining to simply be the WType size *)
+Definition pat_size {W} (p : Pat W) : nat := size_WType W.
 
 Lemma pat_size_hash_pat : forall w (p : Pat w) ls, 
       pat_size (subst_pat ls p) = pat_size p.
 Proof. 
   induction p; intros; auto.
-  simpl. rewrite IHp1, IHp2. reflexivity.
 Qed.
 
-(*
-Fixpoint get_output_size {w} (c : Min_Circuit w) :=
-  match c with
-  | min_output p     => pat_size p
-  | min_gate g p c'  => get_output_size c'
-  | min_lift p c'    => get_output_size (c' true)
-  end.
 
-Definition get_box_output_size {W} (c : Min_Box W) :=
-  match c with
-  | min_box W c'     => get_output_size c'
-  end. 
-*)
+Definition get_var (p : Pat Bit) := match p with
+                                    | bit x => x
+                                    end.
 
-(* n is the input size *) About apply_gate.
+
+(* n is the input size *) 
 Fixpoint denote_db_circuit {w}  (pad n : nat) (c : DeBruijn_Circuit w) 
-                          : Superoperator (2^(n+pad)) (2^(〚w〛 + pad))
+                          : Superoperator (2^(n+pad)) (2^(⟦w⟧ + pad))
   := 
   match c with 
-  | db_output p            => super (swap_list (〚w〛) (pat_to_list p))
+  | db_output p            => super (swap_list (⟦w⟧) (pat_to_list p))
   | @db_gate _ W1 W2 g p c'  => compose_super 
-                                (denote_db_circuit pad (n + 〚W2〛 - 〚W1〛) c')
+                                (denote_db_circuit pad (n + ⟦W2⟧ - ⟦W1⟧) c')
                                 (apply_gate g (pat_to_list p))
-  (* I think we need a weighing here - also a measure-discard *)
-  | db_lift p c'   => Splus (denote_db_circuit pad n (c' true))
-                            (denote_db_circuit pad n (c' false))
+  | db_lift p c'   =>    let S := swap_two n 0 (get_var p) in 
+                         Splus (compose_super (denote_db_circuit pad (n-1) (c' false)) 
+                                            (super (⟨0| ⊗ Id (2^(n-1)) × S)))
+                               (compose_super (denote_db_circuit pad (n-1) (c' true)) 
+                                            (super (⟨1| ⊗ Id (2^(n-1))× S)))         
   end.
 
-Definition denote_db_box' {W1 W2} (c : DeBruijn_Box W1 W2) n : 
-  Superoperator (2 ^ 〚 W1 〛) (2 ^ 〚 W2 〛) :=
+Definition denote_db_box {w1 w2} (c : DeBruijn_Box w1 w2) := 
   match c with
-  | db_box _ c' => denote_db_circuit n (〚W1〛) c'  
+  | db_box _ c' => denote_db_circuit 0 (⟦w1⟧) c'  
   end.
-Definition denote_db_box {w1 w2} (c : DeBruijn_Box w1 w2) := denote_db_box' c 0%nat.
 
 (** Denoting hoas circuits **)
 
-Notation "⟨ c ⟩_{ n }" := (denote_db_box (hoas_to_db_box' c n)) (at level 30).
 
 Definition denote_box {W1 W2 : WType} (c : Box W1 W2) := 
     denote_db_box (hoas_to_db_box c).
-Instance Denote_Box {W1 W2} : Denote (Box W1 W2) (Superoperator (2^〚W1〛) (2^〚W2〛)) :=
+Instance Denote_Box {W1 W2} : Denote (Box W1 W2) (Superoperator (2^⟦W1⟧) (2^⟦W2⟧)) :=
          {| denote := denote_box |}.
 
 
@@ -407,17 +405,17 @@ Admitted.
 that. *)
 (* TODO: might need to add a hypothesis relating n1 and n2 to the actual inputs
 of c1 and c2 *)
-(*〚  〛*)
+(*⟦⟧*)
 Lemma denote_db_compose : forall pad w1 w2 Γ1 Γ n m
                           (c1 : DeBruijn_Circuit w1) (c2 : DeBruijn_Circuit w2),
     Types_DB Γ1 c1 ->
     Types_DB (Valid (WType_to_Ctx w1 ++ Γ)) c2 ->
     
-    n = (〚Γ1〛+ 〚Γ〛)%nat ->
-    m = (〚Γ〛) ->
+    n = (⟦Γ1⟧+ ⟦Γ⟧)%nat ->
+    m = (⟦Γ⟧) ->
     denote_db_circuit pad n (db_compose m c1 c2)
-  = compose_super (denote_db_circuit pad (〚w1〛+ 〚Γ〛) c2)
-                  (denote_db_circuit (pad +〚Γ〛) (〚Γ1〛) c1).
+  = compose_super (denote_db_circuit pad (⟦w1⟧+ ⟦Γ⟧) c2)
+                  (denote_db_circuit (pad +⟦Γ⟧) (⟦Γ1⟧) c1).
 
 Admitted.
 
@@ -430,13 +428,13 @@ Lemma denote_compose : forall {w} (c : Circuit w) Γ1,
     Γ1' == Γ1 ∙ Γ ->
     (forall (p : Pat w) Γ2 Γ2', Γ2' == Γ2 ∙ Γ -> Types_Pat Γ2 p -> Types_Circuit Γ2' (f p)) ->
 
-    n = (〚 Γ1 〛+ 〚 Γ 〛)%nat ->
+    n = (⟦Γ1⟧+ ⟦Γ⟧)%nat ->
     (p,σ') = get_fresh_pat w (remove_OCtx Γ1 σ) ->
     
     denote_db_circuit pad n (hoas_to_db (compose c f) σ)
-(*= denote_db_circuit pad n (db_compose (〚 Γ 〛) (hoas_to_db c σ) (hoas_to_db (f p) σ')) *)
-  = compose_super (denote_db_circuit pad (〚w〛+〚Γ〛) (hoas_to_db (f p) σ'))
-                  (denote_db_circuit (pad + 〚Γ〛) (〚Γ1〛) (hoas_to_db c σ)).
+(*= denote_db_circuit pad n (db_compose (⟦Γ⟧) (hoas_to_db c σ) (hoas_to_db (f p) σ')) *)
+  = compose_super (denote_db_circuit pad (⟦w⟧+⟦Γ⟧) (hoas_to_db (f p) σ'))
+                  (denote_db_circuit (pad + ⟦Γ⟧) (⟦Γ1⟧) (hoas_to_db c σ)).
 Proof.
   intros.
   Print Types_Compose.
@@ -459,44 +457,25 @@ Admitted.
 
 
 Lemma merge_size : forall Γ1 Γ2 Γ,
-      Γ == Γ1 ∙ Γ2 -> (〚Γ〛 = 〚Γ1〛 + 〚Γ2〛)%nat.
+      Γ == Γ1 ∙ Γ2 -> (⟦Γ⟧ = ⟦Γ1⟧ + ⟦Γ2⟧)%nat.
 Admitted.
 
-(*〚〛*)
-(*
-Lemma denote_min_compose' : forall {w w'}  pad n s s' s''
-                                   (c : Circuit w) (f : Pat w -> Circuit w') d d'
-      (pf_typed : Types_Compose c f),
-      n = 〚ctx_out pf_typed〛 ->
 
-      (p,σ') = get_fresh_pat w σ ->
-      denote_db_circuit pad n (db_compose (hoas_to_db c σ)
-                                          (hoas_to_db (f p) σ'))
-      = compose_super 
-      
-                                            
-*)                                         
-(*      
-      runState (hoas_to_min_aux c) s = (d,s') ->
-      runState (hoas_to_min_aux (f (get_output c (snd s)))) s' = (d',s'') ->
-      denote_min_circuit pad n (evalState (hoas_to_min_compose c f) s) 
-    = compose_super 
-       (denote_min_circuit pad (〚ctx_out pf_typed〛 - 〚w〛 + 〚ctx_in pf_typed〛) d')
-       (denote_min_circuit (pad + 〚ctx_in pf_typed〛) (〚ctx_c pf_typed〛) d).
- *)
-(*
-Proof. 
-  intros w w' pad n s s' s'' c f d d' pf_typed pf_n H_d H_d'. 
-  unfold hoas_to_min_compose.
-  repeat (autounfold with monad_db in *; simpl).
-  rewrite H_d.
-  rewrite H_d'. simpl.
-  rewrite denote_min_compose 
-    with (n1 := 〚ctx_c pf_typed〛) (n2 := 〚ctx_in pf_typed〛)
-    by (subst; apply merge_size; apply (pf_ctx pf_typed)).
-  subst. 
-  reflexivity.
-Qed.
- *)
+(*********************************************************)
+(* Equivalence of circuits according to their denotation *)
+(*********************************************************)
 
-                                                        
+Definition HOAS_Equiv {W1 W2} (b1 b2 : Box W1 W2) :=
+  forall ρ, Mixed_State ρ -> ⟦b1⟧ ρ = ⟦b2⟧ ρ.
+
+Infix "≡" := HOAS_Equiv.
+
+Hint Unfold HOAS_Equiv : den_db.
+
+(************************)
+(* Hints for automation *)
+(************************)
+
+Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard compose_super super swap_list swap_two pad denote_box  : den_db.
+
+

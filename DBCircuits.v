@@ -78,7 +78,7 @@ Definition remove_OCtx {A} `{Gate_State A} (Γ : OCtx) (a : A) : A :=
 *)
 Definition process_gate_pat {A w1 w2} `{Gate_State A} (g : Gate w1 w2) : Pat w1 -> A -> Pat w2 :=
   match g with 
-  | U _           => fun p _ => p
+  | U _ | NOT     => fun p _ => p
   | init0 | init1 => fun _ a => qubit (fst (get_fresh Qubit a))
   | new0 | new1   => fun _ a => bit (fst (get_fresh Bit a))
   | meas          => fun p _ => match p with
@@ -95,7 +95,7 @@ Definition process_gate_pat {A w1 w2} `{Gate_State A} (g : Gate w1 w2) : Pat w1 
 *)
 Definition process_gate_state {A w1 w2} `{Gate_State A} (g : Gate w1 w2) : Pat w1 -> A -> A :=
   match g with 
-  | U _           => fun _ a => a
+  | U _  | NOT    => fun _ a => a
   | init0 | init1 => fun _ a => snd (get_fresh Qubit a)
   | new0 | new1   => fun _ a => snd (get_fresh Bit a)
   | meas          => fun p a => match p with

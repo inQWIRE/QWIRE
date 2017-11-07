@@ -1,36 +1,7 @@
+Require Import Program.
 Require Export Contexts.
 Require Import List.
 Import ListNotations.
-
-(*
-Inductive CType := 
-  | C_Unit : CType
-  | C_Bit  : CType
-  | C_Pair : CType -> CType -> CType.
-  
-Fixpoint from_CType (c : CType) := 
-  match c with
-  | C_Unit => Datatypes.unit
-  | C_Bit => bool 
-  | C_Pair C1 C2 => Datatypes.prod (from_CType C1) (from_CType C2)
-  end.
-
-Inductive Lifts_Type : bools -> WType -> Set :=
-  | lifts_unit :  Lifts_Type UT One
-  | lifts_qubit :  forall b, Lifts_Type (BT b) Qubit
-  | lifts_bit :  forall b, Lifts_Type (BT b) Bit
-  | lifts_tensor : forall LL LC RL RC, Lifts_Type LC LL ->
-                                  Lifts_Type RC RL ->
-                                  Lifts_Type (TT LC RC) (Tensor LL RL).
-
-Fixpoint ctype_of_pat (p : Pat) : Set := 
-  match p with 
-  | unit => Datatypes.unit
-  | qubit n => bool 
-  | bit n => bool 
-  | pair C1 C2 => Datatypes.prod (ctype_of_pat C1) (ctype_of_pat C2)
-  end.
-*)
 
 Inductive Circuit (w : WType) : Set :=
 | output : Pat w -> Circuit w
@@ -87,7 +58,6 @@ Opaque Ctx.
 Opaque is_valid.
 
 
-
 (* Composition lemma *)
 
 Lemma compose_typing : forall Γ1 Γ1' Γ W W' (c : Circuit W) (f : Pat W -> Circuit W')
@@ -122,6 +92,8 @@ Lemma unbox_typing : forall Γ W1 W2 (p : Pat W1) (c : Box W1 W2),
 Proof. unfold Typed_Box in *. auto. Qed.
 
 
+
+(* Collect all the information needed to reconstruct the proof that a composition is well-typed *)
 Record Types_Compose {w w'} (c : Circuit w) (f : Pat w -> Circuit w') :=
   { ctx_c : OCtx  (* Γ1 *)
   ; ctx_out: OCtx (* Γ1' *)
@@ -157,5 +129,3 @@ Lemma types_compose_inv : forall w (c : Circuit w) Γ w' (f : Pat w -> Circuit w
       Types_Compose c f.
 Admitted.
 *)
-
-(* *)

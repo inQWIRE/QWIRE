@@ -1,8 +1,7 @@
-Require Import Program.
 Require Import Psatz.
-Require Import Omega.
 Require Import Reals.
-Require Import Bool.
+
+Require Export Prelim.
 Require Export Complex.
 Require Export Matrix.
 
@@ -70,7 +69,7 @@ Definition pauli_z : Matrix 2 2 := fun x y => if (x =? y) && (x <? 2)
                                            then (-1) ^ x * Ci else 0.
 *)
 
-Definition pauli_x : Matrix 2 2 := 
+Definition σx : Matrix 2 2 := 
   (fun x y => match x, y with
           | 0, 0 => 0
           | 0, 1 => 1
@@ -79,14 +78,14 @@ Definition pauli_x : Matrix 2 2 :=
           | _, _ => 0
           end).
 
-Definition pauli_y : Matrix 2 2 := 
+Definition σy : Matrix 2 2 := 
   (fun x y => match x, y with
           | 0, 1 => -Ci
           | 1, 0 => Ci
           | _, _ => 0
           end).
 
-Definition pauli_z : Matrix 2 2 := 
+Definition σz : Matrix 2 2 := 
   (fun x y => match x, y with
           | 0, 0 => 1
           | 1, 1 => -1
@@ -122,7 +121,33 @@ Definition swap : Matrix 4 4 :=
           end).
 
 (* Does this overwrite the other Hint DB M? *)
-Hint Unfold ket0 ket1 hadamard pauli_x pauli_y pauli_z control cnot swap : M_db.
+Hint Unfold ket0 ket1 hadamard σx σy σz control cnot swap : M_db.
+
+(* Lemmas *)
+Lemma MmultX1 : σx × |1⟩ = |0⟩. Proof. crunch_matrix. Qed.
+Lemma Mmult1X : ⟨1| × σx = ⟨0|. Proof. crunch_matrix. Qed.
+Lemma MmultX0 : σx × |0⟩ = |1⟩. Proof. crunch_matrix. Qed.
+Lemma Mmult0X : ⟨0| × σx = ⟨1|. Proof. crunch_matrix. Qed.
+Hint Rewrite Mmult0X Mmult1X MmultX0 MmultX1 : M_db.
+
+Lemma swap_swap : swap × swap = Id 4.
+Proof.
+  solve_matrix.
+  destruct (x =? y); auto.
+Qed.
+
+Lemma swap_swap_r : forall n A, WF_Matrix n 4 A ->
+      A × swap × swap = A.
+Proof.
+  intros.
+  rewrite Mmult_assoc.
+  rewrite swap_swap. 
+  apply Mmult_1_r.
+  auto.
+Qed.
+
+Hint Rewrite swap_swap swap_swap_r using (auto 100 with wf_db): M_db.
+
 
 Lemma double_mult : forall (n : nat), (n + n = 2 * n)%nat. Proof. intros. omega. Qed.
 Lemma pow_two_succ_l : forall x, (2^x * 2 = 2 ^ (x + 1))%nat.
@@ -236,9 +261,9 @@ Lemma WF_braket1 : WF_Matrix 2 2 |1⟩⟨1|. Proof. show_wf. Qed.
 Hint Resolve WF_bra0 WF_bra1 WF_ket0 WF_ket1 WF_braket0 WF_braket1 : wf_db.
 
 Lemma WF_hadamard : WF_Matrix 2 2 hadamard. Proof. show_wf. Qed.
-Lemma WF_pauli_x : WF_Matrix 2 2 pauli_x. Proof. show_wf. Qed.
-Lemma WF_pauli_y : WF_Matrix 2 2 pauli_y. Proof. show_wf. Qed.
-Lemma WF_pauli_z : WF_Matrix 2 2 pauli_z. Proof. show_wf. Qed.
+Lemma WF_σx : WF_Matrix 2 2 σx. Proof. show_wf. Qed.
+Lemma WF_σy : WF_Matrix 2 2 σy. Proof. show_wf. Qed.
+Lemma WF_σz : WF_Matrix 2 2 σz. Proof. show_wf. Qed.
 Lemma WF_cnot : WF_Matrix 4 4 cnot. Proof. show_wf. Qed.
 Lemma WF_swap : WF_Matrix 4 4 swap. Proof. show_wf. Qed.
 
@@ -260,8 +285,7 @@ Proof.
     * right. omega.
 Qed.
 
-Hint Resolve WF_hadamard WF_pauli_x WF_pauli_y WF_pauli_z WF_cnot WF_swap 
-             WF_control : wf_db.
+Hint Resolve WF_hadamard WF_σx WF_σy WF_σz WF_cnot WF_swap WF_control : wf_db.
 
 (** Unitaries are unitary **)
 
@@ -286,7 +310,7 @@ Proof.
   clra.
 Qed.
 
-Lemma σx_unitary : is_unitary pauli_x.
+Lemma σx_unitary : is_unitary σx.
 Proof. 
   split.
   show_wf.
@@ -299,7 +323,7 @@ Proof.
   clra.
 Qed.
 
-Lemma σy_unitary : is_unitary pauli_y.
+Lemma σy_unitary : is_unitary σy.
 Proof.
   split.
   show_wf.
@@ -312,7 +336,7 @@ Proof.
   clra.
 Qed.
 
-Lemma σz_unitary : is_unitary pauli_z.
+Lemma σz_unitary : is_unitary σz.
 Proof.
   split.
   show_wf.
@@ -477,19 +501,19 @@ Proof.
   repeat (try destruct x; try destruct y; try clra; trivial).
 Qed.
 
-Lemma pauli_x_sa : pauli_x† = pauli_x.
+Lemma σx_sa : σx† = σx.
 Proof. 
   prep_matrix_equality. 
   repeat (try destruct x; try destruct y; try clra; trivial).
 Qed.
 
-Lemma pauli_y_sa : pauli_y† = pauli_y.
+Lemma σy_sa : σy† = σy.
 Proof.
   prep_matrix_equality. 
   repeat (try destruct x; try destruct y; try clra; trivial).
 Qed.
 
-Lemma pauli_z_sa : pauli_z† = pauli_z.
+Lemma σz_sa : σz† = σz.
 Proof.
   prep_matrix_equality. 
   repeat (try destruct x; try destruct y; try clra; trivial).
@@ -531,7 +555,7 @@ Qed.
 Lemma braket0_sa : |0⟩⟨0|† = |0⟩⟨0|. Proof. mlra. Qed.
 Lemma braket1_sa : |1⟩⟨1|† = |1⟩⟨1|. Proof. mlra. Qed.
 
-Hint Rewrite hadamard_sa pauli_x_sa pauli_y_sa pauli_z_sa cnot_sa swap_sa 
+Hint Rewrite hadamard_sa σx_sa σy_sa σz_sa cnot_sa swap_sa 
              braket1_sa braket0_sa : M_db.
 
 Hint Rewrite control_sa using (autorewrite with M_db; reflexivity) : M_db.
@@ -703,12 +727,7 @@ Proof.
   intros.
   induction H.
   + unfold Pure_State in H; intuition.
-  + (* Needs two lemmas we didn't prove in Matrix.v *)
-    Lemma trace_plus_dist : forall n (A B : Square n), trace (A .+ B) = trace A + trace B. 
-    Admitted.
-    Lemma trace_mult_dist : forall n p (A : Square n), trace (p .* A) = p * trace A. 
-    Admitted.
-    rewrite trace_plus_dist.
+  + rewrite trace_plus_dist.
     rewrite 2 trace_mult_dist.
     rewrite IHMixed_State1, IHMixed_State2.
     clra.
@@ -736,4 +755,10 @@ Proof.
     prep_matrix_equality.
     clra.
 Qed.  
+
+
+
+
+
+
 (* *)

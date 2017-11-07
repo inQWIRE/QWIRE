@@ -26,12 +26,12 @@ by Robert Rand and Jennifer Paykin (June 2017).
 
 *)
 
-Require Export Reals.
-Require Import Psatz.
-
+Require Import Prelim.
 Open Scope R_scope.
 
+(******************************************)
 (** Relevant lemmas from Rcomplements.v. **)
+(******************************************)
 
 Lemma Rle_minus_l : forall a b c,(a - c <= b <-> a <= b + c). Proof. intros. lra. Qed.
 Lemma Rlt_minus_r : forall a b c,(a < b - c <-> a + c < b). Proof. intros. lra. Qed.
@@ -39,6 +39,20 @@ Lemma Rlt_minus_l : forall a b c,(a - c < b <-> a < b + c). Proof. intros. lra. 
 Lemma Rle_minus_r : forall a b c,(a <= b - c <-> a + c <= b). Proof. intros. lra. Qed.
 Lemma Rminus_le_0 : forall a b, a <= b <-> 0 <= b - a. Proof. intros. lra. Qed.
 Lemma Rminus_lt_0 : forall a b, a < b <-> 0 < b - a. Proof. intros. lra. Qed.
+
+(* Automation *)
+Hint Rewrite Ropp_0 Ropp_involutive Rplus_0_l Rplus_0_r Rminus_0_r Rminus_0_l 
+             Rmult_0_l Rmult_0_r Rmult_1_l Rmult_1_r : R_db.
+Hint Rewrite <- Ropp_mult_distr_l Ropp_mult_distr_r : R_db.
+Hint Rewrite Rinv_l Rinv_r sqrt_sqrt using lra : R_db.
+             
+
+
+
+
+(*********************)
+(** Complex Numbers **)
+(*********************)
 
 (** This file defines complex numbers [C] as [R * R]. Operations are
 given, and [C] is proved to be a field, a normed module, and a
@@ -91,6 +105,7 @@ Infix "*" := Cmult : C_scope.
 Notation "/ x" := (Cinv x) : C_scope.
 Infix "/" := Cdiv : C_scope.
 
+
 (* Added exponentiation *)
 Fixpoint Cpow (c : C) (n : nat) : C :=  
   match n with
@@ -109,6 +124,9 @@ Definition Im (z : C) : R := snd z.
 Definition Cmod (x : C) : R := sqrt (fst x ^ 2 + snd x ^ 2).
 
 Definition Cconj (x : C) : C := (fst x, (- snd x)%R).
+
+Notation "a ^*" := (Cconj a) (at level 10).
+
 
 Lemma Cmod_0 : Cmod 0 = R0.
 Proof.
@@ -507,6 +525,82 @@ Admitted.
   
 Lemma Csqrt_sqrt : forall x : R, 0 <= x -> ((RtoC (√ x)) * (RtoC (√ x)) = (RtoC x))%C.
 Proof. intros. eapply c_proj_eq. simpl. rewrite sqrt_sqrt. lra. assumption.
-       simpl. lra. Qed.
+       simpl. lra. 
+Qed.
 
+Lemma Cconj_R : forall r : R, Cconj r = r. Proof. intros. clra. Qed.
+Lemma Cconj_rad2 : (Cconj (C1 / √2) = C1 / √2)%C. Proof. clra. Qed.
+
+
+Lemma square_rad2 : ((C1/√2) * (C1/√2) = C1/C2)%C. 
+Proof. 
+  eapply c_proj_eq; simpl; try lra.
+   unfold Rdiv.
+  autorewrite with R_db. 
+  
+  Search (_ * _ * _ * _)%R.
+  rewrite Rmult_assoc.
+  rewrite (Rmult_comm (/2) _).
+  repeat rewrite <- Rmult_assoc.
+  rewrite sqrt_def; lra.
+Qed.
+
+(**************)
+(* Automation *)
+(**************)
+
+Hint Rewrite Cconj_R Cconj_rad2 square_rad2 Cplus_0_l Cplus_0_r 
+     Cmult_0_l Cmult_0_r Cmult_1_l Cmult_1_r : C_db.
+
+(*
+(* deprecated in favor of autorewrite *)
+Ltac Csimpl := 
+  simpl;
+  repeat (
+    try rewrite Cconj_R;
+    try rewrite Cplus_0_l;
+    try rewrite Cplus_0_r;
+    try rewrite Cmult_0_l;
+    try rewrite Cmult_0_r;
+    try rewrite Cmult_1_l;
+    try rewrite Cmult_1_r
+).
+*)
+
+
+
+(* TODO: remove *)
+Ltac Rsimpl := 
+  simpl;
+  unfold Rminus;
+  unfold Rdiv;
+  repeat (
+    try rewrite Ropp_0;
+    try rewrite Ropp_involutive;
+    try rewrite Rplus_0_l;
+    try rewrite Rplus_0_r;
+    try rewrite Rmult_0_l;
+    try rewrite Rmult_0_r;
+    try rewrite Rmult_1_l;
+    try rewrite Rmult_1_r;
+    try rewrite <- Ropp_mult_distr_l;
+    try rewrite <- Ropp_mult_distr_r;
+    try (rewrite Rinv_l; [|lra]);
+    try (rewrite Rinv_r; [|lra]);
+    try (rewrite sqrt_sqrt; [|lra])).
+
+
+(* Seems like this could loop forever *)
+Ltac group_radicals := 
+  repeat (
+  match goal with
+    | [ |- context[(?r1 * √ ?r2)%R] ] => rewrite (Rmult_comm r1 (√r2)) 
+    | [ |- context[(?r1 * (√ ?r2 * ?r3))%R] ] => rewrite <- (Rmult_assoc _ (√ r2) _)
+    | [ |- context[((√?r * ?r1) + (√?r * ?r2))%R ] ] => 
+        rewrite <- (Rmult_plus_distr_l r r1 r2)
+  end).
+
+Ltac Rsolve := repeat (Rsimpl; try group_radicals); lra.
+
+Ltac Csolve := eapply c_proj_eq; simpl; Rsolve.
 
