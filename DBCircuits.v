@@ -815,15 +815,12 @@ Notation "σ_{ n }" := (seq 0 n) (at level 20).
 Definition subst_state_at n := Mk_subst_state (σ_{n}) n.
 Notation "st_{ n }" := (subst_state_at n) (at level 20).
 
-Definition hoas_to_db_box' {w1 w2} (B : Box w1 w2) n : DeBruijn_Box w1 w2 :=
-  match B with
-  | box f => let (p,σ) := get_fresh_pat w1 (st_{n}) in
-             db_box w1 (hoas_to_db (f p) σ)
-  end.
 
 Definition hoas_to_db_box {w1 w2} (B : Box w1 w2) : DeBruijn_Box w1 w2 :=
-  hoas_to_db_box' B 0.
-
+  match B with
+  | box f => let (p,σ) := get_fresh_pat w1 (st_{0}) in
+             db_box w1 (hoas_to_db (f p) σ)
+  end.
 
 
 Lemma fmap_S_seq : forall len start,
@@ -1044,3 +1041,58 @@ Lemma hoas_to_db_compose_correct : forall {w w'}
       hoas_to_db (compose c f) σ
       = db_compose (size_OCtx (ctx_in types)) (hoas_to_db c σ) (hoas_to_db (f p) σ'').
 Admitted.
+
+
+Lemma singleton_dom : forall x w Γ, SingletonCtx x w Γ -> Ctx_dom Γ = [x].
+Proof.
+  induction 1; simpl; auto.
+  rewrite IHSingletonCtx. auto.
+Qed.
+
+Definition process_pat {w} (p : Pat w) (σ : substitution) : substitution :=
+  σ ++ pat_to_list p.
+
+
+Lemma subst_process_pat : forall w (p : Pat w),
+    subst_pat (pat_to_list p) p = fresh_pat w (st_{0}).
+(*Proof.
+  induction p; simpl; auto.
+  * rewrite Nat.eqb_refl; auto.
+  * rewrite Nat.eqb_refl; auto.
+  * unfold fresh_pat. simpl. autounfold with monad_db.
+*)
+
+Lemma subst_dom : forall w (p : Pat w) Γ, Types_Pat Γ p -> 
+      subst_pat (OCtx_dom Γ) p = fresh_pat w (st_{0}).
+Proof.
+  induction 1; simpl; auto.
+  * unfold fresh_pat. simpl. erewrite singleton_dom; [ | eauto].
+    simpl. rewrite Nat.eqb_refl. auto.
+  * unfold fresh_pat. simpl. erewrite singleton_dom; [ | eauto].
+    simpl. rewrite Nat.eqb_refl. auto.
+  * 
+admit.
+Admitted.
+
+
+
+Definition f {w} (p : Pat w) := output p. Print subst_state. Print length_OCtx.
+Lemma wf_f : forall w (p1 p2 : Pat w) Γ1 Γ2 σ1 σ2,
+             Types_Pat Γ1 p1 -> Types_Pat Γ2 p2 ->
+             σ1 = Mk_subst_state (OCtx_dom Γ1) (length_OCtx Γ1) ->
+             σ2 = Mk_subst_state (OCtx_dom Γ2) (length_OCtx Γ2) ->
+             hoas_to_db (output p1) σ1 = hoas_to_db (output p2) σ2.
+Proof.
+  intros w p1 p2 Γ1 Γ2 σ1 σ2 types_p1 types_p2 H_σ1 H_σ2.
+  simpl.
+  subst; simpl.
+  f_equal.
+  repeat rewrite subst_dom; auto.
+Qed.
+      
+Definition opaque_box {w w'} (f : Pat w -> Circuit w') :=
+  forall (p1 p2 : Pat w) Γ1 Γ2 σ1 σ2,
+             Types_Pat Γ1 p1 -> Types_Pat Γ2 p2 ->
+             σ1 = Mk_subst_state (OCtx_dom Γ1) (length_OCtx Γ1) ->
+             σ2 = Mk_subst_state (OCtx_dom Γ2) (length_OCtx Γ2) ->
+             hoas_to_db (f p1) σ1 = hoas_to_db (f p2) σ2.

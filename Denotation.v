@@ -535,8 +535,7 @@ Proof.
     eapply remove_at_singleton; eauto. *)
 Admitted.
   
-    
-    
+
 
 
 Lemma denote_compose : forall {w} (c : Circuit w) Γ1,
