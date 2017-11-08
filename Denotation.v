@@ -468,15 +468,13 @@ Proof.
 Qed.
 
 Lemma types_pat_size : forall w (p : Pat w) Γ,
-      Types_Pat Γ p -> (⟦w⟧ <= ⟦Γ⟧)%nat.
+      Types_Pat Γ p -> (⟦w⟧ = ⟦Γ⟧)%nat.
 Proof.
   induction 1; simpl; auto.
   * apply singleton_size in s. simpl in *. omega.
   * apply singleton_size in s. simpl in *. omega.
   * subst.
     rewrite merge_size; auto.
-    Search (_ + _ <= _ + _)%nat.
-    simpl in *. omega.
 Qed.
 
 
@@ -537,6 +535,33 @@ Admitted.
   
 
 
+Lemma process_gate_state_merge : forall w1 w2 (g : Gate w1 w2) p Γ1 Γ2,
+      Types_Pat Γ1 p ->
+      process_gate_state g p (Γ1 ⋓ Γ2) = process_gate_state g p Γ1 ⋓ Γ2.
+Proof.
+  induction g; intros p Γ1 Γ2 types_p; auto.
+  * dependent destruction p.
+    dependent destruction types_p.
+    rewrite merge_nil_l.
+    unfold process_gate_state at 2.
+    admit (* not true! *).
+  * admit.
+  * admit.
+  * admit.
+  * dependent destruction p.
+    dependent destruction types_p.
+    simpl.
+    destruct Γ2 as [ | Γ2]; auto.
+    admit (* true *).
+  * dependent destruction p.
+    dependent destruction types_p.
+    destruct Γ2 as [ | Γ2]; auto.
+    simpl.
+    admit (* true *).
+Admitted.
+
+    
+
 
 Lemma denote_compose : forall {w} (c : Circuit w) Γ1,
   Types_Circuit Γ1 c ->
@@ -580,28 +605,60 @@ Proof.
   * dependent destruction H0.
     destruct Γ as [ | Γ]; [invalid_contradiction | ].
     remember (process_gate_state g p (Γ1 ⋓ Γ)) as Γ1_0.
-    assert (⟦Γ1_0⟧ = ⟦Γ1 ⋓ Γ⟧ + ⟦w2⟧ - ⟦w1⟧)%nat.
-    { subst. apply process_gate_Ctx_size. admit.
+
+    assert (Γ1_0_valid : is_valid Γ1_0) by admit.
+    assert (Γ1_0_Γ0_valid : is_valid (Γ1_0 ⋓ Γ0)) by admit.
+    assert (Γ1_size : ⟦w1⟧ = ⟦Γ1⟧) by (apply types_pat_size with (p := p); auto).
+    assert (Γ1_0_size : (⟦Γ1_0⟧ = ⟦Γ1 ⋓ Γ⟧ + ⟦w2⟧ - ⟦w1⟧)%nat).
+    { subst. apply process_gate_Ctx_size.
+      rewrite Γ1_size.
+      rewrite merge_size; auto.
+      omega.
     }
+    assert (Γ1_0_size' : ⟦Γ1_0⟧ = (⟦Γ⟧ + ⟦w2⟧)%nat).
+    { rewrite Γ1_0_size.
+      rewrite merge_size; auto.
+      transitivity (⟦Γ⟧ + ⟦w2⟧ + ⟦Γ1⟧ - ⟦w1⟧)%nat;
+        [ f_equal; rewrite <- plus_assoc; rewrite plus_comm; auto | ].
+      transitivity (⟦Γ⟧ + ⟦w2⟧ + (⟦Γ1⟧ - ⟦w1⟧))%nat; [omega | ].
+      rewrite Γ1_size.
+      rewrite Nat.sub_diag.
+      omega.
+    }
+
+    assert (n_size : (n + ⟦w2⟧ - ⟦w1⟧ = ⟦Γ1_0⟧ + ⟦Γ0⟧)%nat).
+    { 
+      rewrite Γ1_0_size.
+      subst.
+      rewrite merge_size; auto. 
+      omega.
+    }
+
+
+    rewrite merge_size; auto.
     simpl.
-
-
     erewrite H with (Γ := Γ0) (p0 := p0) (σ' := σ')
                     (Γ1 := Γ1_0)
                     (*such that ⟦new Γ1⟧ = ⟦Γ1⟧ + ⟦w2⟧ - ⟦w1⟧*);
-      [ |  | | | auto | | ].
-    Focus 5. simpl in *. rewrite H0. subst. admit (* this is true *).
+      [ | | | reflexivity | auto | auto | ];
+      [ | | auto | ].
+    Focus 2. 
+      apply t0 with (Γ2 := process_gate_state g p Γ1); auto.
+      subst. 
+      apply process_gate_state_merge; auto.
+      admit (* ?? *).
+   Focus 2. subst. admit (*??*).
 
     --
-    rewrite H0.
+    rewrite Γ1_0_size.
+    rewrite merge_size; auto.
+
     Arguments apply_gate : clear implicits.
     idtac.
-    replace (n + pad0)%nat with (⟦Γ1 ⋓ Γ⟧ + (pad0 + ⟦Γ0⟧))%nat by (subst; omega).
-    simpl; reflexivity.
-    -- eapply t0. admit. admit. admit.
-    -- admit.
-    -- admit.
-    -- rewrite H3. rewrite HeqΓ1_0. admit.
+    replace (n + pad0)%nat with (⟦Γ1⟧ + ⟦Γ⟧ + (pad0 + ⟦Γ0⟧))%nat; auto.
+    subst. rewrite merge_size; auto.
+    rewrite (plus_comm pad0 (⟦Γ0⟧)). 
+    rewrite plus_assoc. auto.
 
   * subst. simpl. 
     dependent destruction H0.
