@@ -422,6 +422,123 @@ Admitted.
 About denote_db_circuit. Print Types_Compose. 
 About hoas_to_db_compose_correct.
 
+Lemma denote_Ctx_app : forall Γ1 Γ2, 
+      denote_Ctx (Γ1 ++ Γ2) = (denote_Ctx Γ1 + denote_Ctx Γ2)%nat.
+Proof.
+  induction Γ1 as [ | [w | ] Γ1]; intros; auto.
+  * simpl. rewrite IHΓ1. auto.
+  * simpl. rewrite IHΓ1. auto.
+Qed.
+
+
+
+  
+Lemma singleton_size : forall x w Γ, SingletonCtx x w Γ -> ⟦Γ⟧ = 1%nat.
+Proof.
+  induction 1; auto.
+Qed.
+
+Lemma merge_size : forall Γ1 Γ2,
+      is_valid (Γ1 ⋓ Γ2) ->
+      ⟦Γ1 ⋓ Γ2⟧ = (⟦Γ1⟧ + ⟦Γ2⟧)%nat.
+Proof.
+  destruct Γ1 as [ | Γ1]; [intros; invalid_contradiction | ].
+  induction Γ1 as [ | [w1 | ] Γ1]; 
+  intros [ | [ | [w2 | ] Γ2]] pf_valid; 
+    try (simpl in pf_valid; invalid_contradiction; fail);
+    auto.
+  * specialize (IHΓ1 (Valid Γ2)); auto. 
+    simpl in *.
+    destruct (merge' Γ1 Γ2) as [ | Γ] eqn:HΓ; try invalid_contradiction.
+    simpl in *.
+    rewrite IHΓ1; auto. 
+    apply valid_valid.
+  * specialize (IHΓ1 (Valid Γ2)); auto. 
+    simpl in *.
+    destruct (merge' Γ1 Γ2) as [ | Γ] eqn:HΓ; try invalid_contradiction.
+    simpl in *.
+    rewrite IHΓ1; auto. 
+    apply valid_valid.
+  * specialize (IHΓ1 (Valid Γ2)); auto. 
+    simpl in *.
+    destruct (merge' Γ1 Γ2) as [ | Γ] eqn:HΓ; try invalid_contradiction.
+    simpl in *.
+    rewrite IHΓ1; auto. 
+    apply valid_valid.
+Qed.
+
+Lemma types_pat_size : forall w (p : Pat w) Γ,
+      Types_Pat Γ p -> (⟦w⟧ <= ⟦Γ⟧)%nat.
+Proof.
+  induction 1; simpl; auto.
+  * apply singleton_size in s. simpl in *. omega.
+  * apply singleton_size in s. simpl in *. omega.
+  * subst.
+    rewrite merge_size; auto.
+    Search (_ + _ <= _ + _)%nat.
+    simpl in *. omega.
+Qed.
+
+
+Lemma denote_singleton_update : forall Γ x w w',
+      index (Valid Γ) x = Some w ->
+      ⟦update_at Γ x (Some w')⟧ = ⟦Γ⟧.
+Proof.
+  induction Γ as [ | o Γ]; intros; auto.
+  destruct x; auto.
+  * simpl in H. subst. auto.
+  * simpl in H.
+    simpl in *.
+    rewrite (IHΓ _ w); auto.
+Qed.
+
+Lemma remove_at_singleton : forall x w Γ,
+      SingletonCtx x w Γ ->
+      empty_Ctx (remove_at x Γ).
+Proof.
+  induction 1; simpl.
+  * constructor.
+  * constructor. auto.
+Qed.
+
+Lemma denote_empty_Ctx : forall Γ,
+    empty_Ctx Γ ->
+    ⟦Γ⟧ = 0%nat.
+Proof.
+  induction 1; auto.
+Qed.
+
+Lemma process_gate_Ctx_size : forall w1 w2 (g : Gate w1 w2) p (Γ : OCtx),
+      (⟦w1⟧ <= ⟦Γ⟧)%nat ->
+      ⟦process_gate_state g p Γ⟧ = (⟦Γ⟧ + ⟦w2⟧ - ⟦w1⟧)%nat.
+Proof.
+  destruct g; intros p Γ H; 
+    try (simpl; omega);
+    try (simpl; rewrite Nat.sub_add; auto; fail);
+    try (simpl; rewrite denote_Ctx_app; simpl; omega).
+
+  * dependent destruction p. 
+    simpl. admit (* need slightly updated lemmas *).
+(*
+    rewrite denote_singleton_update.
+    erewrite denote_singleton_update; 
+      [eapply singleton_size; eauto | apply singleton_index; eauto].
+*)
+
+  * dependent destruction p. 
+    simpl.
+    admit (* need slightly updated lemmas *).
+(*    rewrite (singleton_size _ _ _ s).
+    simpl.
+    unfold remove_pat. simpl.
+    apply denote_empty_Ctx.
+    eapply remove_at_singleton; eauto. *)
+Admitted.
+  
+    
+    
+
+
 Lemma denote_compose : forall {w} (c : Circuit w) Γ1,
   Types_Circuit Γ1 c ->
   forall Γ Γ1' w' (f : Pat w -> Circuit w') σ σ' p pad n,
@@ -458,19 +575,26 @@ Proof.
 *)
 
   dependent induction c.
-  * simpl.
+  * dependent destruction H.
+    simpl.
     admit.
   * dependent destruction H0.
     destruct Γ as [ | Γ]; [invalid_contradiction | ].
     remember (process_gate_state g p (Γ1 ⋓ Γ)) as Γ1_0.
+    assert (⟦Γ1_0⟧ = ⟦Γ1 ⋓ Γ⟧ + ⟦w2⟧ - ⟦w1⟧)%nat.
+    { subst. apply process_gate_Ctx_size. admit.
+    }
     simpl.
+
+
     erewrite H with (Γ := Γ0) (p0 := p0) (σ' := σ')
                     (Γ1 := Γ1_0)
                     (*such that ⟦new Γ1⟧ = ⟦Γ1⟧ + ⟦w2⟧ - ⟦w1⟧*);
       [ |  | | | auto | | ].
+    Focus 5. simpl in *. rewrite H0. subst. admit (* this is true *).
 
     --
-    replace (⟦Γ1_0⟧ : nat) with (⟦Γ1 ⋓ Γ⟧ + ⟦w2⟧ - ⟦w1⟧)%nat by admit.
+    rewrite H0.
     Arguments apply_gate : clear implicits.
     idtac.
     replace (n + pad0)%nat with (⟦Γ1 ⋓ Γ⟧ + (pad0 + ⟦Γ0⟧))%nat by (subst; omega).
@@ -478,7 +602,6 @@ Proof.
     -- eapply t0. admit. admit. admit.
     -- admit.
     -- admit.
-    -- subst. admit.
     -- rewrite H3. rewrite HeqΓ1_0. admit.
 
   * subst. simpl. 
@@ -499,9 +622,6 @@ Proof.
 Admitted.
 
 
-Lemma merge_size : forall Γ1 Γ2 Γ,
-      Γ == Γ1 ∙ Γ2 -> (⟦Γ⟧ = ⟦Γ1⟧ + ⟦Γ2⟧)%nat.
-Admitted.
 
 
 (*********************************************************)
