@@ -439,10 +439,12 @@ Proof.
   intros.
   Print Types_Compose.
   (* ctx_c := Γ1 *) (* ctx_out := Γ1' *) (* ctx_in := Γ *)
-  set (pf := Build_Types_Compose _ _ c f Γ1 Γ1' Γ H0 H H1). 
+(*  set (pf := Build_Types_Compose _ _ c f Γ1 Γ1' Γ H0 H H1). *)
   destruct H0. 
+(*
   destruct Γ1 as [ | Γ1]; [simpl in pf_merge; subst; dependent destruction  pf_valid | ].
-  destruct Γ as [ | Γ]; [simpl in pf_merge; subst; dependent destruction  pf_valid | ].
+  destruct Γ as [ | Γ]; [simpl in pf_merge; subst; dependent destruction  pf_valid | ].*)
+(*
   erewrite hoas_to_db_compose_correct with (types := pf); 
     [| reflexivity | rewrite surjective_pairing; eauto].
   erewrite denote_db_compose with (Γ := Γ) (Γ1 := Γ1);
@@ -453,6 +455,47 @@ Proof.
 
   inversion H3. simpl.
   reflexivity.
+*)
+
+  dependent induction c.
+  * simpl.
+    admit.
+  * dependent destruction H0.
+    destruct Γ as [ | Γ]; [invalid_contradiction | ].
+    remember (process_gate_state g p (Γ1 ⋓ Γ)) as Γ1_0.
+    simpl.
+    erewrite H with (Γ := Γ0) (p0 := p0) (σ' := σ')
+                    (Γ1 := Γ1_0)
+                    (*such that ⟦new Γ1⟧ = ⟦Γ1⟧ + ⟦w2⟧ - ⟦w1⟧*);
+      [ |  | | | auto | | ].
+
+    --
+    replace (⟦Γ1_0⟧ : nat) with (⟦Γ1 ⋓ Γ⟧ + ⟦w2⟧ - ⟦w1⟧)%nat by admit.
+    Arguments apply_gate : clear implicits.
+    idtac.
+    replace (n + pad0)%nat with (⟦Γ1 ⋓ Γ⟧ + (pad0 + ⟦Γ0⟧))%nat by (subst; omega).
+    simpl; reflexivity.
+    -- eapply t0. admit. admit. admit.
+    -- admit.
+    -- admit.
+    -- subst. admit.
+    -- rewrite H3. rewrite HeqΓ1_0. admit.
+
+  * subst. simpl. 
+    dependent destruction H0.
+
+    erewrite H.
+    -- admit.
+    -- apply t0. (* Γ1 := Γ2 *)
+    -- admit.
+    -- admit.
+    -- apply H1. (* Γ := Γ *)
+    -- dependent destruction p.
+       dependent destruction t.
+       admit.
+    -- rewrite H3. (* p := p0 *) (* σ' := σ' *)
+       admit.
+
 Admitted.
 
 

@@ -1,6 +1,5 @@
-Require Import Arith.
-Require Import List.
-Import ListNotations.
+Require Import Prelim.
+
 Open Scope list_scope.
 
 (*** Context Definitions ***)
@@ -55,10 +54,20 @@ Definition size_OCtx (Γ : OCtx) : nat :=
 Lemma ctx_octx : forall Γ Γ', Valid Γ = Valid Γ' <-> Γ = Γ'.
 Proof. intuition; congruence. Defined.
 
+(* Operations on contexts *)
+
+
+
+(**********************)
+(* Singleton Contexts *)
+(**********************)
+
 Inductive SingletonCtx : Var -> WType -> Ctx -> Prop :=
 | SingletonHere : forall w, SingletonCtx 0 w [Some w]
 | SingletonLater : forall x w Γ, SingletonCtx x w Γ -> SingletonCtx (S x) w (None::Γ)
 .
+Inductive SingletonOCtx x w : OCtx -> Prop :=
+| SingletonValid : forall Γ, SingletonCtx x w Γ -> SingletonOCtx x w (Valid Γ).
 
 Fixpoint singleton (x : Var) (W : WType) : Ctx :=
   match x with
@@ -81,6 +90,9 @@ Proof.
   simpl. rewrite IHSingletonCtx. reflexivity.
 Defined.
 
+(***********)
+(* Merging *)
+(***********)
 
 Definition merge_wire (o1 o2 : option WType) : OCtx :=
   match o1, o2 with
@@ -631,8 +643,10 @@ Proof. intros. inversion H; subst. reflexivity. Qed.
 Lemma test_evar_ctx : forall x y z, x ⋓ y ⋓ z = z ⋓ x ⋓ y.
 Proof. intros. eapply create_evar. 2: monoid. constructor. Qed.
 
-
+(**************************)
 (* Extra helper functions *)
+(**************************)
+
 Definition xor_option {a} (o1 : option a) (o2 : option a) : option a :=
   match o1, o2 with
   | Some a1, None => Some a1
@@ -640,17 +654,76 @@ Definition xor_option {a} (o1 : option a) (o2 : option a) : option a :=
   | _   , _       => None
   end.
 
-
-
-Fixpoint index (ls : OCtx) (i : nat) : option WType :=
-  match ls with
+(* index into an OCtx *)
+Fixpoint index (Γ : OCtx) (i : nat) : option WType :=
+  match Γ with
   | Invalid => None
-  | Valid [] => None
-  | Valid (h :: t) => match i with
-              | O => h
-              | S i => index (Valid t) i
-              end
+  | Valid Γ' => maybe (Γ' !! i) None
   end.
+
+
+Lemma index_invalid : forall i, index Invalid i = None.
+Proof.
+  auto.
+Qed.
+Lemma index_empty : forall i, index ∅ i = None.
+Proof.
+  intros.
+  simpl. 
+  rewrite nth_nil.
+  auto.
+Qed.
+
+Lemma singleton_index : forall x w Γ,
+      SingletonCtx x w Γ ->
+      index Γ x = Some w.
+Proof.
+  induction 1; simpl; auto.
+Qed.
+
+
+(* trim the None's from the end of a Ctx *)
+Fixpoint trim (Γ : Ctx) : Ctx :=
+  match Γ with
+  | [] => []
+  | None :: Γ' => match trim Γ' with
+                  | [] => []
+                  | Γ''  => None :: Γ''
+                  end
+  | Some w :: Γ' => Some w :: trim Γ'
+  end.
+
+Lemma index_trim : forall Γ i,    
+    index (trim Γ) i = index Γ i.
+Proof.
+  induction Γ as [ | [w | ] Γ]; intros i.
+  * simpl. auto.
+  * simpl. destruct i; simpl; auto.
+    apply IHΓ.
+  * simpl. remember (trim Γ) as Γ'.
+    destruct Γ' as [ | o Γ']; auto.
+    + rewrite nth_nil.
+      destruct i; simpl; auto. 
+      simpl in IHΓ. 
+      rewrite <- IHΓ.
+      rewrite nth_nil.
+      auto.
+    + destruct i; simpl; auto.
+      apply IHΓ.
+Qed.
+
+(* empty context *)
+Inductive empty_Ctx : Ctx -> Prop :=
+| empty_nil : empty_Ctx []
+| empty_cons : forall Γ, empty_Ctx Γ -> empty_Ctx (None :: Γ)
+.
+Lemma trim_empty : forall Γ, empty_Ctx Γ -> trim Γ = [].
+Proof.
+  induction 1; simpl; auto.
+  rewrite IHempty_Ctx; auto.
+Qed.
+
+
 
 (* length is the actual length of the underlying list, as opposed to size, which
  * is the number of Some entries in the list 
@@ -661,6 +734,8 @@ Definition length_OCtx (ls : OCtx) : nat :=
   | Valid ls => length ls
   end.
 
+
+(* property of merge *)
 
 Lemma merge_dec Γ1 Γ2 : is_valid (Γ1 ⋓ Γ2) + {Γ1 ⋓ Γ2 = Invalid}.
 Proof.
@@ -687,6 +762,16 @@ Inductive Pat : WType ->  Set :=
 | qubit : Var -> Pat Qubit
 | bit : Var -> Pat Bit
 | pair : forall {W1 W2}, Pat W1 -> Pat W2 -> Pat (W1 ⊗ W2).
+
+
+Fixpoint pat_to_list {w} (p : Pat w) : list Var :=
+  match p with
+  | unit => []
+  | qubit x => [x]
+  | bit x => [x]
+  | pair p1 p2 => pat_to_list p1 ++ pat_to_list p2
+  end.
+
 
 (* Not sure if this is the right approach. See below. *)
 Inductive Types_Pat : OCtx -> forall {W : WType}, Pat W -> Set :=
@@ -858,3 +943,7 @@ Ltac validate :=
   | [|- is_valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) ] => rewrite (merge_assoc Γ1 Γ2 Γ3)
   | [|- is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) ]   => apply valid_join; validate
   end).
+
+
+
+

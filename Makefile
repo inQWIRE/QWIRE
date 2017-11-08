@@ -28,7 +28,7 @@ TypeChecking.vo: TypeChecking.v Prelim.vo Contexts.vo HOASCircuits.vo
 HOASExamples.vo: HOASExamples.v HOASCircuits.vo TypeChecking.vo
 	coqc HOASExamples.v
 
-DBCircuits.vo : DBCircuits.v Contexts.vo HOASCircuits.vo Monad.vo
+DBCircuits.vo : DBCircuits.v Prelim.vo Contexts.vo HOASCircuits.vo Monad.vo
 	coqc DBCircuits.v
 
 FlatCircuits.vo: FlatCircuits.v HOASCircuits.vo Monad.vo

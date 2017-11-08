@@ -47,7 +47,7 @@ Class Monad_Correct (m : Type -> Type) `{M : Monad m} := {
                  bind ma (fun  x=> f x >>= g) = (ma >>= f) >>= g
 }.
 
-Arguments Functor f.
+Arguments Functor f : assert.
 Arguments Functor_Correct f {F}.
 Arguments Applicative f [F]. 
 Arguments Applicative_Correct f {F} {A} : rename.
