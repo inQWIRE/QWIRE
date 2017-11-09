@@ -498,6 +498,7 @@ Qed.
 (***********************)
 (* Deutsch's Algorithm *)
 (***********************)
+(* Temporarily commented out for efficient compilation
 
 Delimit Scope circ_scope with qc.
 
@@ -528,7 +529,6 @@ Definition balanced (U : Unitary (Qubit ⊗ Qubit)%qc) :=
 Lemma f2_WF : WF_Matrix 4 4 f2. Proof. show_wf. Qed.
 Hint Resolve f2_WF : wf_db.
   
-(* Temporarily commented out for efficient compilation *)
 Lemma deutsch_constant : forall U_f, constant U_f -> 
                                 ⟦deutsch U_f⟧ I1 = |0⟩⟨0|.
 Proof.
