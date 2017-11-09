@@ -518,26 +518,57 @@ Proof. intros. unfold Rdiv. rewrite Rinv_mult_distr; trivial. lra. Qed.
 Lemma Rdiv_cancel :  forall r r1 r2 : R, (r1 = r2 -> r / r1 = r / r2)%R.
 Proof. intros. rewrite H. reflexivity. Qed.
 
+Lemma Rsum_nonzero : forall r1 r2 : R, (r1 <> 0 \/ r2 <> 0 -> r1 * r1 + r2 * r2 <> 0)%R. 
+Proof.
+  intros.
+  replace (r1 * r1)%R with (r1 ^ 2)%R by lra.
+  replace (r2 * r2)%R with (r2 ^ 2)%R by lra.
+  specialize (pow2_ge_0 (r1)). intros GZ1.
+  specialize (pow2_ge_0 (r2)). intros GZ2.
+  destruct H.
+  - specialize (pow_nonzero r1 2 H). intros NZ. lra.
+  - specialize (pow_nonzero r2 2 H). intros NZ. lra.
+Qed.
+
 Lemma Cinv_mult_distr : forall c1 c2 : C, c1 <> 0 -> c2 <> 0 -> / (c1 * c2) = / c1 * / c2.
 Proof.
   intros.
   apply c_proj_eq.
-  simpl.
-  rewrite Rmult_div.
-  rewrite Rmult_div.
-  rewrite Rmult_opp_opp.
-  unfold Rminus.
-  rewrite <- RIneq.Ropp_div.
-  rewrite <- Rdiv_plus_distr.
-  rewrite Rmult_plus_distr_r.
-  rewrite Rmult_plus_distr_l.
-  apply Rdiv_cancel.
-  lra.
-  rewrite 2 Rmult_1_r.
-  apply C0_imp in H.
-  destruct H.
-Admitted.  
-  
+  - simpl.
+    repeat rewrite Rmult_1_r.
+    rewrite Rmult_div.
+    rewrite Rmult_div.
+    rewrite Rmult_opp_opp.
+    unfold Rminus.
+    rewrite <- RIneq.Ropp_div.
+    rewrite <- Rdiv_plus_distr.
+    rewrite Rmult_plus_distr_r.
+    rewrite Rmult_plus_distr_l.
+    apply Rdiv_cancel.
+    lra.
+    * apply Rsum_nonzero. apply C0_imp in H. assumption.
+    * apply Rsum_nonzero. apply C0_imp in H0. assumption.
+    * apply Rsum_nonzero. apply C0_imp in H. assumption.
+    * apply Rsum_nonzero. apply C0_imp in H0. assumption.
+  - simpl.    
+    repeat rewrite Rmult_1_r.
+    rewrite Rmult_div.
+    rewrite Rmult_div.
+    unfold Rminus.
+    rewrite <- Rdiv_plus_distr.
+    repeat rewrite Rmult_plus_distr_r.
+    repeat rewrite Rmult_plus_distr_l.
+    repeat rewrite <- Ropp_mult_distr_r.
+    repeat rewrite <- Ropp_mult_distr_l.
+    repeat rewrite <- Ropp_plus_distr.
+    apply Rdiv_cancel.
+    lra.
+    * apply Rsum_nonzero. apply C0_imp in H. assumption.
+    * apply Rsum_nonzero. apply C0_imp in H0. assumption.
+    * apply Rsum_nonzero. apply C0_imp in H. assumption.
+    * apply Rsum_nonzero. apply C0_imp in H0. assumption.
+Qed.
+
 Lemma Csqrt_sqrt : forall x : R, 0 <= x -> ((RtoC (√ x)) * (RtoC (√ x)) = (RtoC x))%C.
 Proof. intros. eapply c_proj_eq; simpl; try rewrite sqrt_sqrt; lra. Qed.
 
