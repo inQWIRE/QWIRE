@@ -3,7 +3,6 @@ Require Import Complex.
 Require Import Psatz.
 Require Import String.
 
-
 Require Import Prelim.
 
 Open Scope R_scope.
@@ -181,7 +180,9 @@ Ltac mlra :=
 (** Proofs about finite sums **)
 (******************************)
 
-Lemma Csum_0 : forall f n, (forall x, f x = C0) -> Csum f n = C0. 
+Close Scope nat_scope.
+
+Lemma Csum_0 : forall f n, (forall x, f x = 0) -> Csum f n = 0. 
 Proof.
   intros.
   induction n.
@@ -191,7 +192,7 @@ Proof.
     clra.
 Qed.
 
-Lemma Csum_1 : forall f n, (forall x, f x = C1) -> Csum f n = INR n. 
+Lemma Csum_1 : forall f n, (forall x, f x = 1) -> Csum f n = INR n. 
 Proof.
   intros.
   induction n.
@@ -204,7 +205,7 @@ Qed.
 Lemma Csum_eq : forall f g n, f = g -> Csum f n = Csum g n.
 Proof. intros f g n H. subst. reflexivity. Qed.
 
-Lemma Csum_eq_bounded : forall f g n, (forall x, x < n -> f x = g x) -> Csum f n = Csum g n.
+Lemma Csum_eq_bounded : forall f g n, (forall x, (x < n)%nat -> f x = g x) -> Csum f n = Csum g n.
 Proof. 
   intros f g n H. 
   induction n.
@@ -215,7 +216,7 @@ Proof.
     reflexivity.
 Qed.
 
-Lemma Csum_plus : forall f g n, (Csum (fun x => f x + g x) n = Csum f n + Csum g n)%C.
+Lemma Csum_plus : forall f g n, Csum (fun x => f x + g x) n = Csum f n + Csum g n.
 Proof.
   intros f g n.
   induction n.
@@ -223,7 +224,7 @@ Proof.
   + simpl. rewrite IHn. clra.
 Qed.
 
-Lemma Csum_mult_l : forall c f n, (c * Csum f n = Csum (fun x => c * f x) n)%C.
+Lemma Csum_mult_l : forall c f n, c * Csum f n = Csum (fun x => c * f x) n.
 Proof.
   intros c f n.
   induction n.
@@ -234,7 +235,7 @@ Proof.
     reflexivity.
 Qed.
 
-Lemma Csum_mult_r : forall c f n, (Csum f n * c = Csum (fun x => f x * c) n)%C.
+Lemma Csum_mult_r : forall c f n, Csum f n * c = Csum (fun x => f x * c) n.
 Proof.
   intros c f n.
   induction n.
@@ -256,10 +257,10 @@ Proof.
     reflexivity.
 Qed.
     
-Lemma Csum_extend_r : forall n f, ((Csum f n) + f n)%C = Csum f (S n).
+Lemma Csum_extend_r : forall n f, Csum f n + f n = Csum f (S n).
 Proof. reflexivity. Qed.
 
-Lemma Csum_extend_l : forall n f, (f 0 + Csum (fun x => f (S x)) n)%C = Csum f (S n).
+Lemma Csum_extend_l : forall n f, f O + Csum (fun x => f (S x)) n = Csum f (S n).
 Proof.
   intros n f.
   induction n.
@@ -272,7 +273,7 @@ Proof.
 Qed.
 
 Lemma Csum_sum : forall m n f, Csum f (m + n) = 
-                          (Csum f m + Csum (fun x => f (m + x)%nat) n)%C. 
+                          Csum f m + Csum (fun x => f (m + x)%nat) n. 
 Proof.    
   intros m n f.
   induction m.
@@ -280,8 +281,8 @@ Proof.
   + simpl.
     rewrite IHm.
     repeat rewrite <- Cplus_assoc.
-    remember (fun y => f (m + y)) as g.
-    replace (f m) with (g 0) by (subst; rewrite plus_0_r; reflexivity).
+    remember (fun y => f (m + y)%nat) as g.
+    replace (f m) with (g O) by (subst; rewrite plus_0_r; reflexivity).
     replace (f (m + n)%nat) with (g n) by (subst; reflexivity).
     replace (Csum (fun x : nat => f (S (m + x))) n) with
             (Csum (fun x : nat => g (S x)) n).
@@ -292,9 +293,9 @@ Proof.
     reflexivity.
 Qed.
 
-Lemma Csum_product : forall m n f g, n <> 0 ->
-                              (Csum f m * Csum g n)%C = 
-                              Csum (fun x => f (x / n)%nat * g (x mod n)%nat)%C (m * n). 
+Lemma Csum_product : forall m n f g, n <> O ->
+                              Csum f m * Csum g n = 
+                              Csum (fun x => f (x / n)%nat * g (x mod n)%nat) (m * n). 
 Proof.
   intros.
   induction m.
@@ -303,9 +304,9 @@ Proof.
     rewrite Cmult_plus_distr_r.
     rewrite IHm. clear IHm.
     rewrite Csum_mult_l.    
-    remember ((fun x : nat => f (x / n)%nat * g (x mod n)))%C as h.
-    replace (Csum (fun x : nat => f m * g x)%C n) with
-            (Csum (fun x : nat => h ((m * n) + x)) n). 
+    remember ((fun x : nat => f (x / n)%nat * g (x mod n)%nat)) as h.
+    replace (Csum (fun x : nat => f m * g x) n) with
+            (Csum (fun x : nat => h ((m * n) + x)%nat) n). 
     Focus 2.
       subst.
       apply Csum_eq_bounded.
@@ -326,6 +327,8 @@ Qed.
 (**********************************)
 (** Proofs about Well-Formedness **)
 (**********************************)
+
+Open Scope nat_scope.
 
 Lemma WF_Zero : forall {m n : nat}, WF_Matrix m n (Zero m n).
 Proof. intros m n. unfold WF_Matrix. reflexivity. Qed.
