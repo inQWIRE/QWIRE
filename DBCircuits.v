@@ -1061,6 +1061,7 @@ Lemma subst_process_pat : forall w (p : Pat w),
   * rewrite Nat.eqb_refl; auto.
   * unfold fresh_pat. simpl. autounfold with monad_db.
 *)
+Admitted.
 
 Lemma subst_dom : forall w (p : Pat w) Γ, Types_Pat Γ p -> 
       subst_pat (OCtx_dom Γ) p = fresh_pat w (st_{0}).
