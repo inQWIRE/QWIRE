@@ -297,7 +297,7 @@ Proof.
   prep_matrix_equality.
   autounfold with M_db.
   simpl; autorewrite with C_db.
-  destruct x, y; simpl; autorewrite with C_db; destruct_m_eq; clra.
+  destruct_m_eq; autorewrite with C_db; reflexivity.
 Qed.
 
 Fixpoint upper_bound (li : list nat) : nat :=
@@ -305,11 +305,6 @@ Fixpoint upper_bound (li : list nat) : nat :=
   | nil => 0
   | n :: li' => max (S n) (upper_bound li')
   end.
-
-
-
-
-
 
 Lemma size_singleton : forall x w, size_Ctx (singleton x w) = 1%nat.
 Proof.
@@ -326,8 +321,6 @@ Admitted.
 
 Lemma size_OCtx_WType : forall Γ w (p : Pat w), Types_Pat Γ p -> ⟦Γ⟧=⟦w⟧.
 Admitted.
-
-
 
 Lemma OCtx_dom_pat : forall w (p : Pat w),
       OCtx_dom (pat_to_ctx p) = pat_to_list p.
@@ -452,55 +445,27 @@ Proof.
        specialize hadamard_sa; intros pf_H.
        setoid_rewrite control_sa; auto.
 
-       (* This proof gets used in both branches *)
-       assert (C_fact : 1/2 * (1/2^n) = 1/(2*2^n)).
-       { set (d := 2^n).
-         assert (d <> 0) by admit.
-         assert (RtoC 2%R <> RtoC 0%R)%C by admit.
-         unfold Cdiv.
-         rewrite Cinv_mult_distr; auto.
-         autorewrite with C_db.
-         reflexivity.
-       }
-
        solve_matrix.
-
-       * set (a := 1/2^n).
-         set (b := 1/(2*2^n)).
-         set (c := (1/ √ 2)).
-         assert (H : c * a * c = (1/2) * a).
-         {
-           rewrite (Cmult_comm c a).
-           rewrite <- Cmult_assoc.
-           unfold c. 
-           autorewrite with C_db.
-           clra.
-         }
-         rewrite H; clear H.
-         assert (H : a = 1/2 * a + 1/2 * a) by clra.
-         rewrite H at 1; clear H.
-         unfold Cminus.
-         rewrite Copp_plus_distr.
-         repeat rewrite <- Cplus_assoc.
-         rewrite Cplus_opp_l.
-         
-         autorewrite with C_db. 
-         unfold a,b.
-         rewrite C_fact.
-         reflexivity.
-
-         
-       * rewrite Cmult_comm. 
+       * rewrite Cmult_comm.
          rewrite Cmult_assoc.
          autorewrite with C_db.
-         apply C_fact.
-  
+         rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
+         replace (/ 2^n) with (/2 * /2 ^ n + /2 */2^n) at 1 by clra.
+         rewrite Copp_plus_distr.
+         repeat rewrite <- Cplus_assoc.
+         autorewrite with C_db.
+         reflexivity.
+       * rewrite Cmult_comm.
+         rewrite Cmult_assoc.
+         autorewrite with C_db.
+         rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
+         reflexivity.
 
     --
       intros p Γ2 Γ2' [pf_valid pf_merge] types_p.
       rewrite merge_nil_r in pf_merge. subst. 
       type_check; auto.
-Admitted.
+Qed.
 
 Lemma cnot_eq : cnot = control σx.
 Proof.
@@ -509,7 +474,6 @@ Proof.
   prep_matrix_equality.
   repeat (try destruct x; try destruct y; autorewrite with C_db; trivial).
 Qed.
-
 
 
 
@@ -534,7 +498,7 @@ Qed.
 (***********************)
 (* Deutsch's Algorithm *)
 (***********************)
-(*
+
 Delimit Scope circ_scope with qc.
 
 
@@ -563,15 +527,6 @@ Definition balanced (U : Unitary (Qubit ⊗ Qubit)%qc) :=
 
 Lemma f2_WF : WF_Matrix 4 4 f2. Proof. show_wf. Qed.
 Hint Resolve f2_WF : wf_db.
-
-Ltac c_ineq := apply C0_fst; specialize Rlt_sqrt2_0; intros; simpl; Psatz.lra.
-
-(* Maybe create new database for solving sqrt2 equalities? *)
-Hint Rewrite Cplus_opp_l Cplus_opp_r Copp_involutive Copp_0 : C_db. 
-Hint Rewrite Csqrt_sqrt using Psatz.lra : C_db.
-Hint Rewrite <- Copp_mult_distr_l Copp_mult_distr_r Cdouble : C_db. 
-Hint Rewrite <- Cinv_mult_distr using c_ineq : C_db.
-Hint Rewrite Cinv_l Cinv_r using c_ineq : C_db.
   
 (* Temporarily commented out for efficient compilation *)
 Lemma deutsch_constant : forall U_f, constant U_f -> 

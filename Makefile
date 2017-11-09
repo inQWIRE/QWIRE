@@ -1,4 +1,4 @@
-all: HOASProofs.vo FlatProofs.vo MachineProofs.vo 
+all: HOASProofs.vo 
 
 Monad.vo: Monad.v
 	coqc Monad.v
@@ -15,7 +15,6 @@ Matrix.vo: Matrix.v Complex.vo
 Quantum.vo: Quantum.v Matrix.vo
 	coqc Quantum.v
 
-###
 Contexts.vo: Contexts.v
 	coqc Contexts.v 
 
