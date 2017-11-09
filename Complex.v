@@ -572,10 +572,16 @@ Qed.
 Lemma Csqrt_sqrt : forall x : R, 0 <= x -> ((RtoC (√ x)) * (RtoC (√ x)) = (RtoC x))%C.
 Proof. intros. eapply c_proj_eq; simpl; try rewrite sqrt_sqrt; lra. Qed.
 
+(* Lemmas about Conjugates *)
+
 Lemma Cconj_R : forall r : R, r^* = r. Proof. intros; clra. Qed.
 Lemma Cconj_opp : forall C, (- C)^* = - (C^*). Proof. reflexivity. Qed.
 Lemma Cconj_rad2 : (/ √2)^* = / √2. Proof. clra. Qed.
 Lemma Cplus_div2 : /2 + /2 = 1. Proof. clra. Qed.
+Lemma Cconj_plus_distr : forall (x y : C), (x + y)^* = x^* + y^*.
+Proof. intros x y. clra. Qed.
+Lemma Cconj_mult_distr : forall (x y : C), (x * y)^* = x^* * y^*.
+Proof. intros x y. clra. Qed.
 
 
 Lemma square_rad2 : /√2 * /√2 = /2. 
