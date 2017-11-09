@@ -152,6 +152,8 @@ Ltac type_check_once :=
     => apply H; type_check_once
   | [ H : @Types_Pat _ _ ?p |- @Types_Pat _ _ ?p ] => apply H
   | [ |- Types_Pat _ _ ]                   => econstructor; type_check_once
+  | [ H : _ == _ ∙ _  |- _ ] => destruct H
+  | [ |- _ == _ ∙ _ ] => split
   end; 
   (* Runs monoid iff a single evar appears in context *)
   match goal with 

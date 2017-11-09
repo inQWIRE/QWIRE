@@ -1,12 +1,8 @@
+Require Import Prelim.
+Require Import Monad.
 Require Import Contexts.
 Require Import HOASCircuits.
-Require Import Program.
-Require Import List.
-Require Import Monad.
-Require Import Arith.
-Require Import Omega.
 
-Import Arith.
 Open Scope circ_scope.
 
 Inductive DeBruijn_Circuit (w : WType) : Set :=
@@ -43,15 +39,6 @@ Class Gate_State A :=
   ; change_type : Var -> WType -> A -> A
   }.
 
-Fixpoint pat_to_list {w} (p : Pat w) : list Var :=
-  match p with
-  | unit => []
-  | qubit x => [x]
-  | bit x => [x]
-  | pair p1 p2 => pat_to_list p1 ++ pat_to_list p2
-  end.
-
-
 Definition remove_pat {A} `{Gate_State A} {w} (p : Pat w) (a : A) : A :=
   fold_left (fun a x => remove_var x a)  (pat_to_list p) a.
 
@@ -76,7 +63,8 @@ Definition remove_OCtx {A} `{Gate_State A} (Γ : OCtx) (a : A) : A :=
 (* process_gate_pat g p a returns the pattern that is obtained from running the
    gate g with input pattern p and state a 
 *)
-Definition process_gate_pat {A w1 w2} `{Gate_State A} (g : Gate w1 w2) : Pat w1 -> A -> Pat w2 :=
+Definition process_gate_pat {A w1 w2} `{Gate_State A} (g : Gate w1 w2) 
+         : Pat w1 -> A -> Pat w2 :=
   match g with 
   | U _ | NOT     => fun p _ => p
   | init0 | init1 => fun _ a => qubit (fst (get_fresh Qubit a))
@@ -85,7 +73,7 @@ Definition process_gate_pat {A w1 w2} `{Gate_State A} (g : Gate w1 w2) : Pat w1 
                                 | qubit x => bit x
                                 end
   | discard       => fun _ _ => unit
-  end.
+  end. 
 
 (* process_gate_state g p a returns the state that is obtained from running the
    gate g with input pattern p and state a. The two functions process_gate_pat
@@ -104,27 +92,14 @@ Definition process_gate_state {A w1 w2} `{Gate_State A} (g : Gate w1 w2) : Pat w
   | discard       => fun p a => remove_pat p a
   end.
 
-    
 
 
 (**********************)  
 (* De Bruijn Contexts *)
 (**********************)
 
-Fixpoint remove_at  {A} (i : nat) (ls : list A) :=
-  match i, ls with
-  | _   ,[]        => []
-  | 0   , _ :: ls' => ls'
-  | S i', a :: ls' => a :: remove_at i' ls'
-  end.
-Fixpoint update_at {A} (ls : list A) (i : nat) (a : A) : list A :=
-  match ls, i with
-  | []      , _    => []
-  | _ :: ls', 0    => a :: ls'
-  | b :: ls', S i' => b :: update_at ls' i' a
-  end.
 
-
+(* Ctx's and OCtx's can be used as state *)
 Instance Ctx_State : Gate_State Ctx :=
   { get_fresh w  := do Γ ← get;
                     do _ ← put (Γ ++ [Some w]);
@@ -133,7 +108,6 @@ Instance Ctx_State : Gate_State Ctx :=
   ; change_type x w Γ := update_at Γ x (Some w)
   }.
 
-Print Gate_State.
 Instance OCtx_State : Gate_State OCtx :=
   { get_fresh w := fun Γ => match Γ with
                             | Invalid => (0, Invalid)
@@ -153,8 +127,6 @@ Instance OCtx_State : Gate_State OCtx :=
                    
                                          
                                          
-                                         
-
 (**********)
 (* Typing *)
 (**********)
@@ -188,11 +160,12 @@ Inductive Types_DB {w} (Γ : OCtx) : DeBruijn_Circuit w -> Prop :=
 (*****************)
 
 (* A substitution σ is a finite map from a variable x to a natural number i,
-   where σ[i]=x. 
-   This formulation of finite maps is unique because when a variable is removed from the list, 
-   all variables above that one are shifted downward. 
-*)
+   where σ[i]=x. This formulation of finite maps is unique because when a
+   variable is removed from the list, all variables above that one are shifted
+   downward. *)
 Definition substitution := list Var.
+
+
 
 Record subst_state := Mk_subst_state
   { get_σ : substitution
@@ -208,32 +181,28 @@ Instance subst_state_Gate_State : Gate_State subst_state :=
   ; change_type x w st := st
   }.
 
+(* This should be used for internal substitution *)
+(* the fresh variable generated for substitutions alone is the length of the
+   list, as opposed to for subst_state, where the fresh variable is only
+   assummed to be fresh in the state *)
+(* I'm not sure this is right... *)
 Instance substitution_Gate_State : Gate_State substitution :=
   { get_fresh w σ := let x := length σ in
-                     (x, σ ++ [x])
+                     (x, σ ++ [x]) 
   ; remove_var x σ := List.remove Nat.eq_dec x σ
   ; change_type x w σ := σ
   }.
 
-Lemma in_S_fmap : forall x ls,
-    In (S x) (fmap S ls) <->
-    In x ls.
-Admitted.
-
-(* Precondition: x must appear in li *)
-Fixpoint lookup (x : Var) (li : list Var) : nat :=
-  match li with
-  | nil => 0
-  | y :: ys => if x =? y then 0 else S (lookup x ys)
-  end.
-Fixpoint index {A} (i : nat) (li : list A) : option A :=
-  match i, li with
-  | _, nil => None
-  | 0, x :: _ => Some x
-  | S i', _ :: li' => index i' li'
-  end.
 
 Definition subst_var (σ : substitution) (x : Var) := lookup x σ.
+
+(* Mapping relation *)
+
+Notation "x ↦ y ∈ σ" := (σ !! y = Some x) (at level 20).
+Definition in_dom x σ := x ↦ subst_var σ x ∈ σ.
+Notation "x '∈_dom' σ" := (in_dom x σ) (at level 20).
+
+
 Fixpoint subst_pat (σ : substitution) {w} (p : Pat w) : Pat w :=
   match p with
   | unit    => unit
@@ -255,6 +224,9 @@ Fixpoint subst_db (σ : substitution) {w} (c : DeBruijn_Circuit w)
   end.
 
 
+(* Below are three possible definitions of subst_ctx *)
+
+(* 1: *)
 (* starting at i=|Γ|-1, finds the x such that x ↦ i ∈ σ, then looks up the type W of
    x in Γ. Adds the binding W to the head of the resulting DB_Ctx; by the end
    the process, this binding will be at index i in the list. *)
@@ -276,6 +248,7 @@ Definition subst_ctx (Γ : OCtx) σ : OCtx :=
 
 *)
 
+(* 2: *)
 (*
 Fixpoint subst_ctx' Γ σ (x : nat) : OCtx :=
   match Γ with
@@ -342,48 +315,22 @@ Definition subst_ctx (Γ : OCtx) σ : OCtx :=
   end.
  *)
 
-Fixpoint trim_None (Γ : Ctx) : Ctx :=
-  match Γ with
-  | [] => []
-  | None :: Γ' => match trim_None Γ' with
-                  | [] => []
-                  | Γ''  => None :: Γ''
-                  end
-  | Some w :: Γ' => Some w :: trim_None Γ'
-  end.
+(* 3: *)
 
 
 Definition subst_ctx' (Γ : Ctx) (σ : substitution) : Ctx :=
-  fmap (Contexts.index Γ) σ.
+  fmap (index Γ) σ.
 Definition subst_ctx (Γ : OCtx) σ : OCtx :=
   match Γ with
-  | Valid Γ' => Valid (trim_None (subst_ctx' Γ' σ))
+  | Valid Γ' => Valid (trim (subst_ctx' Γ' σ))
   | Invalid => Invalid
   end.
 
-Lemma index_invalid : forall i, Contexts.index Invalid i = None.
-Proof.
-  destruct i; auto.
-Qed.
-Lemma index_empty : forall i, Contexts.index ∅ i = None.
-Proof.
-  destruct i; auto.
-Qed.
 
+(*************************)
+(* Scoping substitutions *)
+(*************************)
 
-
-
-Require Import Permutation. Print In.
-Fixpoint Injective {A} (ls : list A) :=
-  match ls with
-  | [] => True
-  | x :: ls' => ~ In x ls' /\ Injective ls'
-  end.
-  
-Lemma index_nil : forall {A} x, index x ([] : list A) = None.
-Proof.
-  destruct x; auto.
-Qed.
 
 
 
@@ -391,7 +338,7 @@ Record WF_σ (Γ : OCtx) σ :=
   { pf_inj : Injective σ
   ; pf_valid : is_valid Γ
   ; pf_subset : forall x w,
-                Contexts.index Γ x = Some w ->
+                index Γ x = Some w ->
                 In x σ
   }.
 
@@ -426,74 +373,56 @@ Proof.
 Qed.  
  *)
 
-
-
-Lemma index_trim : forall Γ i,    
-    Contexts.index (trim_None Γ) i = Contexts.index Γ i.
+Lemma subst_nil' : forall Γ,
+      subst_ctx' Γ [] = [].
 Proof.
-  induction Γ as [ | [w | ] Γ]; intros i.
-  * simpl. auto.
-  * simpl. destruct i; simpl; auto.
-  * simpl. remember (trim_None Γ) as Γ'.
-    destruct Γ' as [ | o Γ']; auto.
-    + rewrite index_empty.
-      destruct i; simpl; auto.
-      rewrite <- IHΓ. rewrite index_empty. auto.
-    +  destruct i; simpl; auto.
+  intros. auto.
 Qed.
-
 
 (* PROPERTY:
     (subst_ctx σ Γ)[i] = Γ[σ[i]]
 *)
 Lemma valid_subst' : forall σ Γ i,
-    Contexts.index (subst_ctx' Γ σ) i = do x ← index i σ;
-                                        Contexts.index Γ x.
+      index (subst_ctx' Γ σ) i = do x ← σ !! i;
+                                 index Γ x.
 Proof.
   induction σ; intros Γ i.
-  * unfold subst_ctx'. simpl.
+  * rewrite subst_nil'.
     rewrite index_empty.
-    rewrite index_nil.
+    rewrite nth_nil.
     auto.
-  * replace (subst_ctx' Γ (a :: σ)) with (Contexts.index Γ a :: subst_ctx' Γ σ)
+  * replace (subst_ctx' Γ (a :: σ)) with (index Γ a :: subst_ctx' Γ σ)
       by (unfold subst_ctx'; simpl; auto).
+    destruct i as [ | i]; [simpl; auto | ].
     simpl.
-    destruct i as [ | i]; simpl; auto.
-    rewrite IHσ.
-    reflexivity.
+    apply IHσ.
 Qed.
 
 Lemma valid_subst : forall Γ σ i,
     is_valid Γ ->
-    Contexts.index (subst_ctx Γ σ) i = do x ← index i σ;
-                                       Contexts.index Γ x.
+    index (subst_ctx Γ σ) i = do x ← σ !! i;
+                              index Γ x.
 Proof.  
   destruct Γ as [ | Γ]; intros.
-  * dependent destruction H.
+  * invalid_contradiction.
   * unfold subst_ctx.
     rewrite index_trim.
     apply valid_subst'.
 Qed.
 
-Inductive empty_Ctx : Ctx -> Prop :=
-| empty_nil : empty_Ctx []
-| empty_cons : forall Γ, empty_Ctx Γ -> empty_Ctx (None :: Γ)
-.
-Lemma trim_empty : forall Γ, empty_Ctx Γ -> trim_None Γ = [].
-Proof.
-  induction 1; simpl; auto.
-  rewrite IHempty_Ctx; auto.
-Qed.
   
 Lemma subst_ctx'_nil : forall σ,
     empty_Ctx (subst_ctx' [] σ).
 Proof.
-  induction σ; unfold subst_ctx'; simpl.
+  induction σ; unfold subst_ctx'.
   * constructor.
-  * rewrite index_empty.
+  * simpl. 
+    rewrite nth_nil.
+    simpl.
     constructor.
     apply IHσ.
 Qed.
+
 Lemma subst_ctx_nil : forall σ,
       subst_ctx ∅ σ = ∅.
 Proof. 
@@ -504,28 +433,20 @@ Proof.
   apply subst_ctx'_nil.
 Qed.
 
-Inductive SingletonOCtx x w : OCtx -> Prop :=
-| SingletonValid : forall Γ, SingletonCtx x w Γ -> SingletonOCtx x w (Valid Γ).
-
-Print subst_ctx'.
-
-
-Definition maybe {A} (o : option A) (default : A) : A :=
-  match o with
-  | Some a => a
-  | None => default
-  end.
+Lemma subst_ctx_cons : forall Γ x σ,
+    subst_ctx' Γ (x :: σ) = (index Γ x) :: (subst_ctx' Γ σ).
+Proof.
+  intros. unfold subst_ctx'. simpl. auto.
+Qed.
 
 
-Notation "x ↦ y ∈ σ" := (index y σ = Some x) (at level 20).
-Definition in_dom x σ := x ↦ subst_var σ x ∈ σ.
-Notation "x '∈_dom' σ" := (in_dom x σ) (at level 20).
 
+(* Properties about the mapping x ↦ y ∈ σ *)
 
 Lemma map_nil_inv : forall (x y : nat), ~ (x ↦ y ∈ []).
 Proof.
   intros x y H.
-  rewrite index_nil in H.
+  rewrite nth_nil in H.
   inversion H.
 Qed.
 
@@ -566,6 +487,7 @@ Proof.
     eapply wf_subst_iso; eauto.
 Qed.
 
+(* properties about subst_ctx Γ σ where Γ is a singleton context *)
 
 Lemma singleton_tail : forall σ w,
   ~ In 0 σ ->
@@ -580,66 +502,12 @@ Proof.
     destruct x as [ | x].
     + absurd (0 = 0); auto.
     + replace (Contexts.index (Valid [Some w]) (S x)) with (None : option WType)
-        by (simpl; rewrite index_empty; auto).
+        by (simpl; rewrite nth_nil; auto).
       constructor.
       apply IHσ.
       auto.
 Qed.
 
-Lemma subst_ctx_cons : forall Γ x σ,
-    subst_ctx' Γ (x :: σ) = (Contexts.index Γ x) :: (subst_ctx' Γ σ).
-Admitted.
-
-
-Lemma in_singleton : forall σ w,
-      In 0 σ ->
-      Injective σ ->
-      SingletonOCtx (subst_var σ 0) w (subst_ctx (Valid [Some w]) σ).
-Proof.
-  induction σ as [ | x σ]; intros w pf_in pf_inj.
-  * contradiction.
-  * simpl in pf_in.
-    destruct x; auto.
-    + simpl.
-      constructor.
-      rewrite trim_empty; [constructor | ].
-      destruct pf_inj as [not_in pf_inj].
-      replace (list_fmap (Contexts.index (Valid [Some w])) σ)
-        with (subst_ctx' [Some w] σ)
-        by (unfold subst_ctx'; auto).
-      apply singleton_tail; auto.
-    + destruct pf_in as [pf_in | pf_in]; [inversion pf_in | ].
-      unfold subst_ctx.
-      rewrite subst_ctx_cons.
-      replace (Contexts.index (Valid [Some w]) (S x)) with (None : option WType)
-        by (simpl; rewrite index_empty; auto).
-      constructor.
-      assert (IH : SingletonOCtx (subst_var σ 0) w (subst_ctx (Valid [Some w]) σ)).
-      { apply IHσ; auto.
-        inversion pf_inj; auto.
-      }
-      inversion IH; subst.
-      replace (trim_None (None :: subst_ctx' [Some w] σ))
-        with (None :: trim_None (subst_ctx' [Some w] σ)).
-      - simpl. constructor. auto.
-      - simpl.
-        remember (trim_None (subst_ctx' [Some w] σ)) as Γ.
-        destruct Γ as [ | o Γ]; [inversion H0 | auto ].
-Qed.
-
-Lemma singleton_index : forall x w Γ,
-      SingletonCtx x w Γ ->
-      Contexts.index Γ x = Some w.
-Proof.
-  induction 1; simpl; auto.
-Qed.
-
-Lemma singleton_subst_empty : forall x w Γ,
-      SingletonCtx x w Γ -> forall σ,
-      ~ In x σ ->
-      empty_Ctx (subst_ctx' Γ σ).
-Proof.
-Admitted.      
 
 Lemma singleton_index_None : forall x w Γ,
         SingletonCtx x w Γ ->
@@ -648,13 +516,32 @@ Lemma singleton_index_None : forall x w Γ,
 Proof.
   induction 1; intros; simpl.
   * destruct y; [contradiction | ].
-    simpl. rewrite index_empty; auto.
+    simpl. rewrite nth_nil; auto.
   * destruct y; [auto | ].
     simpl.
     apply IHSingletonCtx.
     auto.
 Qed.
   
+
+
+Lemma singleton_subst_empty : forall σ x w Γ,
+      SingletonCtx x w Γ -> 
+      ~ In x σ ->
+      empty_Ctx (subst_ctx' Γ σ).
+Proof.
+  induction σ; intros x w Γ pf_singleton not_in.
+  * rewrite subst_nil'.
+    constructor.
+  * rewrite subst_ctx_cons.
+    simpl in not_in.
+    apply Classical_Prop.not_or_and in not_in.
+    destruct not_in.
+    rewrite (singleton_index_None _ _ _ pf_singleton); auto.
+    constructor.
+    apply (IHσ _ _ _ pf_singleton); auto.
+Qed.
+
   
 Lemma subst_ctx_singleton : forall σ x w Γ,
     SingletonCtx x w Γ ->
@@ -668,17 +555,17 @@ Proof.
     simpl.
     simpl in pf_in.
     destruct (Nat.eq_dec y x).
-    + subst. rewrite Nat.eqb_refl.
-      Transparent subst_ctx.
-      simpl.
+    + Transparent subst_ctx. 
+      subst. rewrite Nat.eqb_refl.
+      unfold subst_ctx.
+      rewrite subst_ctx_cons.
       erewrite singleton_index; [ | eauto].
+      simpl in *.
+      destruct pf_inj.
       constructor.
       rewrite trim_empty; [constructor | ].
-      simpl in pf_inj.
-      destruct pf_inj.
-      replace (list_fmap (Contexts.index Γ) σ)
-        with (subst_ctx' Γ σ) by auto.
       eapply singleton_subst_empty; eauto.
+
     + replace (x =? y) with false
         by (apply eq_sym; apply (Nat.eqb_neq x y); auto).
       destruct pf_in; [contradiction | ].
@@ -687,12 +574,14 @@ Proof.
         inversion pf_inj; auto.
       }
       inversion IH; subst.
-      simpl.
+      unfold subst_ctx.
+      rewrite subst_ctx_cons.
+
       rewrite (singleton_index_None x w Γ); auto.
-      replace (list_fmap (Contexts.index Γ) σ)
-        with (subst_ctx' Γ σ)
-        by (unfold subst_ctx'; auto).
-      remember (trim_None (subst_ctx' Γ σ)) as Γ'.
+      simpl.
+      remember (trim (subst_ctx' Γ σ)) as Γ'.
+
+
       destruct Γ'; [inversion H1 | ].
       constructor.
       constructor.
@@ -702,7 +591,7 @@ Qed.
 Lemma subst_ctx_singleton' : forall σ x w Γ,
     SingletonCtx x w Γ ->
     In x σ -> Injective σ ->
-    SingletonCtx (subst_var σ x) w (trim_None (subst_ctx' Γ σ)).
+    SingletonCtx (subst_var σ x) w (trim (subst_ctx' Γ σ)).
 Proof.
   intros.
   assert (lem : SingletonOCtx (subst_var σ x) w (subst_ctx Γ σ)).
@@ -711,6 +600,7 @@ Proof.
   inversion lem; auto.
 Qed.
 
+(* properties about the well-founded substitution relation *)
 
 Lemma wf_merge_proj : forall σ Γ1 Γ2,
     WF_σ (Γ1 ⋓ Γ2) σ ->
@@ -718,6 +608,7 @@ Lemma wf_merge_proj : forall σ Γ1 Γ2,
 Admitted.
 
 
+(* Property about the substitution of a merged context *)
 
 Lemma subst_ctx_merge : forall Γ1 Γ2 σ,
     subst_ctx (Γ1 ⋓ Γ2) σ = subst_ctx Γ1 σ ⋓ subst_ctx Γ2 σ.
@@ -761,10 +652,15 @@ Proof.
     + apply subst_ctx_merge.
 Qed.
 
-Lemma subst_ctx_valid : forall Γ σ,
+Lemma subst_ctx_valid : forall σ Γ,
   is_valid Γ ->
   is_valid (subst_ctx Γ σ).
-Admitted.
+Proof.
+  induction σ as [ | x σ]; intros [ | Γ] pf_valid; try invalid_contradiction.
+  * apply valid_valid.
+  * unfold subst_ctx. 
+    apply valid_valid.
+Qed.
 
 Lemma types_subst_db : forall w (c : DeBruijn_Circuit w) Γ ,
       Types_DB Γ c ->
@@ -799,495 +695,6 @@ Admitted.
 
 
     
-    
-(*Lemma subst_ctx_singleton_eq' : forall x y i σ w,
-    Injective σ ->
-    (x + i)%nat ↦ y ∈ σ ->
-    subst_ctx' (singleton x w) σ i = Valid (singleton y w).
-Proof.
-  induction x; intros y i σ w inj_σ pf_map.
-  - simpl in *.
-    erewrite index_lookup; eauto.
-  - simpl in *.
-    apply IHx; auto.
-    rewrite Nat.add_succ_r.
-    auto.
-Qed.
-
-Lemma subst_ctx_singleton_eq : forall x y σ w,
-    Injective σ ->
-    x ↦ y ∈ σ ->
-    subst_ctx (singleton x w) σ = Valid (singleton y w).
-Proof.
-  intros.
-  unfold subst_ctx.
-  apply subst_ctx_singleton_eq'; auto. 
-  rewrite Nat.add_0_r; auto.
-Qed.*)
-    
-
-Lemma otypes_qubit : forall Γ x,
-      SingletonOCtx x Qubit Γ ->
-      Types_Pat Γ (qubit x).
-Proof.
-  destruct Γ. intros.
-  - absurd (SingletonOCtx x Qubit Invalid); auto. inversion 1.
-  - intros. constructor. inversion H; auto.
-Qed.
-
-Lemma otypes_bit : forall Γ x,
-      SingletonOCtx x Bit Γ ->
-      Types_Pat Γ (bit x).
-Proof.
-  destruct Γ. intros.
-  - absurd (SingletonOCtx x Bit Invalid); auto. inversion 1.
-  - intros. constructor. inversion H; auto.
-Qed.
-
-
-
-(*
-*)
-
-
-(*
-Lemma in_dom_merge : forall Γ1 Γ2 x w,
-      Contexts.index (Γ1 ⋓ Γ2) x = Some w ->
-      Contexts.index Γ1 x = Some w \/ Contexts.index Γ2 x = Some w.
-Admitted.
-*)
-
-(*
-Lemma index_singleton : forall x y w w',
-    Contexts.index (singleton x w) y = Some w' ->
-    x = y  /\ w = w'.
-Proof.
-  induction x as [ | x]; destruct y as [ | y]; intros w w' H; simpl in *.
-  - inversion H; auto.
-  - destruct y; inversion H.
-  - inversion H.
-  -destruct (IHx _ _ _ H); subst; auto.
-Qed.
-*)
-
-(*
-Lemma subst_ctx'_bound : forall Γ x j σ w,
-      Contexts.index (subst_ctx' Γ σ j) x = Some w ->
-      j <= x.
-Proof.
-  induction Γ as [ | [w' | ] Γ]; intros x j σ w pf_in; simpl in *.
-  - destruct x; inversion pf_in.
-  - apply in_dom_merge in pf_in.
-    destruct pf_in as [pf_in | pf_in].
-    * apply IHΓ in pf_in.
-      apply le_trans with (m := S j); auto.
-    * Print subst_ctx'.
-      apply index_singleton in pf_in.
-      destruct pf_in; subst.
-      assert (x = j) by auto.
-      subst. auto.
-  - apply IHΓ in pf_in.
-    apply le_trans with (m := S j); auto.
-Admitted.
- *)
-
-Notation "x ∉ 'dom' Γ" := (Contexts.index Γ x = None) (at level 30).
-
-(*
-Lemma subst_ctx'_bound : forall Γ i j σ,
-      Injective σ ->
-      i <= j ->
-      lookup i σ ∉ dom (subst_ctx' Γ σ j).
-Proof.
-  induction Γ as [ | o Γ]; intros i j σ pf_inj pf_le.
-  * simpl. destruct (lookup i σ); auto.
-  * simpl.
-    assert (IH : lookup i σ ∉ dom (subst_ctx' Γ σ (S j))).
-Admitted.
-*)
-
-
-(*
-Lemma valid_merge_singleton_r : forall Γ x w,
-    x ∉ dom Γ -> is_valid Γ ->
-    is_valid (Γ ⋓ singleton x w).
-Proof.
-  destruct Γ as [ | Γ].
-  * inversion 2. inversion H1.
-  * induction Γ as [ | [w' | ] Γ]; intros x w H pf_valid.
-    - simpl. apply valid_valid.
-    - simpl.
-      destruct x as [ | x']; inversion H; simpl.
-      assert (pf_valid' : is_valid (Valid Γ ⋓ singleton x' w)).
-      { apply IHΓ; auto. apply valid_valid. }
-      simpl in *.
-      destruct (merge' Γ (singleton x' w)); [dependent destruction pf_valid' | ].
-      apply valid_valid.
-    - simpl in *.
-      destruct x as [ | x']; simpl in *.
-      + replace (merge' Γ []) with (Valid Γ ⋓ ∅) by auto.
-        rewrite (merge_nil_r (Valid Γ)).
-        apply valid_valid.
-      + assert (pf_valid' : is_valid (merge' Γ (singleton x' w))).
-        { apply IHΓ; auto. apply valid_valid. }
-        destruct (merge' Γ (singleton x' w)); auto.
-        apply valid_valid.
-Qed.
-*)
-
-
-
-(*
-Lemma subst_ctx_merge_valid' : forall Γ1 Γ2 Γ i σ,
-    Injective σ ->
-    is_valid (subst_ctx' Γ1 σ i) ->
-    is_valid (subst_ctx' Γ2 σ i) ->
-    merge' Γ1 Γ2 = Valid Γ ->
-    is_valid (subst_ctx' Γ σ i).
-Proof.
-  induction Γ1 as [ | o1 Γ1]; destruct Γ2 as [ | o2 Γ2]; intros Γ i σ wf_σ H1 H2 pf_merge.
-  - simpl in *.
-    inversion pf_merge.
-    simpl. validate.
-  - simpl in *.
-    inversion pf_merge.
-    simpl. destruct o2; auto.
-  - simpl in *.
-    inversion pf_merge.
-    simpl. destruct o1; auto.
-  - simpl in *.
-    destruct o1 as [w1 | ], o2 as [w2 | ]; simpl in *.
-    * inversion pf_merge.
-    * destruct (merge' Γ1 Γ2) as [ | Γ'] eqn:H_Γ'; inversion pf_merge.
-      simpl.
-      apply valid_merge_singleton_r.
-      + apply subst_ctx'_bound; auto.
-      + eapply IHΓ1; auto; eauto.
-        apply valid_split_basic in H1.
-        destruct H1; auto.
-          
-    * destruct (merge' Γ1 Γ2) as [ | Γ'] eqn:H_Γ'; inversion pf_merge.
-      simpl.
-      apply valid_merge_singleton_r.
-      + apply subst_ctx'_bound; auto.
-      + eapply IHΓ1; auto; [ | eauto]. 
-        apply valid_split_basic in H2.
-        destruct H2; auto.
-          
-    * destruct (merge' Γ1 Γ2) as [ | Γ'] eqn:H_Γ'; inversion pf_merge.
-      simpl.
-      eapply IHΓ1; auto; [ | eauto]; auto.
-Qed.
-*)
-
-
-(*
-Lemma map_subst_var : forall σ x Γ w,
-  wf_σ Γ σ ->
-  Contexts.index Γ x = Some w ->
-  x ↦ subst_var σ x ∈ σ.
-Proof.
-  intros σ x Γ w [pf_σ H] H'.
-  eapply H.
-  apply H'.
-Qed.
- *)
-
-
-(*** TODO: need to use injectivity here *)
-Lemma index_eq_le : forall Γ σ i j,
-      i <= j ->
-      Contexts.index (subst_ctx' Γ σ j) (lookup i σ) = None.
-Proof. Print subst_ctx'.
-(* 
-    Claim 1: size (subst_ctx' Γ σ j) = size Γ
-    Claim 2: the maximum index value in (subst_ctx' Γ σ j) is
-           <= max_{i >= j} (lookup i σ)
-    So x >= max_{i >= j} (lookup i σ) implies (subst_ctx' Γ σ j)[x]=None
-    But σ is not necessarily monotonic, so we don't know that
-    i < j implies  (lookup i σ) < lookup j σ <= max_value
-*)
-Admitted.
-
-
-Print subst_ctx'.
-
-
-(* When can we be sure that 
-  (lookup x σ) ∉ subst_ctx' Γ σ j? 
-
-  Well, we know 
-    (subst_ctx' Γ σ j)[x] = Some w
-  provided 
-    there exists some y such that y ↦ x ∈ σ
-    and Γ[y] = Some w
-
- *)
-
-
-
-
-
-
-Lemma subst_ctx_merge' : forall Γ1 Γ2 Γ σ i,
-      Valid Γ = merge' Γ1 Γ2 ->
-      subst_ctx' Γ σ i = subst_ctx' Γ1 σ i ⋓ subst_ctx' Γ2 σ i.
-Proof.
-  induction Γ1 as [ | o1 Γ1], Γ2 as [ | o2 Γ2]; intros Γ σ i pf_merge.
-  * simpl in *.
-    dependent destruction pf_merge. auto.
-  * simpl in pf_merge. dependent destruction pf_merge.
-    rewrite merge_nil_l.
-    reflexivity.
-  * simpl in pf_merge.
-    dependent destruction pf_merge.
-    rewrite merge_nil_r.
-    reflexivity.
-  * destruct o1 as [ w1 | ], o2 as [ w2 | ].
-    + dependent destruction pf_merge.
-    + simpl in pf_merge.
-      destruct (merge' Γ1 Γ2) as [ | Γ'] eqn:H_Γ'; 
-        dependent destruction pf_merge.
-      simpl.
-      rewrite (IHΓ1 Γ2 Γ' σ (S i)); auto.
-      monoid.
-    + simpl in pf_merge.
-      destruct (merge' Γ1 Γ2) as [ | Γ'] eqn:H_Γ'; 
-        dependent destruction pf_merge.
-      simpl.
-      rewrite (IHΓ1 Γ2 Γ' σ (S i)); auto.
-      monoid.
-    + simpl in pf_merge.
-      destruct (merge' Γ1 Γ2) as [ | Γ'] eqn:H_Γ'; 
-        dependent destruction pf_merge.
-      simpl.
-      rewrite (IHΓ1 Γ2 Γ' σ (S i)); auto.
-Qed.
-
-    
-Lemma subst_ctx_merge : forall Γ1 Γ2 σ,
-    WF_σ (Γ1 ⋓ Γ2) σ ->
-    subst_ctx (Γ1 ⋓ Γ2) σ = subst_ctx Γ1 σ ⋓ subst_ctx Γ2 σ.
-Proof.
-  intros Γ1 Γ2 σ pf_σ.
-  (*  set (pf_valid := subst_ctx_valid _ _ pf_σ H).*)
-  assert (H : is_valid (Γ1 ⋓ Γ2)) by (destruct pf_σ; auto).
-  unfold subst_ctx.
-  destruct Γ1 as [ | Γ1], Γ2 as [ | Γ2]; dependent destruction H.
-  rename x into Γ.
-  rewrite H.
-  apply subst_ctx_merge'; auto.
-Qed.
-
-
-Lemma SingletonOCtx_eq : forall x w Γ,
-      Γ = Valid (singleton x w) ->
-      SingletonOCtx x w Γ.
-Proof.
-  intros. subst.
-  constructor.
-  apply singleton_singleton.
-Qed.
-
-
-
-Lemma SingletonCtx_index : forall Γ x w,
-        SingletonCtx x w Γ ->
-        Contexts.index Γ x = Some w.
-Proof.
-  induction 1; auto.
-Qed.
-
-
-
-Lemma index_merge_l : forall x Γ1 Γ2 w,
-    Contexts.index Γ1 x = Some w ->
-    is_valid (Γ1 ⋓ Γ2) ->
-    Contexts.index (Γ1 ⋓ Γ2) x = Some w.
-Proof.
-  induction x as [ | x]; intros Γ1 Γ2 w pf_index pf_valid;
-    destruct Γ1 as [ | [ | [w1 | ] Γ1]];
-    destruct Γ2 as [ | [ | [w2 | ] Γ2]];
-    try (simpl in *;
-         dependent destruction pf_index;
-         auto; fail);
-    try ( simpl in *;
-          absurd (is_valid Invalid); [ apply not_valid | auto]; fail);
-    try (
-        dependent destruction pf_index;
-        dependent destruction pf_valid; simpl; auto; fail).
-  * simpl in *.
-    dependent destruction pf_index.
-    destruct (merge' Γ1 Γ2) as [ | Γ];
-      [absurd (is_valid Invalid); [apply not_valid | auto] | ].
-    auto.
-  * simpl in *.
-    destruct (merge' Γ1 Γ2) as [ | Γ] eqn:H_Γ;
-      [absurd (is_valid Invalid); [apply not_valid | auto] | ].
-    apply IHx with (Γ2 := Valid Γ2) in pf_index; auto.
-    simpl in *.
-    rewrite H_Γ in pf_index.
-    auto.
-    simpl. rewrite H_Γ. apply valid_valid.
-  * simpl in *.
-    destruct (merge' Γ1 Γ2) as [ | Γ] eqn:H_Γ;
-      [absurd (is_valid Invalid); [apply not_valid | auto] | ].
-    apply IHx with (Γ2 := Valid Γ2) in pf_index; auto.
-    simpl in *.
-    rewrite H_Γ in pf_index.
-    auto.
-    simpl. rewrite H_Γ. apply valid_valid.
-  * simpl in *.
-    destruct (merge' Γ1 Γ2) as [ | Γ] eqn:H_Γ;
-      [absurd (is_valid Invalid); [apply not_valid | auto] | ].
-    apply IHx with (Γ2 := Valid Γ2) in pf_index; auto.
-    simpl in *.
-    rewrite H_Γ in pf_index.
-    auto.
-    simpl. rewrite H_Γ. apply valid_valid.
-Qed.
-
-
-Lemma index_merge_r : forall x Γ1 Γ2 w,
-    Contexts.index Γ2 x = Some w ->
-    is_valid (Γ1 ⋓ Γ2) ->
-    Contexts.index (Γ1 ⋓ Γ2) x = Some w.
-Proof.
-  intros.
-  rewrite merge_comm.
-  apply index_merge_l; auto.
-  rewrite merge_comm.
-  auto.
-Qed.
-
-
-
-Lemma wf_σ_merge : forall Γ1 Γ2 σ,
-    WF_σ (Γ1 ⋓ Γ2) σ ->
-    WF_σ Γ1 σ /\ WF_σ Γ2 σ.
-Proof.
-  intros Γ1 Γ2 σ [H H'].
-  split.
-  * split; auto.
-    + destruct Γ1; [ dependent destruction H' | apply valid_valid].
-    + intros x w index_x.
-      apply pf_subset0 with (w := w).
-      apply index_merge_l; auto.
-  * split; auto.
-    + destruct Γ2; [ dependent destruction H' | apply valid_valid].
-      destruct Γ1; inversion H0.
-    + intros x w index_x.
-      apply pf_subset0 with (w := w).
-      apply index_merge_r; auto.
-Qed.
-
-Lemma in_maps_to : forall σ x,
-      In x σ ->
-      x ↦ (subst_var σ x) ∈ σ.
-Proof.
-  induction σ; simpl; intros x pf_in.
-  * contradiction.
-  * destruct (Nat.eq_dec x a).
-    + subst. 
-      rewrite Nat.eqb_refl.
-      auto.
-    + destruct pf_in as [eq | pf_in]; [absurd (a = x); auto | ].
-      Search (_ =? _ = false).
-      replace (x =? a) with false
-        by (apply eq_sym; apply Nat.eqb_neq; auto).
-      simpl.
-      apply IHσ; auto.
-Qed.
-
-Lemma types_subst_pat_db : forall Γ w (p : Pat w),
-    Types_Pat Γ p ->
-    forall Γ' σ, WF_σ Γ (get_σ σ) ->
-    Γ' = subst_ctx Γ (get_σ σ) ->
-    Types_Pat Γ' (subst_pat σ p).
-Proof.
-  induction 1; intros Γ' σ pf_σ pf_Γ'; subst.
-  - simpl. constructor.
-  - unfold subst_pat.
-    apply otypes_qubit.
-    replace Γ with (singleton x Qubit)
-      by (apply eq_sym; apply singleton_equiv; auto).
-    apply SingletonOCtx_eq.
-    destruct pf_σ.
-    apply subst_ctx_singleton_eq; auto.
-    apply in_maps_to.
-    eapply pf_subset0.
-    apply SingletonCtx_index; eauto.
-  - unfold subst_pat.
-    apply otypes_bit.
-    replace Γ with (singleton x Bit)
-      by (apply eq_sym; apply singleton_equiv; auto).
-    apply SingletonOCtx_eq.
-    destruct pf_σ as [inj_σ pf_σ].
-    apply subst_ctx_singleton_eq; auto.
-    apply in_maps_to.
-    eapply pf_subset0.
-    apply SingletonCtx_index; eauto.
-  - simpl.
-    destruct (wf_σ_merge _ _ _ pf_σ) as [pf_σ1 pf_σ2].
-    econstructor; [  | 
-                     | apply IHTypes_Pat1; auto
-                     | apply IHTypes_Pat2; auto].
-    apply subst_ctx_valid; auto.
-    apply subst_ctx_merge; auto.
-Qed.
-
-Lemma wf_remove_pat : forall w (p : Pat w) σ Γ,
-  WF_σ Γ (get_σ σ) ->
-  WF_σ (remove_pat p Γ) (get_σ (remove_pat p σ)).
-Admitted.
-
-Lemma wf_gate_state : forall w1 w2 (g : Gate w1 w2) p Γ σ,
-        WF_σ Γ (get_σ σ) ->
-        WF_σ (process_gate_state g p Γ) (get_σ (process_gate_state g p σ)).
-Admitted.
-
-Lemma subst_remove_pat : forall w (p : Pat w) σ Γ,
-    WF_σ Γ (get_σ σ) ->
-    remove_pat (subst_pat σ p) (subst_ctx Γ (get_σ σ))
-  = subst_ctx (remove_pat p Γ) (get_σ (remove_pat p σ)).
-Admitted.
-
-    
-
-Lemma subst_process_gate : forall w1 w2 (g : Gate w1 w2) p σ Γ,
-    WF_σ Γ (get_σ σ) ->
-    process_gate_state g (subst_pat σ p) (subst_ctx Γ (get_σ σ))
-  = subst_ctx (process_gate_state g p Γ) (get_σ (process_gate_state g p σ)).
-Admitted.
-
-Lemma types_subst_db : forall w (c : DeBruijn_Circuit w) Γ ,
-      Types_DB Γ c ->
-      forall {σ Γ'}, WF_σ Γ (get_σ σ) ->
-      Γ' = subst_ctx Γ (get_σ σ) ->
-      Types_DB Γ' (subst_db σ c).
-Proof.
-  induction 1; intros σ Γ0 pf_wf pf_Γ0; simpl.
-  - constructor.
-    eapply types_subst_pat_db; eauto.
-  - subst. econstructor.
-    * eapply types_subst_pat_db;
-        [eauto | apply (wf_σ_merge _ _ _ pf_wf) | reflexivity ].
-    * apply IHTypes_DB; auto.
-      + apply wf_gate_state; auto.
-      + apply subst_process_gate; auto.
-    * apply subst_ctx_merge; auto.
-    * apply subst_ctx_valid; auto.
-  - subst.
-    econstructor.
-    * eapply types_subst_pat_db;
-        [eauto | apply (wf_σ_merge _ _ _ pf_wf) | reflexivity ].
-    * intros b. apply H1.
-      + apply wf_remove_pat; auto.
-      + reflexivity.
-    * apply subst_ctx_merge; auto.
-    * apply subst_ctx_valid; auto.
-    * rewrite subst_remove_pat; auto.
-Qed.
     
 ******************************************************)             
     
