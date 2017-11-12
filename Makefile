@@ -1,4 +1,4 @@
-all: HOASProofs.vo FlatProofs.vo MachineProofs.vo 
+all: HOASProofs.vo Equations.vo
 
 Monad.vo: Monad.v
 	coqc Monad.v
@@ -15,26 +15,25 @@ Matrix.vo: Matrix.v Complex.vo
 Quantum.vo: Quantum.v Matrix.vo
 	coqc Quantum.v
 
-###
-Contexts.vo: Contexts.v
+Contexts.vo: Contexts.v Prelim.vo
 	coqc Contexts.v 
 
 HOASCircuits.vo: HOASCircuits.v Contexts.vo
 	coqc HOASCircuits.v
 
-TypeChecking.vo: TypeChecking.v Prelim.vo Contexts.vo HOASCircuits.vo
+TypeChecking.vo: TypeChecking.v HOASCircuits.vo
 	coqc TypeChecking.v
 
-HOASExamples.vo: HOASExamples.v HOASCircuits.vo TypeChecking.vo
+HOASExamples.vo: HOASExamples.v TypeChecking.vo
 	coqc HOASExamples.v
 
-DBCircuits.vo : DBCircuits.v Prelim.vo Contexts.vo HOASCircuits.vo Monad.vo
+DBCircuits.vo : DBCircuits.v HOASCircuits.vo Monad.vo
 	coqc DBCircuits.v
 
 FlatCircuits.vo: FlatCircuits.v HOASCircuits.vo Monad.vo
 	coqc FlatCircuits.v
 
-Denotation.vo: Denotation.v Complex.vo Quantum.vo HOASCircuits.vo DBCircuits.vo
+Denotation.vo: Denotation.v Quantum.vo DBCircuits.vo
 	coqc Denotation.v
 
 HOASProofs.vo: HOASProofs.v HOASExamples.vo Denotation.vo

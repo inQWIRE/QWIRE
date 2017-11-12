@@ -303,11 +303,12 @@ Proof.
   show_wf.
   unfold Mmult, Id.
   prep_matrix_equality.
-  destruct x as [| [|x]]; destruct y as [|[|y]]; try Csolve.
-  simpl.
-  replace ((S (S x) <? 2)) with (false) by reflexivity.
+  autounfold with M_db.
+  destruct x as [| [|x]]; destruct y as [|[|y]]; simpl; autorewrite with C_db; 
+    try reflexivity.
+  replace ((S (S x) <? 2)) with false by reflexivity.
   rewrite andb_false_r.
-  clra.
+  reflexivity.
 Qed.
 
 Lemma σx_unitary : is_unitary σx.
@@ -316,9 +317,9 @@ Proof.
   show_wf.
   unfold Mmult, Id.
   prep_matrix_equality.
-  destruct x as [| [|x]]; destruct y as [|[|y]]; try Csolve.
+  destruct x as [| [|x]]; destruct y as [|[|y]]; try clra.
   simpl.
-  replace ((S (S x) <? 2)) with (false) by reflexivity.
+  replace ((S (S x) <? 2)) with false by reflexivity.
   rewrite andb_false_r.
   clra.
 Qed.
@@ -329,9 +330,9 @@ Proof.
   show_wf.
   unfold Mmult, Id.
   prep_matrix_equality.
-  destruct x as [| [|x]]; destruct y as [|[|y]]; try Csolve.
+  destruct x as [| [|x]]; destruct y as [|[|y]]; try clra.
   simpl.
-  replace ((S (S x) <? 2)) with (false) by reflexivity.
+  replace ((S (S x) <? 2)) with false by reflexivity.
   rewrite andb_false_r.
   clra.
 Qed.
@@ -342,9 +343,9 @@ Proof.
   show_wf.
   unfold Mmult, Id.
   prep_matrix_equality.
-  destruct x as [| [|x]]; destruct y as [|[|y]]; try Csolve.
+  destruct x as [| [|x]]; destruct y as [|[|y]]; try clra.
   simpl.
-  replace ((S (S x) <? 2)) with (false) by reflexivity.
+  replace ((S (S x) <? 2)) with false by reflexivity.
   rewrite andb_false_r.
   clra.
 Qed.
@@ -638,10 +639,10 @@ Proof.
   unfold sum_super. 
   set (wf_f' := wf_f _ pf_ρ).
   set (wf_g' := wf_g _ pf_ρ).
-  apply (Mix_S (1/2) (f ρ) (g ρ)); auto. Rsolve.
+  apply (Mix_S (1/2) (f ρ) (g ρ)); auto. 
+  lra.
 Qed.
   
-
 (* To do: correctness conditions for density matrices and superoperators *)
 (* NOTE: I think these all need fixing *)
 

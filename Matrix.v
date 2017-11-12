@@ -3,7 +3,6 @@ Require Import Complex.
 Require Import Psatz.
 Require Import String.
 
-
 Require Import Prelim.
 
 Open Scope R_scope.
@@ -112,27 +111,27 @@ Definition I1 := Id (2^0).
 Notation "'I_ n" := (Id n) (at level 10).
 
 (* sum to n exclusive *)
-Fixpoint Rsum_to_n (f : nat -> C) (n : nat) : C := 
+Fixpoint Csum (f : nat -> C) (n : nat) : C := 
   match n with
   | 0 => C0
-  | S n' => (Rsum_to_n f n' +  f n')%C
+  | S n' => (Csum f n' +  f n')%C
   end.
 
 Definition trace {n : nat} (A : Square n) := 
-  Rsum_to_n (fun x => A x x) n.
+  Csum (fun x => A x x) n.
 
 Definition scale {m n : nat} (r : C) (A : Matrix m n) : Matrix m n := 
   (fun x y => (r * A x y)%C).
 
 Definition dot {n : nat} (A : Matrix 1 n) (B : Matrix n 1) : C :=
-  Rsum_to_n (fun x => A O x  * B x O)%C n.
+  Csum (fun x => A O x  * B x O)%C n.
 
 Definition Mplus {m n : nat} (A B : Matrix m n) : Matrix m n :=
   (fun x y => (A x y + B x y)%C).
 
 
 Definition Mmult {m n o : nat} (A : Matrix m n) (B : Matrix n o) : Matrix m o := 
-  (fun x z => Rsum_to_n (fun y => A x y * B y z)%C n).
+  (fun x z => Csum (fun y => A x y * B y z)%C n).
 
 
 (* Only well-defined when o and p are non-zero *)
@@ -154,30 +153,10 @@ Infix "⊗" := kron (at level 40, left associativity) : matrix_scope.
 Infix "≡" := mat_equiv (at level 100) : matrix_scope.
 Notation "A ⊤" := (transpose A) (at level 0) : matrix_scope. 
 Notation "A †" := (conj_transpose A) (at level 0) : matrix_scope. 
-Notation "Σ^ n f" := (Rsum_to_n f n) (at level 90) : matrix_scope.
+Notation "Σ^ n f" := (Csum f n) (at level 90) : matrix_scope.
 Hint Unfold Zero Id trace dot Mplus scale Mmult kron mat_equiv transpose 
             conj_transpose : M_db.
 Open Scope matrix_scope.
-
-
-(** TODO: delete this section if it turns out we don't need these tactics 
-(********************)
-(** Matrix Tactics **)
-(********************)
-
-(* Would rather use something more basic than lra - but fourier and ring 
-   aren't always up to the task *)
-
-(* I'd like a version of this that makes progress even if it doesn't succeed *)
-Ltac Msolve := 
-  compute;
-  repeat match goal with 
-  | [ |- (fun _ => _) = (fun _ => _) ]  => let x := fresh "x" in 
-                                   apply functional_extensionality; intros x
-  | [ |- _ = _ ]                  => Csolve 
-  | [ x : nat |- _ ]                => destruct x (* I'd rather bound this *)
-  end.
-*)
 
 (* Similar to Msolve but often faster *)
 (* I'd rather not use compute. *)
@@ -197,11 +176,159 @@ Ltac mlra :=
   destruct_m_eq; 
   clra.
 
+(******************************)
+(** Proofs about finite sums **)
+(******************************)
+
+Close Scope nat_scope.
+
+Lemma Csum_0 : forall f n, (forall x, f x = 0) -> Csum f n = 0. 
+Proof.
+  intros.
+  induction n.
+  - reflexivity.
+  - simpl.
+    rewrite IHn, H. 
+    clra.
+Qed.
+
+Lemma Csum_1 : forall f n, (forall x, f x = 1) -> Csum f n = INR n. 
+Proof.
+  intros.
+  induction n.
+  - reflexivity.
+  - simpl.
+    rewrite IHn, H. 
+    destruct n; clra.    
+Qed.
+
+Lemma Csum_eq : forall f g n, f = g -> Csum f n = Csum g n.
+Proof. intros f g n H. subst. reflexivity. Qed.
+
+Lemma Csum_eq_bounded : forall f g n, (forall x, (x < n)%nat -> f x = g x) -> Csum f n = Csum g n.
+Proof. 
+  intros f g n H. 
+  induction n.
+  + simpl. reflexivity.
+  + simpl. 
+    rewrite H by omega.
+    rewrite IHn by (intros; apply H; omega).
+    reflexivity.
+Qed.
+
+Lemma Csum_plus : forall f g n, Csum (fun x => f x + g x) n = Csum f n + Csum g n.
+Proof.
+  intros f g n.
+  induction n.
+  + simpl. clra.
+  + simpl. rewrite IHn. clra.
+Qed.
+
+Lemma Csum_mult_l : forall c f n, c * Csum f n = Csum (fun x => c * f x) n.
+Proof.
+  intros c f n.
+  induction n.
+  + simpl; clra.
+  + simpl.
+    rewrite Cmult_plus_distr_l.
+    rewrite IHn.
+    reflexivity.
+Qed.
+
+Lemma Csum_mult_r : forall c f n, Csum f n * c = Csum (fun x => f x * c) n.
+Proof.
+  intros c f n.
+  induction n.
+  + simpl; clra.
+  + simpl.
+    rewrite Cmult_plus_distr_r.
+    rewrite IHn.
+    reflexivity.
+Qed.
+
+Lemma Csum_conj_distr : forall f n, (Csum f n) ^* = Csum (fun x => (f x)^*) n.
+Proof. 
+  intros f n.
+  induction n.
+  + simpl; clra.
+  + simpl. 
+    rewrite Cconj_plus_distr.
+    rewrite IHn.
+    reflexivity.
+Qed.
+    
+Lemma Csum_extend_r : forall n f, Csum f n + f n = Csum f (S n).
+Proof. reflexivity. Qed.
+
+Lemma Csum_extend_l : forall n f, f O + Csum (fun x => f (S x)) n = Csum f (S n).
+Proof.
+  intros n f.
+  induction n.
+  + simpl; clra.
+  + simpl.
+    rewrite Cplus_assoc.
+    rewrite IHn.
+    simpl.
+    reflexivity.
+Qed.
+
+Lemma Csum_sum : forall m n f, Csum f (m + n) = 
+                          Csum f m + Csum (fun x => f (m + x)%nat) n. 
+Proof.    
+  intros m n f.
+  induction m.
+  + simpl. rewrite Cplus_0_l. reflexivity. 
+  + simpl.
+    rewrite IHm.
+    repeat rewrite <- Cplus_assoc.
+    remember (fun y => f (m + y)%nat) as g.
+    replace (f m) with (g O) by (subst; rewrite plus_0_r; reflexivity).
+    replace (f (m + n)%nat) with (g n) by (subst; reflexivity).
+    replace (Csum (fun x : nat => f (S (m + x))) n) with
+            (Csum (fun x : nat => g (S x)) n).
+    Focus 2. apply Csum_eq. subst. apply functional_extensionality.
+    intros; rewrite <- plus_n_Sm. reflexivity.
+    rewrite Csum_extend_l.
+    rewrite Csum_extend_r.
+    reflexivity.
+Qed.
+
+Lemma Csum_product : forall m n f g, n <> O ->
+                              Csum f m * Csum g n = 
+                              Csum (fun x => f (x / n)%nat * g (x mod n)%nat) (m * n). 
+Proof.
+  intros.
+  induction m.
+  + simpl; clra.
+  + simpl.      
+    rewrite Cmult_plus_distr_r.
+    rewrite IHm. clear IHm.
+    rewrite Csum_mult_l.    
+    remember ((fun x : nat => f (x / n)%nat * g (x mod n)%nat)) as h.
+    replace (Csum (fun x : nat => f m * g x) n) with
+            (Csum (fun x : nat => h ((m * n) + x)%nat) n). 
+    Focus 2.
+      subst.
+      apply Csum_eq_bounded.
+      intros x Hx.
+      rewrite Nat.div_add_l by assumption.
+      rewrite Nat.div_small; trivial.
+      rewrite plus_0_r.
+      rewrite Nat.add_mod by assumption.
+      rewrite Nat.mod_mul by assumption.
+      rewrite plus_0_l.
+      repeat rewrite Nat.mod_small; trivial.
+    rewrite <- Csum_sum.
+    rewrite plus_comm.
+    reflexivity.
+Qed.
 
 
 (**********************************)
 (** Proofs about Well-Formedness **)
 (**********************************)
+
+Open Scope nat_scope.
 
 Lemma WF_Zero : forall {m n : nat}, WF_Matrix m n (Zero m n).
 Proof. intros m n. unfold WF_Matrix. reflexivity. Qed.
@@ -373,11 +500,11 @@ Proof.
     apply IHn.
 Qed.
 
-(* using <= because our form Rsum_to_n is exclusive. *)
+(* using <= because our form Csum is exclusive. *)
 Lemma Mmult_1_l_gen: forall (m n : nat) (A : Matrix m n) (x z k : nat), 
   k <= m ->
-  (k <= x -> Rsum_to_n (fun y : nat => ((Id m) x y * A y z)%C) k = C0) /\
-  (k > x -> Rsum_to_n (fun y : nat => ((Id m) x y * A y z)%C) k = A x z).
+  (k <= x -> Csum (fun y : nat => ((Id m) x y * A y z)%C) k = C0) /\
+  (k > x -> Csum (fun y : nat => ((Id m) x y * A y z)%C) k = A x z).
 Proof.  
   intros m n A x z k B.
   induction k.
@@ -422,8 +549,8 @@ Qed.
 
 Lemma Mmult_1_r_gen: forall (m n : nat) (A : Matrix m n) (x z k : nat), 
   k <= n ->
-  (k <= z -> Rsum_to_n (fun y : nat => (A x y * (Id n) y z)%C) k = C0) /\
-  (k > z -> Rsum_to_n (fun y : nat => (A x y * (Id n) y z)%C) k = A x z).
+  (k <= z -> Csum (fun y : nat => (A x y * (Id n) y z)%C) k = C0) /\
+  (k > z -> Csum (fun y : nat => (A x y * (Id n) y z)%C) k = A x z).
 Proof.  
   intros m n A x z k B.
   induction k.
@@ -555,6 +682,7 @@ Proof.
   reflexivity.
 Qed.
 
+
 Theorem Mmult_assoc : forall (m n o p : nat) (A : Matrix m n) (B : Matrix n o) 
   (C: Matrix o p), A × B × C = A × (B × C).
 Proof.
@@ -569,18 +697,13 @@ Proof.
   + simpl. 
     rewrite <- IHn.
     simpl.
-Admitted.
-
-Lemma Rsum_eq : forall f g k, f = g -> Rsum_to_n f k = Rsum_to_n g k.
-Proof. intros f g k H. subst. reflexivity. Qed.
-
-Lemma Rsum_add : forall f g k, 
-                   (Rsum_to_n (fun x => f x + g x) k = Rsum_to_n f k + Rsum_to_n g k)%C.
-Proof.
-  intros f g k.
-  induction k.
-  + simpl. clra.
-  + simpl. rewrite IHk. clra.
+    rewrite Csum_mult_l.
+    rewrite <- Csum_plus.
+    apply Csum_eq.
+    apply functional_extensionality. intros z.
+    rewrite Cmult_plus_distr_r.
+    rewrite Cmult_assoc.
+    reflexivity.
 Qed.
 
 Lemma Mmult_plus_distr_l : forall (m n o : nat) (A : Matrix m n) (B C : Matrix n o), 
@@ -589,8 +712,8 @@ Proof.
   intros m n o A B C.
   unfold Mplus, Mmult.
   prep_matrix_equality.
-  rewrite <- Rsum_add.
-  apply Rsum_eq.
+  rewrite <- Csum_plus.
+  apply Csum_eq.
   apply functional_extensionality. intros z.
   rewrite Cmult_plus_distr_l. 
   reflexivity.
@@ -602,22 +725,39 @@ Proof.
   intros m n o A B C.
   unfold Mplus, Mmult.
   prep_matrix_equality.
-  rewrite <- Rsum_add.
-  apply Rsum_eq.
+  rewrite <- Csum_plus.
+  apply Csum_eq.
   apply functional_extensionality. intros z.
   rewrite Cmult_plus_distr_r. 
   reflexivity.
 Qed.
 
-(* These are easy - just haven't done them *)
-Lemma Mscale_mult_dist_l : forall (m n o : nat) (x : C) (A : Matrix m n) (B : Matrix n o), ((x .* A) × B) = x .* (A × B).
+Lemma Mscale_mult_dist_l : forall (m n o : nat) (x : C) (A : Matrix m n) (B : Matrix n o), 
+    ((x .* A) × B) = x .* (A × B).
 Proof.
   intros m n o x A B.
   unfold scale, Mmult.
-Admitted.
+  prep_matrix_equality.
+  rewrite Csum_mult_l.
+  apply Csum_eq.
+  apply functional_extensionality. intros z.
+  rewrite Cmult_assoc.
+  reflexivity.
+Qed.
 
-Lemma Mscale_mult_dist_r : forall (m n o : nat) (x : C) (A : Matrix m n) (B : Matrix n o), (A × (x .* B)) = x .* (A × B).
-Admitted.
+Lemma Mscale_mult_dist_r : forall (m n o : nat) (x : C) (A : Matrix m n) (B : Matrix n o),
+    (A × (x .* B)) = x .* (A × B).
+Proof.
+  intros m n o x A B.
+  unfold scale, Mmult.
+  prep_matrix_equality.
+  rewrite Csum_mult_l.
+  apply Csum_eq.
+  apply functional_extensionality. intros z.
+  repeat rewrite Cmult_assoc.
+  rewrite (Cmult_comm _ x).
+  reflexivity.
+Qed.
 
 (* Inverses of square matrices *)
 
@@ -659,35 +799,50 @@ Proof.
   assumption.
 Qed.
 
-
-
 Lemma kron_mixed_product : forall (m n o p q r : nat) (A : Matrix m n) (B : Matrix p q ) 
   (C : Matrix n o) (D : Matrix q r), (A ⊗ B) × (C ⊗ D) = (A × C) ⊗ (B × D).
 Proof.
   intros m n o p q r A B C D.
   unfold kron, Mmult.
   prep_matrix_equality.
-  induction n. simpl. 
-Admitted.
+  destruct q.
+  + simpl.
+    rewrite mult_0_r.
+    simpl.
+    rewrite Cmult_0_r.
+    reflexivity. 
+  + rewrite Csum_product.
+    apply Csum_eq.
+    apply functional_extensionality.
+    intros; clra.
+    omega.
+Qed.  
+
 
 Theorem kron_transpose : forall (m n o p : nat) (A : Matrix m n) (B : Matrix o p ),
   (A ⊗ B)⊤ = A⊤ ⊗ B⊤.
 Proof. reflexivity. Qed.
-
-Lemma conj_mult_dist : forall (x y : C), Cconj (x * y) = (Cconj x * Cconj y)%C.
-Proof. intros x y. clra. Qed.
   
 Lemma Mmult_conj_transpose : forall (m n o : nat) (A : Matrix m n) (B : Matrix n o),
       (A × B)† = B† × A†.
-Admitted.  
-
+Proof.
+  intros m n o A B.
+  unfold Mmult, conj_transpose.
+  prep_matrix_equality.
+  rewrite Csum_conj_distr.
+  apply Csum_eq.  
+  apply functional_extensionality. intros z.
+  rewrite Cconj_mult_distr.
+  rewrite Cmult_comm.
+  reflexivity.
+Qed.
 
 Lemma kron_conj_transpose : forall (m n o p : nat) (A : Matrix m n) (B : Matrix o p ),
   (A ⊗ B)† = A† ⊗ B†.
 Proof. 
   intros. unfold conj_transpose, kron. 
   prep_matrix_equality.
-  setoid_rewrite conj_mult_dist.
+  rewrite Cconj_mult_distr.
   reflexivity.
 Qed.
 
