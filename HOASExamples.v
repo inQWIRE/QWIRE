@@ -12,6 +12,7 @@ Definition apply_box {w1 w2} (b : Box w1 w2) (c : Circuit w1) : Circuit w2 :=
   let_ x ← c;
   unbox b x.
 Notation "b $ c" := (apply_box b c)  (left associativity, at level 11).
+Coercion output : Pat >-> Circuit.
 
 
 Definition id_circ {W} : Box W W :=
@@ -23,6 +24,8 @@ Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Box W1 W2 :=
   box_ p ⇒   
     gate_ p2 ← g @p;
     output p2.
+Coercion boxed_gate : Gate >-> Box.
+
 Lemma boxed_gate_WT {W1 W2} (g : Gate W1 W2) : Typed_Box (boxed_gate g).
 Proof. type_check. Qed.
 
@@ -115,8 +118,6 @@ Lemma lift_deutsch_WT : forall U_f, Typed_Box U_f ->
                                Typed_Box (lift_deutsch U_f).
 Proof. type_check. Qed.
 
-Coercion boxed_gate : Gate >-> Box.
-Coercion output : Pat >-> Circuit.
 
 
 Definition deutsch (f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Bit :=
@@ -439,6 +440,19 @@ Proof. induction li; [type_check | ].
        destruct li; type_check;
         apply init_WT; assumption.
 Qed.
+
+
+Fixpoint share n : Box Qubit (S n ⨂ Qubit) :=
+  match n with
+  | 0    => id_circ
+  | S n' => box_ q ⇒ 
+              let_ q' ← init0 $();
+              let_ (q,q') ← CNOT $(q,q');
+              let_ qs ← share n' $q';
+              output (q,qs)
+  end.
+Lemma share_WT : forall n, Typed_Box (share n).
+Proof. induction n; type_check. Qed.
 
 Program Definition lift_eta : Box Bit Qubit :=
   box_ q ⇒ 
