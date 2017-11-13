@@ -9,7 +9,7 @@ Require Import TypeChecking.
 Require Import List.
 Set Bullet Behavior "Strict Subproofs".
 Global Unset Asymmetric Patterns.
-
+Delimit Scope matrix_scope with M.
 
 
 (*****************************************************************************)
@@ -276,6 +276,9 @@ Definition biased_coin (c : C) : Matrix 2 2 :=
           | _, _ => 0
           end.
 
+Definition uniform (n : nat) : Matrix n n :=
+  fun x y => if (x =? y) && (x <? n) then 1/(INR n) else 0.
+
 Lemma bias1 : biased_coin 1 = |1⟩⟨1|.
 Proof.
   unfold biased_coin.
@@ -333,7 +336,7 @@ Admitted.
 
 
 (* Do these belong back in Denotation? *) 
-Lemma compose_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2),
+Theorem inSeq_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2),
       Typed_Box g -> Typed_Box f ->
      ⟦inSeq f g⟧ = compose_super (⟦g⟧) (⟦f⟧).
 Proof.
@@ -383,7 +386,23 @@ Proof.
     rewrite remove_refl; auto.
 Qed.
 
+Theorem inPar_correct : forall W1 W1' W2 W2' (f : Box W1 W1') (g : Box W2 W2') 
+     (ρ1 : Square (2^⟦W1⟧)) (ρ2 : Square (2^⟦W2⟧)),
+     Typed_Box f -> Typed_Box g ->
+     Mixed_State ρ1 -> Mixed_State ρ2 ->
+     denote_box (inPar f g) (ρ1 ⊗ ρ2)%M = (denote_box f ρ1 ⊗ denote_box g ρ2)%M.
+Proof.  
+  intros W1 W1' W2 W2' f g H H0.
+  autounfold with den_db; simpl. 
 
+  destruct f as [f]. 
+  destruct g as [g].
+  autounfold with den_db; simpl.
+  repeat rewrite fresh_pat_eq'. simpl.
+
+  set (p1 := fresh_pat W1 (st_{0})).
+  set (p2 := fresh_pat W2 (st_{0})).
+Admitted.  
 
 Open Scope circ_scope.
 
@@ -467,6 +486,8 @@ Proof.
       type_check; auto.
 Qed.
 
+
+
 Lemma cnot_eq : cnot = control σx.
 Proof.
   autounfold with M_db.
@@ -474,8 +495,6 @@ Proof.
   prep_matrix_equality.
   repeat (try destruct x; try destruct y; autorewrite with C_db; trivial).
 Qed.
-
-
 
 Definition EPR00 : Matrix 4 4 :=
   fun x y => match x, y with
@@ -685,9 +704,8 @@ Qed.
    unification. Simply comparing the matrices may be more efficient,
    however. *)
 
-(*
 Lemma teleport_eq : forall (ρ : Density 2), 
-  Mixed_State ρ -> denote_box teleport ρ = ρ.
+  Mixed_State ρ -> ⟦teleport⟧ ρ = ρ.
 Proof.
   intros ρ H.
   idtac.
@@ -696,6 +714,10 @@ Proof.
   repeat (setoid_rewrite kron_conj_transpose).
   autorewrite with M_db.
   idtac.
+
+  assoc_least.
+  solve_matrix.
+
   repeat rewrite <- Mmult_assoc.
   repeat rewrite Mmult_plus_distr_l.
   repeat rewrite <- Mmult_assoc.

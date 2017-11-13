@@ -249,11 +249,10 @@ Proof.
   simpl. reflexivity.
 Qed.
 
-(* Right associative Tensor *)
+(* Right associative Tensor. Right associative with a trailing One  *)
 Fixpoint NTensor (n : nat) (W : WType) := 
   match n with 
   | 0    => One
-  | 1    => W
   | S n' => W ⊗ NTensor n' W
   end.
 
@@ -264,40 +263,20 @@ Infix "⨂" := NTensor (at level 30).
 Fixpoint inSeqMany (n : nat) {W} (c : Box W W) : Box W W:= 
   match n with
   | 0 => id_circ
-  | 1 => c
   | S n' => inSeq c (inSeqMany n' c)
   end.
-
-(* I'd rather be able to prove this directly using type_check *)
 Lemma inSeqMany_WT : forall n W (c : Box W W), 
       Typed_Box c -> Typed_Box (inSeqMany n c).
-Proof. intros. induction n as [ | [ | ]]; type_check.
-Qed.
+Proof. intros. induction n as [ | n']; type_check. Qed.
 
-(* Zero-indexed variant. I don't know why this is necessary *)
-(* This will be fairly common *)
-(*
-Fixpoint inParManyZ (n : nat) {W W'} (c : Box W W') : Box (S n ⨂ W) (S n ⨂ W') :=
+Fixpoint inParMany (n : nat) {W W'} (c : Box W W') : Box (n ⨂ W) (n ⨂ W') := 
   match n with 
-  | 0 => c
-  | S n' => inPar c (inParManyZ n' c)
-  end. 
-*)
-
-Program Fixpoint inParMany (n : nat) {W W'} (c : Box W W') : Box (n ⨂ W) (n ⨂ W') := 
-  match n with 
-  | 0 => id_circ
-  | S n' => match n' with
-            | 0 => c
-            | S n'' => inPar c (inParMany n' c)
-            end
+  | 0    => id_circ
+  | S n' => inPar c (inParMany n' c)
   end.
-
 Lemma inParMany_WT : forall n W W' (c : Box W W'), Typed_Box c  -> 
                                  Typed_Box (inParMany n c).
-Proof. intros. induction n as [ | [ | n']]; type_check. 
-Qed.       
-
+Proof. intros. induction n as [ | n']; type_check. Qed.       
 
 (** Quantum Fourier Transform **)
 
@@ -306,7 +285,7 @@ Parameter RGate : nat -> Unitary Qubit.
 (* Check against Quipper implementation *)
 (* n + 2 = number of qubits, m = additional argument *)
 Fixpoint rotations (n m : nat) {struct n}
-                 : Box (Qubit ⊗ (S n ⨂ Qubit)) (Qubit ⊗ (S n ⨂ Qubit)) :=
+                 : Box ((S (S n) ⨂ Qubit)) ((S (S n) ⨂ Qubit)) :=
   match n with
   | 0    => id_circ
   | S n' => match n' with
@@ -319,22 +298,25 @@ Fixpoint rotations (n m : nat) {struct n}
                output (c,(q,qs))
             end
    end.
-Lemma rotations_WT : forall n m, 
-    Typed_Box (rotations n m).
+Lemma rotations_WT : forall n m, Typed_Box (rotations n m).
 (* not sure why this used to be easier: induction n; [|destruct n]; type_check.  *)
 Proof. 
   induction n as [ | [ | n]]; type_check.
-  (* doesn't look like the IH, but actually is *) apply IHn. 
+   apply IHn. 
   type_check.
 Qed. 
 
 
 Opaque rotations.
+
 Program Fixpoint qft (n : nat) : Box (n ⨂ Qubit) (n ⨂ Qubit) :=
   match n with 
   | 0    => id_circ
   | S n' => match n' with
-           | 0 => boxed_gate H
+           | 0 =>     box_ qu ⇒ 
+                     let_ (q,u) ← output qu; 
+                     gate_ q    ← H @q;
+                     output (q,u)
            | S n'' => box_ qqs ⇒
                      let_ (q,qs) ← output qqs; 
                        let_ qs     ← unbox (qft n') qs; 
@@ -343,12 +325,15 @@ Program Fixpoint qft (n : nat) : Box (n ⨂ Qubit) (n ⨂ Qubit) :=
                        output (q,qs)
            end
   end.
+
 Lemma qft_WT : forall n, Typed_Box  (qft n).
 Proof. induction n as [ | [ | n]]; type_check.
        apply rotations_WT; type_check.
 Qed.
 
-(** Coin flip **)
+(************************)
+(** Coin Flip Circuits **)
+(************************)
 
 Definition coin_flip : Box One Bit :=
   box_ () ⇒
@@ -385,6 +370,19 @@ Fixpoint coin_flips_lift (n : nat) : Box One Bit :=
 Lemma coin_flips_lift_WT : forall n, Typed_Box (coin_flips_lift n).
 Proof. intros. induction n; type_check. Qed.
 
+Definition n_coins (n : nat) : Box (n ⨂ One) (n ⨂ Bit) := (inParMany n coin_flip).
+
+Fixpoint units (n : nat) : Pat (n ⨂ One) := 
+  match n with
+  | O => ()
+  | S n' => ((), units n')
+  end.
+
+Definition n_coins' (n : nat) : Box (n ⨂ One) (n ⨂ Bit) := 
+  box_ () ⇒ (unbox (inParMany n coin_flip) (units n)).
+
+(** Unitary Transpose **)
+
 Definition unitary_transpose {W} (U : Unitary W) : Box W W := 
   box_ p ⇒
     gate_ p ← U @p;
@@ -394,32 +392,23 @@ Lemma unitary_transpose_WT : forall W (U : Unitary W), Typed_Box (unitary_transp
 Proof. type_check. Qed.
 
 (* Produces qubits *)
-Program Fixpoint prepare_basis (li : list bool) : Box One (length li ⨂ Qubit) :=
+Fixpoint prepare_basis (li : list bool) : Box One (length li ⨂ Qubit) :=
   match li with
   | []       => id_circ
-  | b :: bs => match bs with
-               | nil => init b
-               | _ :: _ => box_ () ⇒ 
-                         let_ p1 ← unbox (init b) (); 
-                         let_ p2 ← unbox (prepare_basis bs) ();
-                         output (p1, p2)
-                end
+  | b :: bs  => box_ () ⇒ 
+                 let_ p1 ← unbox (init b) (); 
+                 let_ p2 ← unbox (prepare_basis bs) ();
+                 output (p1, p2)
   end.
-Lemma prepare_basis_WT : forall li, 
-  Typed_Box (prepare_basis li).
-Proof. induction li; [type_check | ].
-       destruct li; type_check;
-        apply init_WT; assumption.
-Qed.
+Lemma prepare_basis_WT : forall li, Typed_Box (prepare_basis li).
+Proof. induction li; type_check. apply init_WT; assumption. Qed.
 
-Program Definition lift_eta : Box Bit Qubit :=
+Definition lift_eta : Box Bit Qubit :=
   box_ q ⇒ 
     lift_ x ← q;
-    unbox (prepare_basis [x]) ().
+    unbox (init x) ().
 Lemma lift_eta_bit_WT : Typed_Box lift_eta.
 Proof. type_check. apply init_WT. type_check. Qed.
-(*Lemma lift_eta_qubit_WT : Typed_Box lift_eta Qubit Qubit.
-Proof. econstructor 4; type_check. apply init_WT. constructor. Qed.*)
 
 Definition lift_meas : Box Bit Bit :=
   box_ q ⇒
@@ -428,10 +417,6 @@ Definition lift_meas : Box Bit Bit :=
     output p.
 Lemma lift_meas_WT : Typed_Box lift_meas.
 Proof. type_check. Qed.
-(*Lemma lift_meas_WT' : Typed_Box lift_meas Qubit Bit.
-(* Needs to be explicitly told the constructor *)
-Proof. econstructor 4; type_check. Qed. 
-*)
 
 (** Classical Gates **)
 
