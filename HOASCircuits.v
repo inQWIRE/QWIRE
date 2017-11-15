@@ -49,8 +49,16 @@ Inductive Types_Circuit : OCtx -> forall {w}, Circuit w -> Set :=
                      Types_Circuit Γ (lift p f) w.
 *)
 
-Definition Typed_Box {W1 W2 : WType} (b : Box W1 W2) : Set := 
+Definition WT_Box {W1 W2 : WType} (b : Box W1 W2) : Set := 
   forall Γ (p : Pat W1), Types_Pat Γ p -> Types_Circuit Γ (unbox b p).
+
+
+Definition Typed_Box (W1 W2 : WType) : Set := {c : Box W1 W2 & WT_Box c}.
+
+Definition untype {W1 W2} : Typed_Box W1 W2 -> Box W1 W2 := 
+  fun b => projT1 b.
+
+Coercion untype : Typed_Box >-> Box.
 
 (* Prevent compute from unfolding important fixpoints *)
 Opaque merge.
@@ -87,10 +95,9 @@ Qed.
 
 Lemma unbox_typing : forall Γ W1 W2 (p : Pat W1) (c : Box W1 W2), 
                                     Types_Pat Γ p ->
-                                    Typed_Box c ->
+                                    WT_Box c ->
                                     Types_Circuit Γ (unbox c p).
 Proof. unfold Typed_Box in *. auto. Qed.
-
 
 
 (* Collect all the information needed to reconstruct the proof that a composition is well-typed *)
@@ -128,4 +135,12 @@ Lemma types_compose_inv : forall w (c : Circuit w) Γ w' (f : Pat w -> Circuit w
       Types_Circuit Γ (compose c f) ->
       Types_Compose c f.
 Admitted.
+*)
+
+(* Typed Composition *)
+
+(*
+Fixpoint typed_compose {w1 w2} (c1 : Typed_Box W1 W1') (c2 : Typed_Box W2 W2') 
+  : Circuit w2 :=
+  existT (compose 
 *)

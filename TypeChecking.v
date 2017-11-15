@@ -32,8 +32,8 @@ Set Printing Coercions.
 
 Notation letpair p1 p2 p c := (let (p1,p2) := wproj p in c).
 
-Notation "'box_' p ⇒ C" := (box (fun p => C)) (at level 8).
-Notation "'box_' () ⇒ C" := (box (fun _ => C)) (at level 8).
+Notation "'box_' p ⇒ C" := (existT _ (box (fun p => C)) _) (at level 8).
+Notation "'box_' () ⇒ C" := (existT _ (box (fun _ => C)) _) (at level 8).
 (*Notation "( x , y ) ⇒ C" := (box (fun _ z => letpair x y z C)) (at level 8).*)
 
 
@@ -135,7 +135,7 @@ Ltac invert_patterns :=
 Ltac type_check_once := 
   intros;
   try match goal with 
-  | [|- @Typed_Box  ?W1 ?W2 ?c] => unfold Typed_Box in *; try unfold c
+  | [|- @WT_Box  ?W1 ?W2 ?c] => unfold WT_Box in *; try unfold c
   end;
   intros;
   simpl in *;
@@ -174,4 +174,9 @@ Ltac type_check_num :=
 
 (* Easiest solution *)
 
-Ltac type_check := let n := numgoals in do n [> type_check_once..].
+Ltac type_check := 
+  match goal with
+  | [n : nat |- _] => induction n; let n := numgoals in do n [> type_check_once..]; fail
+  | [b : bool |- _] => destruct b; let n := numgoals in do n [> type_check_once..]; fail
+  | _           => let n := numgoals in do n [> type_check_once..]
+  end.
