@@ -202,6 +202,16 @@ Proof.
     destruct n; clra.    
 Qed.
 
+Lemma Csum_constant : forall c n, Csum (fun x => c) n = INR n * c.
+Proof.
+  intros c n.
+  induction n.
+  + simpl; clra.
+  + simpl.
+    rewrite IHn.
+    destruct n; clra.
+Qed.
+
 Lemma Csum_eq : forall f g n, f = g -> Csum f n = Csum g n.
 Proof. intros f g n H. subst. reflexivity. Qed.
 

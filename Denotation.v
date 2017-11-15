@@ -351,7 +351,7 @@ Fixpoint denote_db_circuit {w}  (pad n : nat) (c : DeBruijn_Circuit w)
                           : Superoperator (2^(n+pad)) (2^(⟦w⟧ + pad))
   := 
   match c with 
-  | db_output p            => super (swap_list (⟦w⟧) (pat_to_list p))
+  | db_output p              => super (swap_list (⟦w⟧) (pat_to_list p))
   | @db_gate _ W1 W2 g p c'  => compose_super 
                                 (denote_db_circuit pad (n + ⟦W2⟧ - ⟦W1⟧) c')
                                 (apply_gate g (pat_to_list p))
@@ -375,7 +375,7 @@ Definition denote_box {W1 W2 : WType} (c : Box W1 W2) :=
 Instance Denote_Box {W1 W2} : Denote (Box W1 W2) (Superoperator (2^⟦W1⟧) (2^⟦W2⟧)) :=
          {| denote := denote_box |}.
 
-
+Notation "⟨ pad | n | c | σ ⟩" := (denote_db_circuit pad n (hoas_to_db c σ)).
 
 (*
 Lemma denote_db_subst : forall pad n σ w (c : DeBruijn_Circuit w),
@@ -413,6 +413,7 @@ Lemma denote_db_compose : forall pad w1 w2 Γ1 Γ n m
     
     n = (⟦Γ1⟧+ ⟦Γ⟧)%nat ->
     m = (⟦Γ⟧) ->
+    
     denote_db_circuit pad n (db_compose m c1 c2)
   = compose_super (denote_db_circuit pad (⟦w1⟧+ ⟦Γ⟧) c2)
                   (denote_db_circuit (pad +⟦Γ⟧) (⟦Γ1⟧) c1).
@@ -567,15 +568,19 @@ Lemma denote_compose : forall {w} (c : Circuit w) Γ1,
   Types_Circuit Γ1 c ->
   forall Γ Γ1' w' (f : Pat w -> Circuit w') σ σ' p pad n,
     Γ1' == Γ1 ∙ Γ ->
-    (forall (p : Pat w) Γ2 Γ2', Γ2' == Γ2 ∙ Γ -> Types_Pat Γ2 p -> Types_Circuit Γ2' (f p)) ->
-
+    (forall (p : Pat w) Γ2 Γ2', Γ2' == Γ2 ∙ Γ -> Types_Pat Γ2 p 
+                                              -> Types_Circuit Γ2' (f p)) ->
     n = (⟦Γ1⟧+ ⟦Γ⟧)%nat ->
     (p,σ') = get_fresh_pat w (remove_OCtx Γ1 σ) ->
-    
+(*    
     denote_db_circuit pad n (hoas_to_db (compose c f) σ)
 (*= denote_db_circuit pad n (db_compose (⟦Γ⟧) (hoas_to_db c σ) (hoas_to_db (f p) σ')) *)
   = compose_super (denote_db_circuit pad (⟦w⟧+⟦Γ⟧) (hoas_to_db (f p) σ'))
                   (denote_db_circuit (pad + ⟦Γ⟧) (⟦Γ1⟧) (hoas_to_db c σ)).
+*)
+    ⟨ pad | n | compose c f | σ ⟩ 
+  = compose_super (⟨pad | ⟦w⟧+⟦Γ⟧ | f p | σ'⟩)
+                  (⟨pad + ⟦Γ⟧ | ⟦Γ1⟧ | c | σ⟩).
 Proof.
   intros.
   Print Types_Compose.

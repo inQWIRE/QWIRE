@@ -930,7 +930,7 @@ Ltac validate :=
   (* Pattern contexts are valid *)
   | [H : Types_Pat _ _ |- _ ]    => apply pat_ctx_valid in H
   (* Solve trivial *)
-  | [|- is_valid ∅ ]                  => apply valid_empty
+  | [|- is_valid (Valid _)]                  => apply valid_valid
   | [H : is_valid ?Γ |- is_valid ?Γ ] => exact H
   | [H: is_valid (?Γ1 ⋓ ?Γ2) |- is_valid (?Γ2 ⋓ ?Γ1) ] => rewrite merge_comm; exact H
   (* Remove nils *)
