@@ -144,16 +144,27 @@ Ltac type_check_once :=
   repeat match goal with 
   (* Should break this down by case - in lift case, 
      need to choose bit or qubit as appropriate *)
-  | [ |- @Types_Circuit _ _ _ ]     => econstructor; type_check_once
-  | [ |- @Types_Circuit _ _ (if ?b then _ else _) ] => destruct b; type_check_once
+  | [ H : _ == _ ∙ _ |- _ ]     => destruct H
+  | [ |- @Types_Circuit _ _ _ ] => econstructor; type_check_once
+
+  | [ |- @Types_Circuit _ _ (if ?b then _ else _) ]
+                                => destruct b; type_check_once
+
   (* compose_typing : specify goal. *)                                  
-  | [ |- @Types_Circuit _ _ _ ]          =>  eapply compose_typing; type_check_once 
+  | [ |- @Types_Circuit _ _ _ ] =>  eapply compose_typing; type_check_once 
+
   | [ H : forall a b, Types_Pat _ _ -> Types_Circuit _ _ |- Types_Circuit _ _] 
-    => apply H; type_check_once
-  | [ H : @Types_Pat _ _ ?p |- @Types_Pat _ _ ?p ] => apply H
-  | [ |- Types_Pat _ _ ]                   => econstructor; type_check_once
-  | [ H : _ == _ ∙ _  |- _ ] => destruct H
-  | [ |- _ == _ ∙ _ ] => split
+                                => apply H; type_check_once
+
+  | [ H : @Types_Pat _ _ ?p |- @Types_Pat _ _ ?p ] 
+                                => exact H
+  | [ H : @Types_Pat ?Γ1 _ ?p |- @Types_Pat ?Γ2 _ ?p ] 
+                                   (* in case they don't line up exactly *)
+                                => replace Γ2 with Γ1; [exact H | monoid]
+
+  | [ |- Types_Pat _ _ ]        => econstructor; type_check_once
+  | [ |- ?Γ == ?Γ1 ∙ ?Γ2 ]      => has_evars (Γ1 ⋓ Γ2 ⋓ Γ)
+  | [ |- _ == _ ∙ _ ]           => solve_merge
   end; 
   (* Runs monoid iff a single evar appears in context *)
   match goal with 

@@ -331,7 +331,7 @@ Lemma rotations_WT : forall n m, Typed_Box (rotations n m).
 (* not sure why this used to be easier: induction n; [|destruct n]; type_check.  *)
 Proof. 
   induction n as [ | [ | n]]; type_check.
-   apply IHn. 
+  apply IHn. 
   type_check.
 Qed. 
 
@@ -443,7 +443,8 @@ Fixpoint share n : Box Qubit (S n ⨂ Qubit) :=
               output (q,qs)
   end.
 Lemma share_WT : forall n, Typed_Box (share n).
-Proof. induction n; type_check. Qed.
+Proof. induction n; type_check.
+Qed.
 
 Definition lift_eta : Box Bit Qubit :=
   box_ q ⇒ 

@@ -578,26 +578,31 @@ Defined.
 
 
 
+
+Record valid_merge Γ1 Γ2 Γ :=
+  { pf_valid : is_valid Γ
+  ; pf_merge : Γ = Γ1 ⋓ Γ2 }.
+(* pretty bad notation *)
+Notation "Γ == Γ1 ∙ Γ2" := (valid_merge Γ1 Γ2 Γ) (at level 20).
+
+
 (*** Automation ***)
-
-
 
 (* Local check for multiple evars *)
 Ltac has_evars term := 
   match term with
-    | ?L = ?R        => has_evar L; has_evar R
-    | ?L = ?R        => has_evars L
-    | ?L = ?R        => has_evars R
-    | ?Γ1 ⋓ ?Γ2      => has_evar Γ1; has_evar Γ2
-    | ?Γ1 ⋓ ?Γ2      => has_evars Γ1
-    | ?Γ1 ⋓ ?Γ2      => has_evars Γ2
+    | ?L = ?R         => has_evars (L ⋓ R)
+    | ?L == ?R1 ∙ ?R2 => has_evars (L ⋓ R1 ⋓ R2)
+    | ?Γ1 ⋓ ?Γ2       => has_evar Γ1; has_evar Γ2
+    | ?Γ1 ⋓ ?Γ2       => has_evars Γ1
+    | ?Γ1 ⋓ ?Γ2       => has_evars Γ2
   end.
 
 (* Assumes at most one evar *)
 Ltac monoid := 
   try match goal with
   | [ |- ?Γ1 = ?Γ2 ] => has_evar Γ1; symmetry
-  end;
+  end; 
   repeat match goal with
   (* reassociate *)
   | [ |- context[?Γ1 ⋓ ?Γ2 ⋓ ?Γ3 ]] => rewrite <- (merge_assoc Γ1 Γ2 Γ3)
@@ -776,8 +781,8 @@ Fixpoint pat_to_list {w} (p : Pat w) : list Var :=
 (* Not sure if this is the right approach. See below. *)
 Inductive Types_Pat : OCtx -> forall {W : WType}, Pat W -> Set :=
 | types_unit : Types_Pat ∅ unit
-| types_qubit : forall x Γ, (SingletonCtx x Qubit Γ) -> Types_Pat Γ (qubit x)
-| types_bit : forall x Γ, (SingletonCtx x Bit Γ) -> Types_Pat Γ (bit x)
+| types_qubit : forall x Γ, SingletonCtx x Qubit Γ -> Types_Pat Γ (qubit x)
+| types_bit : forall x Γ, SingletonCtx x Bit Γ -> Types_Pat Γ (bit x)
 | types_pair : forall Γ1 Γ2 Γ w1 w2 (p1 : Pat w1) (p2 : Pat w2),
         is_valid Γ 
       -> Γ = Γ1 ⋓ Γ2
@@ -816,12 +821,6 @@ Inductive Gate : WType -> WType -> Set :=
 Coercion U : Unitary >-> Gate.
 Close Scope circ_scope.
 
-
-Record valid_merge Γ1 Γ2 Γ :=
-  { pf_valid : is_valid Γ
-  ; pf_merge : Γ = Γ1 ⋓ Γ2 }.
-(* pretty bad notation *)
-Notation "Γ == Γ1 ∙ Γ2" := (valid_merge Γ1 Γ2 Γ) (at level 20).
 
 
 
@@ -945,5 +944,24 @@ Ltac validate :=
   end).
 
 
+Ltac goal_evars :=
+  match goal with
+  | [ |- ?g ] => has_evars g
+  end.
 
 
+(* Proofs about merge relation *)
+Ltac solve_merge :=
+  match goal with 
+  | [ |- ?g ] => has_evars g
+  | [ |- _  ] => 
+    repeat match goal with
+    | [ H : _ == _ ∙ _ |- _ ] => destruct H
+    end;
+    subst;
+    repeat match goal with
+    | [ |- _ == _ ∙ _ ] => split
+    | [ |- is_valid _ ] => validate
+    | [ |- _ = _ ] => monoid
+    end
+  end.

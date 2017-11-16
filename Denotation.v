@@ -420,8 +420,6 @@ Lemma denote_db_compose : forall pad w1 w2 Γ1 Γ n m
 
 Admitted.
 
-About denote_db_circuit. Print Types_Compose. 
-About hoas_to_db_compose_correct.
 
 Lemma denote_Ctx_app : forall Γ1 Γ2, 
       denote_Ctx (Γ1 ++ Γ2) = (denote_Ctx Γ1 + denote_Ctx Γ2)%nat.
@@ -583,7 +581,6 @@ Lemma denote_compose : forall {w} (c : Circuit w) Γ1,
                   (⟨pad + ⟦Γ⟧ | ⟦Γ1⟧ | c | σ⟩).
 Proof.
   intros.
-  Print Types_Compose.
   (* ctx_c := Γ1 *) (* ctx_out := Γ1' *) (* ctx_in := Γ *)
 (*  set (pf := Build_Types_Compose _ _ c f Γ1 Γ1' Γ H0 H H1). *)
   destruct H0. 
@@ -608,6 +605,8 @@ Proof.
     simpl.
     admit.
   * dependent destruction H0.
+    destruct pf1; subst.
+
     destruct Γ as [ | Γ]; [invalid_contradiction | ].
     remember (process_gate_state g p (Γ1 ⋓ Γ)) as Γ1_0.
 
@@ -631,15 +630,16 @@ Proof.
       omega.
     }
 
-    assert (n_size : (n + ⟦w2⟧ - ⟦w1⟧ = ⟦Γ1_0⟧ + ⟦Γ0⟧)%nat).
+    assert (n_size : ((⟦Γ1⟧ + ⟦Γ⟧) + ⟦Γ0⟧ + ⟦w2⟧ - ⟦w1⟧ = ⟦Γ1_0⟧ + ⟦Γ0⟧)%nat).
     { 
       rewrite Γ1_0_size.
       subst.
       rewrite merge_size; auto. 
-      omega.
+      admit (* almost *).
     }
 
 
+    
     rewrite merge_size; auto.
     simpl.
     erewrite H with (Γ := Γ0) (p0 := p0) (σ' := σ')
@@ -649,7 +649,7 @@ Proof.
       [ | | auto | ].
     Focus 2. 
       apply t0 with (Γ2 := process_gate_state g p Γ1); auto.
-      subst. 
+      subst. split. validate.
       apply process_gate_state_merge; auto.
       admit (* ?? *).
    Focus 2. subst. admit (*??*).
@@ -660,10 +660,9 @@ Proof.
 
     Arguments apply_gate : clear implicits.
     idtac.
-    replace (n + pad0)%nat with (⟦Γ1⟧ + ⟦Γ⟧ + (pad0 + ⟦Γ0⟧))%nat; auto.
-    subst. rewrite merge_size; auto.
-    rewrite (plus_comm pad0 (⟦Γ0⟧)). 
-    rewrite plus_assoc. auto.
+    replace (denote_OCtx Γ1 + denote_Ctx Γ + denote_OCtx Γ0 + pad0)%nat 
+      with (⟦Γ1⟧ + ⟦Γ⟧ + (pad0 + ⟦Γ0⟧))%nat; auto.
+    subst. simpl. omega.
 
   * subst. simpl. 
     dependent destruction H0.

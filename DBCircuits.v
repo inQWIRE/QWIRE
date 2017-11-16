@@ -1029,17 +1029,20 @@ Proof.
 Admitted.
 
 About hoas_to_db. About db_compose.
-Print Types_Compose.
 Require Import HOASCircuits. About compose.
-        
+
+
 Lemma hoas_to_db_compose_correct : forall {w w'}
                                           (c : Circuit w) (f : Pat w -> Circuit w')
-    (types : Types_Compose c f) σ σ' σ'' p,
-    σ' = remove_OCtx (ctx_c types) σ ->
+    σ σ' σ'' p Γ1 Γ,
+    Γ1 ⊢ c :Circ ->
+    Γ ⊢ f :Fun ->
+
+    σ' = remove_OCtx Γ1 σ ->
     (p, σ'') = get_fresh_pat w σ' ->
     
       hoas_to_db (compose c f) σ
-      = db_compose (size_OCtx (ctx_in types)) (hoas_to_db c σ) (hoas_to_db (f p) σ'').
+      = db_compose (size_OCtx Γ) (hoas_to_db c σ) (hoas_to_db (f p) σ'').
 Admitted.
 
 
