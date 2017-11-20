@@ -121,6 +121,17 @@ Definition swap : Matrix 4 4 :=
           | _, _ => 0
           end).
 
+(* Rotation Matrices (theta, phi, lambda) := Rz(phi) Ry(theta) Rz(lambda) *)
+
+Definition rotation (theta phi lambda : R) : Matrix 2 2 :=
+  (fun x y => match x, y with
+        | 0, 0 => (cos((phi + lambda) / 2) - Ci * sin((phi + lambda) / 2)) * cos (theta / 2)
+        | 0, 1 => -(cos((phi - lambda) / 2) - Ci * sin((phi - lambda) / 2)) * sin (theta / 2)
+        | 1, 0 => (cos((phi - lambda) / 2) + Ci * sin((phi - lambda) / 2)) * sin (theta / 2)
+        | 1, 1 => (cos((phi + lambda) / 2) + Ci * sin((phi + lambda) / 2)) * cos (theta / 2)
+        | _, _ => 0
+        end).
+
 (* Does this overwrite the other Hint DB M? *)
 Hint Unfold ket0 ket1 hadamard pauli_x pauli_y pauli_z control cnot swap : M_db.
 
@@ -240,6 +251,24 @@ Lemma WF_pauli_z : WF_Matrix 2 2 pauli_z. Proof. show_wf. Qed.
 Lemma WF_cnot : WF_Matrix 4 4 cnot. Proof. show_wf. Qed.
 Lemma WF_swap : WF_Matrix 4 4 swap. Proof. show_wf. Qed.
 
+Lemma WF_rotation : forall (t p l : R), WF_Matrix 2 2 (rotation t p l).
+Proof.
+  intros t p l x y H1. destruct H1 as [H2 | H2].
+  - destruct H2 eqn:Hx.
+    + reflexivity.
+    + simpl. destruct m eqn:Heqm.
+      * inversion H2. inversion H0.
+      * reflexivity. 
+  - destruct x eqn:Hx.
+    + destruct H2 eqn:Hy.
+      * reflexivity.
+      * simpl. destruct m; [inversion g | reflexivity].
+    + destruct H2 eqn:Hy.
+      * destruct n; reflexivity.
+      * destruct n; try reflexivity.
+        destruct m; [inversion g | reflexivity].
+Qed.
+
 Lemma WF_control : forall (n m : nat) (U : Matrix n n), 
       (m = 2 * n)%nat ->
       WF_Matrix n n U -> WF_Matrix m m (control U).
@@ -259,7 +288,7 @@ Proof.
 Qed.
 
 Hint Resolve WF_hadamard WF_pauli_x WF_pauli_y WF_pauli_z WF_cnot WF_swap 
-             WF_control : wf_db.
+             WF_rotation WF_control : wf_db.
 
 (** Unitaries are unitary **)
 
@@ -396,7 +425,16 @@ Proof.
   clra.
 Qed.
 
-
+Lemma rotation_unitary : forall (t p l : R), is_unitary (rotation t p l).
+Proof.
+  split.
+  show_wf.
+  unfold Mmult, Id, rotation.
+  prep_matrix_equality.
+  destruct x as [| [|x]].
+  - destruct y as [|[|y]].
+    + Admitted.
+  
 Lemma kron_unitary : forall {m n} (A : Matrix m m) (B : Matrix n n),
   is_unitary A -> is_unitary B -> is_unitary (A ⊗ B).
 Admitted.
@@ -543,12 +581,18 @@ operator of trace 1 acting on the state space. A density operator describes
 a pure state if it is a rank one projection. Equivalently, a density operator ρ 
 describes a pure state if and only if ρ = ρ ^ 2 *)
 
+(* We need an additional restriction that trace = 1 to
+   exclude the identity and zero matrices. *)
+
 Notation Density n := (Matrix n n) (only parsing). 
 
-Definition Pure_State {n} (ρ : Density n) : Prop := WF_Matrix n n ρ /\ ρ = ρ × ρ.
+Definition Pure_State {n} (ρ : Density n) : Prop := 
+  WF_Matrix n n ρ /\ trace ρ = 1 /\ ρ = ρ × ρ.
 
-Lemma pure0 : Pure_State |0⟩⟨0|. Proof. split; [auto with wf_db|mlra]. Qed.
-Lemma pure1 : Pure_State |1⟩⟨1|. Proof. split; [auto with wf_db|mlra]. Qed.
+Lemma pure0 : Pure_State |0⟩⟨0|. 
+Proof. split; [|split]; [auto with wf_db| clra |mlra]. Qed.
+Lemma pure1 : Pure_State |1⟩⟨1|. 
+Proof. split; [|split]; [auto with wf_db| clra |mlra]. Qed.
 
 (* Wiki:
 For a finite-dimensional function space, the most general density operator 
@@ -564,9 +608,7 @@ Inductive Mixed_State {n} : (Matrix n n) -> Prop :=
                                         Mixed_State (p .* ρ1 .+ (1-p)%R .* ρ2).  
 
 Lemma WF_Pure : forall {n} (ρ : Density n), Pure_State ρ -> WF_Matrix n n ρ.
-Proof.
-  unfold Pure_State. intuition.
-Qed.
+Proof. unfold Pure_State. intuition. Qed.
 Hint Resolve WF_Pure : wf_db.
 Lemma WF_Mixed : forall {n} (ρ : Density n), Mixed_State ρ -> WF_Matrix n n ρ.
 Proof. induction 1; auto with wf_db. Qed.
@@ -583,7 +625,6 @@ Definition WF_Superoperator {m n} (f : Superoperator m n) :=
 
 Definition super {m n} (M : Matrix m n) : Superoperator n m := fun ρ => 
   M × ρ × M†.
-
 
 Definition compose_super {m n p} (g : Superoperator n p) (f : Superoperator m n)
                       : Superoperator m p :=
@@ -622,23 +663,25 @@ Definition new1_op : Superoperator 1 2 := super |1⟩.
 Definition meas_op : Superoperator 2 2 := fun ρ => super |0⟩⟨0| ρ .+ super |1⟩⟨1| ρ.
 Definition discard_op : Superoperator 2 1 := fun ρ => super ⟨0| ρ .+ super ⟨1| ρ.
 
-
-
 Lemma pure_unitary : forall {n} (U ρ : Matrix n n), 
   is_unitary U -> Pure_State ρ -> Pure_State (super U ρ).
 Proof.
-  intros n U ρ [WFU H] [WFρ P].
+  intros n U ρ [WFU H] [WFρ [trP P]].
   unfold Pure_State, is_unitary, super in *.
-  split.
-  auto with wf_db.
-  remember (U × ρ × (U) † × (U × ρ × (U) †)) as rhs.
-  rewrite P.
-  replace (ρ × ρ) with (ρ × Id n × ρ) by (rewrite Mmult_1_r; trivial).
-  rewrite <- H.
-  rewrite Heqrhs.
-  repeat rewrite Mmult_assoc. (* Admitted lemma *)
-  reflexivity.
-Qed.  
+  split; [|split].
+  + auto with wf_db.
+  + (* I don't actually know how to prove this *)
+    rewrite P.
+    autounfold with M_db; simpl.
+    admit.
+  + remember (U × ρ × (U) † × (U × ρ × (U) †)) as rhs.
+    rewrite P.
+    replace (ρ × ρ) with (ρ × Id n × ρ) by (rewrite Mmult_1_r; trivial).
+    rewrite <- H.
+    rewrite Heqrhs.
+    repeat rewrite Mmult_assoc. (* Admitted lemma *)
+    reflexivity.
+Admitted.
 
 Lemma pure_hadamard_1 : Pure_State (super hadamard |1⟩⟨1|).
 Proof. apply pure_unitary. 
@@ -656,8 +699,9 @@ Definition dm12 : Matrix 2 2 :=
           end).
 
 Lemma pure_dm12 : Pure_State dm12. Proof.
-  split.
+  split; [|split].
   show_wf.
+  unfold dm12; simpl; clra. 
   unfold dm12, conj_transpose, super, Mmult.
   prep_matrix_equality.
   destruct x as [| [|x]]; destruct y as [|[|y]]; clra.
@@ -671,8 +715,8 @@ Proof. unfold meas_op.
          by (unfold dm12, super; mlra).
        apply Mix_S.
        lra.
-       constructor; split; [auto with wf_db|mlra].
-       constructor; split; [auto with wf_db|mlra].
+       constructor; split; [|split]; [auto with wf_db|clra|mlra].
+       constructor; split; [|split]; [auto with wf_db|clra|mlra].
 Qed.
 
 Lemma mixed_unitary : forall {n} (U ρ : Matrix n n), 
@@ -690,4 +734,42 @@ Proof.
     apply Mix_S; trivial.
 Qed.
 
+Lemma mixed_state_trace_1 : forall {n} (ρ : Density n), Mixed_State ρ -> trace ρ = 1.
+Proof.
+  intros.
+  induction H.
+  + unfold Pure_State in H; intuition.
+  + (* Needs two lemmas we didn't prove in Matrix.v *)
+    Lemma trace_plus_dist : forall n (A B : Square n), trace (A .+ B) = trace A + trace B. 
+    Admitted.
+    Lemma trace_mult_dist : forall n p (A : Square n), trace (p .* A) = p * trace A. 
+    Admitted.
+    rewrite trace_plus_dist.
+    rewrite 2 trace_mult_dist.
+    rewrite IHMixed_State1, IHMixed_State2.
+    clra.
+Qed.
+
+Lemma pure_state_id1 : forall (ρ : Square 1), Pure_State ρ -> ρ = Id 1.
+Proof.
+  intros ρ [WFP [TRP PPP]].
+  prep_matrix_equality.
+  destruct x.
+  destruct y.  
+  + unfold trace in TRP; simpl in TRP.
+    rewrite Cplus_0_l in TRP.
+    rewrite TRP; reflexivity.
+  + rewrite WFP, WF_Id; trivial; omega.
+  + rewrite WFP, WF_Id; trivial; omega.
+Qed.    
+
+Lemma mixed_state_id1 : forall (ρ : Square 1), Mixed_State ρ -> ρ = Id 1.
+Proof.
+  intros.  
+  induction H.
+  + apply pure_state_id1; trivial.
+  + rewrite IHMixed_State1, IHMixed_State2.
+    prep_matrix_equality.
+    clra.
+Qed.  
 (* *)
