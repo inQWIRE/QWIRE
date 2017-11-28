@@ -622,8 +622,9 @@ Hint Rewrite Cminus_unfold Cdiv_unfold Cconj_R Cconj_opp Cconj_rad2
 
 Hint Rewrite <- Copp_mult_distr_l Copp_mult_distr_r Cdouble : C_db.
 Hint Rewrite Csqrt_sqrt using Psatz.lra : C_db.
-Hint Rewrite <- Cinv_mult_distr using nonzero : C_db.
 Hint Rewrite Cinv_l Cinv_r using nonzero : C_db.
+(* Previously in the other direction *)
+Hint Rewrite Cinv_mult_distr using nonzero : C_db.
 
 (*
 (* deprecated in favor of autorewrite *)

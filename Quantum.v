@@ -108,6 +108,12 @@ Definition cnot : Matrix 4 4 :=
           | _, _ => 0
           end.          
 
+Lemma cnot_eq : cnot = control σx.
+Proof.
+  unfold cnot, control, σx.
+  solve_matrix.
+  destruct (S y <? 2); reflexivity.
+Qed.
 
 (* Swap Matrices *)
 
@@ -757,9 +763,25 @@ Proof.
     clra.
 Qed.  
 
+(***********
+*Automation*
+************)
 
+(* For when autorewrite needs some extra help *)
 
+Ltac Csimpl := autorewrite with C_db.
 
+Ltac Msimpl := 
+  repeat match goal with 
+  | [ |- context[(?A ⊗ ?B)†]]    => let H := fresh "H" in 
+                                  specialize (kron_conj_transpose _ _ _ _ A B) as H;
+                                  simpl in H; rewrite H; clear H
+  | [ |- context[(control ?U)†]] => let H := fresh "H" in 
+                                  specialize (control_sa _ U) as H;
+                                  simpl in H; rewrite H; 
+                                  [clear H | Msimpl; reflexivity]
+  | _                           => autorewrite with M_db
+  end.
 
 
 (* *)

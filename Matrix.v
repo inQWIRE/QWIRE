@@ -971,13 +971,17 @@ A × (B × C) => (A × B) × C iff
 Ltac assoc_least := 
   repeat (simpl; match goal with
   | [|- context[@Mmult ?m ?o ?p (@Mmult ?m ?n ?o ?A ?B) ?C]] => tac_lt p o; tac_lt p m; 
-       setoid_rewrite (Mmult_assoc _ _ _ _ A B C)
+       let H := fresh "H" in 
+       specialize (Mmult_assoc _ _ _ _ A B C) as H; simpl in H; rewrite H; clear H
   | [|- context[@Mmult ?m ?o ?p (@Mmult ?m ?n ?o ?A ?B) ?C]] => tac_lt n o; tac_lt n m; 
-       setoid_rewrite (Mmult_assoc _ _ _ _ A B C)
+       let H := fresh "H" in 
+       specialize (Mmult_assoc _ _ _ _ A B C) as H; simpl in H; rewrite H; clear H
   | [|- context[@Mmult ?m ?n ?p ?A (@Mmult ?n ?o ?p ?B ?C)]] => tac_lt m n; tac_lt m p; 
-       setoid_rewrite <- (Mmult_assoc _ _ _ _ A B C)
+       let H := fresh "H" in 
+       specialize (Mmult_assoc _ _ _ _ A B C) as H; simpl in H; rewrite <- H; clear H
   | [|- context[@Mmult ?m ?n ?p ?A (@Mmult ?n ?o ?p ?B ?C)]] => tac_lt o n; tac_lt o p; 
-       setoid_rewrite <- (Mmult_assoc _ _ _ _ A B C)
+       let H := fresh "H" in 
+       specialize (Mmult_assoc _ _ _ _ A B C) as H; simpl in H; rewrite <- H; clear H
   end).
 
 (* Helper function for crunch_matrix *)

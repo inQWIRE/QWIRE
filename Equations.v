@@ -35,7 +35,7 @@ Lemma NOT_meas_comm : X_meas ≡ meas_NOT.
 Proof.
   repeat (autounfold with den_db; intros; simpl).
   specialize (WF_Mixed _ H); intros WF.
-  autorewrite with M_db.
+  Msimpl.
   rewrite Mmult_plus_distr_l.
   rewrite Mmult_plus_distr_r.
   repeat rewrite <- Mmult_assoc.
@@ -43,7 +43,7 @@ Proof.
   repeat rewrite (Mmult_assoc _ _ _ _ _ ⟨1| σx).
   repeat rewrite (Mmult_assoc _ _ _ _ _ σx |0⟩).
   repeat rewrite (Mmult_assoc _ _ _ _ _ σx |1⟩).
-  autorewrite with M_db.
+  Msimpl.
   rewrite Mplus_comm.
   reflexivity.
 Qed.
@@ -84,7 +84,7 @@ Lemma lift_alternate_eq : forall W (U V : Unitary W), lift_UV U V ≡ alt_UV U V
 Proof.
   repeat (autounfold with den_db; intros; simpl).
   specialize (WF_Mixed _ H); intros WF.
-  autorewrite with M_db.
+  Msimpl.
 Admitted.  
 
 (** Equality 3: U; meas-discard = meas-discard **)
@@ -112,7 +112,7 @@ Proof.
   specialize (WF_Mixed _ H); intros WFρ.
   specialize (unitary_gate_unitary U); intros [WFU UU].
   simpl in *. 
-  autorewrite with M_db.
+  Msimpl.
   rewrite Mmult_plus_distr_l.
   rewrite Mmult_plus_distr_r.
   solve_matrix.
@@ -227,12 +227,10 @@ Proof.
   destruct b; simpl.
   - repeat (autounfold with den_db; intros; simpl).
     specialize (WF_Mixed _ H); intros WFρ.
-    autorewrite with M_db.
-    solve_matrix.
+    Msimpl; solve_matrix.
   - repeat (autounfold with den_db; intros; simpl).
     specialize (WF_Mixed _ H); intros WFρ.
-    autorewrite with M_db.
-    solve_matrix.
+    Msimpl; solve_matrix.
 Qed.
 
 (** Equality 5: init b; alt b U V = init b; if b then U else V **) 
@@ -260,22 +258,19 @@ Proof.
     specialize (WF_Mixed _ H); intros WFρ.
     specialize (WF_unitary U). simpl; intros WFU.
     specialize (WF_unitary V). simpl; intros WFV.
-    autorewrite with M_db.
+    Msimpl.
     repeat rewrite <- Mmult_assoc.
     repeat rewrite (Mmult_assoc _ _ _ _ _ swap swap).
-    autorewrite with M_db.    
-    repeat rewrite <- Mmult_assoc.
-    setoid_rewrite kron_conj_transpose.
-    autorewrite with M_db.    
+    Msimpl.
     solve_matrix.
   - repeat (autounfold with den_db; intros; simpl).
     specialize (WF_Mixed _ H); intros WFρ.
     specialize (WF_unitary U). simpl; intros WFU.
     specialize (WF_unitary V). simpl; intros WFV.
-    autorewrite with M_db.
+    Msimpl.
     repeat rewrite <- Mmult_assoc.
     repeat rewrite (Mmult_assoc _ _ _ _ _ swap swap).
-    autorewrite with M_db.    
+    Msimpl.
     solve_matrix.
 Qed.
 
@@ -301,19 +296,19 @@ Proof.
   destruct b; simpl.
   - repeat (autounfold with den_db; intros; simpl).
     specialize (WF_Mixed _ H); intros WFρ.
-    autorewrite with M_db.
+    Msimpl.
     repeat rewrite <- Mmult_assoc.
-    autorewrite with M_db.
+    Msimpl.
     repeat rewrite Mmult_assoc.
-    autorewrite with M_db.
+    Msimpl.
     reflexivity.    
   - repeat (autounfold with den_db; intros; simpl).
     specialize (WF_Mixed _ H); intros WFρ.
-    autorewrite with M_db.
+    Msimpl.
     repeat rewrite <- Mmult_assoc.
-    autorewrite with M_db.
+    Msimpl.
     repeat rewrite Mmult_assoc.
-    autorewrite with M_db.
+    Msimpl.
     reflexivity.    
 Qed.
   
@@ -339,7 +334,7 @@ Proof.
   intros ρ M C.
   repeat (autounfold with den_db; intros; simpl).
   specialize (WF_Mixed _ M); intros WFρ.
-  autorewrite with M_db.
+  Msimpl.
   solve_matrix.
   rewrite C; trivial; omega.
   rewrite C; trivial; omega.
@@ -360,7 +355,7 @@ Proof.
   intros ρ M.
   repeat (autounfold with den_db; intros; simpl).
   specialize (WF_Mixed _ M); intros WFρ.
-  autorewrite with M_db.
+  Msimpl.
   solve_matrix.
 Qed.
   

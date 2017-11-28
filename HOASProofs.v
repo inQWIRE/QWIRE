@@ -19,8 +19,7 @@ Delimit Scope matrix_scope with M.
 Lemma Ex : ⟦init true⟧ I1 = (|1⟩⟨1| : Density 2).
 Proof.
   repeat (autounfold with den_db; simpl).
-  autorewrite with M_db.
-  reflexivity.
+  Msimpl; reflexivity.
 Qed.
 
 
@@ -153,8 +152,6 @@ Qed.
 Lemma pat_WType_size : forall W (p : Pat W), pat_size p = size_WType W.
 Proof. reflexivity. Qed.
 
-
-
 Lemma get_fresh_pat_state : 
   forall w σ σ', σ' = snd (get_fresh_pat w σ) ->
                  fresh σ' = (fresh σ + ⟦w⟧)%nat.
@@ -220,10 +217,10 @@ Proof.
   assert (unitary_U : is_unitary (denote_unitary U)) by apply unitary_gate_unitary.
   destruct unitary_U as [WF inv].
   repeat (autounfold with den_db; simpl in *).
-  autorewrite with M_db.
+  Msimpl.          
   repeat rewrite Mmult_assoc; try rewrite inv.
   repeat rewrite <- Mmult_assoc; try rewrite inv.
-  autorewrite with M_db.
+  Msimpl.          
   reflexivity.
 Qed.
 
@@ -253,12 +250,12 @@ Proof.
   setoid_rewrite swap_list_n_id.
 
   rewrite Nat.sub_diag.
-  autorewrite with M_db.
+  Msimpl.
   repeat rewrite Mmult_assoc.
   setoid_rewrite UU.
   repeat rewrite <- Mmult_assoc.
   setoid_rewrite UU.
-  autorewrite with M_db.
+  Msimpl.
   reflexivity.
 Qed.
 
@@ -296,7 +293,7 @@ Qed.
 Lemma fair_toss : ⟦coin_flip⟧ I1  = fair_coin.
 Proof.
   repeat (autounfold with den_db; simpl).
-  autorewrite with M_db.
+  Msimpl.
   prep_matrix_equality.
   autounfold with M_db.
   simpl; autorewrite with C_db.
@@ -431,7 +428,7 @@ Lemma flips_correct : forall n, ⟦coin_flips n⟧ I1 = biased_coin (1/(2^n)).
 Proof.
   induction n.  
   + repeat (autounfold with den_db; simpl).
-    autorewrite with M_db.
+    Msimpl.
     prep_matrix_equality.
     autounfold with M_db.
     destruct_m_eq; clra.
@@ -456,14 +453,8 @@ Proof.
 
        repeat (autounfold with den_db; simpl).
        unfold hoas_to_db.
-       autorewrite with M_db. 
-    
-      
-       setoid_rewrite kron_conj_transpose. 
-       autorewrite with M_db.
-       specialize hadamard_sa; intros pf_H.
-       setoid_rewrite control_sa; auto.
 
+       Msimpl.
        solve_matrix.
        * rewrite Cmult_comm.
          rewrite Cmult_assoc.
@@ -486,38 +477,10 @@ Proof.
       type_check; auto.
 Qed.
 
-
-
-Lemma cnot_eq : cnot = control σx.
-Proof.
-  autounfold with M_db.
-  simpl.
-  prep_matrix_equality.
-  repeat (try destruct x; try destruct y; autorewrite with C_db; trivial).
-Qed.
-
-Definition EPR00 : Matrix 4 4 :=
-  fun x y => match x, y with
-             | 0, 0 => 1/2
-             | 0, 3 => 1/2
-             | 3, 0 => 1/2
-             | 3, 3 => 1/2
-             | _, _ => 0
-             end.
-
-Lemma bell00_eq :  ⟦bell00⟧ I1  = EPR00.
-Proof.
-  repeat (simpl; autounfold with den_db). 
-  autorewrite with M_db. 
-  repeat setoid_rewrite kron_conj_transpose.
-  autorewrite with M_db. 
-  solve_matrix.
-Qed.
-
 (***********************)
 (* Deutsch's Algorithm *)
 (***********************)
-(* Temporarily commented out for efficient compilation
+(* Temporarily commented out for efficient compilation *)
 
 Delimit Scope circ_scope with qc.
 
@@ -555,49 +518,28 @@ Proof.
   repeat (simpl; autounfold with den_db). 
   specialize (unitary_gate_unitary U_f). intros [WFU UU].
   simpl in WFU.
-  autorewrite with M_db.
-  repeat setoid_rewrite kron_conj_transpose.
-  autorewrite with M_db. 
-
-  repeat rewrite <- Mmult_assoc.
-  repeat rewrite Mmult_plus_distr_l.
-  repeat rewrite <- Mmult_assoc.
-  repeat rewrite Mmult_plus_distr_l.
-  repeat rewrite <- Mmult_assoc.
-  autorewrite with M_db. 
-  repeat rewrite <- Mmult_assoc.
-  repeat rewrite Mmult_plus_distr_r.
-  autorewrite with M_db. 
+  Msimpl.
   destruct H; rewrite H; clear.
   + (* f0 *)
     unfold f0.
-    repeat reduce_matrix.
-    crunch_matrix.
-    all: try (destruct y; simpl; try rewrite divmod_eq; simpl; clra).
-    unfold Cdiv.
+    solve_matrix.
+    rewrite (Cmult_comm (/ √2) _).
+    rewrite Cmult_assoc.
+    rewrite (Cmult_assoc 2 (/2)).
     autorewrite with C_db. 
-    repeat rewrite <- Cmult_assoc.
-    autorewrite with C_db.  
-    rewrite <- (Cmult_assoc 2 (√2) _).
-    rewrite (Cmult_assoc (√2) _ _).
-    autorewrite with C_db.
-    repeat rewrite Cmult_assoc.
-    autorewrite with C_db.
+    rewrite <- Cmult_assoc.
+    autorewrite with C_db. 
     reflexivity.
   + (* f3 *)
     unfold f3.
-    repeat reduce_matrix.
-    crunch_matrix.
-    all: try (destruct y; simpl; try rewrite divmod_eq; simpl; clra).
-    unfold Cdiv.
-    autorewrite with C_db. 
+    solve_matrix.
+    rewrite (Cmult_comm (/ √2) _).
     repeat rewrite <- Cmult_assoc.
-    autorewrite with C_db.  
-    rewrite <- (Cmult_assoc 2 (√2) _).
-    rewrite (Cmult_assoc (√2) _ _).
-    autorewrite with C_db.
-    repeat rewrite Cmult_assoc.
-    autorewrite with C_db.
+    autorewrite with C_db. 
+    rewrite (Cmult_assoc 2 (/2)).
+    autorewrite with C_db. 
+    rewrite (Cmult_assoc 2 (/2)).
+    autorewrite with C_db. 
     reflexivity.
 Qed.
 
@@ -608,135 +550,215 @@ Proof.
   repeat (simpl; autounfold with den_db). 
   specialize (unitary_gate_unitary U_f). intros [WFU UU].
   simpl in WFU.
-  autorewrite with M_db.
-  repeat setoid_rewrite kron_conj_transpose.
-  autorewrite with M_db. 
-
-  repeat rewrite <- Mmult_assoc.
-  repeat rewrite Mmult_plus_distr_l.
-  repeat rewrite <- Mmult_assoc.
-  repeat rewrite Mmult_plus_distr_l.
-  repeat rewrite <- Mmult_assoc.
-  autorewrite with M_db. 
-  repeat rewrite <- Mmult_assoc.
-  repeat rewrite Mmult_plus_distr_r.
-  autorewrite with M_db. 
-  
+  Msimpl.
   destruct H; rewrite H; clear.
   + (* f1 *)
     unfold f1.
-    repeat reduce_matrix.
-    crunch_matrix.
-    all: try (destruct y; simpl; try rewrite divmod_eq; simpl; clra).
+    solve_matrix.
+    rewrite (Cmult_comm (/ √2) _).
+    rewrite Cmult_assoc.
+    rewrite (Cmult_assoc 2 (/2)).
     autorewrite with C_db. 
-    unfold Cdiv.
+    rewrite <- Cmult_assoc.
     autorewrite with C_db. 
-    repeat rewrite <- Cmult_assoc.
-    autorewrite with C_db.  
-    rewrite <- (Cmult_assoc 2 (√2) _).
-    rewrite (Cmult_assoc (√2) _ _).
-    autorewrite with C_db.
-    repeat rewrite Cmult_assoc.
-    autorewrite with C_db.
     reflexivity.
   + (* f2 *)
     unfold f2.
-    repeat reduce_matrix.
-    crunch_matrix.
-    all: try (destruct y; simpl; try rewrite divmod_eq; simpl; clra).
-    autorewrite with C_db. 
-    unfold Cdiv.
-    autorewrite with C_db. 
+    solve_matrix.
+    rewrite (Cmult_comm (/ √2) _).
     repeat rewrite <- Cmult_assoc.
-    autorewrite with C_db.  
-    rewrite <- (Cmult_assoc 2 (√2) _).
-    rewrite (Cmult_assoc (√2) _ _).
-    autorewrite with C_db.
-    repeat rewrite Cmult_assoc.
-    autorewrite with C_db.
+    autorewrite with C_db. 
+    rewrite (Cmult_assoc 2 (/2)).
+    autorewrite with C_db. 
+    rewrite (Cmult_assoc 2 (/2)).
+    autorewrite with C_db. 
     reflexivity.
 Qed.
 
-(* Let's see if not distributing is faster *)
-Lemma deutsch_balanced' : forall U_f, balanced U_f -> 
+(* Slightly faster to destruct 'balanced' last 
+Lemma deutsch_balanced'' : forall U_f, balanced U_f -> 
                                 ⟦deutsch U_f⟧ I1 = |1⟩⟨1|.
 Proof.
   intros U_f H.
   repeat (simpl; autounfold with den_db). 
   specialize (unitary_gate_unitary U_f). intros [WFU UU].
   simpl in WFU.
-  autorewrite with M_db.
-  repeat setoid_rewrite kron_conj_transpose.
-  autorewrite with M_db. 
-  destruct H; rewrite H; clear.
-  + (* f1 *)
+  Msimpl.
+  solve_matrix.
+  all: destruct H; rewrite H; clear.  
+  + (* Cell (0,0), f1 *)
     unfold f1.
-    solve_matrix.
-    rewrite (Cmult_comm (1/√2) (1/2)).
-    repeat rewrite <- Cmult_assoc.
-    rewrite (Cmult_comm (1/√2) _).
-    repeat rewrite <- Cmult_assoc.
-    autorewrite with C_db. 
-    unfold Cdiv.
-    autorewrite with C_db. 
-    repeat rewrite Cmult_assoc.
-    rewrite <- (Cmult_assoc 2 2 _).
+    autounfold with M_db.
+    simpl.
     autorewrite with C_db.
     reflexivity.
-  + (* f2 *)
+  + (* Cell (0,0), f2 *)
     unfold f2.
-    solve_matrix.
-    rewrite (Cmult_comm (1/√2) (1/2)).
-    repeat rewrite <- Cmult_assoc.
-    rewrite (Cmult_comm (1/√2) _).
-    repeat rewrite <- Cmult_assoc.
-    autorewrite with C_db. 
-    unfold Cdiv.
-    autorewrite with C_db. 
-    repeat rewrite Cmult_assoc.
-    rewrite <- (Cmult_assoc 2 2 _).
     autorewrite with C_db.
+    reflexivity.
+  + (* Cell (1,1), f1 *)
+    unfold f1.
+    autounfold with M_db.
+    simpl.
+    autorewrite with C_db.
+    rewrite (Cmult_comm (/ √2) _).
+    rewrite Cmult_assoc.
+    rewrite (Cmult_assoc 2 (/2)).
+    autorewrite with C_db. 
+    rewrite <- Cmult_assoc.
+    autorewrite with C_db. 
+    reflexivity.
+  + (* Cell (1,1), f2 *)
+    unfold f2.
+    simpl.
+    autorewrite with C_db.
+    rewrite (Cmult_comm (/ √2) _).
+    rewrite Cmult_assoc.
+    rewrite (Cmult_assoc 2 (/2)).
+    autorewrite with C_db. 
+    rewrite <- Cmult_assoc.
+    autorewrite with C_db. 
     reflexivity.
 Qed.
 *)
 
-(* We convert the matrices back to functional representation for 
-   unification. Simply comparing the matrices may be more efficient,
-   however. *)
+
+(*************************)
+(* Quantum Teleportation *)
+(*************************)
+
+Definition EPR00 : Matrix 4 4 :=
+  fun x y => match x, y with
+             | 0, 0 => 1/2
+             | 0, 3 => 1/2
+             | 3, 0 => 1/2
+             | 3, 3 => 1/2
+             | _, _ => 0
+             end.
+
+Lemma bell00_spec :  ⟦bell00⟧ I1  = EPR00.
+Proof.
+  repeat (simpl; autounfold with den_db). 
+  Msimpl. 
+  solve_matrix.
+Qed.
+
+Definition M_alice (ρ : Matrix 4 4) : Matrix 4 4 :=
+  fun x y => 
+  match x, y with 
+  | 0, 0 =>  (ρ 0%nat 0%nat + ρ 3%nat 0%nat + ρ 0%nat 3%nat + ρ 3%nat 3%nat) / 2
+  | 1, 1 =>  (ρ 1%nat 1%nat + ρ 2%nat 1%nat + ρ 1%nat 2%nat + ρ 2%nat 2%nat) / 2
+  | 2, 2 =>  (ρ 0%nat 0%nat - ρ 3%nat 0%nat - ρ 0%nat 3%nat + ρ 3%nat 3%nat) / 2
+  | 3, 3 =>  (ρ 1%nat 1%nat - ρ 2%nat 1%nat - ρ 1%nat 2%nat + ρ 2%nat 2%nat) / 2
+  | _, _ => 0
+  end.
+
+(* Slow but works *)
+Lemma alice_spec : forall (ρ : Density 4), Mixed_State ρ -> ⟦alice⟧ ρ = M_alice ρ.
+Proof.
+  intros.
+  repeat (simpl; autounfold with den_db). 
+  specialize (WF_Mixed ρ H). intros WFρ.
+  Msimpl.
+  solve_matrix.
+  + rewrite <- 2 Cmult_plus_distr_l.
+    rewrite 2 (Cmult_comm (/√2)).
+    rewrite <- 2 Cmult_assoc.
+    rewrite <- Cmult_plus_distr_r.
+    autorewrite with C_db.
+    rewrite Cplus_assoc.
+    reflexivity.
+  + rewrite <- 2 Cmult_plus_distr_l.
+    rewrite 2 (Cmult_comm (/√2)).
+    rewrite <- 2 Cmult_assoc.
+    rewrite <- Cmult_plus_distr_r.
+    autorewrite with C_db.
+    rewrite Cplus_assoc.
+    reflexivity.
+  + rewrite 3 Copp_mult_distr_r.
+    rewrite <- 2 Cmult_plus_distr_l.
+    rewrite 2 (Cmult_comm (/√2)).
+    rewrite <- 2 Cmult_assoc.
+    autorewrite with C_db.
+    rewrite Copp_mult_distr_l.
+    rewrite <- Cmult_plus_distr_r.
+    rewrite Copp_plus_distr.
+    rewrite Copp_involutive.
+    rewrite Cplus_assoc.
+    reflexivity.
+  + rewrite 3 Copp_mult_distr_r.
+    rewrite <- 2 Cmult_plus_distr_l.
+    rewrite 2 (Cmult_comm (/√2)).
+    rewrite <- 2 Cmult_assoc.
+    autorewrite with C_db.
+    rewrite Copp_mult_distr_l.
+    rewrite <- Cmult_plus_distr_r.
+    rewrite Copp_plus_distr.
+    rewrite Copp_involutive.
+    rewrite Cplus_assoc.
+    reflexivity.
+Qed.
+
+(*
+Definition M_bob (ρ : Matrix 2 2) : Matrix 4 4 := 
+  fun x y => 0.
+*)
+
+Definition M_bob_distant (b1 b2 : bool) (ρ : Density 2) : Matrix 2 2 := 
+  match b1, b2 with
+  | true, true   => σz × σx × ρ × σx × σz  
+  | true, false  => σz × ρ × σz  
+  | false, true  => σz × ρ × σz  
+  | false, false => ρ
+  end.
+
+(*
+Definition bob_distant_spec : forall b1 b2 (ρ : Density 2), 
+    Mixed_State ρ -> 
+    ⟦bob_distant b1 b2⟧ ρ = M_bob_distant b1 b2 ρ.
+Proof.
+  intros.
+  specialize (WF_Mixed ρ H). intros WFρ.
+  destruct b1, b2; simpl.
+  + repeat (simpl; autounfold with den_db); Msimpl; solve_matrix.
+  + repeat (simpl; autounfold with den_db); Msimpl.
+    simpl.
+    unfold zip_to.
+    simpl.
+    admit.
+  + repeat (simpl; autounfold with den_db); Msimpl. 
+    unfold zip_to.
+    simpl.
+Admitted.
+  
+Lemma bob_spec : forall (ρ : Density 2), Mixed_State ρ -> ⟦bob⟧ ρ = M_bob ρ.
+Proof.
+  intros.
+  repeat (simpl; autounfold with den_db). 
+  specialize (WF_Mixed ρ H). intros WFρ.
+  Msimpl.
+  solve_matrix.
+*)
+
+(*
 
 Lemma teleport_eq : forall (ρ : Density 2), 
   Mixed_State ρ -> ⟦teleport⟧ ρ = ρ.
 Proof.
   intros ρ H.
-  idtac.
   repeat (simpl; autounfold with den_db). 
-  autorewrite with M_db.
-  repeat (setoid_rewrite kron_conj_transpose).
-  autorewrite with M_db.
-  idtac.
+  specialize (WF_Mixed _ H). intros WFρ.
+  Msimpl.
 
   assoc_least.
   solve_matrix.
-
-  repeat rewrite <- Mmult_assoc.
-  repeat rewrite Mmult_plus_distr_l.
-  repeat rewrite <- Mmult_assoc.
-  repeat rewrite Mmult_plus_distr_l.
-  repeat rewrite <- Mmult_assoc.
-  repeat rewrite Mmult_plus_distr_l.
-  repeat rewrite <- Mmult_assoc.
-  
-  (* This makes progress. Haven't managed to run to completion yet. *)
-  repeat reduce_matrix.
-  solve_matrix.
-  
 
 Abort.
 *)
 
 (* Lemmas out of date
 Lemma boxed_gate_correct : forall W1 W2 (g : Gate W1 W2) (ρ : Density (2^⟦W1⟧)) ,
-      Mixed_State (2^⟦W1⟧) (2^⟦W1⟧) ρ -> ⟦boxed_gate g⟧ ρ = ⟦g⟧ ρ.
+      Mixed_State ρ -> ⟦boxed_gate g⟧ ρ = ⟦g⟧ ρ.
 Proof.
   intros W1 W2 g ρ wf_ρ. simpl.
   unfold denote_pat_in.
@@ -750,7 +772,7 @@ Proof.
   assert (wf_g : WF_Matrix (2^⟦W2⟧) (2^⟦W2⟧) (⟦g⟧ ρ)).
     generalize (WF_denote_gate 0 _ _ g ρ); intros.
     simpl in *. repeat rewrite mult_1_r in *. unfold denote_gate. apply (H wf_ρ).
-  autorewrite with M_db.
+  Msimpl.
   reflexivity.
 Qed.
 
