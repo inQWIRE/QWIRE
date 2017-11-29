@@ -32,10 +32,12 @@ a gate might affect some underlying state:
 
     - We might need to change the type of a variable in the state. Not all
       states will keep track of the type, but some will.
+
+    - We also have an empty state
 *)
 Class Gate_State A :=
-  { get_fresh  : WType -> State A Var 
-  ; remove_var : Var -> A -> A
+  { get_fresh   : WType -> State A Var 
+  ; remove_var  : Var -> A -> A
   ; change_type : Var -> WType -> A -> A
   }.
 
@@ -780,6 +782,58 @@ Admitted.
 (* Turning HOAS circuits into DB circuits *)
 (******************************************)
 
+Definition hoas_to_db_pat Γ {w} (p : Pat w) : Pat w := 
+  subst_pat (OCtx_dom Γ) p.
+Fixpoint flatten_Ctx (Γ : Ctx) :=
+  match Γ with
+  | []           => []
+  | Some w :: Γ' => Some w :: flatten_Ctx Γ'
+  | None   :: Γ' => flatten_Ctx Γ'
+  end.
+Definition flatten_OCtx Γ :=
+  match Γ with
+  | Valid Γ' => Valid (flatten_Ctx Γ')
+  | Invalid  => Invalid
+  end.
+
+
+Lemma SingletonCtx_dom : forall x w Γ,
+      SingletonCtx x w Γ ->
+      Ctx_dom Γ = [x].
+Proof.
+  induction 1; simpl; auto.
+  rewrite IHSingletonCtx.
+  auto.
+Qed.
+Lemma SingletonCtx_flatten : forall x w Γ,
+      SingletonCtx x w Γ ->
+      flatten_Ctx Γ = [Some w].
+Proof.
+  induction 1; auto.
+Qed.
+
+Lemma hoas_to_db_pat_typed : forall Γ w (p : Pat w),
+      Γ ⊢ p :Pat ->
+      flatten_OCtx Γ ⊢ hoas_to_db_pat Γ p :Pat.
+Admitted (* can't do induction on p because IH is not strong enough...
+            induction on Γ?? *).
+
+Fixpoint hoas_to_db {w} Γ (c : Circuit w) : DeBruijn_Circuit w :=
+  match c with
+  | output p   => db_output (hoas_to_db_pat Γ p)
+  | gate g p f => (* p' will be the input to f, so a hoas-level pat *)
+                  let p' := process_gate_pat g p Γ in
+                  (* p0 is the db-pat corresponding to p *)
+                  let p0 := hoas_to_db_pat Γ p in
+                  (* σ' is the updated substitution,to go with p' *)
+                  let Γ' := process_gate_state g p Γ in
+                  db_gate g p0 (hoas_to_db Γ' (f p'))
+  | lift p f   => let p0 := hoas_to_db_pat Γ p in
+                  let Γ' := remove_pat p Γ in
+                  db_lift p0 (fun b => hoas_to_db Γ' (f b))
+  end.
+
+(*
 Fixpoint hoas_to_db {w} (c : Circuit w) (σ : subst_state) : DeBruijn_Circuit w :=
   match c with
   | output p   => db_output (subst_pat (get_σ σ) p)
@@ -794,7 +848,27 @@ Fixpoint hoas_to_db {w} (c : Circuit w) (σ : subst_state) : DeBruijn_Circuit w 
                   let σ' := remove_pat p σ in
                   db_lift (subst_pat (get_σ σ) p) (fun b => hoas_to_db (f b) σ')
   end.
+*)
 
+Fixpoint fresh_state {A} `{Gate_State A} (w : WType) (st : A) : A :=
+  match w with
+  | One     => st
+  | Qubit   => snd (get_fresh Qubit st)
+  | Bit     => snd (get_fresh Bit st)
+  | w1 ⊗ w2 => fresh_state w2 (fresh_state w1 st)
+  end.
+
+Fixpoint fresh_pat {A} `{Gate_State A} (w : WType) (st : A) : Pat w :=
+  match w with
+  | One     => unit 
+  | Qubit   => let x := fst (get_fresh Qubit st) in
+               qubit x
+  | Bit     => let x := fst (get_fresh Bit st) in
+               bit x
+  | w1 ⊗ w2 => pair (fresh_pat w1 st) (fresh_pat w2 (fresh_state w1 st))
+  end.
+
+(*
 Fixpoint get_fresh_pat {A} `{Gate_State A} (w : WType) : State A (Pat w) :=
   match w with
   | One   => return_ unit
@@ -810,6 +884,18 @@ Fixpoint get_fresh_pat {A} `{Gate_State A} (w : WType) : State A (Pat w) :=
 Definition fresh_pat {A} `{Gate_State A} (w : WType) (a : A) : (Pat w) :=
   fst (get_fresh_pat w a).
 
+Definition fresh_state {A} `{Gate_State A} (w : WType) (a : A) : A :=
+  snd (get_fresh_pat w a).
+
+Lemma get_fresh_pat_eq : forall {A} `{Gate_State A} (a : A) w,
+      get_fresh_pat w a = (fresh_pat w a, fresh_state w a).
+Proof.
+  intros.
+  apply surjective_pairing.
+Qed.
+*)
+
+
 Notation "σ_{ n }" := (seq 0 n) (at level 20).
 
 Definition subst_state_at n := Mk_subst_state (σ_{n}) n.
@@ -818,8 +904,9 @@ Notation "st_{ n }" := (subst_state_at n) (at level 20).
 
 Definition hoas_to_db_box {w1 w2} (B : Box w1 w2) : DeBruijn_Box w1 w2 :=
   match B with
-  | box f => let (p,σ) := get_fresh_pat w1 (st_{0}) in
-             db_box w1 (hoas_to_db (f p) σ)
+  | box f => let Γ := fresh_state w1 ∅ in
+             let p := fresh_pat w1 ∅ in
+             db_box w1 (hoas_to_db Γ (f p))
   end.
 
 
@@ -845,6 +932,7 @@ Proof.
 Qed.
 
 
+(*
 Lemma fresh_pat_eq : forall w n,  
     get_fresh_pat w (σ_{n})
     = (fresh_pat w (σ_{n}), σ_{(n + size_WType w)})%core.
@@ -910,6 +998,7 @@ Proof.
     rewrite Nat.add_assoc.
     auto.
 Qed.    
+*)
 
 
 Lemma subst_var_seq : forall len start x, x < len ->
@@ -1001,19 +1090,15 @@ Lemma fresh_pat_typed : forall {w} (p : Pat w) (σ : subst_state),
       p = fresh_pat w σ ->
       Types_Pat (pat_to_ctx p) p.
 Proof.
-  unfold fresh_pat.
   induction w; intros p σ H.
   - simpl in H. subst. simpl. constructor. apply singleton_singleton.
   - simpl in H. subst. simpl. constructor. apply singleton_singleton.
   - simpl in *. subst. simpl. constructor.
-  - simpl in *. subst. autounfold with monad_db.
-    rewrite surjective_pairing with (p := get_fresh_pat w1 σ).
-    rewrite surjective_pairing with (p := get_fresh_pat w2 _).
+  - simpl in *. subst. 
+    econstructor; [ | | eapply IHw1; reflexivity | eapply IHw2; reflexivity];
+                  [ | reflexivity].
     simpl.
-    econstructor; [ | reflexivity | | ].
-    * admit. (* lemma *)
-    * eapply IHw1; auto.
-    * eapply IHw2; auto.
+    admit (* lemma *).
 Admitted.
 
 
@@ -1028,21 +1113,21 @@ Proof.
   admit. (* lemma *)
 Admitted.
 
-About hoas_to_db. About db_compose.
-Require Import HOASCircuits. About compose.
+Require Import HOASCircuits. 
 
 
 Lemma hoas_to_db_compose_correct : forall {w w'}
                                           (c : Circuit w) (f : Pat w -> Circuit w')
-    σ σ' σ'' p Γ1 Γ,
+    Γ1 Γ Γ1' Γ',
     Γ1 ⊢ c :Circ ->
     Γ ⊢ f :Fun ->
+    Γ1' == Γ1 ∙ Γ ->
 
-    σ' = remove_OCtx Γ1 σ ->
-    (p, σ'') = get_fresh_pat w σ' ->
-    
-      hoas_to_db (compose c f) σ
-      = db_compose (size_OCtx Γ) (hoas_to_db c σ) (hoas_to_db (f p) σ'').
+    Γ' = fresh_state w Γ ->
+
+    hoas_to_db Γ1' (compose c f) 
+  = db_compose (size_OCtx Γ) (hoas_to_db Γ c) (hoas_to_db Γ' (f (fresh_pat w Γ))).
+  
 Admitted.
 
 
@@ -1080,6 +1165,7 @@ Admitted.
 
 
 
+(*
 Definition f {w} (p : Pat w) := output p. Print subst_state. Print length_OCtx.
 Lemma wf_f : forall w (p1 p2 : Pat w) Γ1 Γ2 σ1 σ2,
              Types_Pat Γ1 p1 -> Types_Pat Γ2 p2 ->
@@ -1100,3 +1186,5 @@ Definition opaque_box {w w'} (f : Pat w -> Circuit w') :=
              σ1 = Mk_subst_state (OCtx_dom Γ1) (length_OCtx Γ1) ->
              σ2 = Mk_subst_state (OCtx_dom Γ2) (length_OCtx Γ2) ->
              hoas_to_db (f p1) σ1 = hoas_to_db (f p2) σ2.
+*)
+

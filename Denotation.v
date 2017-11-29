@@ -331,21 +331,33 @@ Definition Splus {m n} (S T : Superoperator m n) : Superoperator m n :=
 
 (** Denoting Min Circuits **)
 
-(* Redefining to simply be the WType size *)
-Definition pat_size {W} (p : Pat W) : nat := size_WType W.
-
-Lemma pat_size_hash_pat : forall w (p : Pat w) ls, 
-      pat_size (subst_pat ls p) = pat_size p.
-Proof. 
-  induction p; intros; auto.
-Qed.
-
-
 Definition get_var (p : Pat Bit) := match p with
                                     | bit x => x
                                     end.
 
+Definition denote_pat {w} (p : Pat w) : Matrix (2^⟦w⟧) (2^⟦w⟧) :=
+  swap_list (⟦w⟧) (pat_to_list p).
+Instance Denote_Pat {w} : Denote (Pat w) (Matrix (2^⟦w⟧) (2^⟦w⟧)) :=
+  { denote := denote_pat }.
 
+Fixpoint denote_db_circuit {w} Γ0 Γ (c : DeBruijn_Circuit w) 
+                         : Superoperator (2^(⟦Γ0⟧ + ⟦Γ⟧)) (2^(⟦Γ0⟧ + ⟦w⟧)) :=
+  match c with
+  | db_output p    => super (pad (⟦Γ0⟧ + ⟦Γ⟧) (⟦p⟧))
+  | db_gate g p c' => let Γ' := process_gate_state g p Γ in
+                      compose_super (denote_db_circuit Γ0 Γ' c')
+                                    (apply_gate g (pat_to_list p))
+  | db_lift p c'   => let S := swap_two (⟦Γ⟧) 0 (get_var p) in
+                      let Γ' := remove_pat p Γ in
+               Splus (compose_super (denote_db_circuit Γ0 Γ' (c' false))
+                                    (super (⟨0| ⊗ 'I_ (2^⟦Γ'⟧) × S)))
+                     (compose_super (denote_db_circuit Γ0 Γ' (c' true))
+                                    (super (⟨1| ⊗ 'I_ (2^⟦Γ'⟧) × S)))
+  end.
+
+
+
+(*
 (* n is the input size *) 
 Fixpoint denote_db_circuit {w}  (pad n : nat) (c : DeBruijn_Circuit w) 
                           : Superoperator (2^(n+pad)) (2^(⟦w⟧ + pad))
@@ -361,10 +373,13 @@ Fixpoint denote_db_circuit {w}  (pad n : nat) (c : DeBruijn_Circuit w)
                                (compose_super (denote_db_circuit pad (n-1) (c' true)) 
                                             (super (⟨1| ⊗ Id (2^(n-1))× S)))         
   end.
+*)
+
 
 Definition denote_db_box {w1 w2} (c : DeBruijn_Box w1 w2) := 
   match c with
-  | db_box _ c' => denote_db_circuit 0 (⟦w1⟧) c'  
+  | db_box _ c' => let Γ := fresh_state w1 ∅ in
+                   denote_db_circuit ∅ Γ c'
   end.
 
 (** Denoting hoas circuits **)
@@ -375,7 +390,7 @@ Definition denote_box {W1 W2 : WType} (c : Box W1 W2) :=
 Instance Denote_Box {W1 W2} : Denote (Box W1 W2) (Superoperator (2^⟦W1⟧) (2^⟦W2⟧)) :=
          {| denote := denote_box |}.
 
-Notation "⟨ pad | n | c | σ ⟩" := (denote_db_circuit pad n (hoas_to_db c σ)).
+Notation "⟨ Γ0 | Γ ⊩ c ⟩" := (denote_db_circuit Γ0 Γ (hoas_to_db Γ c)) (at level 20).
 
 (*
 Lemma denote_db_subst : forall pad n σ w (c : DeBruijn_Circuit w),
@@ -384,6 +399,32 @@ Lemma denote_db_subst : forall pad n σ w (c : DeBruijn_Circuit w),
                     (super (swap_list (length (get_σ σ)) (get_σ σ))).
 Admitted.
 *)
+
+Lemma denote_output : forall Γ0 Γ {w} (p : Pat w),
+    ⟨ Γ0 | Γ ⊩ output p ⟩ 
+  = super (pad (⟦Γ0⟧ + ⟦Γ⟧) (denote_pat (subst_pat (OCtx_dom Γ) p))).
+Proof.
+  intros.
+  simpl.
+  unfold hoas_to_db_pat.
+  reflexivity.
+Qed.
+
+
+Lemma denote_gate_circuit : forall Γ0 (Γ : OCtx) Γ1 Γ Γ1' {w1 w2 w'} 
+                           (g : Gate w1 w2) p1 (f : Pat w2 -> Circuit w'),
+      Γ1 ⊢ p1 :Pat ->
+      Γ ⊢ f :Fun ->
+      Γ1' == Γ1 ∙ Γ ->
+
+    ⟨ Γ0 | Γ ⊩ gate g p1 f⟩ 
+    = compose_super (⟨ Γ0 | process_gate_state g (hoas_to_db_pat Γ p1) Γ
+                          ⊩f (process_gate_pat g p1 Γ) ⟩)
+                    (apply_gate g (pat_to_list p1)).
+Proof.
+  intros.
+  simpl.
+  
 
 
 Lemma size_WType_length : forall {w} (p : Pat w),
@@ -406,6 +447,7 @@ that. *)
 (* TODO: might need to add a hypothesis relating n1 and n2 to the actual inputs
 of c1 and c2 *)
 (*⟦⟧*)
+(*
 Lemma denote_db_compose : forall pad w1 w2 Γ1 Γ n m
                           (c1 : DeBruijn_Circuit w1) (c2 : DeBruijn_Circuit w2),
     Types_DB Γ1 c1 ->
@@ -419,6 +461,7 @@ Lemma denote_db_compose : forall pad w1 w2 Γ1 Γ n m
                   (denote_db_circuit (pad +⟦Γ⟧) (⟦Γ1⟧) c1).
 
 Admitted.
+*)
 
 
 Lemma denote_Ctx_app : forall Γ1 Γ2, 
@@ -559,10 +602,56 @@ Proof.
     admit (* true *).
 Admitted.
 
-    
+About get_fresh_pat.
+Locate "_ ⊢ _ :Fun".
 
 
-Lemma denote_compose : forall {w} (c : Circuit w) Γ1,
+
+Lemma denote_gate_circuit : forall {w1 w2 w'} 
+      (g : Gate w1 w2) p1 (f : Pat w2 -> Circuit w') Γ1 Γ1' Γ Γ0,
+      Γ1 ⊢ p1 :Pat ->
+      Γ1' == Γ1 ∙ Γ ->
+
+      ⟨ Γ0 | Γ ⊩ gate g p1 f⟩ 
+    = compose_super (⟨ Γ0 | process_gate_state g (hoas_to_db_pat Γ p1) Γ
+                          ⊩f (process_gate_pat g p1 Γ) ⟩)
+                    (apply_gate g (pat_to_list p1)).
+Proof.
+  intros.
+  simpl. 
+  set (p1' := hoas_to_db_pat Γ p1).
+  set (p2 := process_gate_pat g p1 Γ).
+  admit (* this is not true... should it be? *).
+Admitted.
+  
+
+Lemma denote_compose : forall {w} (c : Circuit w) Γ1, Γ1 ⊢ c :Circ ->
+     forall {w'} (f : Pat w -> Circuit w') (Γ0 Γ1 Γ1' Γ : OCtx),
+  Γ ⊢ f :Fun ->
+  Γ1' == Γ1 ∙ Γ ->
+
+
+  ⟨ Γ0 | Γ1' ⊩ compose c f ⟩ = compose_super (⟨Γ0 | fresh_state w Γ ⊩ f (fresh_pat w Γ)⟩)
+                                             (⟨Γ0 ⋓ Γ | Γ1 ⊩ c⟩).
+Proof.
+  induction 1; intros.
+  * simpl. 
+    admit. (* property about f being parametric *)
+    (* ⟨ Γ0 | Γ1 ⋓ Γ2 ⊩ f p ⟩
+    =  ⟨ Γ0 | fresh_state Γ2 ⊩ f (fresh_pat w Γ2) ⟩ ∘ ⟨ Γ1 ⊩ p ⟩ 
+    *)
+  * replace (compose (gate g p1 f) f0) 
+      with (gate g p1 (fun p2 => compose (f p2) f0)) 
+      by auto.
+    erewrite denote_gate_circuit; [ | eauto | solve_merge (*??? *)]. 
+    erewrite H; [ | | | eauto | ].
+    erewrite denote_gate_circuit; [ | eauto | solve_merge].
+    admit (* pretty close, actually *).
+    admit. admit. admit. admit. admit.
+  * admit.
+Admitted.
+
+(*
   Types_Circuit Γ1 c ->
   forall Γ Γ1' w' (f : Pat w -> Circuit w') σ σ' p pad n,
     Γ1' == Γ1 ∙ Γ ->
@@ -579,107 +668,7 @@ Lemma denote_compose : forall {w} (c : Circuit w) Γ1,
     ⟨ pad | n | compose c f | σ ⟩ 
   = compose_super (⟨pad | ⟦w⟧+⟦Γ⟧ | f p | σ'⟩)
                   (⟨pad + ⟦Γ⟧ | ⟦Γ1⟧ | c | σ⟩).
-Proof.
-  intros.
-  (* ctx_c := Γ1 *) (* ctx_out := Γ1' *) (* ctx_in := Γ *)
-(*  set (pf := Build_Types_Compose _ _ c f Γ1 Γ1' Γ H0 H H1). *)
-  destruct H0. 
-(*
-  destruct Γ1 as [ | Γ1]; [simpl in pf_merge; subst; dependent destruction  pf_valid | ].
-  destruct Γ as [ | Γ]; [simpl in pf_merge; subst; dependent destruction  pf_valid | ].*)
-(*
-  erewrite hoas_to_db_compose_correct with (types := pf); 
-    [| reflexivity | rewrite surjective_pairing; eauto].
-  erewrite denote_db_compose with (Γ := Γ) (Γ1 := Γ1);
-    [ | admit | admit (* lemmas about typing judgments *)
-    | auto
-    | simpl; reflexivity ].
-  simpl. 
-
-  inversion H3. simpl.
-  reflexivity.
 *)
-
-  dependent induction c.
-  * dependent destruction H.
-    simpl.
-    admit.
-  * dependent destruction H0.
-    destruct pf1; subst.
-
-    destruct Γ as [ | Γ]; [invalid_contradiction | ].
-    remember (process_gate_state g p (Γ1 ⋓ Γ)) as Γ1_0.
-
-    assert (Γ1_0_valid : is_valid Γ1_0) by admit.
-    assert (Γ1_0_Γ0_valid : is_valid (Γ1_0 ⋓ Γ0)) by admit.
-    assert (Γ1_size : ⟦w1⟧ = ⟦Γ1⟧) by (apply types_pat_size with (p := p); auto).
-    assert (Γ1_0_size : (⟦Γ1_0⟧ = ⟦Γ1 ⋓ Γ⟧ + ⟦w2⟧ - ⟦w1⟧)%nat).
-    { subst. apply process_gate_Ctx_size.
-      rewrite Γ1_size.
-      rewrite merge_size; auto.
-      omega.
-    }
-    assert (Γ1_0_size' : ⟦Γ1_0⟧ = (⟦Γ⟧ + ⟦w2⟧)%nat).
-    { rewrite Γ1_0_size.
-      rewrite merge_size; auto.
-      transitivity (⟦Γ⟧ + ⟦w2⟧ + ⟦Γ1⟧ - ⟦w1⟧)%nat;
-        [ f_equal; rewrite <- plus_assoc; rewrite plus_comm; auto | ].
-      transitivity (⟦Γ⟧ + ⟦w2⟧ + (⟦Γ1⟧ - ⟦w1⟧))%nat; [omega | ].
-      rewrite Γ1_size.
-      rewrite Nat.sub_diag.
-      omega.
-    }
-
-    assert (n_size : ((⟦Γ1⟧ + ⟦Γ⟧) + ⟦Γ0⟧ + ⟦w2⟧ - ⟦w1⟧ = ⟦Γ1_0⟧ + ⟦Γ0⟧)%nat).
-    { 
-      rewrite Γ1_0_size.
-      subst.
-      rewrite merge_size; auto. 
-      admit (* almost *).
-    }
-
-
-    
-    rewrite merge_size; auto.
-    simpl.
-    erewrite H with (Γ := Γ0) (p0 := p0) (σ' := σ')
-                    (Γ1 := Γ1_0)
-                    (*such that ⟦new Γ1⟧ = ⟦Γ1⟧ + ⟦w2⟧ - ⟦w1⟧*);
-      [ | | | reflexivity | auto | auto | ];
-      [ | | auto | ].
-    Focus 2. 
-      apply t0 with (Γ2 := process_gate_state g p Γ1); auto.
-      subst. split. validate.
-      apply process_gate_state_merge; auto.
-      admit (* ?? *).
-   Focus 2. subst. admit (*??*).
-
-    --
-    rewrite Γ1_0_size.
-    rewrite merge_size; auto.
-
-    Arguments apply_gate : clear implicits.
-    idtac.
-    replace (denote_OCtx Γ1 + denote_Ctx Γ + denote_OCtx Γ0 + pad0)%nat 
-      with (⟦Γ1⟧ + ⟦Γ⟧ + (pad0 + ⟦Γ0⟧))%nat; auto.
-    subst. simpl. omega.
-
-  * subst. simpl. 
-    dependent destruction H0.
-
-    erewrite H.
-    -- admit.
-    -- apply t0. (* Γ1 := Γ2 *)
-    -- admit.
-    -- admit.
-    -- apply H1. (* Γ := Γ *)
-    -- dependent destruction p.
-       dependent destruction t.
-       admit.
-    -- rewrite H3. (* p := p0 *) (* σ' := σ' *)
-       admit.
-
-Admitted.
 
 
 
@@ -699,6 +688,6 @@ Hint Unfold HOAS_Equiv : den_db.
 (* Hints for automation *)
 (************************)
 
-Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard compose_super super swap_list swap_two pad denote_box  : den_db.
+Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard compose_super super swap_list swap_two pad denote_box denote_pat : den_db.
 
 

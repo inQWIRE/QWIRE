@@ -6,11 +6,9 @@ Require Import Denotation.
 Require Import DBCircuits.
 Require Import TypeChecking.
 
-Require Import List.
 Set Bullet Behavior "Strict Subproofs".
 Global Unset Asymmetric Patterns.
 Delimit Scope matrix_scope with M.
-
 
 (*****************************************************************************)
 (** EXAMPLES START **)
@@ -149,12 +147,7 @@ Proof.
 Qed.
 
 
-
-Lemma pat_WType_size : forall W (p : Pat W), pat_size p = size_WType W.
-Proof. reflexivity. Qed.
-
-
-
+(*
 Lemma get_fresh_pat_state : 
   forall w σ σ', σ' = snd (get_fresh_pat w σ) ->
                  fresh σ' = (fresh σ + ⟦w⟧)%nat.
@@ -169,34 +162,373 @@ Proof.
   rewrite (IHw1 σ σ1); [ | rewrite H1; auto].
   simpl. omega.
 Qed.
+*)
 
+Definition get_fresh_var {A} `{Gate_State A} (σ : A) (w : WType) : Var :=
+    fst (get_fresh w σ).
 
-Lemma swap_fresh_seq : forall {w} σ,
-    pat_to_list (fresh_pat w σ) = seq (fresh σ) (⟦w⟧).
+Lemma is_valid_fresh : forall Γ w,
+      is_valid Γ ->
+      is_valid (fresh_state w Γ).
+Admitted.
+
+Lemma get_fresh_var_OCtx : forall Γ w,
+      get_fresh_var Γ w = length_OCtx Γ.
 Proof.
-  induction w; intros σ; simpl; auto.
-  unfold fresh_pat. simpl.
-  autounfold with monad_db.
-    destruct (get_fresh_pat w1 σ) as [p1 σ1] eqn:H1.
-    destruct (get_fresh_pat w2 σ1) as [p2 σ2] eqn:H2. 
-    rewrite <- seq_app; simpl.
-    replace p1 with (fresh_pat w1 σ) by (unfold fresh_pat; rewrite H1; auto).
-    replace p2 with (fresh_pat w2 σ1) by (unfold fresh_pat; rewrite H2; auto).
-    rewrite IHw1, IHw2.
-    simpl.
-    rewrite (get_fresh_pat_state w1 σ σ1); auto.
-    rewrite H1; auto.
+  destruct Γ as [ | Γ]; auto.
 Qed.
-    
 
 
+Lemma length_fresh_state : forall w Γ,
+      is_valid Γ ->
+      length_OCtx (fresh_state w Γ) = (length_OCtx Γ + ⟦w⟧)%nat.
+Proof.
+  induction w; intros; (destruct Γ as [ | Γ]; [invalid_contradiction | ]); 
+    simpl; auto.
+  * rewrite app_length. auto.
+  * rewrite app_length; auto.
+  * rewrite IHw2; auto.
+    rewrite IHw1; auto.
+    simpl. omega.
+    apply is_valid_fresh; auto.
+Qed.
+
+Lemma length_fresh_state' : forall w (σ : substitution),
+      length (fresh_state w σ) = (length σ + ⟦w⟧)%nat.
+Proof.
+  induction w; intros; simpl; auto.
+  * rewrite app_length; auto.
+  * rewrite app_length; auto.
+  * rewrite IHw2. 
+    rewrite IHw1.
+    simpl; omega.
+Qed.
+
+
+
+Lemma swap_fresh_seq : forall w (σ : substitution),
+    pat_to_list (fresh_pat w σ) = seq (get_fresh_var σ w) (⟦w⟧).
+Proof.
+  induction w; intros; simpl; auto.
+  rewrite IHw1.
+  rewrite IHw2. 
+  repeat rewrite get_fresh_var_OCtx.
+  rewrite <- seq_app.
+  unfold get_fresh_var. simpl.
+  rewrite length_fresh_state'.
+  auto.
+Qed.
+
+
+(*
 Lemma swap_list_id : forall w,
-      swap_list (⟦w⟧) (pat_to_list (fresh_pat w (st_{0}))) = Id (2^⟦w⟧).
+      swap_list (⟦w⟧) (pat_to_list (fresh_pat w ∅)) = Id (2^⟦w⟧).
 Proof.
   intros.
   rewrite swap_fresh_seq. 
   apply swap_list_n_id.
 Qed.
+*)
+
+Print denote_pat.
+
+Lemma denote_pat_fresh_id : forall w,
+      denote_pat (fresh_pat w []) = Id (2^⟦w⟧).
+Proof.
+  intros.
+  unfold denote_pat.
+  rewrite swap_fresh_seq by validate.
+  unfold get_fresh_var. simpl.
+  rewrite swap_list_n_id.
+  reflexivity.
+Qed.
+
+Lemma fmap_app : forall {A B} (f : A -> B) ls1 ls2,
+      fmap f (ls1 ++ ls2) = fmap f ls1 ++ fmap f ls2.
+Proof.
+  induction ls1; intros; simpl; auto.
+  rewrite IHls1. auto.
+Qed.
+Lemma fmap_id : forall {A} (ls : list A),
+      fmap (fun x => x) ls = ls.
+Proof.
+  induction ls; simpl in *; auto.
+  rewrite IHls.
+  reflexivity.
+Qed.
+Lemma fmap_compose : forall {A B C} (f : A -> B) (g : B -> C) (ls : list A),
+      fmap g (fmap f ls) = fmap (fun x => g (f x)) ls.
+Proof.
+  induction ls; simpl in *; auto.
+  rewrite IHls.
+  reflexivity.
+Qed.
+
+Lemma inb_fmap_S : forall ls x,
+      inb (S x) (fmap S ls) = inb x ls.
+Proof.
+  induction ls; intros; simpl in *; auto.
+  simpl.
+  rewrite IHls.
+  reflexivity.
+Qed.
+
+Opaque fmap.
+Lemma ge_length_dom : forall Γ x,
+      (x >= length_OCtx Γ)%nat ->
+      inb x (OCtx_dom Γ) = false.
+Proof.
+  destruct Γ as [ | Γ]; [intros; auto | ].
+  induction Γ as [ | [w | ] Γ]; intros; auto.
+  * simpl in *.
+    destruct x as [ | x]; [inversion H | ].
+    simpl.
+    rewrite inb_fmap_S.
+    rewrite IHΓ; auto.
+    omega.
+  * simpl in *.
+    destruct x as [ | x]; [inversion H | ].
+    rewrite inb_fmap_S.
+    apply IHΓ. 
+    omega.
+Qed.
+Transparent fmap.
+
+
+Lemma Ctx_dom_app : forall Γ1 Γ2,
+      Ctx_dom (Γ1 ++ Γ2) = Ctx_dom Γ1 ++ fmap (fun x => length Γ1 + x)%nat (Ctx_dom Γ2).
+Proof. 
+  induction Γ1 as [ | [w | ] Γ1]; intros.
+  * simpl.
+    rewrite fmap_id.
+    auto.
+  * simpl. 
+    rewrite IHΓ1. 
+    rewrite fmap_app.
+    rewrite fmap_compose.
+    reflexivity.
+  * simpl. 
+    rewrite IHΓ1.
+    rewrite fmap_app.
+    rewrite fmap_compose.
+    reflexivity.
+Qed.
+Transparent fmap.
+
+
+Lemma OCtx_dom_fresh : forall w Γ, 
+      is_valid Γ ->
+      OCtx_dom (fresh_state w Γ) = OCtx_dom Γ ++ seq (length_OCtx Γ) (⟦w⟧).
+Proof.
+  induction w; 
+  (destruct Γ as [ | Γ]; [intros; invalid_contradiction | ]);
+  intros; simpl.
+
+  * rewrite Ctx_dom_app. simpl.
+    rewrite Nat.add_0_r.
+    auto.
+  * rewrite Ctx_dom_app. simpl.
+    rewrite Nat.add_0_r.
+    auto.
+  * rewrite app_nil_r. 
+    auto.
+  * rewrite IHw2; [ | apply is_valid_fresh; auto].
+    rewrite IHw1; auto.
+    simpl.
+    rewrite length_fresh_state; auto. simpl.
+
+    rewrite <- seq_app.
+    rewrite app_assoc.
+    reflexivity.
+Qed.
+
+
+Lemma hoas_to_db_pat_fresh : forall w Γ w',
+      Γ = fresh_state w' ∅ ->
+      hoas_to_db_pat (fresh_state w Γ) (fresh_pat w Γ) 
+    = fresh_pat w (OCtx_dom Γ).
+Proof.
+  induction w; intros; 
+    (assert (is_valid Γ) by (subst; apply is_valid_fresh; validate));
+    (destruct Γ as [ | Γ]; [invalid_contradiction | ]);
+    unfold hoas_to_db_pat in *; simpl in *; auto.
+
+  * rewrite Ctx_dom_app; simpl.
+    unfold subst_var.
+    rewrite lookup_app.
+    replace (Ctx_dom Γ) with (OCtx_dom (Valid Γ)) by auto.
+    rewrite ge_length_dom by (simpl; omega).
+    rewrite Nat.add_0_r.
+    simpl.
+    rewrite Nat.eqb_refl.
+    auto.
+  * admit (* same as above *).
+
+  * f_equal.
+    + admit. (* more general lemma *)
+    + rewrite IHw2 with (w' := w' ⊗ w1).
+      - f_equal. Search OCtx_dom fresh_state.
+        rewrite OCtx_dom_fresh; auto.
+        simpl.
+        admit (* lemma *).
+      - rewrite H.
+        reflexivity.
+Admitted.
+
+Lemma hoas_to_db_pat_fresh_empty : forall w,
+      hoas_to_db_pat (fresh_state w ∅) (fresh_pat w ∅)
+    = fresh_pat w [].
+Proof.
+  intros.
+  apply hoas_to_db_pat_fresh with (w' := One).
+  auto.
+Qed.
+    
+Lemma super_I : forall n ρ,
+      WF_Matrix n n ρ ->
+      super ('I_n) ρ = ρ.
+Proof.
+  intros.
+  unfold super.
+  autorewrite with M_db.
+  reflexivity.
+Qed.
+
+
+
+Lemma singleton_size' : forall x w,
+      ⟦Valid (singleton x w)⟧ = 1%nat.
+Proof.
+  intros.
+  simpl.
+  eapply singleton_size.
+  apply singleton_singleton.
+Qed.
+
+Lemma denote_Ctx_app : forall Γ1 Γ2,
+      denote_Ctx (Γ1 ++ Γ2) = (denote_Ctx Γ1 + denote_Ctx Γ2)%nat.
+Proof.
+  induction Γ1; intros; simpl; auto.
+  destruct a; auto.
+  rewrite IHΓ1; auto.
+Qed.
+
+Lemma denote_OCtx_fresh : forall w Γ,
+      is_valid Γ ->
+      ⟦fresh_state w Γ⟧ = (⟦Γ⟧ + ⟦w⟧)%nat.
+Proof.
+  induction w; intros;
+    (destruct Γ as [ | Γ]; [invalid_contradiction | ]).
+  * simpl. 
+    rewrite denote_Ctx_app.
+    auto.
+  * simpl.
+    rewrite denote_Ctx_app.
+    auto.
+  * simpl.
+    omega.
+  * simpl.
+    rewrite IHw2 by (apply is_valid_fresh; auto).
+    rewrite IHw1 by auto.
+    simpl. 
+    omega. 
+Qed.
+
+
+
+(*
+Lemma app_merge_singleton : forall Γ w,
+    Valid (Γ ++ [Some w]) = Valid Γ ⋓ singleton (length Γ) w.
+Proof.
+  Transparent merge.
+  induction Γ as [ | [w | ] Γ]; intros w'; simpl in *; auto.
+  * rewrite <- IHΓ.
+    auto.
+  * rewrite <- IHΓ.
+    auto.
+  Opaque merge.
+Qed.
+*)
+
+(*
+Lemma fresh_state_qubit : forall Γ,
+      fresh_state Qubit Γ = Γ ⋓ singleton (length_OCtx Γ) Qubit.
+Proof.
+  intros.
+  unfold fresh_state.
+  simpl.
+  autounfold with monad_db.
+  destruct Γ as [ | Γ]; auto.
+  simpl. 
+  apply app_merge_singleton.
+Qed.
+Lemma fresh_state_bit : forall Γ,
+      fresh_state Bit Γ = Γ ⋓ singleton (length_OCtx Γ) Bit.
+Proof.
+  intros.
+  unfold fresh_state.
+  simpl.
+  autounfold with monad_db.
+  destruct Γ as [ | Γ]; auto.
+  simpl. 
+  apply app_merge_singleton.
+Qed.
+*)
+
+
+
+
+Lemma WF_pad : forall m n (A : Square m),
+      (m <= n)%nat ->
+      WF_Matrix (2^m) (2^m) A ->
+      WF_Matrix (2^n) (2^n) (@pad m n A).
+Proof.
+  intros. unfold pad.
+  apply WF_kron; [ apply Nat.pow_nonzero; auto 
+                 | apply Nat.pow_nonzero; auto 
+                 | | | auto | show_wf].
+  admit (* true *).
+  admit (* true *).
+Admitted.
+
+Lemma apply_U_σ : forall m n (U : Square (2^m)),
+      WF_Matrix (2^m) (2^m) U ->
+      (m <= n)%nat -> 
+      @apply_U m n U (σ_{n}) = super (pad n U).
+Proof.
+  intros. unfold apply_U.
+  rewrite swap_list_n_id.
+  apply WF_pad with (n := n) in H; auto.
+  autorewrite with M_db.
+  reflexivity.
+Qed.
+
+
+
+Lemma pad_nothing : forall m A,
+      WF_Matrix (2^m) (2^m) A ->
+      @pad m m A = A.
+Proof.
+  intros.
+  unfold pad.
+  rewrite Nat.sub_diag.
+  simpl.
+  autorewrite with M_db.
+  reflexivity.
+Qed.
+
+
+(* TACTICS for doing this kind of proofs *)
+
+
+Hint Rewrite hoas_to_db_pat_fresh_empty : proof_db.
+Hint Rewrite denote_OCtx_fresh using validate : proof_db.
+
+(* add some arithmetic *)
+Hint Rewrite Nat.leb_refl : proof_db.
+Hint Rewrite denote_pat_fresh_id : proof_db.
+Hint Rewrite swap_fresh_seq : proof_db.
+Hint Rewrite apply_U_σ pad_nothing using auto : proof_db.
 
 
 
@@ -204,12 +536,10 @@ Lemma id_circ_Id : forall W ρ, WF_Matrix (2^⟦W⟧) (2^⟦W⟧) ρ ->
     ⟦@id_circ W⟧ ρ = ρ.
 Proof.
   intros W ρ H.
-  repeat (simpl; autounfold with den_db).
-  rewrite fresh_pat_eq'.
-  simpl.
-  rewrite subst_fresh_id.
-  rewrite swap_list_id; auto.
-  unfold super. autorewrite with M_db. reflexivity.
+
+  simpl. unfold denote_box. simpl.
+  autorewrite with proof_db.
+  rewrite super_I; auto.
 Qed.
  
 Lemma unitary_transpose_id_qubit : forall (U : Unitary Qubit), forall ρ,
@@ -228,35 +558,25 @@ Proof.
 Qed.
 
 
-
 Lemma unitary_transpose_id : forall W (U : Unitary W) (ρ : Density (2^⟦W⟧ )),
   WF_Matrix (2^⟦W⟧) (2^⟦W⟧) ρ ->
   ⟦unitary_transpose U⟧ ρ = ⟦@id_circ W⟧ ρ.
 Proof.
   intros W U ρ wfρ. 
   specialize (unitary_gate_unitary U); intros [WFU UU].
+  simpl. autounfold with den_db. simpl.
+
+  assert (wf_U : WF_Matrix (2^⟦W⟧) (2^⟦W⟧) (⟦U⟧)) by show_wf.
+  assert (wf_U_dag : WF_Matrix (2^⟦W⟧) (2^⟦W⟧) (⟦U⟧†)) by show_wf.
+
+  autorewrite with proof_db.
+
   repeat (simpl; autounfold with den_db).
-
-  rewrite fresh_pat_eq'.
-  simpl.
-  rewrite subst_fresh_id.
-  rewrite swap_list_id; auto.
-
-  (* do some arithmetic *)
-  rewrite minus_plus, Nat.add_0_r.
-  rewrite Nat.leb_refl.
-
-  repeat rewrite subst_fresh_id.
-  erewrite swap_fresh_seq by (unfold fresh_pat; auto).  
-
-  repeat (autounfold with den_db; simpl).
-  setoid_rewrite swap_list_n_id.
-
-  rewrite Nat.sub_diag.
   autorewrite with M_db.
-  repeat rewrite Mmult_assoc.
-  setoid_rewrite UU.
+  
   repeat rewrite <- Mmult_assoc.
+  setoid_rewrite UU.
+  repeat rewrite Mmult_assoc.
   setoid_rewrite UU.
   autorewrite with M_db.
   reflexivity.
@@ -335,6 +655,10 @@ Admitted.
 
 
 
+Lemma fresh_state_pat : forall w,
+      fresh_state w ∅ ⊢ fresh_pat w ∅ :Pat.
+Admitted.
+
 (* Do these belong back in Denotation? *) 
 Theorem inSeq_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2),
       Typed_Box g -> Typed_Box f ->
@@ -346,45 +670,67 @@ Proof.
   destruct f as [f]. 
   destruct g as [g].
   autounfold with den_db; simpl.
-  repeat rewrite fresh_pat_eq'. simpl.
 
-  set (p1 := fresh_pat W1 (st_{0})).
-  set (Γ1 := pat_to_ctx p1).
-  assert (types_p : Types_Pat Γ1 p1).
-  { apply fresh_pat_typed with (σ := st_{0}). auto. }
-  assert (valid_Γ1 : is_valid Γ1).
-  { eapply pat_ctx_valid; eauto. }
+  set (Γ1_0 := fresh_state W1 ∅).
+  set (Γ2_0 := fresh_state W2 ∅).
 
-(*  set (σ0 := remove_OCtx Γ1 (st_{⟦W1⟧})).*)
-  set (p2 := fresh_pat W2 (st_{0})).
-
-  erewrite denote_compose with (Γ1' := Γ1) (Γ := ∅) (Γ2 := Γ1);
-    [ | apply types_f; auto 
-    | split; [auto | monoid]
-    | intros p' Γ Γ2' [pf_merge pf_valid] types_p';
-      apply types_g; rewrite merge_nil_r in pf_valid; subst; apply types_p'
-    | simpl; erewrite size_OCtx_WType; [ | eauto]; simpl; omega 
-    | rewrite surjective_pairing; f_equal ].
- 
-  replace (remove_OCtx Γ1 (st_{size_WType W1})) with (st_{0}).
-  -- 
-  simpl. unfold compose_super. 
-  rewrite (Nat.add_0_r (size_WType W2)).
-  replace (size_WType W1) with (denote_OCtx Γ1) by (eapply size_OCtx_WType; eauto).
-  rewrite fresh_pat_eq'; simpl.
-  unfold p2, fresh_pat. 
-  reflexivity.
-
-  -- 
-    unfold remove_OCtx.
-    unfold Γ1.
-    rewrite OCtx_dom_pat.
-    unfold p1.
-    rewrite swap_fresh_seq.
-    replace (fresh (st_{0})) with 0%nat by auto.
-    replace (σ_{⟦W1⟧}) with (get_σ (st_{⟦W1⟧})) by auto. 
-    rewrite remove_refl; auto.
+  erewrite denote_compose with (Γ := ∅) (Γ2 := Γ1_0) (Γ1 := Γ1_0);
+    [ reflexivity (* main proof *)
+    | apply types_f; apply fresh_state_pat
+    | intros Γ0 Γ0' p0 [pf1 pf2] pf_p0; apply types_g;
+      subst; rewrite merge_nil_r; auto
+    | solve_merge; apply is_valid_fresh; validate].
 Qed.
+
+Lemma merge_singleton_end : forall Γ w,
+      Valid (Γ ++ [Some w]) = Valid Γ ⋓ singleton (length Γ) w.
+Proof.
+  Transparent merge.
+  induction Γ as [ | [w' | ] Γ]; intros; simpl in *; auto.
+  * rewrite <- IHΓ. reflexivity.
+  * rewrite <- IHΓ. reflexivity.
+  Opaque merge.
+Qed.
+
+Lemma fresh_state_decompose : forall w Γ,
+      is_valid Γ ->
+      fresh_state w Γ == Γ ∙ (pat_to_ctx (fresh_pat w Γ)).
+Proof.
+  induction w; intros;
+    (destruct Γ as [ | Γ]; [invalid_contradiction | ]);
+    simpl.
+  - solve_merge. apply merge_singleton_end.
+  - solve_merge. apply merge_singleton_end.
+  - solve_merge.
+  - solve_merge.
+    * repeat apply is_valid_fresh; auto.
+    * destruct (IHw1 Γ); [auto | ].
+      rewrite pf_merge.
+      rewrite pf_merge in pf_valid.
+      destruct (IHw2 (Γ ⋓ pat_to_ctx (fresh_pat w1 (Valid Γ)))); auto.
+      rewrite pf_merge0.
+      monoid.
+Qed.
+
+Close Scope circ_scope.
+Lemma denote_tensor : forall (Γ Γ' : OCtx) {w} (c : Circuit w) 
+                             {n1 n2} (ρ1 : Square n1) (ρ2 : Square n2),
+      WF_Matrix (2^⟦Γ'⟧) (2^⟦Γ'⟧) ρ1 ->
+      WF_Matrix (2^⟦Γ⟧) (2^⟦Γ⟧) ρ2 ->
+      ⟨Γ | Γ' ⊩ c⟩ (ρ1 ⊗ ρ2) = (⟨∅ | Γ' ⊩ c⟩ ρ1) ⊗ ρ2.
+Admitted.
+
+
+
+Lemma hoas_to_db_pair : forall Γ w1 w2 (p1 : Pat w1) (p2 : Pat w2),
+      hoas_to_db_pat Γ (pair p1 p2)
+    = pair (hoas_to_db_pat Γ p1) (hoas_to_db_pat Γ p2).
+Proof.
+  intros. unfold hoas_to_db_pat. simpl.
+  reflexivity.
+Qed.
+
+
 
 Theorem inPar_correct : forall W1 W1' W2 W2' (f : Box W1 W1') (g : Box W2 W2') 
      (ρ1 : Square (2^⟦W1⟧)) (ρ2 : Square (2^⟦W2⟧)),
@@ -392,17 +738,71 @@ Theorem inPar_correct : forall W1 W1' W2 W2' (f : Box W1 W1') (g : Box W2 W2')
      Mixed_State ρ1 -> Mixed_State ρ2 ->
      denote_box (inPar f g) (ρ1 ⊗ ρ2)%M = (denote_box f ρ1 ⊗ denote_box g ρ2)%M.
 Proof.  
-  intros W1 W1' W2 W2' f g H H0.
-  autounfold with den_db; simpl. 
+  intros W1 W1' W2 W2' f g ρ1 ρ2 types_f types_g mixed_ρ1 mixed_ρ2.
 
   destruct f as [f]. 
   destruct g as [g].
-  autounfold with den_db; simpl.
-  repeat rewrite fresh_pat_eq'. simpl.
+  repeat (autounfold with den_db; simpl).
 
-  set (p1 := fresh_pat W1 (st_{0})).
-  set (p2 := fresh_pat W2 (st_{0})).
+
+  set (p_1 := fresh_pat W1 ∅).
+  set (Γ_1 := fresh_state W1 ∅).
+  set (p_2 := fresh_pat W2 Γ_1).
+  set (Γ_2 := pat_to_ctx p_2).
+  assert (Γ_1 ⊢ p_1 :Pat) by apply fresh_state_pat.
+  assert (Γ_2 ⊢ p_2 :Pat) by admit (* need a vaiant of fresh_pat_typed *).
+
+  rewrite denote_compose with (Γ1 := Γ_1) (Γ := Γ_2) (Γ2 := Γ_1).
+  Focus 2. 
+    apply types_f; auto.
+  Focus 2.
+    intros. 
+    type_check. 
+    apply types_g; auto.
+  Focus 2.
+    apply fresh_state_decompose.
+    apply is_valid_fresh; validate.
+
+  autounfold with den_db.
+  rewrite merge_nil_l.
+
+
+  set (p_1' := fresh_pat W1' Γ_2).
+  set (Γ_1' := pat_to_ctx p_1').
+  assert (Γ_1' ⊢ p_1' :Pat) by admit (* same lemma as above *).
+  erewrite denote_compose with (Γ1 := Γ_2) (Γ := Γ_1') (Γ2 := Γ_2).
+  Focus 2.
+    apply types_g; auto.
+  Focus 2.
+    intros; type_check. 
+  Focus 2.
+    apply fresh_state_decompose.
+    Search pat_to_ctx is_valid.
+    admit (* lemma *).
+  
+  set (p_2' := fresh_pat W2' Γ_1').
+  unfold compose_super.
+
+  assert (size_Γ_2 : ⟦Γ_2⟧ = ⟦W2⟧).
+  { unfold Γ_2. 
+    erewrite size_pat_to_ctx; eauto.
+  }
+  assert (size_Γ_1 : ⟦Γ_1⟧ = ⟦W1⟧).
+  { unfold Γ_1.
+    rewrite denote_OCtx_fresh. auto. validate.
+  }
+
+  rewrite denote_tensor;
+    [ | rewrite size_Γ_1; apply WF_Mixed; auto
+      | rewrite size_Γ_2; apply WF_Mixed; auto ].
+  rewrite merge_nil_l.
+  rewrite denote_tensor. (* TODO: finish these *)
+
+  rewrite denote_tensor. 
+  admit (*???*).    
 Admitted.  
+
+
 
 Open Scope circ_scope.
 
@@ -521,26 +921,6 @@ Qed.
 (* sharing *)
 (***********)
 
-Close Scope circ_scope.
-
-Fixpoint kron_n (n : nat) {m1 m2 : nat} (A : Matrix m1 m2) : Matrix (m1^n) (m2^n) :=
-  match n with
-  | 0    => Id 1
-  | S n' => A ⊗ kron_n n' A
-  end.
-Lemma wf_kron_n : forall n m1 m2 A,
-      m1 <> 0%nat -> m2 <> 0%nat ->
-      WF_Matrix m1 m2 A ->
-      WF_Matrix (m1^n) (m2^n) (kron_n n A).
-Proof.
-  induction n; intros; simpl; try show_wf.
-  apply WF_kron; auto;
-  apply Nat.pow_nonzero; auto.
-Qed.
-      
-
-Open Scope circ_scope.
-
 
 Lemma denote_circuit_subst : forall w (c : Circuit w) Γ, Types_Circuit Γ c ->
       forall pad n σ, 
@@ -574,11 +954,37 @@ Proof.
 Admitted.
   
 Hint Unfold apply_box : den_db.
+Print scale. Print Mplus.
+
+Close Scope circ_scope.
+Fixpoint kron_n n {m1 m2} (A : Matrix m1 m2) : Matrix (m1^n) (m2^n) :=
+  match n with
+  | 0    => Id 1
+  | S n' => A ⊗ kron_n n' A
+  end.
+Notation "n ⨂ A" := (kron_n n A) : matrix_scope.
+Open Scope circ_scope.
+
+Open Scope matrix_scope.
+Fixpoint prepare (ls : list nat) : Matrix 1%nat (2^(length ls)) :=
+  fold_left (fun A x => ket x ⊗ A) ls (Id 1).
+
+Definition pure {n} (vec : Matrix n 1%nat) : Matrix n n := vec × (vec †).
+
+Definition prep α β : Matrix 2 2 := pure ((α.*|0⟩) .+ (β.*|1⟩)).
+Lemma wf_prep : forall α β, WF_Matrix 2 2 (prep α β).
+Proof.
+  intros. unfold prep, pure.
+  show_wf.
+Qed.
+
+Hint Unfold pure : den_db.
 
 
-Lemma share_correct : forall n ρ, 
-      WF_Matrix 2 2 ρ -> 
-      ⟦share n⟧ ρ = kron_n (S n) ρ.
+Lemma share_correct : forall n α β, 
+      @denote _ _ (@Denote_Box _ _) (share n) (pure (α.*|0⟩ .+ β.*|1⟩))
+    = pure (α.*(S n ⨂ |0⟩) .+ β.*(S n ⨂ |1⟩)).
+Close Scope matrix_scope.
 Proof.
   induction n; intros.
   * repeat (autounfold with den_db; simpl).
@@ -601,13 +1007,14 @@ Proof.
     | type_check | | reflexivity | auto ]. 
  Focus 2. Transparent merge. simpl. Opaque merge.
           validate.
- Focus 2. intros. destruct H0. subst.
-    econstructor; [reflexivity | ]. 
-    econstructor; [auto | | | eauto]; [monoid | ]. constructor. 
-      apply singleton_singleton.
+ Focus 2. intros. econstructor; [reflexivity | ].
+                  econstructor; [ solve_merge | | | eauto]; [solve_merge | ].
+    constructor. apply singleton_singleton.
 
 
   simpl. 
+
+
 (*
   rewrite denote_unbox. unfold compose_super. simpl. rewrite IHn.
   Focus 2. simpl. (* BUG: swap_list 1 [1] voilates precondition of swap_list *)
