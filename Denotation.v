@@ -572,15 +572,16 @@ Lemma denote_compose : forall {w} (c : Circuit w) Γ1,
                                               -> Types_Circuit Γ2' (f p)) ->
     n = (⟦Γ1⟧+ ⟦Γ⟧)%nat ->
     (p,σ') = get_fresh_pat w (remove_OCtx Γ1 σ) ->
-(*    
+
     denote_db_circuit pad n (hoas_to_db (compose c f) σ)
 (*= denote_db_circuit pad n (db_compose (⟦Γ⟧) (hoas_to_db c σ) (hoas_to_db (f p) σ')) *)
   = compose_super (denote_db_circuit pad (⟦w⟧+⟦Γ⟧) (hoas_to_db (f p) σ'))
                   (denote_db_circuit (pad + ⟦Γ⟧) (⟦Γ1⟧) (hoas_to_db c σ)).
-*)
+(*
     ⟨ pad | n | compose c f | σ ⟩ 
   = compose_super (⟨pad | ⟦w⟧+⟦Γ⟧ | f p | σ'⟩)
                   (⟨pad + ⟦Γ⟧ | ⟦Γ1⟧ | c | σ⟩).
+*)
 Proof.
   intros.
   Print Types_Compose.
