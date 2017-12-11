@@ -235,8 +235,15 @@ Fixpoint unitary_gate_translation {W} (u : Unitary W) (p po : Pat) : Min_Circuit
         control_unitary_gate_circuit p1 (unitary_gate_translation u' p2 po)
       | _ => unitary_gate_translation u' p po
       end
-    | bit_ctrl u' => (* Todo : temporarily filled with [min_output po] *)
-      (min_output po)
+    | bit_ctrl u' =>
+      match p with
+      | pair p1 p2 =>
+        min_lift p1 (fun b => match b with
+                              | true => unitary_gate_translation u' p2 po
+                              | false => min_output po
+                              end)
+      | _ => min_output po
+      end
     | transpose u' => transpose_unitary_gate_circuit (unitary_gate_translation u' p po)
   end.
 
