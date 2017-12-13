@@ -351,7 +351,7 @@ Fixpoint denote_db_circuit {w}  (pad n : nat) (c : DeBruijn_Circuit w)
                           : Superoperator (2^(n+pad)) (2^(⟦w⟧ + pad))
   := 
   match c with 
-  | db_output p            => super (swap_list (⟦w⟧) (pat_to_list p))
+  | db_output p              => super (swap_list (⟦w⟧) (pat_to_list p))
   | @db_gate _ W1 W2 g p c'  => compose_super 
                                 (denote_db_circuit pad (n + ⟦W2⟧ - ⟦W1⟧) c')
                                 (apply_gate g (pat_to_list p))
@@ -375,7 +375,7 @@ Definition denote_box {W1 W2 : WType} (c : Box W1 W2) :=
 Instance Denote_Box {W1 W2} : Denote (Box W1 W2) (Superoperator (2^⟦W1⟧) (2^⟦W2⟧)) :=
          {| denote := denote_box |}.
 
-
+Notation "⟨ pad | n | c | σ ⟩" := (denote_db_circuit pad n (hoas_to_db c σ)).
 
 (*
 Lemma denote_db_subst : forall pad n σ w (c : DeBruijn_Circuit w),
@@ -413,6 +413,7 @@ Lemma denote_db_compose : forall pad w1 w2 Γ1 Γ n m
     
     n = (⟦Γ1⟧+ ⟦Γ⟧)%nat ->
     m = (⟦Γ⟧) ->
+    
     denote_db_circuit pad n (db_compose m c1 c2)
   = compose_super (denote_db_circuit pad (⟦w1⟧+ ⟦Γ⟧) c2)
                   (denote_db_circuit (pad +⟦Γ⟧) (⟦Γ1⟧) c1).
@@ -420,14 +421,16 @@ Lemma denote_db_compose : forall pad w1 w2 Γ1 Γ n m
 Admitted.
 
 (* probably a more general form of this *)
-Lemma denote_db_unbox : forall { w2} (b : Box One w2),
-    ⟦b⟧ = denote_db_circuit 0 0 ((hoas_to_db (unbox b unit)) (st_{0})).
+Lemma denote_db_unbox : forall {w1 w2} (b : Box w1 w2),
+    ⟦b⟧ = ⟨ 0 | ⟦w1⟧ | unbox b (fresh_pat w1 (st_{0})) | st_{⟦w1⟧} ⟩.
 Proof.
   destruct b.
   simpl. unfold denote_box.
   simpl.
+  rewrite fresh_pat_eq'. simpl.
   reflexivity.
 Qed.
+
 
 Lemma denote_Ctx_app : forall Γ1 Γ2, 
       denote_Ctx (Γ1 ++ Γ2) = (denote_Ctx Γ1 + denote_Ctx Γ2)%nat.
@@ -475,15 +478,13 @@ Proof.
 Qed.
 
 Lemma types_pat_size : forall w (p : Pat w) Γ,
-      Types_Pat Γ p -> (⟦w⟧ <= ⟦Γ⟧)%nat.
+      Types_Pat Γ p -> (⟦w⟧ = ⟦Γ⟧)%nat.
 Proof.
   induction 1; simpl; auto.
   * apply singleton_size in s. simpl in *. omega.
   * apply singleton_size in s. simpl in *. omega.
   * subst.
     rewrite merge_size; auto.
-    Search (_ + _ <= _ + _)%nat.
-    simpl in *. omega.
 Qed.
 
 
@@ -542,7 +543,33 @@ Proof.
     eapply remove_at_singleton; eauto. *)
 Admitted.
   
-    
+
+
+Lemma process_gate_state_merge : forall w1 w2 (g : Gate w1 w2) p Γ1 Γ2,
+      Types_Pat Γ1 p ->
+      process_gate_state g p (Γ1 ⋓ Γ2) = process_gate_state g p Γ1 ⋓ Γ2.
+Proof.
+  induction g; intros p Γ1 Γ2 types_p; auto.
+  * dependent destruction p.
+    dependent destruction types_p.
+    rewrite merge_nil_l.
+    unfold process_gate_state at 2.
+    admit (* not true! *).
+  * admit.
+  * admit.
+  * admit.
+  * dependent destruction p.
+    dependent destruction types_p.
+    simpl.
+    destruct Γ2 as [ | Γ2]; auto.
+    admit (* true *).
+  * dependent destruction p.
+    dependent destruction types_p.
+    destruct Γ2 as [ | Γ2]; auto.
+    simpl.
+    admit (* true *).
+Admitted.
+
     
 
 
@@ -550,15 +577,20 @@ Lemma denote_compose : forall {w} (c : Circuit w) Γ1,
   Types_Circuit Γ1 c ->
   forall Γ Γ1' w' (f : Pat w -> Circuit w') σ σ' p pad n,
     Γ1' == Γ1 ∙ Γ ->
-    (forall (p : Pat w) Γ2 Γ2', Γ2' == Γ2 ∙ Γ -> Types_Pat Γ2 p -> Types_Circuit Γ2' (f p)) ->
-
+    (forall (p : Pat w) Γ2 Γ2', Γ2' == Γ2 ∙ Γ -> Types_Pat Γ2 p 
+                                              -> Types_Circuit Γ2' (f p)) ->
     n = (⟦Γ1⟧+ ⟦Γ⟧)%nat ->
     (p,σ') = get_fresh_pat w (remove_OCtx Γ1 σ) ->
-    
+
     denote_db_circuit pad n (hoas_to_db (compose c f) σ)
 (*= denote_db_circuit pad n (db_compose (⟦Γ⟧) (hoas_to_db c σ) (hoas_to_db (f p) σ')) *)
   = compose_super (denote_db_circuit pad (⟦w⟧+⟦Γ⟧) (hoas_to_db (f p) σ'))
                   (denote_db_circuit (pad + ⟦Γ⟧) (⟦Γ1⟧) (hoas_to_db c σ)).
+(*
+    ⟨ pad | n | compose c f | σ ⟩ 
+  = compose_super (⟨pad | ⟦w⟧+⟦Γ⟧ | f p | σ'⟩)
+                  (⟨pad + ⟦Γ⟧ | ⟦Γ1⟧ | c | σ⟩).
+*)
 Proof.
   intros.
   Print Types_Compose.
@@ -588,28 +620,60 @@ Proof.
   * dependent destruction H0.
     destruct Γ as [ | Γ]; [invalid_contradiction | ].
     remember (process_gate_state g p (Γ1 ⋓ Γ)) as Γ1_0.
-    assert (⟦Γ1_0⟧ = ⟦Γ1 ⋓ Γ⟧ + ⟦w2⟧ - ⟦w1⟧)%nat.
-    { subst. apply process_gate_Ctx_size. admit.
+
+    assert (Γ1_0_valid : is_valid Γ1_0) by admit.
+    assert (Γ1_0_Γ0_valid : is_valid (Γ1_0 ⋓ Γ0)) by admit.
+    assert (Γ1_size : ⟦w1⟧ = ⟦Γ1⟧) by (apply types_pat_size with (p := p); auto).
+    assert (Γ1_0_size : (⟦Γ1_0⟧ = ⟦Γ1 ⋓ Γ⟧ + ⟦w2⟧ - ⟦w1⟧)%nat).
+    { subst. apply process_gate_Ctx_size.
+      rewrite Γ1_size.
+      rewrite merge_size; auto.
+      omega.
     }
+    assert (Γ1_0_size' : ⟦Γ1_0⟧ = (⟦Γ⟧ + ⟦w2⟧)%nat).
+    { rewrite Γ1_0_size.
+      rewrite merge_size; auto.
+      transitivity (⟦Γ⟧ + ⟦w2⟧ + ⟦Γ1⟧ - ⟦w1⟧)%nat;
+        [ f_equal; rewrite <- plus_assoc; rewrite plus_comm; auto | ].
+      transitivity (⟦Γ⟧ + ⟦w2⟧ + (⟦Γ1⟧ - ⟦w1⟧))%nat; [omega | ].
+      rewrite Γ1_size.
+      rewrite Nat.sub_diag.
+      omega.
+    }
+
+    assert (n_size : (n + ⟦w2⟧ - ⟦w1⟧ = ⟦Γ1_0⟧ + ⟦Γ0⟧)%nat).
+    { 
+      rewrite Γ1_0_size.
+      subst.
+      rewrite merge_size; auto. 
+      omega.
+    }
+
+
+    rewrite merge_size; auto.
     simpl.
-
-
     erewrite H with (Γ := Γ0) (p0 := p0) (σ' := σ')
                     (Γ1 := Γ1_0)
                     (*such that ⟦new Γ1⟧ = ⟦Γ1⟧ + ⟦w2⟧ - ⟦w1⟧*);
-      [ |  | | | auto | | ].
-    Focus 5. simpl in *. rewrite H0. subst. admit (* this is true *).
+      [ | | | reflexivity | auto | auto | ];
+      [ | | auto | ].
+    Focus 2. 
+      apply t0 with (Γ2 := process_gate_state g p Γ1); auto.
+      subst. 
+      apply process_gate_state_merge; auto.
+      admit (* ?? *).
+   Focus 2. subst. admit (*??*).
 
     --
-    rewrite H0.
+    rewrite Γ1_0_size.
+    rewrite merge_size; auto.
+
     Arguments apply_gate : clear implicits.
     idtac.
-    replace (n + pad0)%nat with (⟦Γ1 ⋓ Γ⟧ + (pad0 + ⟦Γ0⟧))%nat by (subst; omega).
-    simpl; reflexivity.
-    -- eapply t0. admit. admit. admit.
-    -- admit.
-    -- admit.
-    -- rewrite H3. rewrite HeqΓ1_0. admit.
+    replace (n + pad0)%nat with (⟦Γ1⟧ + ⟦Γ⟧ + (pad0 + ⟦Γ0⟧))%nat; auto.
+    subst. rewrite merge_size; auto.
+    rewrite (plus_comm pad0 (⟦Γ0⟧)). 
+    rewrite plus_assoc. auto.
 
   * subst. simpl. 
     dependent destruction H0.

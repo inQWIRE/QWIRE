@@ -408,9 +408,6 @@ Proof.
 Qed.
 
 Hint Resolve wf_biased_coin : wf_db.
-
-Open Scope circ_scope.
-
 Hint Unfold super_Zero : den_db. 
 
 Lemma flips_correct : forall n, ⟦coin_flips n⟧ I1 = biased_coin (1/(2^n)).
@@ -436,8 +433,9 @@ Proof.
 
        (* Apply IH *)
        rewrite denote_db_unbox in IHn.
-       simpl. 
-       unfold compose_super. 
+       unfold fresh_pat in IHn.
+       simpl in *. 
+       unfold compose_super.
        rewrite IHn.
 
        repeat (autounfold with den_db; simpl).
@@ -460,6 +458,148 @@ Proof.
          rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
          reflexivity.
 Qed.
+
+Lemma cnot_eq : cnot = control σx.
+Proof.
+  autounfold with M_db.
+  simpl.
+  prep_matrix_equality.
+  repeat (try destruct x; try destruct y; autorewrite with C_db; trivial).
+Qed.
+
+
+Definition EPR00 : Matrix 4 4 :=
+  fun x y => match x, y with
+             | 0, 0 => 1/2
+             | 0, 3 => 1/2
+             | 3, 0 => 1/2
+             | 3, 3 => 1/2
+             | _, _ => 0
+             end.
+
+Lemma bell00_eq :  ⟦bell00⟧ I1  = EPR00.
+Proof.
+  repeat (simpl; autounfold with den_db). 
+  autorewrite with M_db. 
+  repeat setoid_rewrite kron_conj_transpose.
+  autorewrite with M_db. 
+  solve_matrix.
+Qed.
+
+(***********)
+(* sharing *)
+(***********)
+
+Close Scope circ_scope.
+
+Fixpoint kron_n (n : nat) {m1 m2 : nat} (A : Matrix m1 m2) : Matrix (m1^n) (m2^n) :=
+  match n with
+  | 0    => Id 1
+  | S n' => A ⊗ kron_n n' A
+  end.
+Lemma wf_kron_n : forall n m1 m2 A,
+      m1 <> 0%nat -> m2 <> 0%nat ->
+      WF_Matrix m1 m2 A ->
+      WF_Matrix (m1^n) (m2^n) (kron_n n A).
+Proof.
+  induction n; intros; simpl; try show_wf.
+  apply WF_kron; auto;
+  apply Nat.pow_nonzero; auto.
+Qed.
+      
+
+Open Scope circ_scope.
+
+
+Lemma denote_circuit_subst : forall w (c : Circuit w) Γ, Types_Circuit Γ c ->
+      forall pad n σ, 
+      WF_σ Γ (get_σ σ) ->
+      ⟨ pad | n | c | σ ⟩ 
+    = compose_super ⟨pad | n | c | st_{n}⟩
+                    (super (swap_list n (get_σ σ))).
+Proof.
+  induction 1; intros.
+  * simpl. 
+    erewrite subst_id; eauto.
+    admit. admit.
+  * simpl. erewrite H; eauto. admit.
+
+Admitted.
+
+Lemma denote_unbox : forall n w1 w2 (b : Box w1 w2) Γ1 p σ, 
+      Typed_Box b -> Types_Pat Γ1 p ->
+      n = ⟦w1⟧ ->  WF_σ Γ1 (get_σ σ) ->
+
+      ⟨0 | n | unbox b p | σ⟩
+    = compose_super (⟦b⟧)
+                    (super (swap_list (⟦w1⟧) (pat_to_list (subst_pat (get_σ σ) p)))).
+Proof.
+  intros.
+  rewrite denote_db_unbox.
+  rewrite denote_circuit_subst with (Γ := Γ1); auto.
+  subst.
+ admit (* not quite *).
+
+Admitted.
+  
+Hint Unfold apply_box : den_db.
+
+
+Lemma share_correct : forall n ρ, 
+      WF_Matrix 2 2 ρ -> 
+      ⟦share n⟧ ρ = kron_n (S n) ρ.
+Proof.
+  induction n; intros.
+  * repeat (autounfold with den_db; simpl).
+    autorewrite with M_db.
+    reflexivity.
+  * repeat (autounfold with den_db; simpl).
+    autorewrite with M_db. 
+    setoid_rewrite kron_conj_transpose.
+    autorewrite with M_db. 
+
+    remember (singleton 1%nat Qubit) as Γ_1.
+    remember (singleton 0%nat Qubit) as Γ_2.
+    remember (Γ_1 ⋓ Γ_2) as Γ_1'.
+    remember ({| get_σ := [0%nat]; fresh := 2|}) as σ0. 
+    destruct (get_fresh_pat (S n ⨂ Qubit) σ0) as [p0 σ0'] eqn:H_p0.
+
+    rewrite denote_compose with (Γ1 := Γ_1) (Γ := Γ_2) (Γ1' := Γ_1')
+                                 (p := p0) (σ' := σ0') ; subst;
+    [ | apply share_WT; type_check; repeat constructor
+    | type_check | | reflexivity | auto ]. 
+ Focus 2. Transparent merge. simpl. Opaque merge.
+          validate.
+ Focus 2. intros. destruct H0. subst.
+    econstructor; [reflexivity | ]. 
+    econstructor; [auto | | | eauto]; [monoid | ]. constructor. 
+      apply singleton_singleton.
+
+
+  simpl. 
+(*
+  rewrite denote_unbox. unfold compose_super. simpl. rewrite IHn.
+  Focus 2. simpl. (* BUG: swap_list 1 [1] voilates precondition of swap_list *)
+    apply WF_Mixed.
+    apply mixed_unitary. admit (* swap lists are well-formed? *).
+                         admit (* swap lists are unitary? *).
+                         admit.
+
+
+  simpl in H_p0. autounfold with monad_db in H_p0. simpl in H_p0.
+Print subst_state.
+  unfold Var in *.
+  set (σ1 := Mk_subst_state (0%nat :: 2%nat :: nil) (3%nat)).
+  fold σ1 in H_p0.
+
+  destruct (get_fresh_pat (n ⨂ Qubit) σ1) as [p1 σ1'] eqn:H_p1.
+  inversion H_p0; subst. 
+  repeat (autounfold with den_db; simpl).
+*)
+(*??? *)
+Admitted.
+
+
 
 (***********************)
 (* Deutsch's Algorithm *)
@@ -497,7 +637,7 @@ Unset Ltac Profiling.
 Set Ltac Profiling.
 
 Lemma deutsch_constant : forall U_f, constant U_f -> 
-                                ⟦deutsch U_f⟧ I1 = |0⟩⟨0|.
+                                ⟦U_deutsch U_f⟧ I1 = |0⟩⟨0|.
 Proof.
   intros U_f H.
   repeat (simpl; autounfold with den_db). 
@@ -508,6 +648,7 @@ Proof.
   + (* f0 *)
     unfold f0.
     solve_matrix.
+
     rewrite (Cmult_comm (/ √2) _).
     rewrite Cmult_assoc.
     rewrite (Cmult_assoc 2 (/2)).
@@ -529,7 +670,7 @@ Proof.
 Qed.
 
 Lemma deutsch_balanced : forall U_f, balanced U_f -> 
-                                ⟦deutsch U_f⟧ I1 = |1⟩⟨1|.
+                                ⟦U_deutsch U_f⟧ I1 = |1⟩⟨1|.
 Proof.
   intros U_f H.
   repeat (simpl; autounfold with den_db). 
@@ -613,13 +754,12 @@ Proof.
     reflexivity.
 Qed.
 *)
-*)
 
 
 (*************************)
 (* Quantum Teleportation *)
 (*************************)
-
+(*
 Definition EPR00 : Matrix 4 4 :=
   fun x y => match x, y with
              | 0, 0 => 1/2
@@ -628,6 +768,7 @@ Definition EPR00 : Matrix 4 4 :=
              | 3, 3 => 1/2
              | _, _ => 0
              end.
+*)
 
 Lemma bell00_spec :  ⟦bell00⟧ I1  = EPR00.
 Proof.
@@ -718,8 +859,10 @@ Proof.
   repeat (simpl; autounfold with den_db); Msimpl; solve_matrix.
 Qed.
 
+(* We convert the matrices back to functional representation for 
+   unification. Simply comparing the matrices may be more efficient,
+   however. *)
 (*
-
 Lemma teleport_eq : forall (ρ : Density 2), 
   Mixed_State ρ -> ⟦teleport⟧ ρ = ρ.
 Proof.
