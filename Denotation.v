@@ -419,8 +419,15 @@ Lemma denote_db_compose : forall pad w1 w2 Γ1 Γ n m
 
 Admitted.
 
-About denote_db_circuit. Print Types_Compose. 
-About hoas_to_db_compose_correct.
+(* probably a more general form of this *)
+Lemma denote_db_unbox : forall { w2} (b : Box One w2),
+    ⟦b⟧ = denote_db_circuit 0 0 ((hoas_to_db (unbox b unit)) (st_{0})).
+Proof.
+  destruct b.
+  simpl. unfold denote_box.
+  simpl.
+  reflexivity.
+Qed.
 
 Lemma denote_Ctx_app : forall Γ1 Γ2, 
       denote_Ctx (Γ1 ++ Γ2) = (denote_Ctx Γ1 + denote_Ctx Γ2)%nat.

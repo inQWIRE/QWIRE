@@ -39,7 +39,7 @@ Denotation.vo: Denotation.v Quantum.vo DBCircuits.vo
 HOASProofs.vo: HOASProofs.v HOASExamples.vo Denotation.vo
 	coqc HOASProofs.v
 
-Equations.vo: Equations.v TypeChecking.vo
+Equations.vo: Equations.v TypeChecking.vo Denotation.vo
 	coqc Equations.v
 
 

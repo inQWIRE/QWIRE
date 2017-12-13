@@ -574,14 +574,13 @@ Proof. intros. eapply c_proj_eq; simpl; try rewrite sqrt_sqrt; lra. Qed.
 
 (* Lemmas about Conjugates *)
 
-Lemma Cconj_R : forall r : R, r^* = r. Proof. intros; clra. Qed.
+Lemma Cconj_R : forall r : R, r^* = r.         Proof. intros; clra. Qed.
+Lemma Cconj_0 : 0^* = 0.                  Proof. clra. Qed.
 Lemma Cconj_opp : forall C, (- C)^* = - (C^*). Proof. reflexivity. Qed.
-Lemma Cconj_rad2 : (/ √2)^* = / √2. Proof. clra. Qed.
-Lemma Cplus_div2 : /2 + /2 = 1. Proof. clra. Qed.
-Lemma Cconj_plus_distr : forall (x y : C), (x + y)^* = x^* + y^*.
-Proof. intros x y. clra. Qed.
-Lemma Cconj_mult_distr : forall (x y : C), (x * y)^* = x^* * y^*.
-Proof. intros x y. clra. Qed.
+Lemma Cconj_rad2 : (/ √2)^* = / √2.       Proof. clra. Qed.
+Lemma Cplus_div2 : /2 + /2 = 1.           Proof. clra. Qed.
+Lemma Cconj_plus_distr : forall (x y : C), (x + y)^* = x^* + y^*. Proof. intros; clra. Qed.
+Lemma Cconj_mult_distr : forall (x y : C), (x * y)^* = x^* * y^*. Proof. intros; clra. Qed.
 
 
 Lemma square_rad2 : /√2 * /√2 = /2. 
@@ -607,7 +606,6 @@ Qed.
 (* Automation *)
 (**************)
 
-
 Lemma Cminus_unfold : forall c1 c2, (c1 - c2 = c1 + -c2)%C. Proof. reflexivity. Qed.
 Lemma Cdiv_unfold : forall c1 c2, (c1 / c2 = c1 */ c2)%C. Proof. reflexivity. Qed.
 
@@ -625,6 +623,21 @@ Hint Rewrite Csqrt_sqrt using Psatz.lra : C_db.
 Hint Rewrite Cinv_l Cinv_r using nonzero : C_db.
 (* Previously in the other direction *)
 Hint Rewrite Cinv_mult_distr using nonzero : C_db.
+
+(* Light rewriting db *)
+Hint Rewrite Cplus_0_l Cplus_0_r Cmult_0_l Cmult_0_r Copp_0 
+             Cconj_R Cmult_1_l Cmult_1_r : C_db_light.
+
+Ltac Csimpl := 
+  repeat match goal with
+  | _ => rewrite Cmult_0_l
+  | _ => rewrite Cmult_0_r
+  | _ => rewrite Cplus_0_l
+  | _ => rewrite Cplus_0_r
+  | _ => rewrite Cmult_1_l
+  | _ => rewrite Cmult_1_r
+  | _ => rewrite Cconj_R
+  end.
 
 (*
 (* deprecated in favor of autorewrite *)

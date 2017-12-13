@@ -194,11 +194,11 @@ Proof. type_check. Defined.
 (* teleport lift outside of bob *)
 Definition bob_distant (u v : bool) : Box Qubit Qubit :=
   box_ b ⇒
-    gate_ b      ← (if v then X else id_gate) @b;
-    gate_ b      ← (if u then Z else id_gate) @b;
+    let_ b ← unbox (if v then boxed_gate X else id_circ) b;
+    let_ b ← unbox (if u then boxed_gate Z else id_circ) b;
     output b.
 Lemma bob_distant_WT : forall b1 b2, Typed_Box (bob_distant b1 b2).
-Proof. type_check. Defined.
+Proof. destruct b1,b2; type_check. Defined.
 
 Definition teleport_distant : Box Qubit Qubit :=
   box_ q ⇒
@@ -207,7 +207,7 @@ Definition teleport_distant : Box Qubit Qubit :=
     lift_ (u,v) ← (x,y) ;
     unbox (bob_distant u v) b.
 Lemma teleport_distant_WT : Typed_Box teleport_distant.
-Proof. type_check. Qed.
+Proof. type_check. all: try destruct b; try destruct b0; type_check. Qed.
 
 Definition teleport_direct :=
   box_ q ⇒  
@@ -422,6 +422,7 @@ Proof. type_check. Qed.
 
 (* NOT already exists *)
 
+(* AND uses a Taffoli gate with one ancilla *)
 Definition AND : Box (Qubit ⊗ Qubit) Qubit :=
   box_ ab ⇒
     let_ (a,b)      ← output ab;
@@ -435,6 +436,19 @@ Definition AND : Box (Qubit ⊗ Qubit) Qubit :=
 Lemma AND_WT : Typed_Box AND.
 Proof. type_check. Qed.
 
+(* XOR just wraps a CNOT *)
+Definition XOR : Box (Qubit ⊗ Qubit) Qubit := 
+  box_ ab ⇒ 
+    let_ (a,b)   ← output ab;
+    gate_ (a, b) ← CNOT @(a,b);
+    gate_ a      ← meas @a;
+    gate_ ()     ← discard @a;
+    output b.
+
+Lemma XOR_WT : Typed_Box XOR.
+Proof. type_check. Qed.
+
+(* OR defined by way of (A ∨ B) = ¬ (¬ A ∧ ¬ B) *)
 Definition OR : Box (Qubit ⊗ Qubit) Qubit :=
   box_ ab ⇒ 
     let_ (a,b)       ← output ab;

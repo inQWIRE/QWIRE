@@ -130,10 +130,10 @@ Definition swap : Matrix 4 4 :=
 Hint Unfold ket0 ket1 hadamard σx σy σz control cnot swap : M_db.
 
 (* Lemmas *)
-Lemma MmultX1 : σx × |1⟩ = |0⟩. Proof. crunch_matrix. Qed.
-Lemma Mmult1X : ⟨1| × σx = ⟨0|. Proof. crunch_matrix. Qed.
-Lemma MmultX0 : σx × |0⟩ = |1⟩. Proof. crunch_matrix. Qed.
-Lemma Mmult0X : ⟨0| × σx = ⟨1|. Proof. crunch_matrix. Qed.
+Lemma MmultX1 : σx × |1⟩ = |0⟩. Proof. solve_matrix. Qed.
+Lemma Mmult1X : ⟨1| × σx = ⟨0|. Proof. solve_matrix. Qed.
+Lemma MmultX0 : σx × |0⟩ = |1⟩. Proof. solve_matrix. Qed.
+Lemma Mmult0X : ⟨0| × σx = ⟨1|. Proof. solve_matrix. Qed.
 Hint Rewrite Mmult0X Mmult1X MmultX0 MmultX1 : M_db.
 
 Lemma swap_swap : swap × swap = Id 4.
@@ -769,8 +769,6 @@ Qed.
 
 (* For when autorewrite needs some extra help *)
 
-Ltac Csimpl := autorewrite with C_db.
-
 Ltac Msimpl := 
   repeat match goal with 
   | [ |- context[(?A ⊗ ?B)†]]    => let H := fresh "H" in 
@@ -780,8 +778,11 @@ Ltac Msimpl :=
                                   specialize (control_sa _ U) as H;
                                   simpl in H; rewrite H; 
                                   [clear H | Msimpl; reflexivity]
-  | _                           => autorewrite with M_db
+  | [|- context[(?A ⊗ ?B) × (?C ⊗ ?D)]] => 
+                                  let H := fresh "H" in 
+                                  specialize (kron_mixed_product _ _ _ _ _ _ A B C D);
+                                  intros H; simpl in H; rewrite H; clear H
+  | _                         => autorewrite with M_db
   end.
-
 
 (* *)

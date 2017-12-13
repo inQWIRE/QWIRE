@@ -67,6 +67,8 @@ Proof.
   + rewrite WFA, WFB; trivial; right; try omega.
   + rewrite WFA, WFB; trivial; left; try omega.
 Qed.
+
+(* List Representation *)
     
 Definition list2D_to_matrix (l : list (list C)) : 
   Matrix (length l) (length (hd [] l)) :=
@@ -959,14 +961,12 @@ Ltac tac_lt m n :=
   end.
 
 (* Reassociate matrices so that smallest dimensions are multiplied first:
- m n o    p
-(A × B) × C => A × (B × C) iff
-  1) p < o && p < m
-  2) n < o && n < m
-m n    o p
-A × (B × C) => (A × B) × C iff
-  1) m < n && m < p
-  2) o < n && o < p
+For (m x n) × (n x o) × (o x p):
+If m or o is the smallest, associate left
+If n or p is the smallest, associate right
+(The actual time for left is (m * o * n) + (m * p * o) = mo(n+p) 
+                      versus (n * p * o) + (m * p * n) = np(m+o) for right. 
+We find our heuristic to be pretty accurate, though.)
 *)
 Ltac assoc_least := 
   repeat (simpl; match goal with
@@ -1012,7 +1012,9 @@ Qed.
 (* We convert the matrices back to functional representation for 
    unification. Simply comparing the matrices may be more efficient,
    however. *)
-Ltac crunch_matrix := match goal with 
+
+Ltac crunch_matrix := 
+                    match goal with 
                       | [|- ?G ] => idtac "Crunching:" G
                       end;
                       repeat match goal with
@@ -1026,7 +1028,7 @@ Ltac crunch_matrix := match goal with
                       destruct_m_eq;
                       try rewrite divmod_eq; 
                       simpl;
-                      autorewrite with C_db; 
+                      Csimpl; (* basic rewrites only *) 
                       try reflexivity;
                       try solve_out_of_bounds. 
 
@@ -1058,4 +1060,6 @@ Ltac reduce_matrix := match goal with
                        end;
                        repeat match goal with | [ H : C |- _ ] => unfold H; clear H end.
 
-Ltac solve_matrix := assoc_least; repeat reduce_matrix; crunch_matrix.
+Ltac solve_matrix := assoc_least;
+                     repeat reduce_matrix; crunch_matrix;
+                     autorewrite with C_db; try clra.

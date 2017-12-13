@@ -11,7 +11,6 @@ Set Bullet Behavior "Strict Subproofs".
 Global Unset Asymmetric Patterns.
 Delimit Scope matrix_scope with M.
 
-
 (*****************************************************************************)
 (** EXAMPLES START **)
 (*****************************************************************************)
@@ -403,16 +402,6 @@ Admitted.
 
 Open Scope circ_scope.
 
-(* probably a more general form of this *)
-Lemma denote_db_unbox : forall { w2} (b : Box One w2),
-    ⟦b⟧ = denote_db_circuit 0 0 ((hoas_to_db (unbox b ())) (st_{0})).
-Proof.
-  destruct b.
-  simpl. unfold denote_box.
-  simpl.
-  reflexivity.
-Qed.
-
 Lemma wf_biased_coin : forall c, WF_Matrix 2 2 (biased_coin c).
 Proof.
   intros; show_wf.
@@ -422,7 +411,7 @@ Hint Resolve wf_biased_coin : wf_db.
 
 Open Scope circ_scope.
 
-Hint Unfold super_Zero : den_db. Print coin_flips.
+Hint Unfold super_Zero : den_db. 
 
 Lemma flips_correct : forall n, ⟦coin_flips n⟧ I1 = biased_coin (1/(2^n)).
 Proof.
@@ -438,13 +427,13 @@ Proof.
     erewrite denote_compose with (Γ := ∅) (Γ1 := ∅) (Γ1' := ∅);
       [ | apply unbox_typing; [type_check | apply coin_flips_WT]
       | split; [validate | monoid]
-      | 
+      | repeat type_check (* repeat shouldn't be necessary *)
       | auto
       | replace (remove_OCtx ∅ (st_{0})) with (st_{0})
           by (unfold remove_OCtx; auto);
          rewrite fresh_pat_eq'; auto
-      ].
-    -- 
+      ]. 
+
        (* Apply IH *)
        rewrite denote_db_unbox in IHn.
        simpl. 
@@ -470,20 +459,13 @@ Proof.
          autorewrite with C_db.
          rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
          reflexivity.
-
-    --
-      intros p Γ2 Γ2' [pf_valid pf_merge] types_p.
-      rewrite merge_nil_r in pf_merge. subst. 
-      type_check; auto.
 Qed.
 
 (***********************)
 (* Deutsch's Algorithm *)
 (***********************)
-(* Temporarily commented out for efficient compilation *)
 
 Delimit Scope circ_scope with qc.
-
 
 (* f(x) = 0. Unitary: Identity *)
 Definition f0 : Matrix 4 4 := Id 4.
@@ -511,6 +493,9 @@ Definition balanced (U : Unitary (Qubit ⊗ Qubit)%qc) :=
 Lemma f2_WF : WF_Matrix 4 4 f2. Proof. show_wf. Qed.
 Hint Resolve f2_WF : wf_db.
   
+Unset Ltac Profiling.
+Set Ltac Profiling.
+
 Lemma deutsch_constant : forall U_f, constant U_f -> 
                                 ⟦deutsch U_f⟧ I1 = |0⟩⟨0|.
 Proof.
@@ -575,6 +560,13 @@ Proof.
     reflexivity.
 Qed.
 
+Show Ltac Profile. 
+
+
+
+Unset Ltac Profiling.
+
+
 (* Slightly faster to destruct 'balanced' last 
 Lemma deutsch_balanced'' : forall U_f, balanced U_f -> 
                                 ⟦deutsch U_f⟧ I1 = |1⟩⟨1|.
@@ -621,6 +613,7 @@ Proof.
     reflexivity.
 Qed.
 *)
+*)
 
 
 (*************************)
@@ -643,6 +636,7 @@ Proof.
   solve_matrix.
 Qed.
 
+(* Works, but commented out for efficient compilation 
 Definition M_alice (ρ : Matrix 4 4) : Matrix 4 4 :=
   fun x y => 
   match x, y with 
@@ -653,84 +647,50 @@ Definition M_alice (ρ : Matrix 4 4) : Matrix 4 4 :=
   | _, _ => 0
   end.
 
-(* Slow but works *)
 Lemma alice_spec : forall (ρ : Density 4), Mixed_State ρ -> ⟦alice⟧ ρ = M_alice ρ.
 Proof.
   intros.
   repeat (simpl; autounfold with den_db). 
   specialize (WF_Mixed ρ H). intros WFρ.
   Msimpl.
+  repeat rewrite <- Mmult_assoc.
+  Msimpl.
+  repeat rewrite Mmult_assoc.
+  Msimpl.
   solve_matrix.
-  + rewrite <- 2 Cmult_plus_distr_l.
-    rewrite 2 (Cmult_comm (/√2)).
-    rewrite <- 2 Cmult_assoc.
-    rewrite <- Cmult_plus_distr_r.
+  + rewrite 2 (Cmult_comm (/√2)).
+    rewrite <- 4 Cmult_plus_distr_r.
+    rewrite <- Cmult_assoc.
     autorewrite with C_db.
-    rewrite Cplus_assoc.
-    reflexivity.
-  + rewrite <- 2 Cmult_plus_distr_l.
-    rewrite 2 (Cmult_comm (/√2)).
-    rewrite <- 2 Cmult_assoc.
-    rewrite <- Cmult_plus_distr_r.
+    clra.
+  + rewrite 2 (Cmult_comm (/√2)).
+    rewrite <- 4 Cmult_plus_distr_r.
+    rewrite <- Cmult_assoc.
     autorewrite with C_db.
-    rewrite Cplus_assoc.
-    reflexivity.
-  + rewrite 3 Copp_mult_distr_r.
-    rewrite <- 2 Cmult_plus_distr_l.
-    rewrite 2 (Cmult_comm (/√2)).
-    rewrite <- 2 Cmult_assoc.
-    autorewrite with C_db.
-    rewrite Copp_mult_distr_l.
-    rewrite <- Cmult_plus_distr_r.
+    clra.
+  + rewrite (Copp_mult_distr_r (/√2)).
     rewrite Copp_plus_distr.
-    rewrite Copp_involutive.
-    rewrite Cplus_assoc.
-    reflexivity.
-  + rewrite 3 Copp_mult_distr_r.
-    rewrite <- 2 Cmult_plus_distr_l.
+    repeat rewrite Copp_mult_distr_l.
     rewrite 2 (Cmult_comm (/√2)).
-    rewrite <- 2 Cmult_assoc.
+    rewrite <- 4 Cmult_plus_distr_r.
+    rewrite <- Cmult_assoc.
     autorewrite with C_db.
-    rewrite Copp_mult_distr_l.
-    rewrite <- Cmult_plus_distr_r.
+    clra.
+  + rewrite (Copp_mult_distr_r (/√2)).
     rewrite Copp_plus_distr.
-    rewrite Copp_involutive.
-    rewrite Cplus_assoc.
-    reflexivity.
-Qed.
+    repeat rewrite Copp_mult_distr_l.
+    rewrite 2 (Cmult_comm (/√2)).
+    rewrite <- 4 Cmult_plus_distr_r.
+    rewrite <- Cmult_assoc.
+    autorewrite with C_db.
+    clra.
+Qed.    
+*)
 
 (*
 Definition M_bob (ρ : Matrix 2 2) : Matrix 4 4 := 
   fun x y => 0.
-*)
 
-Definition M_bob_distant (b1 b2 : bool) (ρ : Density 2) : Matrix 2 2 := 
-  match b1, b2 with
-  | true, true   => σz × σx × ρ × σx × σz  
-  | true, false  => σz × ρ × σz  
-  | false, true  => σz × ρ × σz  
-  | false, false => ρ
-  end.
-
-(*
-Definition bob_distant_spec : forall b1 b2 (ρ : Density 2), 
-    Mixed_State ρ -> 
-    ⟦bob_distant b1 b2⟧ ρ = M_bob_distant b1 b2 ρ.
-Proof.
-  intros.
-  specialize (WF_Mixed ρ H). intros WFρ.
-  destruct b1, b2; simpl.
-  + repeat (simpl; autounfold with den_db); Msimpl; solve_matrix.
-  + repeat (simpl; autounfold with den_db); Msimpl.
-    simpl.
-    unfold zip_to.
-    simpl.
-    admit.
-  + repeat (simpl; autounfold with den_db); Msimpl. 
-    unfold zip_to.
-    simpl.
-Admitted.
-  
 Lemma bob_spec : forall (ρ : Density 2), Mixed_State ρ -> ⟦bob⟧ ρ = M_bob ρ.
 Proof.
   intros.
@@ -739,6 +699,24 @@ Proof.
   Msimpl.
   solve_matrix.
 *)
+
+Definition M_bob_distant (b1 b2 : bool) (ρ : Density 2) : Matrix 2 2 := 
+  match b1, b2 with
+  | true, true   => σz × σx × ρ × σx × σz  
+  | true, false  => σz × ρ × σz  
+  | false, true  => σx × ρ × σx  
+  | false, false => ρ
+  end.
+
+Definition bob_distant_spec : forall b1 b2 (ρ : Density 2), 
+    Mixed_State ρ -> 
+    ⟦bob_distant b1 b2⟧ ρ = M_bob_distant b1 b2 ρ.
+Proof.
+  intros.
+  specialize (WF_Mixed ρ H). intros WFρ.
+  destruct b1, b2;
+  repeat (simpl; autounfold with den_db); Msimpl; solve_matrix.
+Qed.
 
 (*
 
