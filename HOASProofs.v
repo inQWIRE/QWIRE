@@ -599,6 +599,12 @@ Print subst_state.
 (*??? *)
 Admitted.
 
+(* Can we multiply 16 x 16 matrices? Yes, we can! 
+Lemma test : ((swap ⊗ swap) × (swap ⊗ swap) = 'I_16)%M.
+Proof. 
+  solve_matrix. 
+  all: unfold Nat.ltb; simpl; rewrite andb_false_r; reflexivity.
+Qed. *)
 
 
 (***********************)
@@ -633,8 +639,7 @@ Definition balanced (U : Unitary (Qubit ⊗ Qubit)%qc) :=
 Lemma f2_WF : WF_Matrix 4 4 f2. Proof. show_wf. Qed.
 Hint Resolve f2_WF : wf_db.
   
-Unset Ltac Profiling.
-Set Ltac Profiling.
+(* Set Ltac Profiling. *)
 
 Lemma deutsch_constant : forall U_f, constant U_f -> 
                                 ⟦U_deutsch U_f⟧ I1 = |0⟩⟨0|.
@@ -648,7 +653,6 @@ Proof.
   + (* f0 *)
     unfold f0.
     solve_matrix.
-
     rewrite (Cmult_comm (/ √2) _).
     rewrite Cmult_assoc.
     rewrite (Cmult_assoc 2 (/2)).
@@ -701,12 +705,7 @@ Proof.
     reflexivity.
 Qed.
 
-Show Ltac Profile. 
-
-
-
-Unset Ltac Profiling.
-
+(* Show Ltac Profile *)
 
 (* Slightly faster to destruct 'balanced' last 
 Lemma deutsch_balanced'' : forall U_f, balanced U_f -> 
@@ -862,7 +861,7 @@ Qed.
 (* We convert the matrices back to functional representation for 
    unification. Simply comparing the matrices may be more efficient,
    however. *)
-(*
+
 Lemma teleport_eq : forall (ρ : Density 2), 
   Mixed_State ρ -> ⟦teleport⟧ ρ = ρ.
 Proof.
@@ -872,10 +871,9 @@ Proof.
   Msimpl.
 
   assoc_least.
-  solve_matrix.
-
+  do 10 reduce_matrix.
 Abort.
-*)
+                                              
 
 (* Lemmas out of date
 Lemma boxed_gate_correct : forall W1 W2 (g : Gate W1 W2) (ρ : Density (2^⟦W1⟧)) ,
