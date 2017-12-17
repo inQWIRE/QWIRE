@@ -1,6 +1,7 @@
 Require Import Arith.
 Require Import Reals.
 Require Import List.
+Require Import FakeR.
 Import ListNotations.
 Open Scope list_scope.
 
@@ -710,7 +711,7 @@ Inductive Unitary : WType -> Set :=
   | σy        : Unitary Qubit
   | σz        : Unitary Qubit
   | CNOT      : Unitary (Qubit ⊗ Qubit)
-  | ROT3      : forall (theta phi lambda : R), Unitary Qubit
+  | ROT3      : forall (theta phi lambda : FakeR), Unitary Qubit
   | ctrl      : forall {W} (U : Unitary W), Unitary (Qubit ⊗ W) 
   | bit_ctrl  : forall {W} (U : Unitary W), Unitary (Bit ⊗ W) 
   | transpose : forall {W} (U : Unitary W), Unitary W.

@@ -2,6 +2,7 @@ Require Import Program.
 Require Import Psatz.
 Require Import Omega.
 Require Import Reals.
+Require Import FakeR.
 Require Import Bool.
 Require Export Complex.
 Require Export Matrix.
@@ -123,12 +124,15 @@ Definition swap : Matrix 4 4 :=
 
 (* Rotation Matrices (theta, phi, lambda) := Rz(phi) Ry(theta) Rz(lambda) *)
 
-Definition rotation (theta phi lambda : R) : Matrix 2 2 :=
+Definition rotation (theta phi lambda : FakeR) : Matrix 2 2 :=
+  let t := (FakeRtoR theta) in
+  let p := (FakeRtoR phi) in
+  let l := (FakeRtoR lambda) in
   (fun x y => match x, y with
-        | 0, 0 => (cos((phi + lambda) / 2) - Ci * sin((phi + lambda) / 2)) * cos (theta / 2)
-        | 0, 1 => -(cos((phi - lambda) / 2) - Ci * sin((phi - lambda) / 2)) * sin (theta / 2)
-        | 1, 0 => (cos((phi - lambda) / 2) + Ci * sin((phi - lambda) / 2)) * sin (theta / 2)
-        | 1, 1 => (cos((phi + lambda) / 2) + Ci * sin((phi + lambda) / 2)) * cos (theta / 2)
+        | 0, 0 => (cos((p + l) / 2) - Ci * sin((p + l) / 2)) * cos (t / 2)
+        | 0, 1 => -(cos((p - l) / 2) - Ci * sin((p - l) / 2)) * sin (t / 2)
+        | 1, 0 => (cos((p - l) / 2) + Ci * sin((p - l) / 2)) * sin (t / 2)
+        | 1, 1 => (cos((p + l) / 2) + Ci * sin((p + l) / 2)) * cos (t / 2)
         | _, _ => 0
         end).
 
@@ -251,7 +255,7 @@ Lemma WF_pauli_z : WF_Matrix 2 2 pauli_z. Proof. show_wf. Qed.
 Lemma WF_cnot : WF_Matrix 4 4 cnot. Proof. show_wf. Qed.
 Lemma WF_swap : WF_Matrix 4 4 swap. Proof. show_wf. Qed.
 
-Lemma WF_rotation : forall (t p l : R), WF_Matrix 2 2 (rotation t p l).
+Lemma WF_rotation : forall (t p l : FakeR), WF_Matrix 2 2 (rotation t p l).
 Proof.
   intros t p l x y H1. destruct H1 as [H2 | H2].
   - destruct H2 eqn:Hx.
@@ -425,7 +429,7 @@ Proof.
   clra.
 Qed.
 
-Lemma rotation_unitary : forall (t p l : R), is_unitary (rotation t p l).
+Lemma rotation_unitary : forall (t p l : FakeR), is_unitary (rotation t p l).
 Proof.
   split.
   show_wf.

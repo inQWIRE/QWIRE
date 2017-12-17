@@ -96,6 +96,7 @@ Require Import FlatCircuits.
 Require Import Contexts.
 Require Import Arith.
 Require Import Reals.
+Require Import FakeR.
 Require Import List.
 
 Open Scope circ_scope.
@@ -151,11 +152,11 @@ Fixpoint control_unitary_gate_circuit (cp : Pat) (C : Min_Circuit) : Min_Circuit
         | c =>
           match p with
           | t =>
-            min_gate (U (ROT3 0 0 ((la-ph)/2))) t
+            min_gate (U (ROT3 (fake_int 0) (fake_int 0) (fake_div (fake_minus la ph) (fake_int 2)))) t
             (min_gate (U CNOT) (pair c t)
-            (min_gate (U (ROT3 (-th/2) 0 (-(ph+la)/2))) t
+            (min_gate (U (ROT3 (fake_minus (fake_int 0) (fake_div th (fake_int 2))) (fake_int 0) (fake_minus (fake_int 0) (fake_div (fake_plus ph la) (fake_int 2))))) t
             (min_gate (U CNOT) (pair c t)
-            (min_gate (U (ROT3 (th/2) ph 0)) t
+            (min_gate (U (ROT3 (fake_div th (fake_int 2)) ph (fake_int 0))) t
             (control_unitary_gate_circuit cp C')))))
           end
         end
@@ -163,14 +164,14 @@ Fixpoint control_unitary_gate_circuit (cp : Pat) (C : Min_Circuit) : Min_Circuit
                 | pair b c =>
                   match cp with
                   | a =>
-                  min_gate (U (ROT3 (PI/2) 0 PI)) c
-                  (min_gate (U CNOT) (pair b c) (min_gate (U (ROT3 0 0 (-PI/4))) c
-                  (min_gate (U CNOT) (pair a c) (min_gate (U (ROT3 0 0 (PI/4))) c
-                  (min_gate (U CNOT) (pair b c) (min_gate (U (ROT3 0 0 (-PI/4))) c
-                  (min_gate (U CNOT) (pair a c) (min_gate (U (ROT3 0 0 (PI/4))) b
-                  (min_gate (U (ROT3 0 0 (PI/4))) c (min_gate (U (ROT3 (PI/2) 0 PI)) c
-                  (min_gate (U CNOT) (pair a b) (min_gate (U (ROT3 0 0 (PI/4))) a
-                  (min_gate (U (ROT3 0 0 (-PI/4))) b
+                  min_gate (U (ROT3 (fake_div fake_pi (fake_int 2)) (fake_int 0) fake_pi)) c
+                  (min_gate (U CNOT) (pair b c) (min_gate (U (ROT3 (fake_int 0) (fake_int 0) (fake_minus (fake_int 0) (fake_div fake_pi (fake_int 4))))) c
+                  (min_gate (U CNOT) (pair a c) (min_gate (U (ROT3 (fake_int 0) (fake_int 0) (fake_div fake_pi (fake_int 4)))) c
+                  (min_gate (U CNOT) (pair b c) (min_gate (U (ROT3 (fake_int 0) (fake_int 0) (fake_minus (fake_int 0) (fake_div fake_pi (fake_int 4))))) c
+                  (min_gate (U CNOT) (pair a c) (min_gate (U (ROT3 (fake_int 0) (fake_int 0) (fake_div fake_pi (fake_int 4)))) b
+                  (min_gate (U (ROT3 (fake_int 0) (fake_int 0) (fake_div fake_pi (fake_int 4)))) c (min_gate (U (ROT3 (fake_div fake_pi (fake_int 2)) (fake_int 0) fake_pi)) c
+                  (min_gate (U CNOT) (pair a b) (min_gate (U (ROT3 (fake_int 0) (fake_int 0) (fake_div fake_pi (fake_int 4)))) a
+                  (min_gate (U (ROT3 (fake_int 0) (fake_int 0) (fake_minus (fake_int 0) (fake_div fake_pi (fake_int 4))))) b
                   (min_gate (U CNOT) (pair a b)
                   (control_unitary_gate_circuit cp C')))))))))))))))
                   end
@@ -207,7 +208,7 @@ Fixpoint transpose_unitary_gate_circuit (c : Min_Circuit) : Min_Circuit :=
       | U u =>
         match u with
         | ROT3 th ph la =>
-          append_gate_last (ROT3 (-th) (-ph) (-la)) p (transpose_unitary_gate_circuit c')
+          append_gate_last (ROT3 (fake_minus (fake_int 0) th) (fake_minus (fake_int 0) ph) (fake_minus (fake_int 0) la)) p (transpose_unitary_gate_circuit c')
         | CNOT =>
           append_gate_last (CNOT) p (transpose_unitary_gate_circuit c')
         | _ => (transpose_unitary_gate_circuit c')
@@ -223,10 +224,10 @@ Fixpoint transpose_unitary_gate_circuit (c : Min_Circuit) : Min_Circuit :=
 
 Fixpoint unitary_gate_translation {W} (u : Unitary W) (p po : Pat) : Min_Circuit :=
   match u with
-    | H => min_gate (U (ROT3 (PI/2) 0 PI)) p (min_output po)
-    | σx => min_gate (U (ROT3 PI 0 PI)) p (min_output po)
-    | σy => min_gate (U (ROT3 PI (PI/2) (PI/2))) p (min_output po)
-    | σz => min_gate (U (ROT3 0 0 PI)) p (min_output po)
+    | H => min_gate (U (ROT3 (fake_div fake_pi (fake_int 2)) (fake_int 0) fake_pi)) p (min_output po)
+    | σx => min_gate (U (ROT3 fake_pi (fake_int 0) fake_pi)) p (min_output po)
+    | σy => min_gate (U (ROT3 fake_pi (fake_div fake_pi (fake_int 2)) (fake_div fake_pi (fake_int 2)))) p (min_output po)
+    | σz => min_gate (U (ROT3 (fake_int 0) (fake_int 0) fake_pi)) p (min_output po)
     | CNOT => min_gate (U CNOT) p (min_output po)
     | ROT3 th ph la => min_gate (U (ROT3 th ph la)) p (min_output po)
     | ctrl u' =>
@@ -376,9 +377,24 @@ Fixpoint pat_to_anylist (li : list Var) (p : Pat) : anylist :=
   | pair p1 p2 => (pat_to_anylist li p1) ++ (pat_to_anylist li p2)
   end.
 
-(* trans_exp : translate real numbers to [exp] *)
-Definition trans_exp (r : R) : exp := (* Todo : temporarily filled with [e_pi] *)
-  e_pi.
+(* trans_exp : translate FakeR to [exp] *)
+(** Note that this translation does not use the [e_real] constructor of [exp]. **)
+Fixpoint trans_exp (f : FakeR) : exp :=
+  match f with
+  | fake_pi => e_pi
+  | fake_e => e_unop e_to (e_nat 1)
+  | fake_mult f1 f2 => e_binop (trans_exp f1) times (trans_exp f2)
+  | fake_div f1 f2 => e_binop (trans_exp f1) div (trans_exp f2)
+  | fake_plus f1 f2 => e_binop (trans_exp f1) plus (trans_exp f2)
+  | fake_minus f1 f2 => e_binop (trans_exp f1) minus (trans_exp f2)
+  | fake_int z =>
+    match z with
+    | Z0 => e_nat 0
+    | Zpos n => e_nat (nat_of_P n)
+    | Zneg n => e_binop (e_nat 0) minus (e_nat (nat_of_P n))
+    end
+  | fake_pow f1 f2 => e_binop (trans_exp f1) pow (trans_exp f2)
+  end.
 
 Fixpoint trans' (c : Min_Circuit) (li : list Var) (n m : nat) :=
   match c with
