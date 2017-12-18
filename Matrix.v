@@ -1036,8 +1036,7 @@ Ltac crunch_matrix :=
                       | [|- ?G ] => idtac "Crunching:" G
                       end;
                       repeat match goal with
-                      (*     | [ H : C |- _ ] => unfold H; clear H * this has a bug *)
-                             | [ |- context[?c :: _ ]] => unfold c; clear c
+                             | [ c : C |- _ ] => cbv [c]; clear c (* 'unfold' hangs *)
                              end; 
                       simpl;
                       unfold list2D_to_matrix;    
@@ -1077,7 +1076,7 @@ Ltac reduce_matrix := match goal with
                        | [ |- _ = ?M] => reduce_aux M
                        end;
                        repeat match goal with 
-                              | [ |- context[?c :: _ ]] => unfold c; clear c
+                              | [ |- context[?c :: _ ]] => cbv [c]; clear c
                               end.
 
 Ltac solve_matrix := assoc_least;

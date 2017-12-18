@@ -19,15 +19,15 @@ Transparent resize.
 
 Definition ket0 : Matrix 2 1:= 
   fun x y => match x, y with 
-          | 0, 0 => 1
-          | 1, 0 => 0
-          | _, _ => 0
+          | 0, 0 => C1
+          | 1, 0 => C0
+          | _, _ => C0
           end.
 Definition ket1 : Matrix 2 1 := 
   fun x y => match x, y with 
-          | 0, 0 => 0
-          | 1, 0 => 1
-          | _, _ => 0
+          | 0, 0 => C0
+          | 1, 0 => C1
+          | _, _ => C0
           end.
 
 Definition ket (x : nat) : Matrix 2 1 := if x =? 0 then ket0 else ket1.
@@ -70,42 +70,40 @@ Definition pauli_z : Matrix 2 2 := fun x y => if (x =? y) && (x <? 2)
 *)
 
 Definition σx : Matrix 2 2 := 
-  (fun x y => match x, y with
-          | 0, 0 => 0
-          | 0, 1 => 1
-          | 1, 0 => 1
-          | 1, 1 => 0
-          | _, _ => 0
-          end).
+  fun x y => match x, y with
+          | 0, 1 => C1
+          | 1, 0 => C1
+          | _, _ => C0
+          end.
 
 Definition σy : Matrix 2 2 := 
-  (fun x y => match x, y with
+  fun x y => match x, y with
           | 0, 1 => -Ci
           | 1, 0 => Ci
-          | _, _ => 0
-          end).
+          | _, _ => C0
+          end.
 
 Definition σz : Matrix 2 2 := 
-  (fun x y => match x, y with
-          | 0, 0 => 1
-          | 1, 1 => -1
-          | _, _ => 0
-          end).
+  fun x y => match x, y with
+          | 0, 0 => C1
+          | 1, 1 => -C1
+          | _, _ => C0
+          end.
   
 Definition control {n : nat} (A : Matrix n n) : Matrix (2*n) (2*n) :=
-  (fun x y => if (x <? n) && (y <? n) then (Id n) x y 
+  fun x y => if (x <? n) && (y <? n) then (Id n) x y 
           else if (n <=? x) && (n <=? y) then A (x-n)%nat (y-n)%nat 
-          else 0).
+          else C0.
 
 (* Definition cnot := control pauli_x. *)
 (* Direct definition makes our lives easier *)
 Definition cnot : Matrix 4 4 :=
   fun x y => match x, y with 
-          | 0, 0 => 1
-          | 1, 1 => 1
-          | 2, 3 => 1
-          | 3, 2 => 1
-          | _, _ => 0
+          | 0, 0 => C1
+          | 1, 1 => C1
+          | 2, 3 => C1
+          | 3, 2 => C1
+          | _, _ => C0
           end.          
 
 Lemma cnot_eq : cnot = control σx.
@@ -118,13 +116,13 @@ Qed.
 (* Swap Matrices *)
 
 Definition swap : Matrix 4 4 :=
-  (fun x y => match x, y with
-          | 0, 0 => 1
-          | 1, 2 => 1
-          | 2, 1 => 1
-          | 3, 3 => 1
-          | _, _ => 0
-          end).
+  fun x y => match x, y with
+          | 0, 0 => C1
+          | 1, 2 => C1
+          | 2, 1 => C1
+          | 3, 3 => C1
+          | _, _ => C0
+          end.
 
 (* Does this overwrite the other Hint DB M? *)
 Hint Unfold ket0 ket1 hadamard σx σy σz control cnot swap : M_db.

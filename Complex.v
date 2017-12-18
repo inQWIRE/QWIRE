@@ -29,6 +29,7 @@ by Robert Rand and Jennifer Paykin (June 2017).
 Require Import Prelim.
 Open Scope R_scope.
 
+
 (******************************************)
 (** Relevant lemmas from Rcomplements.v. **)
 (******************************************)

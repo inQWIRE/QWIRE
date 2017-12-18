@@ -873,7 +873,7 @@ Proof.
   assoc_least.
   solve_matrix.
   + repeat rewrite Cmult_assoc.
-    rewrite <- (Cmult_assoc _ _ (/ sqrt 2)).
+    rewrite <- (Cmult_assoc _ _ (/ √ 2)).
     autorewrite with C_db.
     rewrite <- (Cmult_assoc _ 2 (/2)).
     autorewrite with C_db.
@@ -881,7 +881,52 @@ Proof.
     rewrite Cmult_assoc.
     autorewrite with C_db.
     reflexivity.
-  + replace (RtoC (IZR (Zneg xH))) with (Copp (RtoC 1)) by (unfold IZR; clra).
+  + repeat rewrite Copp_mult_distr_r. 
+    replace (RtoC (- 1)) with (- C1) by clra.
+    rewrite Copp_involutive.
+    autorewrite with C_db.
+    repeat rewrite Cmult_assoc.
+    rewrite <- (Cmult_assoc _ _ (/ √ 2)).
+    autorewrite with C_db.
+    rewrite <- (Cmult_assoc _ 2 (/2)).
+    autorewrite with C_db.
+    rewrite Cmult_comm.
+    rewrite Cmult_assoc.
+    autorewrite with C_db.
+    reflexivity.
+  + rewrite Copp_mult_distr_r. 
+    repeat rewrite Copp_mult_distr_l. 
+    replace (RtoC (- 1)) with (- C1) by clra.
+    rewrite Copp_involutive.
+    autorewrite with C_db.
+    repeat rewrite Cmult_assoc.
+    rewrite <- (Cmult_assoc _ _ (/ √ 2)).
+    autorewrite with C_db.
+    rewrite <- (Cmult_assoc _ 2 (/2)).
+    autorewrite with C_db.
+    rewrite Cmult_comm.
+    rewrite Cmult_assoc.
+    autorewrite with C_db.
+    reflexivity.
+  + replace (RtoC (- 1)) with (- C1) by clra.
+    repeat rewrite <- Copp_mult_distr_l. 
+    repeat rewrite <- Copp_mult_distr_r. 
+    rewrite Copp_involutive.
+    autorewrite with C_db.
+    repeat rewrite Cmult_assoc.
+    rewrite <- (Cmult_assoc _ _ (/ √ 2)).
+    autorewrite with C_db.
+    rewrite <- (Cmult_assoc _ 2 (/2)).
+    autorewrite with C_db.
+    rewrite Cmult_comm.
+    rewrite Cmult_assoc.
+    autorewrite with C_db.
+    reflexivity.
+Qed.    
+
+(* For Coq 8.7:
+  + Set Printing All.
+    replace (RtoC (IZR (Zneg xH))) with (Copp (RtoC 1)) by (unfold IZR; clra).
     autorewrite with C_db.
     repeat rewrite Cmult_assoc.
     rewrite <- (Cmult_assoc _ _ (/ sqrt 2)).
@@ -915,6 +960,7 @@ Proof.
     autorewrite with C_db.
     reflexivity.
 Qed.
+*)
 
 (* Lemmas out of date
 Lemma boxed_gate_correct : forall W1 W2 (g : Gate W1 W2) (ρ : Density (2^⟦W1⟧)) ,
