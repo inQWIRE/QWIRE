@@ -340,6 +340,31 @@ Definition denote_pat {w} (p : Pat w) : Matrix (2^⟦w⟧) (2^⟦w⟧) :=
 Instance Denote_Pat {w} : Denote (Pat w) (Matrix (2^⟦w⟧) (2^⟦w⟧)) :=
   { denote := denote_pat }.
 
+Print Gate_State.
+(* here, the state represents the number of qubits in a system. *)
+Instance nat_gate_state : Gate_State nat :=
+  { get_fresh := fun _ n => (n,S n)
+  ; remove_var := fun _ n => (n-1)%nat
+  ; change_type := fun _ _ n => n
+  ; maps_to := fun _ _ => None
+  }.
+
+Fixpoint denote_db_circuit {w} padding input (c : DeBruijn_Circuit w)
+                         : Superoperator (2^(padding+input)) (2^(padding+input)) :=
+  match c with
+  | db_output p    => super (pad (padding+input) (⟦p⟧))
+  | db_gate g p c' => let input' := process_gate_state g p input in
+                      compose_super (denote_db_circuit padding input' c')
+                                    (apply_gate g (pat_to_list p))
+  | db_lift p c'   => let S := swap_two input 0 (get_var p) in
+                      let input' := remove_pat p input in
+                Splus (compose_super (denote_db_circuit padding input' (c' false))
+                                     (super (⟨0| ⊗ 'I_(2^input') × S)))
+                      (compose_super (denote_db_circuit padding input' (c' true))
+                                     (super (⟨1| ⊗ 'I_(2^input') × S)))
+  end.
+                    
+(*
 Fixpoint denote_db_circuit {w} Γ0 Γ (c : DeBruijn_Circuit w) 
                          : Superoperator (2^(⟦Γ0⟧ + ⟦Γ⟧)) (2^(⟦Γ0⟧ + ⟦w⟧)) :=
   match c with
@@ -354,7 +379,7 @@ Fixpoint denote_db_circuit {w} Γ0 Γ (c : DeBruijn_Circuit w)
                      (compose_super (denote_db_circuit Γ0 Γ' (c' true))
                                     (super (⟨1| ⊗ 'I_ (2^⟦Γ'⟧) × S)))
   end.
-
+*)
 
 
 (*
@@ -378,8 +403,7 @@ Fixpoint denote_db_circuit {w}  (pad n : nat) (c : DeBruijn_Circuit w)
 
 Definition denote_db_box {w1 w2} (c : DeBruijn_Box w1 w2) := 
   match c with
-  | db_box _ c' => let Γ := fresh_state w1 ∅ in
-                   denote_db_circuit ∅ Γ c'
+  | db_box _ c' => denote_db_circuit 0 (⟦w1⟧) c'
   end.
 
 (** Denoting hoas circuits **)
@@ -390,7 +414,8 @@ Definition denote_box {W1 W2 : WType} (c : Box W1 W2) :=
 Instance Denote_Box {W1 W2} : Denote (Box W1 W2) (Superoperator (2^⟦W1⟧) (2^⟦W2⟧)) :=
          {| denote := denote_box |}.
 
-Notation "⟨ Γ0 | Γ ⊩ c ⟩" := (denote_db_circuit Γ0 Γ (hoas_to_db Γ c)) (at level 20).
+Notation "⟨ Γ0 | Γ ⊩ c ⟩" := 
+    (denote_db_circuit (⟦Γ0⟧) (⟦Γ⟧) (hoas_to_db Γ c)) (at level 20).
 
 (*
 Lemma denote_db_subst : forall pad n σ w (c : DeBruijn_Circuit w),
@@ -411,20 +436,42 @@ Proof.
 Qed.
 
 
-Lemma denote_gate_circuit : forall Γ0 (Γ : OCtx) Γ1 Γ Γ1' {w1 w2 w'} 
+Ltac fold_denote :=
+  repeat match goal with
+  | [ |- context[ denote_OCtx ?Γ ] ] => replace (denote_OCtx Γ) with (⟦Γ⟧); auto
+  end.
+
+
+Lemma process_gate_nat : forall {w1 w2} (g : Gate w1 w2) (p1 p2 : Pat w1) (n : nat),
+      process_gate_state g p1 n = process_gate_state g p2 n.
+Admitted.
+Lemma process_gate_denote : forall {w1 w2} (g : Gate w1 w2) (p : Pat w1) Γ,
+      process_gate_state g p (⟦Γ⟧)
+    = ⟦process_gate_state g p Γ⟧.
+Admitted.
+
+
+(*
+Lemma denote_gate_circuit : forall Γ0 (Γ : OCtx) Γ1 Γ1' {w1 w2 w'} 
                            (g : Gate w1 w2) p1 (f : Pat w2 -> Circuit w'),
       Γ1 ⊢ p1 :Pat ->
       Γ ⊢ f :Fun ->
       Γ1' == Γ1 ∙ Γ ->
 
     ⟨ Γ0 | Γ ⊩ gate g p1 f⟩ 
-    = compose_super (⟨ Γ0 | process_gate_state g (hoas_to_db_pat Γ p1) Γ
+    = compose_super (⟨ Γ0 | process_gate_state g p1 Γ
                           ⊩f (process_gate_pat g p1 Γ) ⟩)
-                    (apply_gate g (pat_to_list p1)).
+                    (apply_gate g (pat_to_list (hoas_to_db_pat Γ p1))).
 Proof.
   intros.
-  simpl.
-  
+  simpl. fold_denote.
+  set (p1' := hoas_to_db_pat Γ p1).
+  set (p2 := process_gate_pat g p1 Γ).
+  rewrite (process_gate_nat _ p1' p1).
+  rewrite process_gate_denote. 
+  reflexivity.
+Qed.
+*)
 
 
 Lemma size_WType_length : forall {w} (p : Pat w),
@@ -606,48 +653,62 @@ About get_fresh_pat.
 Locate "_ ⊢ _ :Fun".
 
 
-
 Lemma denote_gate_circuit : forall {w1 w2 w'} 
-      (g : Gate w1 w2) p1 (f : Pat w2 -> Circuit w') Γ1 Γ1' Γ Γ0,
-      Γ1 ⊢ p1 :Pat ->
-      Γ1' == Γ1 ∙ Γ ->
+      (g : Gate w1 w2) p1 (f : Pat w2 -> Circuit w') Γ0 Γ (*Γ1 Γ1' Γ Γ0,*),
 
       ⟨ Γ0 | Γ ⊩ gate g p1 f⟩ 
-    = compose_super (⟨ Γ0 | process_gate_state g (hoas_to_db_pat Γ p1) Γ
-                          ⊩f (process_gate_pat g p1 Γ) ⟩)
-                    (apply_gate g (pat_to_list p1)).
+    = compose_super (⟨ Γ0 | process_gate_state g p1 Γ
+                          ⊩ f (process_gate_pat g p1 Γ) ⟩)
+                    (apply_gate g (pat_to_list (hoas_to_db_pat Γ p1))).
 Proof.
   intros.
-  simpl. 
+  simpl; fold_denote.
   set (p1' := hoas_to_db_pat Γ p1).
   set (p2 := process_gate_pat g p1 Γ).
-  admit (* this is not true... should it be? *).
-Admitted.
+  rewrite (process_gate_nat _ p1' p1).
+  rewrite process_gate_denote. 
+  reflexivity.
+Qed.
   
 
-Lemma denote_compose : forall {w} (c : Circuit w) Γ1, Γ1 ⊢ c :Circ ->
-     forall {w'} (f : Pat w -> Circuit w') (Γ0 Γ1 Γ1' Γ : OCtx),
-  Γ ⊢ f :Fun ->
+Lemma denote_compose : forall {w} (c : Circuit w) Γ, Γ ⊢ c :Circ ->
+     forall {w'} (f : Pat w -> Circuit w') (Γ0 Γ1 Γ1' : OCtx),
+  Γ1 ⊢ f :Fun ->
   Γ1' == Γ1 ∙ Γ ->
 
 
-  ⟨ Γ0 | Γ1' ⊩ compose c f ⟩ = compose_super (⟨Γ0 | fresh_state w Γ ⊩ f (fresh_pat w Γ)⟩)
-                                             (⟨Γ0 ⋓ Γ | Γ1 ⊩ c⟩).
+      ⟨ Γ0 | Γ1' ⊩ compose c f ⟩ 
+    = compose_super (⟨Γ0 | fresh_state w Γ1 ⊩ f (fresh_pat w Γ1)⟩)
+                    (⟨Γ0 ⋓ Γ1 | Γ ⊩ c⟩).
 Proof.
-  induction 1; intros.
-  * simpl. 
+  induction 1; intros w' h Γ0 Γ3 Γ3' wf_f pf_merge.
+  * simpl; fold_denote.
     admit. (* property about f being parametric *)
     (* ⟨ Γ0 | Γ1 ⋓ Γ2 ⊩ f p ⟩
     =  ⟨ Γ0 | fresh_state Γ2 ⊩ f (fresh_pat w Γ2) ⟩ ∘ ⟨ Γ1 ⊩ p ⟩ 
     *)
-  * replace (compose (gate g p1 f) f0) 
-      with (gate g p1 (fun p2 => compose (f p2) f0)) 
+  * replace (compose (gate g p1 f) h) 
+      with (gate g p1 (fun p2 => compose (f p2) h)) 
       by auto.
-    erewrite denote_gate_circuit; [ | eauto | solve_merge (*??? *)]. 
-    erewrite H; [ | | | eauto | ].
-    erewrite denote_gate_circuit; [ | eauto | solve_merge].
-    admit (* pretty close, actually *).
-    admit. admit. admit. admit. admit.
+    repeat rewrite denote_gate_circuit; fold_denote.
+
+
+    set (p2 := process_gate_pat g p1 Γ3').
+    set (Γ3'' := process_gate_state g p1 Γ3').
+
+    evar (Γ2 : OCtx).
+    set (Γ2' := process_gate_state g p1 Γ1').
+    assert (pf2 : Γ2' == Γ2 ∙ Γ) by admit.
+    assert (H_p2 : Γ2 ⊢ process_gate_pat g p1 Γ3' :Pat) by admit.
+    assert (H_h : Γ3 ⊢ h :Fun) by auto.
+    assert (pf3 : Γ3'' == Γ3 ∙ Γ2') by admit.
+
+    specialize (H Γ2 Γ2' (process_gate_pat g p1 Γ3') pf2 H_p2 w' h Γ0 Γ3 Γ3'' H_h pf3).
+    fold p2 in H.
+    rewrite H.
+    
+    admit (* sort of close *).
+
   * admit.
 Admitted.
 
