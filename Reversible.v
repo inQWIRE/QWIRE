@@ -42,7 +42,9 @@ Fixpoint bexp_to_bool (b : bexp) : bool :=
   end 
   where "⌈ b ⌉" := (bexp_to_bool b).  
 
-Lemma b_or_to_bool : forall a b, ⌈a ∨ b⌉ = ⌈ a ⌉ || ⌈ b ⌉.
+Locate "⌈ _ ⌉". 
+
+Lemma b_or_to_bool : forall a b, ⌈a ∨ b⌉ = orb (⌈ a ⌉) (⌈ b ⌉).
 Proof. intros. simpl. destruct ⌈a⌉, ⌈b⌉; reflexivity. Qed.
 Lemma b_neg_to_bool : forall b, ⌈ ¬ b ⌉ = negb ⌈b⌉.
 Proof. intros. simpl. destruct ⌈b⌉; reflexivity. Qed.
@@ -106,7 +108,8 @@ Qed.
 
 Lemma AND_spec : forall (b1 b2 : bool), 
     ⟦AND⟧ (bool_to_matrix b1 ⊗ bool_to_matrix b2)%M  = bool_to_matrix (andb b1 b2).
-Proof. 
+Proof. Admitted.
+(*
   intros b1 b2. 
   specialize (WF_bool_to_matrix b1) as WFb1.
   specialize (WF_bool_to_matrix b2) as WFb2.
@@ -114,11 +117,20 @@ Proof.
   repeat (autounfold with den_db; simpl); assoc_least; Msimpl.
   repeat (try rewrite Mmult_plus_distr_l; try rewrite Mmult_plus_distr_r).
   unfold bool_to_matrix' in *.
+
   solve_matrix.
-  
+  destruct b1, b2; Csimpl; reflexivity.
+  destruct b1, b2; Csimpl; reflexivity.
+Qed.
+*)
   
 
 (* ---------------------------------------*)
+
+Lemma denote_db_pad_gen : forall W (m n pad : nat) (c : Circuit W) (ρ1 : Square (2^n)) (ρ2 : Square (2^pad)),
+  (⟨ pad | n | c | st_{ m + pad} ⟩ (ρ1 ⊗ ρ2) = ⟨ 0 | n | c | st_{m} ⟩ ρ1 ⊗ ρ2)%M.
+Admitted.
+
 
 Lemma bexp_to_circ_correct : forall b, 
   ⟦bexp_to_circ b⟧ I1 = bool_to_matrix ⌈b⌉.
@@ -126,7 +138,8 @@ Proof.
   induction b.
   + repeat (autounfold with den_db; simpl). solve_matrix.
   + repeat (autounfold with den_db; simpl). solve_matrix.
-  + repeat (autounfold with den_db; simpl).
+  + Opaque AND. 
+    repeat (autounfold with den_db; simpl).
 
     erewrite denote_compose with (Γ := ∅) (Γ1 := ∅) (Γ1' := ∅);
       [ | apply unbox_typing; [type_check | apply WT_bexp_to_circ]
@@ -137,16 +150,18 @@ Proof.
           by (unfold remove_OCtx; auto);
          rewrite fresh_pat_eq'; auto
       ]. 
-
-       (* Apply IHb1 *)
-       rewrite denote_db_unbox in IHb1.
-       simpl. 
-       unfold compose_super. 
-       rewrite IHb1.
+    
+    simpl.
+    rewrite denote_db_unbox in IHb1.
+    unfold compose_super. 
+    simpl in IHb1.    
+    unfold fresh_pat in IHb1.
+    simpl in IHb1.
+    rewrite IHb1.
 
     erewrite denote_compose with (Γ := Valid [Some Qubit]);
       [ | apply unbox_typing; [type_check | apply WT_bexp_to_circ]
-      | split; [validate | monoid]
+      | split; try monoid; try rewrite merge_nil_l; try validate 
       | 
       | auto
       | replace (remove_OCtx ∅ (st_{1})) with (st_{1})
@@ -154,17 +169,100 @@ Proof.
          rewrite fresh_pat_eq'; auto
       ]. 
 
-       2: rewrite merge_nil_l; apply valid_valid. 
-       
        Focus 2.
-       intros.
-       inversion H.
+         intros.
+         inversion H.
+         unfold fresh_pat. simpl.
+         assert(TP0 : Types_Pat (Valid [Some Qubit]) (qubit O)) 
+           by repeat constructor. 
+         type_check.
+              
+       repeat (autounfold with den_db; simpl).       
+       rewrite denote_db_unbox in IHb2.
+       simpl in IHb2.
        unfold fresh_pat. simpl.
-       assert(TP0 : Types_Pat (Valid [Some Qubit]) (qubit O)) by repeat constructor. 
-       type_check.
-
        simpl.
-       unfold compose_super.
+       unfold compose_super. 
+       simpl in IHb2. 
+
+       specialize (denote_db_pad_gen Qubit 0 0 1). simpl. intros H.
+       rewrite <- (kron_1_l 2 2 (bool_to_matrix ⌈ b1 ⌉)) by 
+           (try omega; try apply WF_bool_to_matrix).
+       rewrite H.
+       unfold fresh_pat in IHb2. simpl in IHb2.
+       unfold I1 in *. simpl in *.
+       rewrite IHb2.
+       
+       specialize AND_spec. intros HA.
+       rewrite denote_db_unbox in HA.
+       simpl in HA.
+       rewrite HA.
+       rewrite andb_comm. 
+       reflexivity.
+       Transparent AND.
+  + Opaque XOR. 
+    repeat (autounfold with den_db; simpl).
+
+    erewrite denote_compose with (Γ := ∅) (Γ1 := ∅) (Γ1' := ∅);
+      [ | apply unbox_typing; [type_check | apply WT_bexp_to_circ]
+      | split; [validate | monoid]
+      | repeat (type_check; try apply WT_bexp_to_circ)
+      | auto
+      | replace (remove_OCtx ∅ (st_{0})) with (st_{0})
+          by (unfold remove_OCtx; auto);
+         rewrite fresh_pat_eq'; auto
+      ]. 
+    
+    simpl.
+    rewrite denote_db_unbox in IHb1.
+    unfold compose_super. 
+    simpl in IHb1.    
+    unfold fresh_pat in IHb1.
+    simpl in IHb1.
+    rewrite IHb1.
+
+    erewrite denote_compose with (Γ := Valid [Some Qubit]);
+      [ | apply unbox_typing; [type_check | apply WT_bexp_to_circ]
+      | split; try monoid; try rewrite merge_nil_l; try validate 
+      | 
+      | auto
+      | replace (remove_OCtx ∅ (st_{1})) with (st_{1})
+          by (unfold remove_OCtx; auto);
+         rewrite fresh_pat_eq'; auto
+      ]. 
+
+       Focus 2.
+         intros.
+         inversion H.
+         unfold fresh_pat. simpl.
+         assert(TP0 : Types_Pat (Valid [Some Qubit]) (qubit O)) 
+           by repeat constructor. 
+         type_check.
+
+       repeat (autounfold with den_db; simpl).       
+       rewrite denote_db_unbox in IHb2.
+       simpl in IHb2.
+       unfold fresh_pat. simpl.
+       simpl.
+       unfold compose_super. 
+       simpl in IHb2. 
+
+       specialize (denote_db_pad_gen Qubit 0 0 1). simpl. intros H.
+       rewrite <- (kron_1_l 2 2 (bool_to_matrix ⌈ b1 ⌉)) by 
+           (try omega; try apply WF_bool_to_matrix).
+       rewrite H.
+       unfold fresh_pat in IHb2. simpl in IHb2.
+       unfold I1 in *. simpl in *.
+       rewrite IHb2.
+       
+       specialize XOR_spec. intros HX.
+       rewrite denote_db_unbox in HX.
+       simpl in HX.
+       rewrite HX.
+       rewrite xorb_comm. 
+       reflexivity.
+Qed.
+
 
 Lemma denote_db_pad1 : forall W (b : Box One W) (A B : Square (2^⟦W⟧)), ⟦b⟧ I1 = A -> 
       denote_db_circuit 1 0 (hoas_to_db (unbox b ()) (st_{1})) B = (A ⊗ B)%M.

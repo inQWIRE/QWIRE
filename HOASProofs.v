@@ -467,25 +467,6 @@ Proof.
   repeat (try destruct x; try destruct y; autorewrite with C_db; trivial).
 Qed.
 
-
-Definition EPR00 : Matrix 4 4 :=
-  fun x y => match x, y with
-             | 0, 0 => 1/2
-             | 0, 3 => 1/2
-             | 3, 0 => 1/2
-             | 3, 3 => 1/2
-             | _, _ => 0
-             end.
-
-Lemma bell00_eq :  ⟦bell00⟧ I1  = EPR00.
-Proof.
-  repeat (simpl; autounfold with den_db). 
-  autorewrite with M_db. 
-  repeat setoid_rewrite kron_conj_transpose.
-  autorewrite with M_db. 
-  solve_matrix.
-Qed.
-
 (***********)
 (* sharing *)
 (***********)
@@ -758,7 +739,7 @@ Qed.
 (*************************)
 (* Quantum Teleportation *)
 (*************************)
-(*
+
 Definition EPR00 : Matrix 4 4 :=
   fun x y => match x, y with
              | 0, 0 => 1/2
@@ -767,7 +748,6 @@ Definition EPR00 : Matrix 4 4 :=
              | 3, 3 => 1/2
              | _, _ => 0
              end.
-*)
 
 Lemma bell00_spec :  ⟦bell00⟧ I1  = EPR00.
 Proof.
@@ -776,7 +756,7 @@ Proof.
   solve_matrix.
 Qed.
 
-(* Works, but commented out for efficient compilation 
+(* Works, but commented out for efficient compilation *)
 Definition M_alice (ρ : Matrix 4 4) : Matrix 4 4 :=
   fun x y => 
   match x, y with 
@@ -825,20 +805,50 @@ Proof.
     autorewrite with C_db.
     clra.
 Qed.    
-*)
 
-(*
-Definition M_bob (ρ : Matrix 2 2) : Matrix 4 4 := 
-  fun x y => 0.
+(* Spec computed rather than reasoned about *)
+Definition M_bob (ρ : Density 8) : Density 2 := 
+  fun x y => match x, y with
+          | 0, 0 => ρ 0%nat 0%nat + ρ 3%nat 3%nat + ρ 4%nat 4%nat + ρ 7%nat 7%nat
+          | 0, 1 => ρ 0%nat 1%nat + ρ 3%nat 2%nat - ρ 4%nat 5%nat - ρ 7%nat 6%nat
+          | 1, 0 => ρ 1%nat 0%nat + ρ 2%nat 3%nat - ρ 5%nat 4%nat - ρ 6%nat 7%nat
+          | 1, 1 => ρ 1%nat 1%nat + ρ 2%nat 2%nat + ρ 5%nat 5%nat + ρ 6%nat 6%nat
+          | _, _ => 0
+          end.
 
-Lemma bob_spec : forall (ρ : Density 2), Mixed_State ρ -> ⟦bob⟧ ρ = M_bob ρ.
+Lemma bob_spec : forall (ρ : Density 8), Mixed_State ρ -> ⟦bob⟧ ρ = M_bob ρ.
 Proof.
   intros.
   repeat (simpl; autounfold with den_db). 
   specialize (WF_Mixed ρ H). intros WFρ.
   Msimpl.
   solve_matrix.
-*)
+Qed.  
+
+(* We convert the matrices back to functional representation for 
+   unification. Simply comparing the matrices may be more efficient,
+   however. *)
+
+Lemma teleport_eq : forall (ρ : Density 2), 
+  Mixed_State ρ -> ⟦teleport⟧ ρ = ρ.
+Proof.
+  intros ρ H.
+  repeat (simpl; autounfold with den_db). 
+  specialize (WF_Mixed _ H). intros WFρ.
+  Msimpl.
+  assoc_least.
+  solve_matrix.
+  all: rewrite (Cmult_assoc (/ √2));
+       autorewrite with C_db;
+       rewrite (Cmult_comm _ (/2));
+       rewrite (Cmult_assoc 2 (/2));
+       autorewrite with C_db;
+       rewrite (Cmult_assoc 2 (/2));
+       autorewrite with C_db;
+       reflexivity.
+Qed.    
+
+(* Teleport with Dynamic Lifting *)
 
 Definition M_bob_distant (b1 b2 : bool) (ρ : Density 2) : Matrix 2 2 := 
   match b1, b2 with
@@ -858,52 +868,24 @@ Proof.
   repeat (simpl; autounfold with den_db); Msimpl; solve_matrix.
 Qed.
 
-(* We convert the matrices back to functional representation for 
-   unification. Simply comparing the matrices may be more efficient,
-   however. *)
-
-Lemma teleport_eq : forall (ρ : Density 2), 
-  Mixed_State ρ -> ⟦teleport⟧ ρ = ρ.
-Proof.
+Definition teleport_distant_eq : teleport_distant ≡ id_circ.
+Proof. 
+  repeat (autounfold with den_db; simpl).
   intros ρ H.
-  repeat (simpl; autounfold with den_db). 
+  unfold Splus.
   specialize (WF_Mixed _ H). intros WFρ.
   Msimpl.
   assoc_least.
   solve_matrix.
-  + rewrite (Cmult_assoc (/ √2)).
-    autorewrite with C_db.
-    rewrite (Cmult_comm _ (/2)).
-    rewrite (Cmult_assoc 2 (/2)).
-    autorewrite with C_db.
-    rewrite (Cmult_assoc 2 (/2)).
-    autorewrite with C_db.
-    reflexivity.
-  + rewrite (Cmult_assoc (/ √2)).
-    autorewrite with C_db.
-    rewrite (Cmult_comm _ (/2)).
-    rewrite (Cmult_assoc 2 (/2)).
-    autorewrite with C_db.
-    rewrite (Cmult_assoc 2 (/2)).
-    autorewrite with C_db.
-    reflexivity.
-  + rewrite (Cmult_assoc (/ √2)).
-    autorewrite with C_db.
-    rewrite (Cmult_comm _ (/2)).
-    rewrite (Cmult_assoc 2 (/2)).
-    autorewrite with C_db.
-    rewrite (Cmult_assoc 2 (/2)).
-    autorewrite with C_db.
-    reflexivity.
-  + rewrite (Cmult_assoc (/ √2)).
-    autorewrite with C_db.
-    rewrite (Cmult_comm _ (/2)).
-    rewrite (Cmult_assoc 2 (/2)).
-    autorewrite with C_db.
-    rewrite (Cmult_assoc 2 (/2)).
-    autorewrite with C_db.
-    reflexivity.
-Qed.    
+  all: rewrite (Cmult_assoc (/ √2));
+       autorewrite with C_db;
+       rewrite (Cmult_comm _ (/2));
+       rewrite (Cmult_assoc 2 (/2));
+       autorewrite with C_db;
+       rewrite (Cmult_assoc 2 (/2));
+       autorewrite with C_db;
+       reflexivity.
+Qed.  
 
 (* Lemmas out of date
 Lemma boxed_gate_correct : forall W1 W2 (g : Gate W1 W2) (ρ : Density (2^⟦W1⟧)) ,
