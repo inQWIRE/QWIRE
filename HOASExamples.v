@@ -186,9 +186,9 @@ Definition Deutsch_Jozsa (n : nat) (U__f : Box (S n ⨂ Qubit) (S n ⨂ Qubit)) 
   Box One (n ⨂ Bit) := 
   box_ () ⇒
   let_ q      ← H · init1 $ (); 
-  let_ qs     ← H #n · init0 #n $ (());
+  let_ qs     ← (H· init0) #n $ (());
   let_ (q,qs) ← U__f $ (q,qs);   
-  let_ qs     ← meas #n · H #n $ qs;
+  let_ qs     ← (meas · H) #n $ qs;
   let_ ()     ← discard · meas $q; 
   output qs. 
 Lemma Deutsch_Jozsa_WT : forall n U__f, Typed_Box U__f -> Typed_Box (Deutsch_Jozsa n U__f).
@@ -197,12 +197,11 @@ Proof.
   induction n.
   + type_check.
   + specialize (inParMany_WT) as WT_Par.
+    specialize types_units as WT_units.
     type_check.
-    6: apply WT_Par; [apply boxed_gate_WT|].
-    11: apply WT_Par; [apply boxed_gate_WT|].
-    26: apply WT_Par; [apply boxed_gate_WT|].
-    31: apply WT_Par; [apply boxed_gate_WT|].
-    all: type_check.    
+    4: apply WT_Par. 
+    20: apply WT_Par. 
+    all: type_check.
     apply types_units.
 Qed.    
 
