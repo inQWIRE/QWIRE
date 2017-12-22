@@ -126,6 +126,7 @@ Definition deutsch (f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Bit :
     let_ y     ← H · init1 $ ();
     let_ (x,y) ← f $ (x,y);
     let_ _     ← discard · meas $ y;
+    let_ x     ← H $ x;
     meas $ x.
 Lemma deutsch_WF : forall U_f, Typed_Box U_f -> Typed_Box (deutsch U_f).
 Proof. type_check. Qed.

@@ -12,6 +12,9 @@ Require Import TypeChecking.
 (* Note: All of these circuits should in principle end with an arbitrary circuit -
          here I'm just outputting the mentioned (qu)bits *)
 
+
+  
+
 (** Equality 1: X; meas = meas; NOT **)
 
 Definition X_meas : Box Qubit Bit :=
@@ -209,10 +212,6 @@ Qed.
        
 (** Equality 4: init; meas = new **)
 
-Definition new (b : bool) : Box One Bit :=
-  if b then boxed_gate new1 else boxed_gate new0.
-Lemma new_WT : forall b, Typed_Box (new b).
-Proof. destruct b; type_check. Qed.
 
 Definition init_meas (b : bool) : Box One Bit := 
   box_ () ⇒ 
@@ -319,7 +318,15 @@ Qed.
   
 (* Additional Equalities *)
 
+
+
 (** Equation 7: lift x <- b; new x = id b **)
+
+
+Definition new (b : bool) : Box One Bit :=
+  if b then boxed_gate new1 else boxed_gate new0.
+Lemma new_WT : forall b, Typed_Box (new b).
+Proof. destruct b; type_check. Qed.
 
 Definition lift_new : Box Bit Bit :=
   box_ b ⇒ 
@@ -337,14 +344,17 @@ Lemma lift_new_new : forall (ρ : Density 2), Mixed_State ρ ->
                                         ⟦lift_new⟧ ρ = ⟦@id_circ Bit⟧ ρ.
 Proof. 
   intros ρ M C.
+
+simpl.
   repeat (autounfold with den_db; intros; simpl).
-  specialize (WF_Mixed _ M); intros WFρ.
+  specialize (WF_Mixed _ M); intros WFρ. 
   autorewrite with M_db.
   solve_matrix.
   rewrite C; trivial; omega.
   rewrite C; trivial; omega.
 Qed.  
-  
+
+
 (** Equation 7': meas q; lift x <- p; new x = meas q **)
 
 Definition meas_lift_new : Box Qubit Bit :=

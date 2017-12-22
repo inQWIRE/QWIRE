@@ -350,18 +350,17 @@ Instance nat_gate_state : Gate_State nat :=
   }.
 
 Fixpoint denote_db_circuit {w} padding input (c : DeBruijn_Circuit w)
-                         : Superoperator (2^(padding+input)) (2^(padding+input)) :=
+                         : Superoperator (2^(padding+input)) (2^(padding+⟦w⟧)) :=
   match c with
   | db_output p    => super (pad (padding+input) (⟦p⟧))
   | db_gate g p c' => let input' := process_gate_state g p input in
                       compose_super (denote_db_circuit padding input' c')
                                     (apply_gate g (pat_to_list p))
   | db_lift p c'   => let S := swap_two input 0 (get_var p) in
-                      let input' := remove_pat p input in
-                Splus (compose_super (denote_db_circuit padding input' (c' false))
-                                     (super (⟨0| ⊗ 'I_(2^input') × S)))
-                      (compose_super (denote_db_circuit padding input' (c' true))
-                                     (super (⟨1| ⊗ 'I_(2^input') × S)))
+                Splus (compose_super (denote_db_circuit padding (input-1) (c' false))
+                                     (super (⟨0| ⊗ 'I_(2^(input-1)) × S)))
+                      (compose_super (denote_db_circuit padding (input-1) (c' true))
+                                     (super (⟨1| ⊗ 'I_(2^(input-1)) × S)))
   end.
                     
 (*

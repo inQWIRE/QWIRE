@@ -355,17 +355,12 @@ Proof.
 
   * rewrite Ctx_dom_app; simpl.
     unfold subst_var.
-    rewrite lookup_app.
-    replace (Ctx_dom Γ) with (OCtx_dom (Valid Γ)) by auto.
-    rewrite ge_length_dom by (simpl; omega).
     rewrite Nat.add_0_r.
-    simpl.
-    rewrite Nat.eqb_refl.
-    auto.
+    admit (* maps_to (length Γ) (Ctx_dom Γ ++ [length Γ]) = length Γ *).
   * admit (* same as above *).
 
   * f_equal.
-    + admit. (* more general lemma *)
+    +admit. (* more general lemma *)
     + rewrite IHw2 with (w' := w' ⊗ w1).
       - f_equal. Search OCtx_dom fresh_state.
         rewrite OCtx_dom_fresh; auto.
@@ -506,7 +501,6 @@ Qed.
 
 
 Lemma pad_nothing : forall m A,
-      WF_Matrix (2^m) (2^m) A ->
       @pad m m A = A.
 Proof.
   intros.
@@ -538,6 +532,7 @@ Proof.
   intros W ρ H.
 
   simpl. unfold denote_box. simpl.
+
   autorewrite with proof_db.
   rewrite super_I; auto.
 Qed.
@@ -673,13 +668,27 @@ Proof.
 
   set (Γ1_0 := fresh_state W1 ∅).
   set (Γ2_0 := fresh_state W2 ∅).
+  assert (⟦Γ1_0⟧ = ⟦W1⟧).
+  { unfold Γ1_0.
+    rewrite denote_OCtx_fresh; auto.
+    validate. }
+  assert (⟦Γ2_0⟧ = ⟦W2⟧).
+  { unfold Γ2_0.
+    rewrite denote_OCtx_fresh; auto.
+    validate. }
 
-  erewrite denote_compose with (Γ := ∅) (Γ2 := Γ1_0) (Γ1 := Γ1_0);
-    [ reflexivity (* main proof *)
-    | apply types_f; apply fresh_state_pat
-    | intros Γ0 Γ0' p0 [pf1 pf2] pf_p0; apply types_g;
-      subst; rewrite merge_nil_r; auto
-    | solve_merge; apply is_valid_fresh; validate].
+  replace 0%nat with (⟦∅⟧:nat) by auto.
+  replace (size_WType W1) with (⟦Γ1_0⟧) by auto.
+  replace (size_WType W2) with (⟦Γ2_0⟧) by auto.
+
+
+  apply denote_compose. 
+  * apply types_f. apply fresh_state_pat. 
+  * unfold Typed_Box in types_g. intros Γ Γ' p pf wf_p.
+    solve_merge.
+    apply types_g. monoid. auto.
+  * type_check.
+    apply is_valid_fresh. validate.
 Qed.
 
 Lemma merge_singleton_end : forall Γ w,
@@ -748,59 +757,46 @@ Proof.
   set (p_1 := fresh_pat W1 ∅).
   set (Γ_1 := fresh_state W1 ∅).
   set (p_2 := fresh_pat W2 Γ_1).
-  set (Γ_2 := pat_to_ctx p_2).
+  set (Γ_2 := fresh_state W2 Γ_1).
   assert (Γ_1 ⊢ p_1 :Pat) by apply fresh_state_pat.
   assert (Γ_2 ⊢ p_2 :Pat) by admit (* need a vaiant of fresh_pat_typed *).
 
-  rewrite denote_compose with (Γ1 := Γ_1) (Γ := Γ_2) (Γ2 := Γ_1).
-  Focus 2. 
-    apply types_f; auto.
-  Focus 2.
-    intros. 
-    type_check. 
-    apply types_g; auto.
-  Focus 2.
-    apply fresh_state_decompose.
-    apply is_valid_fresh; validate.
+  replace 0%nat with (⟦∅⟧) by auto.
+  replace (size_WType W1 + size_WType W2)%nat with (⟦Γ_2⟧).
+  replace (size_WType W1) with (⟦Γ_1⟧).
+  replace (size_WType W2) with (⟦fresh_state W2 ∅⟧).
 
+
+  rewrite denote_compose with (Γ1' := Γ_2) (Γ1 := Γ_2) (Γ := Γ_1).
+  set (Γ_3 := pat_to_ctx (fresh_pat W1' Γ_2)).
+
+  rewrite denote_compose with (Γ1' := fresh_state W1' Γ_2) (Γ1 := Γ_3) (Γ := Γ_2).
   autounfold with den_db.
-  rewrite merge_nil_l.
-
-
-  set (p_1' := fresh_pat W1' Γ_2).
-  set (Γ_1' := pat_to_ctx p_1').
-  assert (Γ_1' ⊢ p_1' :Pat) by admit (* same lemma as above *).
-  erewrite denote_compose with (Γ1 := Γ_2) (Γ := Γ_1') (Γ2 := Γ_2).
-  Focus 2.
-    apply types_g; auto.
-  Focus 2.
-    intros; type_check. 
-  Focus 2.
-    apply fresh_state_decompose.
-    Search pat_to_ctx is_valid.
-    admit (* lemma *).
-  
-  set (p_2' := fresh_pat W2' Γ_1').
-  unfold compose_super.
-
-  assert (size_Γ_2 : ⟦Γ_2⟧ = ⟦W2⟧).
-  { unfold Γ_2. 
-    erewrite size_pat_to_ctx; eauto.
-  }
-  assert (size_Γ_1 : ⟦Γ_1⟧ = ⟦W1⟧).
-  { unfold Γ_1.
-    rewrite denote_OCtx_fresh. auto. validate.
-  }
-
-  rewrite denote_tensor;
-    [ | rewrite size_Γ_1; apply WF_Mixed; auto
-      | rewrite size_Γ_2; apply WF_Mixed; auto ].
-  rewrite merge_nil_l.
-  rewrite denote_tensor. (* TODO: finish these *)
-
-  rewrite denote_tensor. 
-  admit (*???*).    
-Admitted.  
+  repeat rewrite merge_nil_l.
+  (*
+  repeat rewrite denote_tensor.
+  Search (⟨ _ | _ ⊩ output _ ⟩).
+  rewrite denote_output.
+  autorewrite with proof_db.*)
+  admit (* stuck *). 
+  * apply types_g; auto.
+  * intros. type_check.
+    unfold Γ_3.
+    Search (pat_to_ctx) fresh_pat.
+    admit (* need a variant of fresh_pat_typed *).
+  * unfold Γ_3.
+    assert (valid_Γ_2 : is_valid Γ_2) by admit.
+    generalize (fresh_state_decompose W1' Γ_2 valid_Γ_2); intros assertion.
+    solve_merge.
+    rewrite pf_merge. monoid.
+  * apply types_f; auto.
+  * intros. type_check. apply types_g. auto.
+  * admit (* this is not true... *).
+  * rewrite denote_OCtx_fresh; auto. validate.
+  * unfold Γ_1. rewrite denote_OCtx_fresh. auto. validate.
+  * unfold Γ_2, Γ_1. repeat rewrite denote_OCtx_fresh. auto.
+    validate. validate.
+Admitted.
 
 
 
@@ -808,12 +804,12 @@ Open Scope circ_scope.
 
 (* probably a more general form of this *)
 Lemma denote_db_unbox : forall {w1 w2} (b : Box w1 w2),
-    ⟦b⟧ = ⟨ 0 | ⟦w1⟧ | unbox b (fresh_pat w1 (st_{0})) | st_{⟦w1⟧} ⟩.
+    ⟦b⟧ = ⟨ ∅ | fresh_state w1 ∅ ⊩ unbox b (fresh_pat w1 ∅) ⟩.
 Proof.
   destruct b.
   simpl. unfold denote_box.
   simpl.
-  rewrite fresh_pat_eq'. simpl.
+  rewrite denote_OCtx_fresh; [ | validate].
   reflexivity.
 Qed.
 
@@ -838,54 +834,44 @@ Proof.
     destruct_m_eq; clra.
   + simpl.
     repeat (simpl; autounfold with den_db). 
+    replace 0%nat with (⟦∅⟧) by auto.
+    rewrite denote_compose with (Γ := ∅) (Γ1 := ∅) (Γ1' := ∅);
+    [ | apply unbox_typing; [type_check | apply coin_flips_WT]
+    | type_check
+    | solve_merge ].
 
-    erewrite denote_compose with (Γ := ∅) (Γ1 := ∅) (Γ1' := ∅);
-      [ | apply unbox_typing; [type_check | apply coin_flips_WT]
-      | split; [validate | monoid]
-      | 
-      | auto
-      | replace (remove_OCtx ∅ (st_{0})) with (st_{0})
-          by (unfold remove_OCtx; auto);
-         rewrite fresh_pat_eq'; auto
-      ].
-    -- 
        (* Apply IH *)
        rewrite denote_db_unbox in IHn.
        unfold fresh_pat in IHn.
-       simpl in *. 
+       unfold fresh_state in IHn.
+       rewrite merge_nil_r.
        unfold compose_super.
        rewrite IHn.
 
-       repeat (autounfold with den_db; simpl).
-       unfold hoas_to_db.
-       autorewrite with M_db. 
-    
+    (* Continue reducing *)
+    repeat (autounfold with den_db; simpl).
+    autorewrite with M_db. 
       
-       setoid_rewrite kron_conj_transpose. 
-       autorewrite with M_db.
-       specialize hadamard_sa; intros pf_H.
-       setoid_rewrite control_sa; auto.
+    setoid_rewrite kron_conj_transpose. 
+    autorewrite with M_db.
+    specialize hadamard_sa; intros pf_H.
+    setoid_rewrite control_sa; auto.
 
-       solve_matrix.
-       * rewrite Cmult_comm.
-         rewrite Cmult_assoc.
-         autorewrite with C_db.
-         rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
-         replace (/ 2^n) with (/2 * /2 ^ n + /2 */2^n) at 1 by clra.
-         rewrite Copp_plus_distr.
-         repeat rewrite <- Cplus_assoc.
-         autorewrite with C_db.
-         reflexivity.
-       * rewrite Cmult_comm.
-         rewrite Cmult_assoc.
-         autorewrite with C_db.
-         rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
-         reflexivity.
-
-    --
-      intros p Γ2 Γ2' [pf_valid pf_merge] types_p.
-      rewrite merge_nil_r in pf_merge. subst. 
-      type_check; auto.
+    solve_matrix.
+    * rewrite Cmult_comm.
+      rewrite Cmult_assoc.
+      autorewrite with C_db.
+      rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
+      replace (/ 2^n) with (/2 * /2 ^ n + /2 */2^n) at 1 by clra.
+      rewrite Copp_plus_distr.
+      repeat rewrite <- Cplus_assoc.
+      autorewrite with C_db.
+      reflexivity.
+    * rewrite Cmult_comm.
+      rewrite Cmult_assoc.
+      autorewrite with C_db.
+      rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
+      reflexivity.
 Qed.
 
 
@@ -921,10 +907,11 @@ Qed.
 (* sharing *)
 (***********)
 
-
+(*
 Lemma denote_circuit_subst : forall w (c : Circuit w) Γ, Types_Circuit Γ c ->
       forall pad n σ, 
       WF_σ Γ (get_σ σ) ->
+      ⟨ 
       ⟨ pad | n | c | σ ⟩ 
     = compose_super ⟨pad | n | c | st_{n}⟩
                     (super (swap_list n (get_σ σ))).
@@ -952,9 +939,9 @@ Proof.
  admit (* not quite *).
 
 Admitted.
+*)
   
 Hint Unfold apply_box : den_db.
-Print scale. Print Mplus.
 
 Close Scope circ_scope.
 Fixpoint kron_n n {m1 m2} (A : Matrix m1 m2) : Matrix (m1^n) (m2^n) :=
@@ -998,43 +985,31 @@ Proof.
     remember (singleton 1%nat Qubit) as Γ_1.
     remember (singleton 0%nat Qubit) as Γ_2.
     remember (Γ_1 ⋓ Γ_2) as Γ_1'.
-    remember ({| get_σ := [0%nat]; fresh := 2|}) as σ0. 
-    destruct (get_fresh_pat (S n ⨂ Qubit) σ0) as [p0 σ0'] eqn:H_p0.
 
-    rewrite denote_compose with (Γ1 := Γ_1) (Γ := Γ_2) (Γ1' := Γ_1')
-                                 (p := p0) (σ' := σ0') ; subst;
+    assert (size_Γ_1_2 : ⟦Γ_1'⟧ = 2%nat).
+    { subst. auto. }
+    
+    assert (Γ_2 ⊢ qubit 0%nat :Pat).
+    { constructor. subst. constructor. }
+
+    unfold add_fresh_state. simpl.
+    unfold DBCircuits.get_fresh_var. simpl.
+   
+    replace 2%nat with (⟦Γ_1'⟧) by auto.
+    replace (0%nat) with (⟦∅⟧) by auto. 
+    replace (S (⟦∅⟧)) with 1%nat by auto.
+    replace (Valid [Some Qubit; Some Qubit]) with Γ_1' by (subst; auto).
+    
+
+    rewrite denote_compose with (Γ := Γ_1) (Γ1 := Γ_2) (Γ1' := Γ_1');
     [ | apply share_WT; type_check; repeat constructor
-    | type_check | | reflexivity | auto ]. 
- Focus 2. Transparent merge. simpl. Opaque merge.
-          validate.
- Focus 2. intros. econstructor; [reflexivity | ].
-                  econstructor; [ solve_merge | | | eauto]; [solve_merge | ].
-    constructor. apply singleton_singleton.
+    | intros; simpl; type_check
+    | type_check ].
+    Focus 2. Transparent merge. simpl. Opaque merge. validate.
+    
 
-
-  simpl. 
-
-
-(*
-  rewrite denote_unbox. unfold compose_super. simpl. rewrite IHn.
-  Focus 2. simpl. (* BUG: swap_list 1 [1] voilates precondition of swap_list *)
-    apply WF_Mixed.
-    apply mixed_unitary. admit (* swap lists are well-formed? *).
-                         admit (* swap lists are unitary? *).
-                         admit.
-
-
-  simpl in H_p0. autounfold with monad_db in H_p0. simpl in H_p0.
-Print subst_state.
-  unfold Var in *.
-  set (σ1 := Mk_subst_state (0%nat :: 2%nat :: nil) (3%nat)).
-  fold σ1 in H_p0.
-
-  destruct (get_fresh_pat (n ⨂ Qubit) σ1) as [p1 σ1'] eqn:H_p1.
-  inversion H_p0; subst. 
-  repeat (autounfold with den_db; simpl).
-*)
-(*??? *)
+    rewrite merge_nil_l.
+    admit (* need padding lemma *).
 Admitted.
 
 
@@ -1062,6 +1037,7 @@ Definition f2 : Matrix 4 4 := fun x y =>
 
 Close Scope circ_scope. 
 
+Open Scope matrix_scope.
 (* f(x) = 1. Unitary: Id ⊗ X *)
 Definition f3 : Matrix 4 4 := Id 2 ⊗ σx.
 
