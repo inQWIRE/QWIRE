@@ -29,7 +29,9 @@ Coercion boxed_gate : Gate >-> Box.
 Lemma boxed_gate_WT {W1 W2} (g : Gate W1 W2) : Typed_Box (boxed_gate g).
 Proof. type_check. Qed.
 
+(***********************)
 (* Structural circuits *)
+(***********************)
 
 Definition init (b : bool) : Box One Qubit :=
   if b then boxed_gate init1 else boxed_gate init0.
@@ -57,6 +59,58 @@ Lemma inPar_WT : forall W1 W1' W2 W2' (c1 : Box W1 W2) (c2 : Box W1' W2'),
   Typed_Box c1 -> Typed_Box c2 ->
   Typed_Box (c1 || c2).
 Proof. type_check. Qed.
+
+(* Right associative Tensor. Right associative with a trailing One  *)
+Fixpoint NTensor (n : nat) (W : WType) := 
+  match n with 
+  | 0    => One
+  | S n' => W ⊗ NTensor n' W
+  end.
+
+Infix "⨂" := NTensor (at level 30). 
+(* Transparent Tensor. *)
+(* Opaque NTensor. *)
+
+Fixpoint units (n : nat) : Pat (n ⨂ One) := 
+  match n with
+  | O => unit
+  | S n' => (unit, units n')
+  end. 
+Lemma types_units : forall n, Types_Pat ∅ (units n).
+Proof. induction n; type_check. Qed.
+Notation "(())" := (units _) (at level 8).
+
+(* Can also just use (init b) #n $ (()) *)
+Fixpoint initMany (b : bool) (n : nat) : Box One (n ⨂ Qubit):= 
+  match n with 
+  | 0    => id_circ
+  | S n' => box_ () ⇒ 
+           let_ q  ← unbox (init b) ();
+           let_ qs ← unbox (initMany b n') ();
+           output (q, qs)
+  end.
+Lemma initMany_WT : forall b n, Typed_Box (initMany b n).
+Proof. induction n; type_check. apply init_WT. assumption. Qed.
+
+Fixpoint inSeqMany (n : nat) {W} (c : Box W W) : Box W W:= 
+  match n with
+  | 0 => id_circ
+  | S n' => inSeq c (inSeqMany n' c)
+  end.
+Lemma inSeqMany_WT : forall n W (c : Box W W), 
+      Typed_Box c -> Typed_Box (inSeqMany n c).
+Proof. intros. induction n as [ | n']; type_check. Qed.
+
+Fixpoint inParMany (n : nat) {W W'} (c : Box W W') : Box (n ⨂ W) (n ⨂ W') := 
+  match n with 
+  | 0    => id_circ
+  | S n' => inPar c (inParMany n' c)
+  end.
+Lemma inParMany_WT : forall n W W' (c : Box W W'), Typed_Box c  -> 
+                                 Typed_Box (inParMany n c).
+Proof. intros. induction n as [ | n']; type_check. Qed.       
+
+Notation "g # n" := (inParMany n g) (at level 8).
 
 (* Example circuits *)
 
@@ -87,52 +141,73 @@ Proof. type_check. Qed.
 
 (* Variations on deutsch's algorithm *)
 
-Definition U_deutsch (U_f : Unitary (Qubit ⊗ Qubit)) : Box One Bit :=
+Definition U_deutsch (U__f : Unitary (Qubit ⊗ Qubit)) : Box One Bit :=
   box_ () ⇒ 
     gate_ x ← init0 @();
     gate_ x ← H @x;
     gate_ y ← init1 @();
     gate_ y ← H @y;
-    gate_ (x,y) ← U_f @(x,y);
+    gate_ (x,y) ← U__f @(x,y);
     gate_ x ← H @x; (* found through verification! *)
     gate_ y ← meas @y;
     gate_ () ← discard @y;
     gate_ x ← meas @x;
     output x.
-Lemma U_deutsch_WT : forall U_f, Typed_Box (U_deutsch U_f).
+Lemma U_deutsch_WT : forall U__f, Typed_Box (U_deutsch U__f).
 Proof. type_check. Qed.
 
-Definition lift_deutsch (U_f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Bit :=
+Definition lift_deutsch (U__f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Bit :=
   box_ () ⇒
     gate_ x    ← init0 @();
     gate_ x    ← H @x;
     gate_ y    ← init1 @();
     gate_ y    ← H @y;
-    let_ (x,y) ← unbox U_f (x,y);
+    let_ (x,y) ← unbox U__f (x,y);
     gate_ y    ← meas @y;
     gate_ x ← H @x;
     lift_ _    ← y;
     gate_ x ← meas @x;
     output x.
-Lemma lift_deutsch_WT : forall U_f, Typed_Box U_f ->
-                               Typed_Box (lift_deutsch U_f).
+Lemma lift_deutsch_WT : forall U__f, Typed_Box U__f ->
+                               Typed_Box (lift_deutsch U__f).
 Proof. type_check. Qed.
 
-
-
-Definition deutsch (f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Bit :=
+Definition deutsch (U__f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Bit :=
   box_ () ⇒ 
     let_ x     ← H · init0 $ ();
     let_ y     ← H · init1 $ ();
-    let_ (x,y) ← f $ (x,y);
+    let_ (x,y) ← U__f $ (x,y);
     let_ _     ← discard · meas $ y;
     let_ x     ← H $ x;
     meas $ x.
-Lemma deutsch_WF : forall U_f, Typed_Box U_f -> Typed_Box (deutsch U_f).
+Lemma deutsch_WF : forall U__f, Typed_Box U__f -> Typed_Box (deutsch U__f).
 Proof. type_check. Qed.
 
+Definition Deutsch_Jozsa (n : nat) (U__f : Box (S n ⨂ Qubit) (S n ⨂ Qubit)) : 
+  Box One (n ⨂ Bit) := 
+  box_ () ⇒
+  let_ q      ← H · init1 $ (); 
+  let_ qs     ← (H· init0) #n $ (());
+  let_ (q,qs) ← U__f $ (q,qs);   
+  let_ qs     ← (meas · H) #n $ qs;
+  let_ ()     ← discard · meas $q; 
+  output qs. 
+Lemma Deutsch_Jozsa_WT : forall n U__f, Typed_Box U__f -> Typed_Box (Deutsch_Jozsa n U__f).
+Proof.
+  intros n U__f U_WT.
+  induction n.
+  + type_check.
+  + specialize (inParMany_WT) as WT_Par.
+    specialize types_units as WT_units.
+    type_check.
+    all: try apply WT_Par.
+    all:type_check.
+    apply types_units.
+Qed.    
 
-(** Teleport **)
+(*******************)
+(** Teleportation **)
+(*******************)
 
 Definition bell00 : Box One (Qubit ⊗ Qubit) :=
   box_ () ⇒  
@@ -224,11 +299,11 @@ Proof. type_check. Defined.
 (* teleport lift outside of bob *)
 Definition bob_distant (u v : bool) : Box Qubit Qubit :=
   box_ b ⇒
-    gate_ b      ← (if v then X else id_gate) @b;
-    gate_ b      ← (if u then Z else id_gate) @b;
+    let_ b ← unbox (if v then boxed_gate X else id_circ) b;
+    let_ b ← unbox (if u then boxed_gate Z else id_circ) b;
     output b.
 Lemma bob_distant_WT : forall b1 b2, Typed_Box (bob_distant b1 b2).
-Proof. type_check. Defined.
+Proof. destruct b1,b2; type_check. Defined.
 
 Definition teleport_distant : Box Qubit Qubit :=
   box_ q ⇒
@@ -237,7 +312,7 @@ Definition teleport_distant : Box Qubit Qubit :=
     lift_ (u,v) ← (x,y) ;
     unbox (bob_distant u v) b.
 Lemma teleport_distant_WT : Typed_Box teleport_distant.
-Proof. type_check. Qed.
+Proof. type_check. all: try destruct b; try destruct b0; type_check. Qed.
 
 Definition teleport_direct :=
   box_ q ⇒  
@@ -279,36 +354,9 @@ Proof.
   simpl. reflexivity.
 Qed.
 
-(* Right associative Tensor. Right associative with a trailing One  *)
-Fixpoint NTensor (n : nat) (W : WType) := 
-  match n with 
-  | 0    => One
-  | S n' => W ⊗ NTensor n' W
-  end.
-
-Infix "⨂" := NTensor (at level 30). 
-(* Transparent Tensor. *)
-(* Opaque NTensor. *)
-
-Fixpoint inSeqMany (n : nat) {W} (c : Box W W) : Box W W:= 
-  match n with
-  | 0 => id_circ
-  | S n' => inSeq c (inSeqMany n' c)
-  end.
-Lemma inSeqMany_WT : forall n W (c : Box W W), 
-      Typed_Box c -> Typed_Box (inSeqMany n c).
-Proof. intros. induction n as [ | n']; type_check. Qed.
-
-Fixpoint inParMany (n : nat) {W W'} (c : Box W W') : Box (n ⨂ W) (n ⨂ W') := 
-  match n with 
-  | 0    => id_circ
-  | S n' => inPar c (inParMany n' c)
-  end.
-Lemma inParMany_WT : forall n W W' (c : Box W W'), Typed_Box c  -> 
-                                 Typed_Box (inParMany n c).
-Proof. intros. induction n as [ | n']; type_check. Qed.       
-
+(*******************************)
 (** Quantum Fourier Transform **)
+(*******************************)
 
 Parameter RGate : nat -> Unitary Qubit.
 
@@ -402,14 +450,9 @@ Proof. intros. induction n; type_check. Qed.
 
 Definition n_coins (n : nat) : Box (n ⨂ One) (n ⨂ Bit) := (inParMany n coin_flip).
 
-Fixpoint units (n : nat) : Pat (n ⨂ One) := 
-  match n with
-  | O => ()
-  | S n' => ((), units n')
-  end.
 
 Definition n_coins' (n : nat) : Box (n ⨂ One) (n ⨂ Bit) := 
-  box_ () ⇒ (unbox (inParMany n coin_flip) (units n)).
+  box_ () ⇒ (unbox (inParMany n coin_flip) (())).
 
 (** Unitary Transpose **)
 
@@ -462,10 +505,13 @@ Definition lift_meas : Box Bit Bit :=
 Lemma lift_meas_WT : Typed_Box lift_meas.
 Proof. type_check. Qed.
 
+(*********************)
 (** Classical Gates **)
+(*********************)
 
 (* NOT already exists *)
 
+(* AND uses a Taffoli gate with one ancilla *)
 Definition AND : Box (Qubit ⊗ Qubit) Qubit :=
   box_ ab ⇒
     let_ (a,b)      ← output ab;
@@ -479,6 +525,19 @@ Definition AND : Box (Qubit ⊗ Qubit) Qubit :=
 Lemma AND_WT : Typed_Box AND.
 Proof. type_check. Qed.
 
+(* XOR just wraps a CNOT *)
+Definition XOR : Box (Qubit ⊗ Qubit) Qubit := 
+  box_ ab ⇒ 
+    let_ (a,b)   ← output ab;
+    gate_ (a, b) ← CNOT @(a,b);
+    gate_ a      ← meas @a;
+    gate_ ()     ← discard @a;
+    output b.
+
+Lemma XOR_WT : Typed_Box XOR.
+Proof. type_check. Qed.
+
+(* OR defined by way of (A ∨ B) = ¬ (¬ A ∧ ¬ B) *)
 Definition OR : Box (Qubit ⊗ Qubit) Qubit :=
   box_ ab ⇒ 
     let_ (a,b)       ← output ab;

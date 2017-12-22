@@ -67,6 +67,8 @@ Proof.
   + rewrite WFA, WFB; trivial; right; try omega.
   + rewrite WFA, WFB; trivial; left; try omega.
 Qed.
+
+(* List Representation *)
     
 Definition list2D_to_matrix (l : list (list C)) : 
   Matrix (length l) (length (hd [] l)) :=
@@ -168,7 +170,6 @@ Ltac destruct_m_1 :=
                  end] ] => is_var x; destruct x
   end.
 Ltac destruct_m_eq := repeat (destruct_m_1; simpl).
-
 
 Ltac mlra := 
   autounfold with M_db;
@@ -959,25 +960,27 @@ Ltac tac_lt m n :=
   end.
 
 (* Reassociate matrices so that smallest dimensions are multiplied first:
- m n o    p
-(A × B) × C => A × (B × C) iff
-  1) p < o && p < m
-  2) n < o && n < m
-m n    o p
-A × (B × C) => (A × B) × C iff
-  1) m < n && m < p
-  2) o < n && o < p
+For (m x n) × (n x o) × (o x p):
+If m or o is the smallest, associate left
+If n or p is the smallest, associate right
+(The actual time for left is (m * o * n) + (m * p * o) = mo(n+p) 
+                      versus (n * p * o) + (m * p * n) = np(m+o) for right. 
+We find our heuristic to be pretty accurate, though.)
 *)
 Ltac assoc_least := 
   repeat (simpl; match goal with
   | [|- context[@Mmult ?m ?o ?p (@Mmult ?m ?n ?o ?A ?B) ?C]] => tac_lt p o; tac_lt p m; 
-       setoid_rewrite (Mmult_assoc _ _ _ _ A B C)
+       let H := fresh "H" in 
+       specialize (Mmult_assoc _ _ _ _ A B C) as H; simpl in H; rewrite H; clear H
   | [|- context[@Mmult ?m ?o ?p (@Mmult ?m ?n ?o ?A ?B) ?C]] => tac_lt n o; tac_lt n m; 
-       setoid_rewrite (Mmult_assoc _ _ _ _ A B C)
+       let H := fresh "H" in 
+       specialize (Mmult_assoc _ _ _ _ A B C) as H; simpl in H; rewrite H; clear H
   | [|- context[@Mmult ?m ?n ?p ?A (@Mmult ?n ?o ?p ?B ?C)]] => tac_lt m n; tac_lt m p; 
-       setoid_rewrite <- (Mmult_assoc _ _ _ _ A B C)
+       let H := fresh "H" in 
+       specialize (Mmult_assoc _ _ _ _ A B C) as H; simpl in H; rewrite <- H; clear H
   | [|- context[@Mmult ?m ?n ?p ?A (@Mmult ?n ?o ?p ?B ?C)]] => tac_lt o n; tac_lt o p; 
-       setoid_rewrite <- (Mmult_assoc _ _ _ _ A B C)
+       let H := fresh "H" in 
+       specialize (Mmult_assoc _ _ _ _ A B C) as H; simpl in H; rewrite <- H; clear H
   end).
 
 (* Helper function for crunch_matrix *)
@@ -991,7 +994,8 @@ Ltac solve_out_of_bounds :=
   autorewrite with C_db; auto.
 
 
-Lemma divmod_eq : forall x y n z, fst (Nat.divmod x y n z) = (n + fst (Nat.divmod x y 0 z))%nat.
+Lemma divmod_eq : forall x y n z, 
+  fst (Nat.divmod x y n z) = (n + fst (Nat.divmod x y 0 z))%nat.
 Proof.
   induction x.
   + intros. simpl. omega.
@@ -1004,25 +1008,44 @@ Proof.
     reflexivity.
 Qed.
 
+Lemma divmod_S : forall x y n z, 
+  fst (Nat.divmod x y (S n) z) = (S n + fst (Nat.divmod x y 0 z))%nat.
+Proof. intros. apply divmod_eq. Qed.
+
+Ltac destruct_m_1' :=
+  match goal with
+  | [ |- context[match ?x with 
+                 | 0   => _
+                 | S _ => _
+                 end] ] => is_var x; destruct x
+  | [ |- context[match fst (Nat.divmod ?x _ _ _) with 
+                 | 0   => _
+                 | S _ => _
+                 end] ] => is_var x; destruct x
+  end.
+Ltac destruct_m_eq' := repeat (destruct_m_1'; try rewrite divmod_S; simpl).
+
+
 (* Unify A × B with list (list (evars)) *)
 (* We convert the matrices back to functional representation for 
    unification. Simply comparing the matrices may be more efficient,
    however. *)
-Ltac crunch_matrix := match goal with 
+
+Ltac crunch_matrix := 
+                    match goal with 
                       | [|- ?G ] => idtac "Crunching:" G
                       end;
                       repeat match goal with
-                             | [ H : C |- _ ] => unfold H; clear H
+                             | [ c : C |- _ ] => cbv [c]; clear c (* 'unfold' hangs *)
                              end; 
                       simpl;
                       unfold list2D_to_matrix;    
                       autounfold with M_db;
                       prep_matrix_equality;
                       simpl;
-                      destruct_m_eq;
-                      try rewrite divmod_eq; 
+                      destruct_m_eq';
                       simpl;
-                      autorewrite with C_db; 
+                      Csimpl; (* basic rewrites only *) 
                       try reflexivity;
                       try solve_out_of_bounds. 
 
@@ -1040,18 +1063,22 @@ Ltac reduce_aux M :=
   | ?A .+ ?B     => compound B; reduce_aux B
   | ?A × ?B      => compound A; reduce_aux A
   | ?A × ?B      => compound B; reduce_aux B
-  |  @Mmult ?m ?n ?o ?A ?B        => let M' := evar_matrix m o in
-                                    replace M with M';
-                                    [| crunch_matrix ] 
-  | @Mplus ?m ?n ?A ?B            => let M' := evar_matrix m n in
-                                    replace M with M';
-                                    [| crunch_matrix ] 
+  | @Mmult ?m ?n ?o ?A ?B      => let M' := evar_matrix m o in
+                                 replace M with M';
+                                 [| crunch_matrix ] 
+  | @Mplus ?m ?n ?A ?B         => let M' := evar_matrix m n in
+                                 replace M with M';
+                                 [| crunch_matrix ] 
   end.
 
 Ltac reduce_matrix := match goal with 
                        | [ |- ?M = _] => reduce_aux M
                        | [ |- _ = ?M] => reduce_aux M
                        end;
-                       repeat match goal with | [ H : C |- _ ] => unfold H; clear H end.
+                       repeat match goal with 
+                              | [ |- context[?c :: _ ]] => cbv [c]; clear c
+                              end.
 
-Ltac solve_matrix := assoc_least; repeat reduce_matrix; crunch_matrix.
+Ltac solve_matrix := assoc_least;
+                     repeat reduce_matrix; crunch_matrix;
+                     autorewrite with C_db; try clra.

@@ -3,7 +3,7 @@ all: HOASProofs.vo Equations.vo
 Monad.vo: Monad.v
 	coqc Monad.v
 
-Prelim.vo: Prelim.v
+Prelim.vo: Prelim.v Monad.vo
 	coqc Prelim.v
 
 Complex.vo: Complex.v Prelim.vo

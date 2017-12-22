@@ -1,6 +1,5 @@
 Set Implicit Arguments.
 Require Import List.
-(*Require Import HoTT.*)
 
 
 (** * The Functor Type Class *)
@@ -84,6 +83,17 @@ Fixpoint foldM {A B m} `{Monad m}
   end.
 Hint Unfold foldM : monad_db.
 
+About fmap_compose.
+Lemma fmap_compose' {f} (F : Functor f) `{Functor_Correct f} : 
+    forall {A B C} (g : A -> B) (h : B -> C) (a : f A),
+    fmap h (fmap g a) = fmap (h ∘ g) a.
+Proof.
+  intros.
+  rewrite (fmap_compose g h).
+  reflexivity.
+Qed.
+  
+
 Require Import Program.
 Lemma bind_eq : forall {A B m} `{Monad m} (a a' : m A) (f f' : A -> m B),
       a = a' ->
@@ -166,6 +176,32 @@ Instance listA : Applicative list := { pure := fun _ x => x :: nil
                                      ; liftA := @list_liftA }.
 Instance listM : Monad list := 
   { bind := @list_bind }.
+
+Instance listF_correct : Functor_Correct list.
+Proof.
+  constructor.
+  * intros. simpl. apply functional_extensionality; intros x.
+    induction x; simpl; auto.
+    rewrite IHx; auto.
+  * intros. simpl. apply functional_extensionality; intros x.
+    induction x; simpl; auto.
+    rewrite IHx.
+    auto.
+Qed.
+Instance listA_correct : Applicative_Correct list.
+Admitted.
+Instance listM_correct : Monad_Correct list.
+Admitted.
+
+
+
+
+Lemma fmap_app : forall {A B} (f : A -> B) ls1 ls2,
+      fmap f (ls1 ++ ls2) = fmap f ls1 ++ fmap f ls2.
+Proof.
+  induction ls1; intros; simpl; auto.
+  rewrite IHls1. auto.
+Qed.
 
 (** ** The Maybe monad (using option type) *) 
 
@@ -359,178 +395,3 @@ Hint Unfold Basics.compose : monad_db.
 Hint Unfold stateM : monad_db.
 
 
-(*
-
-(** ** The tree monad *)
-Inductive Tree (A:  Type) :=
-| Leaf: A -> Tree A
-| Branch: Tree A -> Tree A -> Tree A
-.
-
-Definition bind_tree {A B: Type} (f: A -> Tree B) :=
- fix bind_tree t :=
- match t with
- | Leaf a => f a
- | Branch t1 t2 => Branch (bind_tree t1) (bind_tree t2)
- end.
-
-Instance tree : Monad Tree.
-refine {| return_ := Leaf;
-  bind := fun  A t B f => bind_tree f t
-|}.
-(* Checking the 3 laws *)
- (* unit_left *)
- Lemma tree_unit_left: forall A a, a = bind_tree (@Leaf A) a.
- Proof.
-    intros A. induction a; auto. 
-    simpl. f_ap. 
- Qed.
- exact tree_unit_left.
- (* unit_right *)
- Lemma tree_unit_right: forall A a B (f : A -> Tree B), f a = bind_tree f (Leaf a).
- Proof.
-  simpl; split.
- Qed.
- exact tree_unit_right.
- (* associativity *)
- Lemma tree_associativity: forall A (m : Tree A) B f C (g : B -> Tree C),
- bind_tree (bind_tree g ∘ f) m = bind_tree g (bind_tree f m).
- Proof.
-  induction m; intros; simpl; auto.
-  f_ap. 
- Qed.
- exact tree_associativity.
-Defined.
-
-
-(** ** A light version of the IO monad *)
-Require Import Ascii.
-Open Scope char_scope.
-
-CoInductive stream: Type :=
-| Stream: ascii -> stream -> stream
-| EmptyStream.
-
-Record std_streams: Type :=
-{ stdin: stream;
-  stdout: stream;
-  stderr: stream
-}.
-
-Definition io (A: Type) := std_streams -> (A * std_streams).
-
-Instance IO : Monad io :=
-{| return_ := fun  A (a: A) s => (a, s);
-   bind := fun  A a B (f: A -> io B) s => let (a, s) := (a s) in f a s
-|}.
-(* Checking the 3 laws *)
- (* unit_left *)
- Lemma io_unit_left:
- forall A (a: io A), a = (fun  s : std_streams => let (a, s) := a s in (a, s)).
- Proof.
- intros; apply Ext.
- intros s; case (a s); split.
-Qed.
- exact io_unit_left.
- (* unit_right *)
- Lemma io_unit_right:
- forall A a B (f : A -> io B), f a = (fun  s : std_streams => f a s).
- Proof.
- intros; apply Ext.
- split.
-Qed.
- exact io_unit_right.
- (* associativity *)
- Lemma io_associativity: forall A (m : io A) B (f: A -> io B) C (g : B -> io C),
- (fun  s => let (a, s0) := m s in let (a0, s1) := f a s0 in g a0 s1) =
- (fun  s => let (a, s0) := let (a, s0) := m s in f a s0 in g a s0).
- Proof.
- intros; apply Ext.
- intros; case (m a); split.
-Qed.
- exact io_associativity.
-Defined.
-
-Definition getchar: io ascii :=
- fun  i=>
- let (c, stdin) :=
- match i.(stdin) with
- | EmptyStream => ("#", EmptyStream) (*I do not remember the code of EOF *)
- | Stream a i => (a, i)
- end
- in (c, {|stdin := stdin; stdout := i.(stdout); stderr := i.(stderr)|}).
-
-Definition putchar (a: ascii): io unit :=
- fun  i=>
- let stdout :=
- (cofix putchar i :=
- match i with
- | EmptyStream => Stream a EmptyStream
- | Stream a i => Stream a (putchar i)
- end) i.(stdout)
- in (tt, {|stdin:=i.(stdin); stdout:=stdout; stderr:=i.(stderr)|}).
-
-Definition err_putchar (a: ascii): io unit :=
- fun i=>
- let stderr :=
- (cofix putchar i :=
- match i with
- | EmptyStream => Stream a EmptyStream
- | Stream a i => Stream a (putchar i)
- end) i.(stderr)
- in (tt, {|stdin:=i.(stdin); stdout:=i.(stdout); stderr:=stderr|}).
-
-
-Require Import Datatypes.
-Require Import Data.List.
-(*Require Import List.*)
-
-Fixpoint lts l :=
-match l with
-| nil => EmptyString
-| c::l => String c (lts l)
-end.
-
-Fixpoint ltS l :=
-match l with
-| nil => EmptyStream
-| c::l => Stream c (ltS l)
-end.
-
-Example some_std_streams :=
-{| stdin := ltS ("H"::"e"::"l"::"l"::"o"::","::" "::"W"::"o"::"r"::"l"::"d"::
-                 "!"::nil);
-   stdout := EmptyStream;
-   stderr := EmptyStream
-|}.
-
-Example prog :=
- (do h    ← getchar;
-  do e    ← getchar;
-  do l1   ← getchar;
-  do l2   ← getchar;
-  do o1   ← getchar;
-  do coma ← getchar;
-  putchar "E" >>
-  do space← getchar;
-  do w    ← getchar;
-  do o2   ← getchar;
-  putchar "n" >>
-  do r    ← getchar;
-  do l3   ← getchar;
-  do d    ← getchar;
-  putchar d >>
-  do bang ← getchar;
-  do eof1 ← getchar;
-  do eof2 ← getchar;
-  do eof3 ← getchar;
-  return_ (lts (h::e::l1::l2::o1::coma::space::w::o2::r::l3::d::
-                bang::eof1::eof2::eof3::nil))).
-
-Eval compute in (prog some_std_streams).
-Eval compute in (let out := (snd (prog some_std_streams)).(stdout) in
-                prog {|stdin := out;
-                       stdout := EmptyStream;
-                       stderr := EmptyStream|}).
-
-*)

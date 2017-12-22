@@ -19,15 +19,15 @@ Transparent resize.
 
 Definition ket0 : Matrix 2 1:= 
   fun x y => match x, y with 
-          | 0, 0 => 1
-          | 1, 0 => 0
-          | _, _ => 0
+          | 0, 0 => C1
+          | 1, 0 => C0
+          | _, _ => C0
           end.
 Definition ket1 : Matrix 2 1 := 
   fun x y => match x, y with 
-          | 0, 0 => 0
-          | 1, 0 => 1
-          | _, _ => 0
+          | 0, 0 => C0
+          | 1, 0 => C1
+          | _, _ => C0
           end.
 
 Definition ket (x : nat) : Matrix 2 1 := if x =? 0 then ket0 else ket1.
@@ -70,64 +70,68 @@ Definition pauli_z : Matrix 2 2 := fun x y => if (x =? y) && (x <? 2)
 *)
 
 Definition σx : Matrix 2 2 := 
-  (fun x y => match x, y with
-          | 0, 0 => 0
-          | 0, 1 => 1
-          | 1, 0 => 1
-          | 1, 1 => 0
-          | _, _ => 0
-          end).
+  fun x y => match x, y with
+          | 0, 1 => C1
+          | 1, 0 => C1
+          | _, _ => C0
+          end.
 
 Definition σy : Matrix 2 2 := 
-  (fun x y => match x, y with
+  fun x y => match x, y with
           | 0, 1 => -Ci
           | 1, 0 => Ci
-          | _, _ => 0
-          end).
+          | _, _ => C0
+          end.
 
 Definition σz : Matrix 2 2 := 
-  (fun x y => match x, y with
-          | 0, 0 => 1
-          | 1, 1 => -1
-          | _, _ => 0
-          end).
+  fun x y => match x, y with
+          | 0, 0 => C1
+          | 1, 1 => -C1
+          | _, _ => C0
+          end.
   
 Definition control {n : nat} (A : Matrix n n) : Matrix (2*n) (2*n) :=
-  (fun x y => if (x <? n) && (y <? n) then (Id n) x y 
+  fun x y => if (x <? n) && (y <? n) then (Id n) x y 
           else if (n <=? x) && (n <=? y) then A (x-n)%nat (y-n)%nat 
-          else 0).
+          else C0.
 
 (* Definition cnot := control pauli_x. *)
 (* Direct definition makes our lives easier *)
 Definition cnot : Matrix 4 4 :=
   fun x y => match x, y with 
-          | 0, 0 => 1
-          | 1, 1 => 1
-          | 2, 3 => 1
-          | 3, 2 => 1
-          | _, _ => 0
+          | 0, 0 => C1
+          | 1, 1 => C1
+          | 2, 3 => C1
+          | 3, 2 => C1
+          | _, _ => C0
           end.          
 
+Lemma cnot_eq : cnot = control σx.
+Proof.
+  unfold cnot, control, σx.
+  solve_matrix.
+  destruct (S y <? 2); reflexivity.
+Qed.
 
 (* Swap Matrices *)
 
 Definition swap : Matrix 4 4 :=
-  (fun x y => match x, y with
-          | 0, 0 => 1
-          | 1, 2 => 1
-          | 2, 1 => 1
-          | 3, 3 => 1
-          | _, _ => 0
-          end).
+  fun x y => match x, y with
+          | 0, 0 => C1
+          | 1, 2 => C1
+          | 2, 1 => C1
+          | 3, 3 => C1
+          | _, _ => C0
+          end.
 
 (* Does this overwrite the other Hint DB M? *)
 Hint Unfold ket0 ket1 hadamard σx σy σz control cnot swap : M_db.
 
 (* Lemmas *)
-Lemma MmultX1 : σx × |1⟩ = |0⟩. Proof. crunch_matrix. Qed.
-Lemma Mmult1X : ⟨1| × σx = ⟨0|. Proof. crunch_matrix. Qed.
-Lemma MmultX0 : σx × |0⟩ = |1⟩. Proof. crunch_matrix. Qed.
-Lemma Mmult0X : ⟨0| × σx = ⟨1|. Proof. crunch_matrix. Qed.
+Lemma MmultX1 : σx × |1⟩ = |0⟩. Proof. solve_matrix. Qed.
+Lemma Mmult1X : ⟨1| × σx = ⟨0|. Proof. solve_matrix. Qed.
+Lemma MmultX0 : σx × |0⟩ = |1⟩. Proof. solve_matrix. Qed.
+Lemma Mmult0X : ⟨0| × σx = ⟨1|. Proof. solve_matrix. Qed.
 Hint Rewrite Mmult0X Mmult1X MmultX0 MmultX1 : M_db.
 
 Lemma swap_swap : swap × swap = Id 4.
@@ -615,6 +619,16 @@ Definition WF_Superoperator {m n} (f : Superoperator m n) :=
 Definition super {m n} (M : Matrix m n) : Superoperator n m := fun ρ => 
   M × ρ × M†.
 
+Lemma super_I : forall n ρ,
+      WF_Matrix n n ρ ->
+      super ('I_n) ρ = ρ.
+Proof.
+  intros.
+  unfold super.
+  autorewrite with M_db.
+  reflexivity.
+Qed.
+
 Definition compose_super {m n p} (g : Superoperator n p) (f : Superoperator m n)
                       : Superoperator m p :=
   fun ρ => g (f ρ).
@@ -757,9 +771,26 @@ Proof.
     clra.
 Qed.  
 
+(***********
+*Automation*
+************)
 
+(* For when autorewrite needs some extra help *)
 
-
-
+Ltac Msimpl := 
+  repeat match goal with 
+  | [ |- context[(?A ⊗ ?B)†]]    => let H := fresh "H" in 
+                                  specialize (kron_conj_transpose _ _ _ _ A B) as H;
+                                  simpl in H; rewrite H; clear H
+  | [ |- context[(control ?U)†]] => let H := fresh "H" in 
+                                  specialize (control_sa _ U) as H;
+                                  simpl in H; rewrite H; 
+                                  [clear H | Msimpl; reflexivity]
+  | [|- context[(?A ⊗ ?B) × (?C ⊗ ?D)]] => 
+                                  let H := fresh "H" in 
+                                  specialize (kron_mixed_product _ _ _ _ _ _ A B C D);
+                                  intros H; simpl in H; rewrite H; clear H
+  | _                         => autorewrite with M_db
+  end.
 
 (* *)

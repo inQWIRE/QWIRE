@@ -1021,6 +1021,136 @@ Admitted.
 *)
 
 
+(**********************)
+(* Proofs about state *)
+(**********************)
+
+
+
+Lemma is_valid_fresh : forall Γ w,
+      is_valid Γ ->
+      is_valid (fresh_state w Γ).
+Admitted.
+
+Lemma get_fresh_var_OCtx : forall Γ w,
+      get_fresh_var w Γ = length_OCtx Γ.
+Proof.
+  destruct Γ as [ | Γ]; auto.
+Qed.
+
+
+Lemma length_fresh_state : forall w Γ,
+      is_valid Γ ->
+      length_OCtx (fresh_state w Γ) = (length_OCtx Γ + size_WType w)%nat.
+Proof.
+  induction w; intros; (destruct Γ as [ | Γ]; [invalid_contradiction | ]); 
+    simpl; auto.
+  * rewrite app_length. auto.
+  * rewrite app_length; auto.
+  * rewrite IHw2; auto.
+    rewrite IHw1; auto.
+    simpl. omega.
+    apply is_valid_fresh; auto.
+Qed.
+
+Lemma length_fresh_state' : forall w (σ : substitution),
+      length (fresh_state w σ) = (length σ + size_WType w)%nat.
+Proof.
+  induction w; intros; simpl; auto.
+  * rewrite app_length; auto.
+  * rewrite app_length; auto.
+  * rewrite IHw2. 
+    rewrite IHw1.
+    simpl; omega.
+Qed.
+
+
+
+Require Import List.
+Lemma swap_fresh_seq : forall w (σ : substitution),
+    pat_to_list (fresh_pat w σ) = seq (get_fresh_var w σ) (size_WType w).
+Proof.
+  induction w; intros; simpl; auto.
+  rewrite IHw1.
+  rewrite IHw2. 
+  repeat rewrite get_fresh_var_OCtx. 
+  rewrite <- seq_app.
+  unfold get_fresh_var. simpl.
+  rewrite length_fresh_state'.
+  auto.
+Qed.
+
+
+
+Existing Instance listF.
+Existing Instance listF_correct.
+Lemma Ctx_dom_app : forall Γ1 Γ2,
+      Ctx_dom (Γ1 ++ Γ2) = Ctx_dom Γ1 ++ fmap (fun x => length Γ1 + x)%nat (Ctx_dom Γ2).
+Proof. 
+  induction Γ1 as [ | [w | ] Γ1]; intros.
+  * simpl. replace (list_fmap (fun x => x) (Ctx_dom Γ2)) with (fmap (fun x => x) (Ctx_dom Γ2)) by auto.
+    rewrite fmap_id.
+    auto.
+  * simpl. 
+    rewrite IHΓ1. 
+    rewrite fmap_app.
+    rewrite fmap_compose'; auto. exact _. exact _.
+  * simpl. 
+    rewrite IHΓ1.
+    rewrite fmap_app.
+    rewrite fmap_compose'; auto. exact _. exact _.
+Qed.
+Transparent fmap.
+
+
+Lemma OCtx_dom_fresh : forall w Γ, 
+      is_valid Γ ->
+      OCtx_dom (fresh_state w Γ) = OCtx_dom Γ ++ seq (length_OCtx Γ) (size_WType w).
+Proof.
+  induction w; 
+  (destruct Γ as [ | Γ]; [intros; invalid_contradiction | ]);
+  intros; simpl.
+
+  * rewrite Ctx_dom_app. simpl.
+    rewrite Nat.add_0_r.
+    auto.
+  * rewrite Ctx_dom_app. simpl.
+    rewrite Nat.add_0_r.
+    auto.
+  * rewrite app_nil_r. 
+    auto.
+  * rewrite IHw2; [ | apply is_valid_fresh; auto].
+    rewrite IHw1; auto.
+    simpl.
+    rewrite length_fresh_state; auto. simpl.
+
+    rewrite <- seq_app.
+    rewrite app_assoc.
+    reflexivity.
+Qed.
+
+Opaque fmap.
+Lemma ge_length_dom : forall Γ x,
+      (x >= length_OCtx Γ)%nat ->
+      inb x (OCtx_dom Γ) = false.
+Proof.
+  destruct Γ as [ | Γ]; [intros; auto | ].
+  induction Γ as [ | [w | ] Γ]; intros; auto.
+  * simpl in *.
+    destruct x as [ | x]; [inversion H | ].
+    simpl.
+    rewrite inb_fmap_S.
+    rewrite IHΓ; auto.
+    omega.
+  * simpl in *.
+    destruct x as [ | x]; [inversion H | ].
+    rewrite inb_fmap_S.
+    apply IHΓ. 
+    omega.
+Qed.
+Transparent fmap.
+
+
 (******************************************)
 (* Turning HOAS circuits into DB circuits *)
 (******************************************)
@@ -1177,74 +1307,6 @@ Proof.
     auto.
 Qed.
 
-
-(*
-Lemma fresh_pat_eq : forall w n,  
-    get_fresh_pat w (σ_{n})
-    = (fresh_pat w (σ_{n}), σ_{(n + size_WType w)})%core.
-Proof.
-  unfold fresh_pat.
-  induction w; intros; simpl.
-  * repeat autounfold with monad_db.
-    replace (n+1)%nat with (S n) by omega.
-    repeat rewrite seq_length.
-    simpl.
-    f_equal.
-    rewrite <- seq_S.
-    simpl.
-    auto.
-
-  * repeat autounfold with monad_db.
-    replace (n+1)%nat with (S n) by omega.
-    repeat rewrite seq_length.
-    simpl.
-    f_equal.
-    rewrite <- seq_S.
-    simpl.
-    auto.
-  * f_equal. f_equal. omega.
-  * repeat autounfold with monad_db.
-    rewrite IHw1.
-    rewrite IHw2.
-    simpl.
-    f_equal.
-    f_equal.
-    omega.
-Qed.
-
-Lemma fresh_pat_eq' : forall w n,  
-    get_fresh_pat w (st_{n})
-    = (fresh_pat w (st_{n}), st_{(n + size_WType w)})%core.
-Proof.
-  unfold fresh_pat.
-  induction w; intros; simpl.
-  * repeat autounfold with monad_db.
-    replace (n+1)%nat with (S n) by omega.
-    repeat rewrite seq_length.
-    simpl.
-    f_equal.
-    rewrite <- seq_S.
-    simpl.
-    auto.
-  *repeat autounfold with monad_db.
-    replace (n+1)%nat with (S n) by omega.
-    repeat rewrite seq_length.
-    simpl.
-    f_equal.
-    rewrite <- seq_S.
-    simpl.
-    auto.
-  * replace (n + 0) with n by omega.
-    auto.
-  * repeat autounfold with monad_db.
-    rewrite IHw1.
-    rewrite IHw2.
-    simpl.
-    f_equal.
-    rewrite Nat.add_assoc.
-    auto.
-Qed.    
-*)
 
 
 Lemma subst_var_seq : forall len start x, x < len ->

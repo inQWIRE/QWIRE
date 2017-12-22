@@ -510,21 +510,109 @@ Admitted.
 *)
 
 
-Lemma denote_Ctx_app : forall Γ1 Γ2, 
-      denote_Ctx (Γ1 ++ Γ2) = (denote_Ctx Γ1 + denote_Ctx Γ2)%nat.
+Lemma denote_pat_fresh_id : forall w,
+      denote_pat (fresh_pat w []) = Id (2^⟦w⟧).
 Proof.
-  induction Γ1 as [ | [w | ] Γ1]; intros; auto.
-  * simpl. rewrite IHΓ1. auto.
-  * simpl. rewrite IHΓ1. auto.
+  intros.
+  unfold denote_pat.
+  rewrite swap_fresh_seq by validate.
+  unfold get_fresh_var. simpl.
+  rewrite swap_list_n_id.
+  reflexivity.
 Qed.
 
+Open Scope circ_scope.
+Lemma hoas_to_db_pat_fresh : forall w Γ w',
+      Γ = fresh_state w' ∅ ->
+      hoas_to_db_pat (fresh_state w Γ) (fresh_pat w Γ) 
+    = fresh_pat w (OCtx_dom Γ).
+Proof.
+  induction w; intros; 
+    (assert (is_valid Γ) by (subst; apply is_valid_fresh; validate));
+    (destruct Γ as [ | Γ]; [invalid_contradiction | ]);
+    unfold hoas_to_db_pat in *; simpl in *; auto.
 
+  * rewrite Ctx_dom_app; simpl.
+    unfold subst_var.
+    rewrite Nat.add_0_r.
+    admit (* maps_to (length Γ) (Ctx_dom Γ ++ [length Γ]) = length Γ *).
+  * admit (* same as above *).
 
-  
+  * f_equal.
+    +admit. (* more general lemma *)
+    + rewrite IHw2 with (w' := w' ⊗ w1).
+      - f_equal. Search OCtx_dom fresh_state.
+        rewrite OCtx_dom_fresh; auto.
+        simpl.
+        admit (* lemma *).
+      - rewrite H.
+        reflexivity.
+Admitted.
+
+Lemma hoas_to_db_pat_fresh_empty : forall w,
+      hoas_to_db_pat (fresh_state w ∅) (fresh_pat w ∅)
+    = fresh_pat w [].
+Proof.
+  intros.
+  apply hoas_to_db_pat_fresh with (w' := One).
+  auto.
+Qed.
+
 Lemma singleton_size : forall x w Γ, SingletonCtx x w Γ -> ⟦Γ⟧ = 1%nat.
 Proof.
   induction 1; auto.
 Qed.
+
+Lemma singleton_size' : forall x w,
+      ⟦Valid (singleton x w)⟧ = 1%nat.
+Proof.
+  intros.
+  simpl.
+  eapply singleton_size.
+  apply singleton_singleton.
+Qed.
+
+Lemma denote_Ctx_app : forall Γ1 Γ2,
+      denote_Ctx (Γ1 ++ Γ2) = (denote_Ctx Γ1 + denote_Ctx Γ2)%nat.
+Proof.
+  induction Γ1; intros; simpl; auto.
+  destruct a; auto.
+  rewrite IHΓ1; auto.
+Qed.
+
+Lemma denote_OCtx_fresh : forall w Γ,
+      is_valid Γ ->
+      ⟦fresh_state w Γ⟧ = (⟦Γ⟧ + ⟦w⟧)%nat.
+Proof.
+  induction w; intros;
+    (destruct Γ as [ | Γ]; [invalid_contradiction | ]).
+  * simpl. 
+    rewrite denote_Ctx_app.
+    auto.
+  * simpl.
+    rewrite denote_Ctx_app.
+    auto.
+  * simpl.
+    omega.
+  * simpl.
+    rewrite IHw2 by (apply is_valid_fresh; auto).
+    rewrite IHw1 by auto.
+    simpl. 
+    omega. 
+Qed.
+
+
+(* probably a more general form of this *)
+Lemma denote_db_unbox : forall {w1 w2} (b : Box w1 w2),
+    ⟦b⟧ = ⟨ ∅ | fresh_state w1 ∅ ⊩ unbox b (fresh_pat w1 ∅) ⟩.
+Proof.
+  destruct b.
+  simpl. unfold denote_box.
+  simpl.
+  rewrite denote_OCtx_fresh; [ | validate].
+  reflexivity.
+Qed.
+  
 
 Lemma merge_size : forall Γ1 Γ2,
       is_valid (Γ1 ⋓ Γ2) ->
@@ -711,24 +799,6 @@ Proof.
   * admit.
 Admitted.
 
-(*
-  Types_Circuit Γ1 c ->
-  forall Γ Γ1' w' (f : Pat w -> Circuit w') σ σ' p pad n,
-    Γ1' == Γ1 ∙ Γ ->
-    (forall (p : Pat w) Γ2 Γ2', Γ2' == Γ2 ∙ Γ -> Types_Pat Γ2 p 
-                                              -> Types_Circuit Γ2' (f p)) ->
-    n = (⟦Γ1⟧+ ⟦Γ⟧)%nat ->
-    (p,σ') = get_fresh_pat w (remove_OCtx Γ1 σ) ->
-(*    
-    denote_db_circuit pad n (hoas_to_db (compose c f) σ)
-(*= denote_db_circuit pad n (db_compose (⟦Γ⟧) (hoas_to_db c σ) (hoas_to_db (f p) σ')) *)
-  = compose_super (denote_db_circuit pad (⟦w⟧+⟦Γ⟧) (hoas_to_db (f p) σ'))
-                  (denote_db_circuit (pad + ⟦Γ⟧) (⟦Γ1⟧) (hoas_to_db c σ)).
-*)
-    ⟨ pad | n | compose c f | σ ⟩ 
-  = compose_super (⟨pad | ⟦w⟧+⟦Γ⟧ | f p | σ'⟩)
-                  (⟨pad + ⟦Γ⟧ | ⟦Γ1⟧ | c | σ⟩).
-*)
 
 
 

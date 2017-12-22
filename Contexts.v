@@ -778,6 +778,14 @@ Fixpoint pat_to_list {w} (p : Pat w) : list Var :=
   end.
 
 
+Fixpoint pat_map {w} (f : Var -> Var) (p : Pat w) : Pat w :=
+  match p with
+  | unit => unit
+  | qubit x => qubit (f x)
+  | bit x => bit (f x)
+  | pair p1 p2 => pair (pat_map f p1) (pat_map f p2)
+  end.
+
 (* Not sure if this is the right approach. See below. *)
 Inductive Types_Pat : OCtx -> forall {W : WType}, Pat W -> Set :=
 | types_unit : Types_Pat ∅ unit
