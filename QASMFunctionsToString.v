@@ -46,13 +46,30 @@ Eval compute in string_of_10.
 Example string_of_11 := string_of_nat 11.
 Eval compute in string_of_11.
 
-(* Real numbers to strings with precision bounds *)
-Fixpoint pow_10 (n : nat) : R :=
+(* Integers to strings *)
+Definition natToDigit (n : nat) : ascii :=
   match n with
-  | 0 => 1
-  | S n' => 10 * pow_10 n'
+    | 0 => "0"
+    | 1 => "1"
+    | 2 => "2"
+    | 3 => "3"
+    | 4 => "4"
+    | 5 => "5"
+    | 6 => "6"
+    | 7 => "7"
+    | 8 => "8"
+    | _ => "9"
   end.
-
-Fixpoint string_of_R (r : R) (h : nat) (p : nat) : string :=
-  match ()
-  if (r )
+Fixpoint writeNatAux (time n : nat) (acc : string) : string :=
+  let acc' := String (natToDigit (n mod 10)) acc in
+  match time with
+    | 0 => acc'
+    | S time' =>
+      match n / 10 with
+        | 0 => acc'
+        | n' => writeNatAux time' n' acc'
+      end
+  end.
+Definition writeNat (n : nat) : string :=
+  writeNatAux n n "".
+Eval compute in writeNat 11.
