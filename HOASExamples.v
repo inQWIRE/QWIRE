@@ -10,28 +10,13 @@ Open Scope list_scope.
 
 (** Projecting out elements of tensors **)
 
-Inductive sigT23 (A:Type) (P Q R : A -> A -> Type) : Type :=
-    existT23 : forall (x y : A), P x y -> Q x y -> R x y -> sigT23 A P Q R.
-Arguments existT23 {A} {P Q R} x y p1 p2 M.
-
-Program Definition wproj {Γ W1 W2} (p : Pat Γ (Tensor W1 W2)) : 
-  sigT23 OCtx (fun x y => Pat x W1) (fun x y => Pat y W2) (fun x y => Γ = x ⋓ y) :=
-  match p with 
-  | unit => _
-  | qubit _ _ _ => _
-  | bit _ _ _ => _
-  | pair Γ1 Γ2 Γ W1 W2 v M p1 p2 => existT23 Γ1 Γ2 p1 p2 M  
-  end.
-(*
-Program Definition elim_unit {Γ} (p : Pat Γ One) : Γ = ∅ :=
+Definition wproj (p : Pat) : Pat * Pat :=
   match p with
-  | unit => _
-  | qubit _ _ _ => _
-  | bit _ _ _ => _
-  | pair Γ1 Γ2 Γ W1 W2 v M p1 p2 => _
+  | unit => (unit, unit)
+  | qubit n => (unit, unit)
+  | bit n => (unit, unit)
+  | pair p1 p2 => (p1, p2)  
   end.
-*)
-
 
 (*** Typechecking Tactic ***)
 
@@ -53,208 +38,280 @@ Set Printing Coercions.
 
 Tactic Notation (at level 0) "make_circ" uconstr(C) := refine C; type_check.
 
-(* Definition I_am_one : nat := ltac:(let x := constr:(2 - 1) in exact x). *)
+Tactic Notation (at level 0) "box_" uconstr(C) := refine(C); type_check.
 
-(* Notation "'bbox' p => C" := ltac:(refine (box (fun Γ p => C)); type_check) (at level 8). *)
+Notation letpair p1 p2 p c := (let (p1,p2) := wproj p in c).
 
-Tactic Notation (at level 0) "box_" uconstr(C) := (refine(C); type_check).
-
-Notation letpair p1 p2 p c := (let 'existT23 _ _ p1 p2 _ := wproj p in c).
-
-Notation "p ⇒ C" := (box (fun _ p => C)) (at level 8).
-Notation "() ⇒ C" := (box (fun _ _ => C)) (at level 8).
+Notation "'box_' p ⇒ C" := (box (fun p => C)) (at level 8).
+Notation "'box_' () ⇒ C" := (box (fun _ => C)) (at level 8).
 (*Notation "( x , y ) ⇒ C" := (box (fun _ z => letpair x y z C)) (at level 8).*)
 
 
-(*
-Tactic Notation (at level 0) "box_" ident(p) "=>" uconstr(C) := 
-    refine (fun p => box C); type_check.
-*)
-
-(*
-Tactic Notation (at level 0) "box_" uconstr(C) := 
-    refine (box (fun _ => C)); type_check.
-*)
-
 (* Notations for patterns *)
 Notation "()" := unit : circ_scope.
-Notation "( x , y , .. , z )" := (pair _ _ _ _ _ _ _ .. (pair _ _ _ _ _ _ _ x y) .. z) (at level 0) : circ_scope.
+Notation "( x , y , .. , z )" := (pair .. (pair x y) .. z) (at level 0) : circ_scope.
 
 
 (* Notations for circuits *)
-Notation comp p c1 c2 := (compose c1 (fun _ _ _ _ p => c2)).
+Notation comp p c1 c2 := (compose c1 (fun p => c2)).
 Notation "'let_' p ← c1 ; c2" := (comp p c1 c2)
                             (at level 12, right associativity) : circ_scope.
 Notation "'let_' () ← c1 ; c2" := 
-    (compose c1 (fun _ _ _ _ _ => c2)) 
+    (compose c1 (fun _ => c2)) 
                             (at level 12, right associativity) : circ_scope.
 Notation "'let_' ( p1 , p2 ) ← c1 ; c2" := 
-    (compose c1 (fun _ _ _ _ x => letpair p1 p2 x c2)) 
+    (compose c1 (fun x => letpair p1 p2 x c2)) 
                             (at level 12, right associativity) : circ_scope.
 Notation "'let_' ( p1 , p2 , p3 ) ← c1 ; c2" :=
-    (compose c1 (fun _ _ _ _ x => let 'existT23 _ _ y  p3 _ := wproj x in
-                              let 'existT23 _ _ p1 p2 _ := wproj y in
-                              c2))
+    (compose c1 (fun x => let (y,p3) := wproj x in
+                       let (p1,p2) := wproj y in c2))
                             (at level 12, right associativity) : circ_scope.
 Notation "'let_' ( ( p1 , p2 ) , p3 ) ← c1 ; c2" := 
-    (compose c1 (fun _ _ _ _ x => let 'existT23 _ _ y  p3 _ := wproj x in
-                                  let 'existT23 _ _ p1 p2 _ := wproj y in
-                                  c2))
+    (compose c1 (fun x => let (y,p3) := wproj x in
+                       let (p1,p2) := wproj y in c2))
                             (at level 12, right associativity) : circ_scope.
 Notation "'let_' ( p1 , ( p2 , p3 ) ) ← c1 ; c2" :=
-    (compose c1 (fun _ _ _ _ x => let 'existT23 _ _ p1 y  _ := wproj x in
-                                  let 'existT23 _ _ p2 p3 _ := wproj y in
-                                  c2))
+    (compose c1 (fun x => let (p1,y) := wproj x in
+                       let (p2,p3) := wproj y in c2))
                             (at level 12, right associativity) : circ_scope.
 Notation "'let_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ← c1 ; c2" :=
-    (compose c1 (fun _ _ _ _ x => let 'existT23 _ _ y  z  _ := wproj x in
-                                  let 'existT23 _ _ p1 p2 _ := wproj y in
-                                  let 'existT23 _ _ p3 p4 _ := wproj z in
-                                  c2))
+    (compose c1 (fun x => let (y,z) := wproj x in
+                       let (p1, p2) := wproj y in
+                       let (p3, p4) := wproj z in c2))
                             (at level 12, right associativity) : circ_scope.
 
 
-Notation "'gate_' p2 ← g @ p ; c2" := (gate g p (fun _ _ _ _ p2 => c2))
+Notation "'gate_' p2 ← g @ p ; c2" := (gate g p (fun p2 => c2))
          (at level 12, right associativity).
-Notation "'gate_' () ← g @ p ; c2" := (gate g p (fun _ _ _ _ _ => c2))
+Notation "'gate_' () ← g @ p ; c2" := (gate g p (fun _ => c2))
          (at level 12, right associativity).
 Notation "'gate_' ( p1 , p2 ) ← g @ p ; c2" := 
-    (gate g p (fun _ _ _ _ x => letpair p1 p2 x c2))
+    (gate g p (fun x => letpair p1 p2 x c2))
                             (at level 12, right associativity) : circ_scope.
 Notation "'gate_' ( p1 , p2 , p3 ) ← g @ p ; c2" :=
-    (gate g p (fun _ _ _ _ x => let 'existT23 _ _ y  p3 _ := wproj x in
-                                let 'existT23 _ _ p1 p2 _ := wproj y in
-                                c2))
-                            (at level 12, right associativity) : circ_scope.
+    (gate g p (fun x => let (y, p3) := wproj x in
+                     let (p1, p2) := wproj y in c2))
+                           (at level 12, right associativity) : circ_scope.
 Notation "'gate_' ( ( p1 , p2 ) , p3 ) ← g @ p ; c2" := 
-    (gate g p (fun _ _ _ _ x => let 'existT23 _ _ y  p3 _ := wproj x in
-                                let 'existT23 _ _ p1 p2 _ := wproj y in
-                                c2))
+    (gate g p (fun x => let (y, p3) := wproj x in
+                     let (p1, p2) := wproj y in c2))
                             (at level 12, right associativity) : circ_scope.
 Notation "'gate_' ( p1 , ( p2 , p3 ) ) ← g @ p ; c2" :=
-    (gate g p (fun _ _ _ _ x => let 'existT23 _ _ p1 y  _ := wproj x in
-                                let 'existT23 _ _ p2 p3 _ := wproj y in
-                                c2))
+    (gate g p (fun x => let (p1, y) := wproj x in
+                     let (p2, p3) := wproj y in c2))
                             (at level 12, right associativity) : circ_scope.
 Notation "'gate_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ← g @ p ; c2" :=
-    (gate g p (fun _ _ _ _ x => let 'existT23 _ _ y  z  _ := wproj x in
-                                let 'existT23 _ _ p1 p2 _ := wproj y in
-                                let 'existT23 _ _ p3 p4 _ := wproj z in
-                                c2))
+    (gate g p (fun x => let (y, z) := wproj x in
+                     let (p1, p2) := wproj y in
+                     let (p3, p4) := wproj z in c2))
                             (at level 12, right associativity) : circ_scope.
 
-
 Notation lift_pat x p c := (lift p (fun x => c)).
-Notation "'lift_' x ← c1 ; c2" := (lift_pat x c1 c2) 
+Notation "'lift_' x ← p ; c" := (lift_pat x p c) 
          (at level 12, right associativity) : circ_scope.
 
 
-Definition id_circ {W} : Box W W.
-  box_ p ⇒ (output p).
-Defined.
+Notation "'lift_' ( x , y ) ← p ; c" := (let (p1,p2) := wproj p in
+                                     lift_pat x p1 (lift_pat y p2 c)) 
+         (at level 12, right associativity) : circ_scope.
 
-Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Box W1 W2.
+
+
+(* Alt def. of WellTypedness
+Definition WT (b : Box) (W1 W2 : WType) :=
+*)   
+
+
+(* Automation *)
+
+Ltac validate :=
+  repeat ((*idtac "validate";*) match goal with
+  (* Pattern contexts are valid *)
+  | [H : Types_Pat ?Γ ?p ?W |- _ ]    => apply pat_ctx_valid in H
+  (* Solve trivial *)
+  | [|- is_valid ∅ ]                  => apply valid_empty
+  | [H : is_valid ?Γ |- is_valid ?Γ ] => exact H
+  | [H: is_valid (?Γ1 ⋓ ?Γ2) |- is_valid (?Γ2 ⋓ ?Γ1) ] => rewrite merge_comm; exact H
+  (* Remove nils *)
+  | [|- context [∅ ⋓ ?Γ] ]             => rewrite (merge_nil_l Γ)
+  | [|- context [?Γ ⋓ ∅] ]             => rewrite (merge_nil_r Γ)
+  (* Reduce hypothesis to binary disjointness *)
+  | [H: is_valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) |- _ ] => rewrite (merge_assoc Γ1 Γ2 Γ3) in H
+  | [H: is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) |- _ ]   => apply valid_split in H as [? [? ?]]
+  (* Reduce goal to binary disjointness *)
+  | [|- is_valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) ] => rewrite (merge_assoc Γ1 Γ2 Γ3)
+  | [|- is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) ]   => apply valid_join; validate
+  end).
+
+
+Ltac goal_has_evars := 
+  match goal with 
+  [|- ?G ] => has_evars G
+  end.
+
+Ltac type_check_once := 
+  (* Should not use compute. Unfold what we have to. *)
+  (* compute in *; *)
+  intros;
+  try match goal with 
+  | [|- Typed_Box ?c ?W1 ?W2] => unfold Typed_Box in *; try unfold c
+  end;
+  intros;
+  simpl in *;
+  subst; 
+  repeat match goal with 
+  | [ H : Types_Pat _ ?p One |- _ ]           => is_var p; inversion H; subst
+  | [ H : Types_Pat _ ?p (Tensor _ _) |- _ ]  => is_var p; inversion H; subst
+  (* Should break this down by case - in lift case, 
+     need to choose bit or qubit as appropriate *)
+  | [ |- Types_Circuit _ _ _ ]     => econstructor; type_check_once
+  | [ |- Types_Circuit _ (if ?b then _ else _) _ ] => destruct b; type_check_once
+  (* compose_typing : specify goal. *)                                  
+  | [ |- Types_Circuit _ _ _ ]               =>  eapply compose_typing; type_check_once 
+  | [ H : forall a b, Types_Pat _ _ _ -> Types_Circuit _ _ _ |- Types_Circuit _ _ _] 
+    => apply H; type_check_once
+  | [ H : Types_Pat _ ?p _ |- Types_Pat _ ?p _ ] => apply H
+  | [ |- Types_Pat _ _ _ ]                   => econstructor; type_check_once
+  end; 
+  (* Runs monoid iff a single evar appears in context *)
+  match goal with 
+  | [|- is_valid ?Γ] => tryif (has_evar Γ)   
+                        then (idtac (*"can't validate"; print_goal*))
+                        else (idtac (*"validate"; print_goal*); validate)
+  | [|- ?G ]         => tryif (has_evars G)  
+                        then (idtac (*"can't monoid"; print_goal*))
+                        else (idtac (*"monoid"; print_goal*); monoid)
+  end.
+
+(* Useful for debugging *)
+Ltac type_check_num := 
+  let pre := numgoals in idtac "Goals before: " pre "";
+  [> type_check_once..];
+  let post := numgoals in idtac "Goals after: " post "";
+  tryif (guard post < pre) then type_check_num else idtac "done".
+
+(* Easiest solution *)
+
+Ltac type_check := let n := numgoals in do n [> type_check_once..].
+
+Definition id_circ : Box :=
+  box_ p ⇒ (output p).
+Lemma id_circ_WT : forall W, Typed_Box id_circ W W.
+Proof. type_check. Qed.
+
+Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Box := 
   box_ p ⇒   
     gate_ p2 ← g @p;
     output p2.
-Defined.
+Lemma boxed_gate_WT {W1 W2} (g : Gate W1 W2) : Typed_Box (boxed_gate g) W1 W2.
+Proof. type_check. Qed.
 
-Definition new_discard : Box One One.
+Definition new_discard : Box := 
   box_ () ⇒ 
     gate_ b ← new0 @();
     gate_ () ← discard @b;
     output (). 
-Defined.
+Lemma new_discard_WT : Typed_Box new_discard One One.
+Proof. type_check. Qed. 
 
-Definition init_discard : Box One One.
+Definition init_discard : Box := 
   box_ () ⇒ 
     gate_ q ← init0 @();
     gate_ b ← meas @q;
     gate_ () ← discard @b;
     output (). 
-Defined.
+Lemma init_discard_WT : Typed_Box init_discard One One.
+Proof. type_check. Qed.
 
-Definition hadamard_measure : Box Qubit Bit.
+Definition hadamard_measure : Box :=
   box_ q ⇒ 
     gate_ q ← H @q;
     gate_ b ← meas @q;
     output b.
-Defined.
+Lemma hadamard_measure_WT : Typed_Box hadamard_measure Qubit Bit.
+Proof. type_check. Qed.
 
-Definition deutsch (U_f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Qubit.
+Definition deutsch (U_f : Unitary (Qubit ⊗ Qubit)) : Box :=
   box_ () ⇒ 
     gate_ x ← init0 @();
     gate_ x ← H @x;
     gate_ y ← init1 @();
     gate_ y ← H @y;
-    let_ (x,y) ← unbox U_f (x,y);
+    gate_ (x,y) ← U_f @(x,y);
+    gate_ x ← H @x; (* found through verification! *)
+    gate_ y ← meas @y;
+    gate_ () ← discard @y;
     gate_ x ← meas @x;
-    gate_ x ← discard @x;
-    output y.
-Defined.
+    output x.
+Lemma deutsch_WT : forall U_f, Typed_Box (deutsch U_f) One Bit.
+Proof. type_check. Qed.
 
-Definition lift_deutsch (U_f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Qubit.
+Definition lift_deutsch (U_f : Box) : Box :=
   box_ () ⇒
     gate_ x    ← init0 @();
     gate_ x    ← H @x;
     gate_ y    ← init1 @();
     gate_ y    ← H @y;
     let_ (x,y) ← unbox U_f (x,y);
-    lift_ _    ← x;
-    output y.
-Defined.
+    gate_ x ← H @x;
+    lift_ _    ← y;
+    gate_ x ← meas @x;
+    output x.
+Lemma lift_deutsch_WT : forall U_f, Typed_Box U_f (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) ->
+                               Typed_Box (lift_deutsch U_f) One Qubit.
+Proof. type_check. 
+(* Chooses wrong branch for lift! *)
+Abort. 
 
-
-
-Definition init (b : bool) : Box One Qubit :=
+Definition init (b : bool) : Box :=
   if b then boxed_gate init1 else boxed_gate init0.
+Lemma init_WT : forall b, Typed_Box (init b) One Qubit.
+Proof. destruct b; type_check. Defined.
 
-Definition inSeq {W1 W2 W3} (c1 : Box W1 W2) (c2 : Box W2 W3) : Box W1 W3. 
+Definition inSeq (c1 c2 : Box) : Box :=
   box_ p1 ⇒ 
     let_ p2 ← unbox c1 p1;
     unbox c2 p2.
-Defined.
+Lemma inSeq_WT : forall c1 c2 W1 W2 W3, Typed_Box c1 W1 W2 ->
+                                   Typed_Box c2 W2 W3 ->
+                                   Typed_Box (inSeq c1 c2) W1 W3.
+Proof. type_check. Qed.
 
-Definition inPar {W1 W2 W1' W2'} (c1 : Box W1 W1') (c2 : Box W2 W2') 
-                                 : Box (W1⊗W2) (W1'⊗W2').
+Definition inPar (c1 c2 : Box) : Box :=
   box_ p12 ⇒ 
     let_ (p1,p2) ← output p12; 
     let_ p1'     ← unbox c1 p1;
     let_ p2'     ← unbox c2 p2; 
     output (p1',p2').
-Defined. 
+Lemma inPar_WT : forall c1 c2 W1 W1' W2 W2', 
+  Typed_Box c1 W1 W1' -> Typed_Box c2 W2 W2' ->
+  Typed_Box (inPar c1 c2) (W1 ⊗ W2) (W1' ⊗ W2').
+Proof. type_check. Qed.
 
 (** Teleport **)
 
-Definition bell00 : Box One (Qubit ⊗ Qubit).
+Definition bell00 : Box :=
   box_ () ⇒  
     gate_ a ← init0 @();
     gate_ b ← init0 @();
     gate_ a ← H @a;
     gate_ z ← CNOT @(a,b);
     output z.
-Defined.
 
-Definition alice : Box (Qubit⊗Qubit) (Bit⊗Bit).
+Lemma bell00_WT : Typed_Box bell00 One (Qubit ⊗ Qubit).
+Proof. type_check. Qed.
+
+Definition alice : Box :=
   box_ qa ⇒ 
     gate_ (q,a) ← CNOT @qa;
     gate_ q     ← H @q;
     gate_ x     ← meas @q;
     gate_ y     ← meas @a;
     output (x,y).
-Defined.
+Lemma alice_WT : Typed_Box alice (Qubit ⊗ Qubit) (Bit ⊗ Bit).
+Proof. type_check. Qed.
 
-Definition bob' : Box (Bit ⊗ (Bit ⊗ Qubit)) Qubit.
-  box_ (xyb ⇒
-    let_  (x,yb)  ← output xyb;
-    gate_ (y,b)   ← bit_ctrl σx @yb;
-    gate_ (x,b)   ← bit_ctrl σx @(x,b);
-    gate_ ()      ← discard @y;
-    gate_ ()      ← discard @x;
-    output b).
-Defined.
-
-Definition bob : Box (Bit⊗Bit⊗Qubit) Qubit.
+Definition bob : Box :=
   box_ xyb ⇒ 
     let_ ((x,y),b) ← output xyb ; 
     gate_ (y,b)  ← bit_ctrl σx @(y,b);
@@ -262,114 +319,85 @@ Definition bob : Box (Bit⊗Bit⊗Qubit) Qubit.
     gate_ ()     ← discard @y ;   
     gate_ ()     ← discard @x ;
     output b.
-Defined.
+Lemma bob_WT : Typed_Box bob (Bit ⊗ Bit ⊗ Qubit) Qubit.
+Proof. type_check. Qed.
 
-Definition teleport' : Box Qubit Qubit.
-  box_ q ⇒
-    let_ (a,b) ← unbox bell00 () ;
-    let_ (x,y) ← unbox alice (q,a) ;
-    unbox bob' (x,(y,b)).
-Defined.
-
-Definition teleport : Box Qubit Qubit.
+Definition teleport :=
   box_ q ⇒
     let_ (a,b) ← unbox bell00 () ;
     let_ (x,y) ← unbox alice (q,a) ;
     unbox bob (x,y,b).
-Defined.
 
+Lemma teleport_WT : Typed_Box teleport Qubit Qubit.
+Proof. type_check. Defined.
 
-Definition half_teleport : Box Qubit (Qubit ⊗ Bit ⊗ Bit).
-  box_ q ⇒
-    let_ (a,b) ← unbox bell00 () ;
-    let_ (x,y) ← unbox alice (q,a);
-    output (b,x,y).
-Defined.
-
-
-Print alice.
-Print bob.
-
-Lemma ebob : exists x, bob = x.
-Proof.
-  unfold bob.
-  simpl.
-  unfold HOASCircuits.compose_obligation_3.
-  eauto.
-Qed.
-
-(*
-Doesn't Compute. 
+(* Now simplification is quick! *)
+(* Note, however, that there are still hidden "compose"s in teleport,
+   since our pairs all use let bindings and composition. 
+   Sometimes, having let and compose will be unavoidable, since we name the 
+   output of a multi-qubit unitary "x" *)
 Lemma eteleport : exists x, teleport = x.
 Proof.
   unfold teleport.
   unfold bell00, alice, bob.
-
-  native_compute.
   simpl.
-  unfold HOASCircuits.compose_obligation_3.
+(* compute. *)
   eauto.
 Qed.
-*)
-
-(* These take far too long:
-Eval vm_compute in alice.
-Eval vm_compute in bob.
-
-Eval vm_compute in half_teleport.
-Eval native_compute in teleport'.
-Eval vm_compute in teleport'.
-*)
 
 Parameter id_gate: Gate Qubit Qubit.
 
-Definition bob_lift : Box (Bit⊗Bit⊗Qubit) Qubit.
-  make_circ ( 
-  box (fun _ (xyb : Pat _ (Bit⊗Bit⊗Qubit)) =>
+Definition bob_lift : Box :=
+  box_ xyb ⇒
     let_ (xy, b) ← output xyb; 
-    lift_ z      ← xy ;
-    gate_ b      ← (if snd z then σx else id_gate) @b;
-    gate_ b      ← (if fst z then σz else id_gate) @b;
-    output b)).
-Defined.
+    lift_ (u,v)  ← xy;
+    gate_ b      ← (if v then σx else id_gate) @b;
+    gate_ b      ← (if u then σz else id_gate) @b;
+    output b.
+Lemma bob_lift_WT : Typed_Box bob_lift (Bit ⊗ Bit ⊗ Qubit) Qubit.
+Proof. type_check. Defined.
 
-Definition bob_lift' : Box (Bit⊗Bit⊗Qubit) Qubit.
-  make_circ ( 
-  box (fun _ (xyb : Pat _ (Bit⊗Bit⊗Qubit)) =>
+Definition bob_lift' := 
+  box_ xyb ⇒
     let_ (xy, b) ← output xyb; 
-    lift_ z      ← xy ;
-    match fst z, snd z with
+    lift_ (u,v)  ← xy;
+    match u,v with
     | true,  true  => gate_ b ← σx @b; gate_ b ← σz @b; output b
     | true,  false => gate_ b ← σz @b; output b
     | false, true  => gate_ b ← σx @b; output b
     | false, false => output b
-    end)).
-Defined.
+    end.
+Lemma bob_lift_WT' : Typed_Box bob_lift' (Bit ⊗ Bit ⊗ Qubit) Qubit.
+Proof. type_check. Defined.
 
-Definition teleport_lift : Box Qubit Qubit.
+Definition teleport_lift : Box :=
   box_ q ⇒
     let_ (a,b) ← unbox bell00 () ;
     let_ (x,y) ← unbox alice (q,a) ;
     unbox bob_lift (x,y,b).
-Defined.
+Lemma teleport_lift_WT : Typed_Box teleport_lift Qubit Qubit.
+Proof. type_check. Defined.
+
 
 (* teleport lift outside of bob *)
-Definition bob_distant (z : bool * bool) : Box Qubit Qubit.
+Definition bob_distant (u v : bool) : Box :=
   box_ b ⇒
-    gate_ b      ← (if snd z then σx else id_gate) @b;
-    gate_ b      ← (if fst z then σz else id_gate) @b;
+    gate_ b      ← (if v then σx else id_gate) @b;
+    gate_ b      ← (if u then σz else id_gate) @b;
     output b.
-Defined.
+Lemma bob_distant_WT : forall b1 b2, Typed_Box (bob_distant b1 b2) Qubit Qubit.
+Proof. type_check. Defined.
 
-Definition teleport_distant : Box Qubit Qubit.
+Definition teleport_distant : Box :=
   box_ q ⇒
-    let_ (a,b) ← unbox bell00 () ;
-    let_ (x,y) ← unbox alice (q,a) ;
-    lift_ z ← (x,y) ;
-    unbox (bob_distant z) b.
-Defined.
+    let_ (a,b)  ← unbox bell00 () ;
+    let_ (x,y)  ← unbox alice (q,a) ;
+    lift_ (u,v) ← (x,y) ;
+    unbox (bob_distant u v) b.
+Lemma teleport_distant_WT : Typed_Box teleport_distant Qubit Qubit.
+Proof. type_check. Qed.
 
-Definition teleport_direct : Box Qubit Qubit.
+Definition teleport_direct :=
   box_ q ⇒  
   (* bell00 *)
     gate_ a     ← init0 @();
@@ -389,8 +417,17 @@ Definition teleport_direct : Box Qubit Qubit.
     gate_ ()     ← discard @y;   
     gate_ ()     ← discard @x;
     output b.
-Defined.
+Lemma teleport_direct_WT : Typed_Box teleport_direct Qubit Qubit.
+Proof. type_check. Qed.
 
+Lemma teleport_eq : teleport = teleport_direct.
+Proof.
+  unfold teleport, teleport_direct.
+  simpl.
+  repeat (f_equal; apply functional_extensionality; intros).
+  f_equal.
+  destruct x3; simpl.
+Abort. 
 
 (* Right associative Tensor *)
 Fixpoint NTensor (n : nat) (W : WType) := 
@@ -402,84 +439,99 @@ Fixpoint NTensor (n : nat) (W : WType) :=
 
 Infix "⨂" := NTensor (at level 30). 
 (* Transparent Tensor. *)
-Opaque NTensor.
+(* Opaque NTensor. *)
 
-Fixpoint inSeqMany {W} (n :nat) (c : Box W W) : Box W W := 
+Fixpoint inSeqMany (n : nat) (c : Box) : Box := 
   match n with
   | 0 => id_circ
   | 1 => c
   | S n' => inSeq c (inSeqMany n' c)
   end.
 
+(* I'd rather be able to prove this directly using type_check *)
+Lemma inSeqMany_WT : forall c n W, Typed_Box c W W -> Typed_Box (inSeqMany n c) W W.
+Proof. intros. induction n. type_check. simpl. destruct n. assumption.
+       eapply inSeq_WT; eauto.
+Qed.
+
 (* Zero-indexed variant. I don't know why this is necessary *)
 (* This will be fairly common *)
-Fixpoint inParManyZ {W1 W2} (n : nat) (c : Box W1 W2) {struct n} : 
-  Box (S n ⨂ W1) (S n ⨂ W2) :=
+Fixpoint inParManyZ (n : nat) (c : Box) {struct n} : Box :=
   match n with 
   | 0 => c
   | S n' => inPar c (inParManyZ n' c)
   end. 
 
-Definition inParMany {W1 W2} (n : nat) (c : Box W1 W2) : Box (n ⨂ W1) (n ⨂ W2) := 
+Definition inParMany (n : nat) (c : Box) : Box := 
   match n with 
   | 0 => id_circ
   | S n' => inParManyZ n' c 
   end.
+
+Lemma inParMany_WT : forall c n W W', Typed_Box c W W' -> 
+                                 Typed_Box (inParMany n c) (n ⨂ W) (n ⨂ W').
+Proof. intros. induction n. type_check. simpl.
+       destruct n. apply H. simpl. apply inPar_WT. assumption. apply IHn.
+Qed.       
 
 
 (** Quantum Fourier Transform **)
 
 Parameter RGate : nat -> Unitary Qubit.
 
-Fixpoint rotationsZ (m : nat) (n : nat) : Box (S (S n) ⨂ Qubit) (S (S n) ⨂ Qubit).
-make_circ (
-  match n as n0 return n = n0 -> Box (S (S n0) ⨂ Qubit) (S (S n0) ⨂ Qubit) with
-  | 0    => fun _ => id_circ 
-  | S n' => fun _ => box (fun _ w =>
-      let_ (c, (q,qs)) ← output w;  
-      let_ (c,qs)      ← unbox (rotationsZ m n') (c,qs) ;
-      gate_ (c,q)      ← ctrl (RGate (1 + m - n')) @(c,q);
-      output (c,(q,qs)))
-   end (eq_refl n)).
-Defined.
+(* Check against Quipper implementation *)
+(* n + 2 = number of qubits, m = additional argument *)
+Fixpoint rotations (n m : nat) : Box :=
+  match n with
+  | 0    => id_circ
+  | 1    => id_circ
+  | S n' => box_ w ⇒
+               let_ (c,(q,qs))  ← output w;  
+               let_ (c,qs)      ← unbox (rotations n' m) (c,qs);
+               gate_ (c,q)      ← ctrl (RGate (m + 2 - n')) @(c,q);
+               output (c,(q,qs))
+   end.
+Lemma rotations_WT : forall n m, 
+    Typed_Box (rotations n m) (S (S n) ⨂ Qubit) (S (S n) ⨂ Qubit).
+(* not sure why this used to be easier: induction n; [|destruct n]; type_check.  *)
+Proof. induction n; [|destruct n]; type_check. 
+       Focus 2. apply IHn. type_check.
+       monoid.
+       type_check.
+Qed. 
 
-
-Definition rotations (m : nat) (n : nat) : Box (S n ⨂ Qubit) (S n ⨂ Qubit) :=
+Opaque rotations.
+Fixpoint qft (n : nat) : Box :=
   match n with 
-  | 0 => id_circ
-  | S n' => rotationsZ m n' 
+  | 0    => id_circ
+  | S n' => match n' with
+           | 0 => boxed_gate H
+           | S n'' => box_ qqs ⇒
+                     let_ (q,qs) ← output qqs; 
+                       let_ qs     ← unbox (qft n') qs; 
+                       let_ (q,qs) ← unbox (rotations n'' n') (q,qs);
+                       gate_ q     ← H @q;
+                       output (q,qs)
+           end
   end.
-
-Fixpoint qftZ (n : nat) : Box (S n ⨂ Qubit) (S n ⨂ Qubit).
-make_circ (
-  match n as n0 return n = n0 -> Box (S n0 ⨂ Qubit) (S n0 ⨂ Qubit) with 
-  | 0    => fun _ => boxed_gate H
-  | S n' => fun _ => box (fun _ qw =>
-             let_ (q,w) ← output qw; 
-             let_ w ← unbox (qftZ n') w; 
-             unbox (rotationsZ (S n') n') (q,w))
-  end (eq_refl n)).
-Defined.
-
-Definition qft (n : nat) : Box (n ⨂ Qubit) (n ⨂ Qubit) :=
-  match n with 
-  | 0 => id_circ
-  | S n' => qftZ n'
-  end.
-
+Lemma qft_WT : forall n, Typed_Box  (qft n) (n ⨂ Qubit) (n ⨂ Qubit).
+Proof. induction n; [| destruct n]; type_check.
+       2: apply rotations_WT; type_check.
+       all: type_check.
+Qed.
 
 (** Coin flip **)
 
-Definition coin_flip : Box One Bit.
+Definition coin_flip : Box :=
   box_ () ⇒
     gate_ q  ← init0 @();
     gate_ q  ← H @q;
     gate_ b  ← meas @q;
     output b.
-Defined.
+Lemma coin_flip_WT : Typed_Box coin_flip One Bit.
+Proof. type_check. Qed.
 
-
-Fixpoint coin_flips (n : nat) : Box One Bit.
+Fixpoint coin_flips (n : nat) : Box :=
   box_ () ⇒
   match n with
   | 0    => gate_ x ← new1 @(); output x
@@ -490,10 +542,10 @@ Fixpoint coin_flips (n : nat) : Box One Bit.
            gate_ b     ← meas @q;
            output b
   end.
-Defined.
+Lemma coin_flips_WT : forall n, Typed_Box (coin_flips n) One Bit.
+Proof. intros. induction n; type_check. Qed.
 
-
-Fixpoint coin_flips_lift (n : nat) : Box One Bit. 
+Fixpoint coin_flips_lift (n : nat) : Box := 
   box_ () ⇒ 
   match n with
   | 0    => gate_ q ← new1 @(); output q
@@ -502,68 +554,60 @@ Fixpoint coin_flips_lift (n : nat) : Box One Bit.
            if x then unbox coin_flip ()
                 else gate_ q ← new0 @(); output q
   end.
-Defined.
+Lemma coin_flips_lift_WT : forall n, Typed_Box (coin_flips_lift n) One Bit.
+Proof. intros. induction n; type_check. Qed.
 
-Definition unitary_transpose {W} (U : Unitary W) : Box W W.
+Definition unitary_transpose {W} (U : Unitary W) : Box := 
   box_ p ⇒
     gate_ p ← U @p;
     gate_ p ← transpose U @p;
-    output p
-  .
-Defined.
+    output p.
+Lemma unitary_transpose_WT : forall W (U : Unitary W), Typed_Box (unitary_transpose U) W W.
+Proof. type_check. Qed.
 
-Definition prepare_basis {W} (x : interpret W) : Box One W.
-Proof.
-  induction W.
-  - exact (boxed_gate (if x then init0 else init1)).
-  - exact (boxed_gate (if x then new0 else new1)).
-  - exact id_circ.
-  - box_ (_ ⇒
-          let (x1,x2) := x in
-          let_ p1 ← unbox (IHW1 x1) ();
-          let_ p2 ← unbox (IHW2 x2) ();
-          output (p1,p2)).
-Defined.
+(* Produces qubits *)
+Fixpoint prepare_basis (li : list bool) : Box :=
+  match li with
+  | []       => id_circ
+  | b :: nil => init b
+  | b :: bs => box_ () ⇒ 
+                 let_ p1 ← unbox (init b) (); 
+                 let_ p2 ← unbox (prepare_basis bs) ();
+                 output (p1, p2)
+  end.
+Lemma prepare_basis_WT : forall li, 
+  Typed_Box (prepare_basis li) One ((length li) ⨂ Qubit).
+Proof. induction li. type_check.
+       destruct li; type_check.
+       all: apply init_WT; assumption.
+Qed.
 
-Definition lift_eta W : Box W W.
+Definition lift_eta : Box :=
   box_ q ⇒ 
     lift_ x ← q;
-    unbox (prepare_basis x) ().
-Defined.
+    unbox (prepare_basis [x]) ().
+Lemma lift_eta_bit_WT : Typed_Box lift_eta Bit Qubit.
+Proof. type_check. apply init_WT. constructor. Qed.
+Lemma lift_eta_qubit_WT : Typed_Box lift_eta Qubit Qubit.
+Proof. econstructor 4; type_check. apply init_WT. constructor. Qed.
 
-(*
-Definition lift_meas : Box Qubit Bit.
-  box_ (q ⇒
-    lift_ x ← q; _).
-  make_circ (
-    gate_ p ← (if x then new1 else new0) @();
-    output p
-  ).
-Defined.
-*)
-
-(* 
-  box_ (q ⇒
+Definition lift_meas : Box :=
+  box_ q ⇒
     lift_ x ← q;
     gate_ p ← (if x then new1 else new0) @();
-    output p
-  ).
-*)
-
-Definition lift_meas : Box Qubit Bit.
-  make_circ (
-  box (fun _ (q : Pat _ Qubit) =>
-    lift_ x ← q;
-    gate_ p ← (if x then new1 else new0) @();
-    output p)).
-Defined.
+    output p.
+Lemma lift_meas_WT : Typed_Box lift_meas Bit Bit.
+Proof. type_check. Qed.
+Lemma lift_meas_WT' : Typed_Box lift_meas Qubit Bit.
+(* Needs to be explicitly told the constructor *)
+Proof. econstructor 4; type_check. Qed. 
 
 
 (** Classical Gates **)
 
 (* NOT already exists *)
 
-Definition AND : Box (Qubit ⊗ Qubit) (Qubit).
+Definition AND : Box :=
   box_ ab ⇒
     let_ (a,b)      ← output ab;
     gate_ z         ← init0 @();
@@ -573,9 +617,10 @@ Definition AND : Box (Qubit ⊗ Qubit) (Qubit).
     gate_ ()        ← discard @a;   
     gate_ ()        ← discard @b;   
     output z.
-Defined.
+Lemma AND_WT : Typed_Box AND (Qubit ⊗ Qubit) Qubit.
+Proof. type_check. Qed.
 
-Definition OR : Box (Qubit ⊗ Qubit) (Qubit).
+Definition OR : Box :=
   box_ ab ⇒ 
     let_ (a,b)       ← output ab;
     gate_ a'         ← NOT @a;
@@ -583,41 +628,45 @@ Definition OR : Box (Qubit ⊗ Qubit) (Qubit).
     let_ z           ← unbox AND (a',b');
     gate_ z'         ← NOT @z;
     output z'.
-Defined.
+Lemma OR_WT : Typed_Box OR (Qubit ⊗ Qubit) Qubit.
+Proof. type_check. Qed.
 
 (** Invalid Circuits **)
-
-Definition absurd_circ : Box Qubit (Bit ⊗ Qubit).
+(* Now can be defined but won't typecheck *)
+Definition absurd_circ : Box :=
   box_ w ⇒ 
     gate_ x  ← meas @w ;
     gate_ w' ← H @w ;
     output (x,w').
-Abort.
+Definition absurd_fail : Typed_Box absurd_circ Qubit (Qubit ⊗ Bit).
+Proof. type_check. Abort.
 
-Definition unmeasure : Box Qubit Qubit.
+Definition unmeasure : Box :=
   box_ q ⇒ 
     gate_ q  ← H @q ;
     gate_ b ← meas @q ;
     output q.
-Abort.
+Lemma unmeasure_fail : Typed_Box unmeasure Qubit Qubit.
+Proof. type_check. Abort.
 
-Definition unused_qubit : Box Qubit One.
+Definition unused_qubit : Box :=
   box_ w ⇒ 
    gate_ w ← H @w ;
    output ().
-Abort.
+Lemma unused_qubit_fail : Typed_Box unused_qubit Qubit One.
+Proof. type_check. Abort.
 
-Definition clone W : Box W (W ⊗ W).
-  box_ p ⇒ (output (p,p)).
-Abort.
+Definition clone : Box := box_ p ⇒ (output (p,p)).
+Lemma clone_WT : Typed_Box clone Qubit (Qubit ⊗ Qubit).
+Proof. type_check. Abort.
 
-
-(* Caught by Coq's typechecker
-Definition split_qubit : Box Qubit (Qubit ⊗ Qubit).
-  box_ (w ⇒ 
+Definition split_qubit : Box :=
+  box_ w ⇒ 
     let_ (w1,w2)  ← output w ;
     gate_ w2'     ← H @w2 ; 
-    output (w1,w2')). *)
+    output (w1,w2').
+Lemma split_qubit_fail : Typed_Box split_qubit Qubit (Qubit ⊗ Qubit).
+Proof. type_check. Abort.
 
 Close Scope circ_scope.
 (* *)

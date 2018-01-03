@@ -13,18 +13,12 @@ Module F.
 
 (** Projecting out elements of tensors **)
 
-Inductive sigT23 (A:Type) (P Q R : A -> A -> Type) : Type :=
-    existT23 : forall (x y : A), P x y -> Q x y -> R x y -> sigT23 A P Q R.
-
-Arguments existT23 {A} {P Q R} x y p1 p2 M.
-
-Program Definition wproj {Γ W1 W2} (p : Pat Γ (Tensor W1 W2)) : 
-  sigT23 OCtx (fun x y => Pat x W1) (fun x y => Pat y W2) (fun x y => Γ = x ⋓ y) :=
-  match p with 
-  | unit => _
-  | qubit _ _ _ => _
-  | bit _ _ _ => _
-  | pair Γ1 Γ2 Γ W1 W2 v M p1 p2 => existT23 Γ1 Γ2 p1 p2 M  
+Definition wproj (p : Pat) : Pat * Pat :=
+  match p with
+  | unit => (unit, unit)
+  | qubit n => (unit, unit)
+  | bit n => (unit, unit)
+  | pair p1 p2 => (p1, p2)  
   end.
 
 (*** Typechecking Tactic ***)
@@ -82,29 +76,10 @@ Ltac type_check := let n := numgoals in do n [> type_check_once..].
 Set Printing Coercions.
 
 Tactic Notation (at level 0) "make_circ" uconstr(C) := refine C; type_check.
-Tactic Notation (at level 0) "box_f" uconstr(p) uconstr(C) := 
-  refine (flat_box p C); type_check.
-
-Ltac new_pat p W Γ := 
-    let Γ' := fresh "Γ" in
-    let v1 := fresh "v" in
-    let v2 := fresh "v" in 
-    let v3 := fresh "v" in 
-(*    let Eq := fresh "Eq" in *)
-    set (p := fresh_pat Γ W);
-    set (Γ' := fresh_ctx Γ W);
-    generalize (fresh_ctx_valid W Γ); intros v1;
-    try (assert (v2 : is_valid Γ) by validate;
-         generalize (fresh_ctx_merge_valid W Γ v2); intros v3).
-
-(*    set (v' := fresh_ctx_valid W Γ v);
-    set (v'' := fresh_ctx_merge_valid W Γ v). *)
-(*    apply disjoint_valid in v''; trivial; try apply valid_empty.*)
 
 Notation gate g p1 p2 C := (flat_gate g p1 p2 C).
 Notation output_f p := (flat_output p).
-
-
+Notation box_f p C  := (flat_box p C).
 Notation "'gate_f' p' ← g @ p ; C" := (gate g p p' C) 
                                           (at level 10, right associativity). 
 
@@ -113,38 +88,34 @@ Notation "()" := unit : circ_scope.
 Notation "( x , y , .. , z )" := (pair _ _ _ _ _ _ _ .. (pair _ _ _ _ _ _ _ x y) .. z) (at level 0) : circ_scope.
 
 (****************
-Non-Concrete examples 
+Examples 
 *****************)
 
-Definition id_circ {W} : Flat_Box W W.
-  new_pat p W ∅.
+Definition id_circ (W : WType) : Flat_Box :=
+  let (p,n) := fresh_pat W 0 in
   box_f p (output_f p).
-Defined.
 
-Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Flat_Box W1 W2.
-  new_pat p W1 ∅.
-  new_pat p' W2 ∅.
+Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Flat_Box :=
+  let (p,n) := fresh_pat W1 0 in
+  let (p',n') := fresh_pat W2 n in
   box_f p (
     gate_f p' ← g @p;
     output_f p'). 
-Defined.
 
-Definition unitary_transpose {W} (U : Unitary W) : Flat_Box W W.
-  new_pat p W ∅.
+Definition unitary_transpose {W} (U : Unitary W) : Flat_Box :=
+  let (p,_) := fresh_pat W 0 in
   box_f p (
     gate_f p ← U @p;
     gate_f p ← transpose U @p;
     output_f p
   ).
-Defined.
 
-Definition new_discard : Flat_Box One One.
-  new_pat p Bit ∅.
+Definition new_discard : Flat_Box :=
+  let (p,_) := fresh_pat Bit 0 in
   box_f unit (
     gate_f p    ← new0 @(); 
     gate_f unit ← discard @p;
     output_f () ).
-Defined.
 
 Definition init_discard : Flat_Box One One.
   new_pat q Qubit ∅.
