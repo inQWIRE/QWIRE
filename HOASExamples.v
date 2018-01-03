@@ -7,7 +7,6 @@ Open Scope list_scope.
 
 Open Scope circ_scope.
 
-
 Definition apply_box {w1 w2} (b : Box w1 w2) (c : Circuit w1) : Circuit w2 :=
   let_ x ← c;
   unbox b x.
@@ -178,7 +177,6 @@ Definition deutsch (U__f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Bi
     let_ y     ← H · init1 $ ();
     let_ (x,y) ← U__f $ (x,y);
     let_ _     ← discard · meas $ y;
-    let_ x     ← H $ x;
     meas $ x.
 Lemma deutsch_WF : forall U__f, Typed_Box U__f -> Typed_Box (deutsch U__f).
 Proof. type_check. Qed.
@@ -200,8 +198,9 @@ Proof.
   + specialize (inParMany_WT) as WT_Par.
     specialize types_units as WT_units.
     type_check.
-    all: try apply WT_Par.
-    all:type_check.
+    apply WT_Par. 
+    all: try apply WT_Par. 
+    all: type_check.
     apply types_units.
 Qed.    
 
@@ -380,7 +379,7 @@ Lemma rotations_WT : forall n m, Typed_Box (rotations n m).
 (* not sure why this used to be easier: induction n; [|destruct n]; type_check.  *)
 Proof. 
   induction n as [ | [ | n]]; type_check.
-  apply IHn. 
+   apply IHn. 
   type_check.
 Qed. 
 
@@ -449,10 +448,13 @@ Lemma coin_flips_lift_WT : forall n, Typed_Box (coin_flips_lift n).
 Proof. intros. induction n; type_check. Qed.
 
 Definition n_coins (n : nat) : Box (n ⨂ One) (n ⨂ Bit) := (inParMany n coin_flip).
+Lemma n_coins_WT : forall n, Typed_Box (n_coins n).
+Proof. intros. apply inParMany_WT. apply coin_flip_WT. Qed.
 
-
-Definition n_coins' (n : nat) : Box (n ⨂ One) (n ⨂ Bit) := 
-  box_ () ⇒ (unbox (inParMany n coin_flip) (())).
+Definition n_coins' (n : nat) : Box One (n ⨂ Bit) := 
+  box_ () ⇒ (unbox (inParMany n coin_flip) (units n)).
+Lemma n_coins_WT' : forall n, Typed_Box (n_coins' n).
+Proof. type_check. apply inParMany_WT. apply coin_flip_WT. apply types_units. Qed.
 
 (** Unitary Transpose **)
 
@@ -487,8 +489,7 @@ Fixpoint share n : Box Qubit (S n ⨂ Qubit) :=
               output (q,qs)
   end.
 Lemma share_WT : forall n, Typed_Box (share n).
-Proof. induction n; type_check.
-Qed.
+Proof. induction n; type_check. Qed.
 
 Definition lift_eta : Box Bit Qubit :=
   box_ q ⇒ 

@@ -111,6 +111,8 @@ Definition Id (n : nat) : Square n :=
   (fun x y => if (x =? y) && (x <? n) then C1 else C0).
 Definition I1 := Id (2^0).
 Notation "'I_ n" := (Id n) (at level 10).
+Definition I__inf := fun x y => if x =? y then C1 else C0.
+Notation "I∞" := I__inf.
 
 (* sum to n exclusive *)
 Fixpoint Csum (f : nat -> C) (n : nat) : C := 
@@ -183,7 +185,7 @@ Ltac mlra :=
 
 Close Scope nat_scope.
 
-Lemma Csum_0 : forall f n, (forall x, f x = 0) -> Csum f n = 0. 
+Lemma Csum_0 : forall f n, (forall x, f x = C0) -> Csum f n = 0. 
 Proof.
   intros.
   induction n.
@@ -193,7 +195,7 @@ Proof.
     clra.
 Qed.
 
-Lemma Csum_1 : forall f n, (forall x, f x = 1) -> Csum f n = INR n. 
+Lemma Csum_1 : forall f n, (forall x, f x = C1) -> Csum f n = INR n. 
 Proof.
   intros.
   induction n.
@@ -215,6 +217,20 @@ Qed.
 
 Lemma Csum_eq : forall f g n, f = g -> Csum f n = Csum g n.
 Proof. intros f g n H. subst. reflexivity. Qed.
+
+Lemma Csum_0_bounded : forall f n, (forall x, (x < n)%nat -> f x = C0) -> Csum f n = 0. 
+Proof.
+  intros.
+  induction n.
+  - reflexivity.
+  - simpl.
+    rewrite IHn, H. 
+    clra.
+    omega.
+    intros.
+    apply H.
+    omega.
+Qed.
 
 Lemma Csum_eq_bounded : forall f g n, (forall x, (x < n)%nat -> f x = g x) -> Csum f n = Csum g n.
 Proof. 
@@ -351,8 +367,7 @@ Proof.
   destruct H; bdestruct (x =? y); bdestruct (x <? n); trivial; omega.
 Qed.
 
-Lemma WF_I1 : WF_Matrix 1 1 I1. Proof. unfold I1. apply WF_Id. Qed.
-
+Lemma WF_I1 : WF_Matrix 1 1 I1. Proof. apply WF_Id. Qed.
 
 Lemma WF_scale : forall {m n : nat} (r : C) (A : Matrix m n), 
   WF_Matrix m n A -> WF_Matrix m n (scale r A).
@@ -378,35 +393,21 @@ Lemma WF_mult : forall {m n o : nat} (A : Matrix m n) (B : Matrix n o),
   WF_Matrix m n A -> WF_Matrix n o B -> WF_Matrix m o (A × B).
 Proof.
   unfold WF_Matrix, Mmult.
-  intros m n o A B H H0 x y H1. simpl.
-  destruct H1.
-  + assert (forall y, A x y = 0%R) as H'. {intros. apply H. auto. } clear H H0 H1.
-    induction n.
-    * simpl. reflexivity.
-    * simpl. rewrite H'. 
-      rewrite Cmult_0_l.
-      rewrite Cplus_0_r.    
-      apply IHn; trivial.
-  + assert (forall x, B x y = 0%R) as H'. { intros. apply H0. auto. } 
-    clear H H0 H1.
-    induction n.
-    * simpl. reflexivity.
-    * simpl. 
-      rewrite H'.
-      rewrite Cmult_0_r.
-      rewrite Cplus_0_r.
-      apply IHn; trivial.
+  intros m n o A B H H0 x y D. simpl.
+  apply Csum_0.
+  destruct D; intros z.
+  + rewrite H; [clra | auto].
+  + rewrite H0; [clra | auto].
 Qed.
 
-(* Should the non-zero assumptions be here? *)
-(* Adding equivalence conditions *)
 Lemma WF_kron : forall {m n o p q r : nat} (A : Matrix m n) (B : Matrix o p), 
-                  o <> 0 -> p <> 0 ->
                   q = m * o -> r = n * p -> 
                   WF_Matrix m n A -> WF_Matrix o p B -> WF_Matrix q r (A ⊗ B).
 Proof.
   unfold WF_Matrix, kron.
-  intros m n o p q r E1 E2 A B Nn No H H0 x y H1. subst.
+  intros m n o p q r A B Nn No H H0 x y H1. subst.
+  bdestruct (o =? 0). rewrite H0; [clra|omega]. 
+  bdestruct (p =? 0). rewrite H0; [clra|omega]. 
   rewrite H.
   rewrite Cmult_0_l; reflexivity.
   destruct H1.
@@ -605,6 +606,50 @@ Proof.
   apply Mmult_1_r_mat_eq.
 Qed.
 
+(* Cool facts about I∞, not used in the development *) 
+Lemma Mmult_inf_l : forall(m n : nat) (A : Matrix m n),
+  WF_Matrix m n A -> I∞ × A = A.
+Proof. 
+  intros m n A H.
+  prep_matrix_equality.
+  unfold Mmult.
+  edestruct (@Mmult_1_l_gen m n) as [Hl Hr].
+  apply Nat.le_refl.
+  bdestruct (m <=? x).
+  rewrite H by auto.
+  apply Csum_0_bounded.
+  intros z L. 
+  unfold I__inf, Id.
+  bdestruct (x =? z). omega. clra.  
+  unfold I__inf, Id in *.
+  erewrite Csum_eq.
+  apply Hr.
+  assumption.
+  bdestruct (x <? m); [|omega]. 
+  apply functional_extensionality. intros. rewrite andb_true_r. reflexivity.
+Qed.
+
+Lemma Mmult_inf_r : forall(m n : nat) (A : Matrix m n),
+  WF_Matrix m n A -> A × I∞ = A.
+Proof. 
+  intros m n A H.
+  prep_matrix_equality.
+  unfold Mmult.
+  edestruct (@Mmult_1_r_gen m n) as [Hl Hr].
+  apply Nat.le_refl.
+  bdestruct (n <=? y).
+  rewrite H by auto.
+  apply Csum_0_bounded.
+  intros z L. 
+  unfold I__inf, Id.
+  bdestruct (z =? y). omega. clra.  
+  unfold I__inf, Id in *.
+  erewrite Csum_eq.
+  apply Hr.
+  assumption.
+  apply functional_extensionality. intros z. 
+  bdestruct (z =? y); bdestruct (z <? n); simpl; try clra; try omega. 
+Qed.
 
 Lemma kron_1_r : forall (m n : nat) (A : Matrix m n), A ⊗ Id 1 = A.
 Proof.
@@ -651,9 +696,6 @@ Qed.
 
 Theorem transpose_involutive : forall (m n : nat) (A : Matrix m n), (A⊤)⊤ = A.
 Proof. reflexivity. Qed.
-
-Lemma conj_involutive : forall c, Cconj (Cconj c) = c.
-Proof. intros. clra. Qed.
 
 Theorem conj_transpose_involutive : forall (m n : nat) (A : Matrix m n), A†† = A.
 Proof. intros. mlra. Qed.  

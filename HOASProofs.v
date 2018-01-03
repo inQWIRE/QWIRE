@@ -14,58 +14,7 @@ Delimit Scope matrix_scope with M.
 (** EXAMPLES START **)
 (*****************************************************************************)
 
-Lemma Ex : ⟦init true⟧ I1 = (|1⟩⟨1| : Density 2).
-Proof.
-  repeat (autounfold with den_db; simpl).
-  Msimpl; reflexivity.
-Qed.
-
-
-
-
-
-
-Lemma WF_pad : forall m n (A : Square m),
-      (m <= n)%nat ->
-      WF_Matrix (2^m) (2^m) A ->
-      WF_Matrix (2^n) (2^n) (@pad m n A).
-Proof.
-  intros. unfold pad.
-  apply WF_kron; [ apply Nat.pow_nonzero; auto 
-                 | apply Nat.pow_nonzero; auto 
-                 | | | auto | show_wf].
-  admit (* true *).
-  admit (* true *).
-Admitted.
-
-Lemma apply_U_σ : forall m n (U : Square (2^m)),
-      WF_Matrix (2^m) (2^m) U ->
-      (m <= n)%nat -> 
-      @apply_U m n U (σ_{n}) = super (pad n U).
-Proof.
-  intros. unfold apply_U.
-  rewrite swap_list_n_id.
-  apply WF_pad with (n := n) in H; auto.
-  autorewrite with M_db.
-  reflexivity.
-Qed.
-
-
-
-Lemma pad_nothing : forall m A,
-      @pad m m A = A.
-Proof.
-  intros.
-  unfold pad.
-  rewrite Nat.sub_diag.
-  simpl.
-  autorewrite with M_db.
-  reflexivity.
-Qed.
-
-
 (* TACTICS for doing this kind of proofs *)
-
 
 Hint Rewrite hoas_to_db_pat_fresh_empty : proof_db.
 Hint Rewrite denote_OCtx_fresh using validate : proof_db.
@@ -76,22 +25,28 @@ Hint Rewrite denote_pat_fresh_id : proof_db.
 Hint Rewrite swap_fresh_seq : proof_db.
 Hint Rewrite apply_U_σ pad_nothing using auto : proof_db.
 
+Lemma init_ket1 : ⟦init true⟧ I1 = (|1⟩⟨1| : Density 2).
+Proof.
+  repeat (autounfold with den_db; simpl).
+  Msimpl; reflexivity.
+Qed.
 
+(*********************)
+(* Identity circuits *)
+(*********************)
 
 Lemma id_circ_Id : forall W ρ, WF_Matrix (2^⟦W⟧) (2^⟦W⟧) ρ -> 
     ⟦@id_circ W⟧ ρ = ρ.
 Proof.
   intros W ρ H.
-
   simpl. unfold denote_box. simpl.
-
   autorewrite with proof_db.
   rewrite super_I; auto.
 Qed.
- 
-Lemma unitary_transpose_id_qubit : forall (U : Unitary Qubit), forall ρ,
-   WF_Matrix (2^⟦Qubit⟧) (2^⟦Qubit⟧) ρ -> 
-   ⟦unitary_transpose U⟧ ρ = ⟦@id_circ Qubit⟧ ρ.
+
+(* Qubit form *) 
+Lemma unitary_transpose_id_qubit : forall (U : Unitary Qubit),
+   unitary_transpose U ≡ id_circ.
 Proof.
   intros U ρ pf_ρ.
   assert (unitary_U : is_unitary (denote_unitary U)) by apply unitary_gate_unitary.
@@ -104,23 +59,18 @@ Proof.
   reflexivity.
 Qed.
 
-
-Lemma unitary_transpose_id : forall W (U : Unitary W) (ρ : Density (2^⟦W⟧ )),
-  WF_Matrix (2^⟦W⟧) (2^⟦W⟧) ρ ->
-  ⟦unitary_transpose U⟧ ρ = ⟦@id_circ W⟧ ρ.
+(* General form *)
+Lemma unitary_transpose_id : forall W (U : Unitary W),
+  unitary_transpose U ≡ id_circ.
 Proof.
   intros W U ρ wfρ. 
   specialize (unitary_gate_unitary U); intros [WFU UU].
   simpl. autounfold with den_db. simpl.
-
   assert (wf_U : WF_Matrix (2^⟦W⟧) (2^⟦W⟧) (⟦U⟧)) by show_wf.
   assert (wf_U_dag : WF_Matrix (2^⟦W⟧) (2^⟦W⟧) (⟦U⟧†)) by show_wf.
-
   autorewrite with proof_db.
-
   repeat (simpl; autounfold with den_db).
   autorewrite with M_db.
-  
   repeat rewrite <- Mmult_assoc.
   setoid_rewrite UU.
   repeat rewrite Mmult_assoc.
@@ -128,6 +78,10 @@ Proof.
   autorewrite with M_db.
   reflexivity.
 Qed.
+
+(****************)
+(* Coin Tossing *)
+(****************)
 
 Definition fair_coin : Matrix 2 2 :=
   fun x y => match x, y with

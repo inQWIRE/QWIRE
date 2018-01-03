@@ -231,6 +231,32 @@ Qed.
 (* Requires m < n *)
 Definition pad {m} n (A : Square (2^m)) : Square (2^n) := (A ⊗ Id (2^ (n - m))).
 
+Lemma WF_pad : forall m n (A : Square m),
+      (m <= n)%nat ->
+      WF_Matrix (2^m) (2^m) A ->
+      WF_Matrix (2^n) (2^n) (@pad m n A).
+Proof.
+  intros. unfold pad.
+  apply WF_kron; auto.
+  rewrite <- Nat.pow_add_r.
+  replace (m + (n - m))%nat with n by omega.
+  reflexivity.
+  rewrite <- Nat.pow_add_r.
+  replace (m + (n - m))%nat with n by omega.
+  reflexivity.
+  apply WF_Id.
+Qed.
+
+Lemma pad_nothing : forall m A, @pad m m A = A.
+Proof.
+  intros.
+  unfold pad.
+  rewrite Nat.sub_diag.
+  simpl.
+  autorewrite with M_db.
+  reflexivity.
+Qed.
+
 Definition apply_U {m n} (U : Square (2^m)) (l : list nat) 
            : Superoperator (2^n) (2^n) :=
   let S := swap_list n l in 
@@ -324,10 +350,21 @@ Proof.
   apply swap_list_aux_id.
 Qed.
 
+Lemma apply_U_σ : forall m n (U : Square (2^m)),
+      WF_Matrix (2^m) (2^m) U ->
+      (m <= n)%nat -> 
+      @apply_U m n U (σ_{n}) = super (pad n U).
+Proof.
+  intros. unfold apply_U.
+  rewrite swap_list_n_id.
+  apply WF_pad with (n := n) in H; auto.
+  autorewrite with M_db.
+  reflexivity.
+Qed.
+
 Definition SZero {n} : Superoperator n n := fun ρ => Zero n n.
 Definition Splus {m n} (S T : Superoperator m n) : Superoperator m n :=
   fun ρ => S ρ .+ T ρ.
-
 
 (** Denoting Min Circuits **)
 
