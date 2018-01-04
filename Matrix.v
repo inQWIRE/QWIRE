@@ -486,8 +486,7 @@ Proof. intros. mlra. Qed.
 Lemma Mplus_0_r : forall (m n : nat) (A : Matrix m n), A .+ Zero m n = A.
 Proof. intros. mlra. Qed.
     
-Program Lemma Mmult_0_l : forall (m n o : nat) (A : Matrix n o), 
-       (Zero m n) × A = Zero m o.
+Lemma Mmult_0_l : forall (m n o : nat) (A : Matrix n o), (Zero m n) × A = Zero m o.
 Proof.
   intros m n o A. 
   unfold Mmult, Zero.
@@ -499,8 +498,7 @@ Proof.
     apply IHn.
 Qed.    
 
-Program Lemma Mmult_0_r : forall (m n o : nat) (A : Matrix m n), 
-              A × Zero n o = Zero m o.
+Lemma Mmult_0_r : forall (m n o : nat) (A : Matrix m n), A × Zero n o = Zero m o.
 Proof.
   intros m n o A. 
   unfold Zero, Mmult.
@@ -665,14 +663,16 @@ Qed.
 
 (* This side is much more limited/annoying *)
 Lemma kron_1_l : forall (m n : nat) (A : Matrix m n), 
-  m > 0 -> n > 0 -> WF_Matrix m n A -> Id 1 ⊗ A = A.
+  WF_Matrix m n A -> Id 1 ⊗ A = A.
 Proof.
-  intros m n A H1 H2 WF.
-  unfold Id, kron.
+  intros m n A WF.
   prep_matrix_equality.
-  bdestruct (x / m <? 1); rename H into Eq1.
-  bdestruct (x / m =? y / n); rename H into Eq2; simpl.
-  + assert (x / m = 0) by omega. clear Eq1. rename H into Eq1.
+  unfold Id, kron.
+  bdestruct (m =? 0). rewrite 2 WF by omega. clra.
+  bdestruct (n =? 0). rewrite 2 WF by omega. clra.
+  bdestruct (x / m <? 1); rename H1 into Eq1.
+  bdestruct (x / m =? y / n); rename H1 into Eq2; simpl.
+  + assert (x / m = 0) by omega. clear Eq1. rename H1 into Eq1.
     rewrite Eq1 in Eq2.     
     symmetry in Eq2.
     rewrite Nat.div_small_iff in Eq2 by omega.
@@ -680,15 +680,15 @@ Proof.
     rewrite 2 Nat.mod_small; trivial.
     clra.
   + assert (x / m = 0) by omega. clear Eq1.
-    rewrite H in Eq2. clear H.
+    rewrite H1 in Eq2. clear H1.
     assert (y / n <> 0) by omega. clear Eq2.
-    rewrite Nat.div_small_iff in H by omega.
+    rewrite Nat.div_small_iff in H1 by omega.
     rewrite Cmult_0_l.
     destruct WF with (x := x) (y := y). omega.
     reflexivity.
   + rewrite andb_false_r.
     assert (x / m <> 0) by omega. clear Eq1.
-    rewrite Nat.div_small_iff in H by omega.
+    rewrite Nat.div_small_iff in H1 by omega.
     rewrite Cmult_0_l.
     destruct WF with (x := x) (y := y). omega.
     reflexivity.
