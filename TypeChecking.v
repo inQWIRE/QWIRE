@@ -105,11 +105,33 @@ Notation "'lift_' ( x , y ) ← p ; c" := (let (p1,p2) := wproj p in
                                      lift_pat x p1 (lift_pat y p2 c)) 
          (at level 12, right associativity) : circ_scope.
 
-
-
-(* Alt def. of WellTypedness
-Definition WT (b : Box) (W1 W2 : WType) :=
-*)   
+Notation "'discard_' p ; c" := (gate discard p (fun _ => c))
+         (at level 12, right associativity) : circ_scope.
+Notation "'discard_' ( p1 , p2 ) ; c" := (gate discard p1 (fun _ => gate discard p2 
+                                                                      (fun _ => c)))
+         (at level 12, right associativity) : circ_scope.
+Notation "'discard_' ( p1 , p2 , p3 ) ; c" := (gate discard p1 
+                                                 (fun _ => gate discard p2 
+                                                   (fun _ => gate discard p3 
+                                                     (fun _ => c))))
+         (at level 12, right associativity) : circ_scope.
+Notation "'discard_' ( ( p1 , p2 ) , p3 ) ; c" := (gate discard p1 
+                                                 (fun _ => gate discard p2 
+                                                   (fun _ => gate discard p3 
+                                                     (fun _ => c))))
+         (at level 12, right associativity) : circ_scope.
+Notation "'discard_' ( p1 , ( p2 , p3 ) ) ; c" := (gate discard p1 
+                                                 (fun _ => gate discard p2 
+                                                   (fun _ => gate discard p3 
+                                                     (fun _ => c))))
+         (at level 12, right associativity) : circ_scope.
+Notation "'discard_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ; c" :=
+  (gate discard p1 
+        (fun _ => gate discard p2 
+                    (fun _ => gate discard p3 
+                                (fun _ => gate discard p4 
+                                            (fun _ => c)))))
+         (at level 12, right associativity) : circ_scope.
 
 
 (* Automation *)
@@ -144,6 +166,7 @@ Ltac type_check_once :=
   repeat match goal with 
   (* Should break this down by case - in lift case, 
      need to choose bit or qubit as appropriate *)
+  | [ b : bool |- _ ]              => destruct b 
   | [ H : _ == _ ∙ _ |- _ ]     => destruct H
   | [ |- @Types_Circuit _ _ _ ] => econstructor; type_check_once
 

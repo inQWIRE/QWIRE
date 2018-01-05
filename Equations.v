@@ -242,7 +242,7 @@ Definition init_alt {W}  (b : bool) (U V : Unitary W) : Box W (Qubit ⊗ W) :=
     let_ (q,qs) ← unbox (alternate U V) (q,qs);
     output (q,qs).
 Lemma init_alt_WT : forall W b (U V : Unitary W), Typed_Box (init_alt b U V).
-Proof. destruct b; type_check. Qed.
+Proof. type_check. Qed.
 
 Definition init_if {W}  (b : bool) (U V : Unitary W) : Box W (Qubit ⊗ W) := 
   box_ qs ⇒ 
@@ -250,7 +250,7 @@ Definition init_if {W}  (b : bool) (U V : Unitary W) : Box W (Qubit ⊗ W) :=
     gate_ qs ← (if b then U else V) @qs;
     output (q,qs).
 Lemma init_if_WT : forall W b (U V : Unitary W), Typed_Box (init_if b U V).
-Proof. destruct b; type_check. Qed.
+Proof. type_check. Qed.
 
 Lemma init_alt_if_qubit : forall b (U V : Unitary Qubit), init_alt b U V ≡ init_if b U V.
 Proof.
@@ -290,7 +290,7 @@ Definition init_X (b : bool) : Box One Qubit :=
     gate_ q ← X @q;
     output q. 
 Lemma init_X_WT : forall b, Typed_Box (init_X b).
-Proof. destruct b; type_check. Qed.
+Proof. type_check. Qed.
 
 Lemma init_X_init : forall b, init_X b ≡ init (negb b).
 Proof.
@@ -328,7 +328,7 @@ Definition lift_new : Box Bit Bit :=
     lift_ x ← b; 
     unbox (new x) ().
 Lemma lift_new_WT : Typed_Box lift_new.
-Proof. type_check. destruct b; type_check. Qed.
+Proof. type_check. Qed.
 
 Hint Unfold Splus : den_db.
 
@@ -359,7 +359,7 @@ Definition meas_lift_new : Box Qubit Bit :=
     lift_ x ← b; 
     unbox (new x) ().
 Lemma meas_lift_new_WT : Typed_Box meas_lift_new.
-Proof. type_check. destruct b; type_check. Qed.
+Proof. type_check. Qed.
 
 Lemma meas_lift_new_new : meas_lift_new ≡ boxed_gate meas.
 Proof. 

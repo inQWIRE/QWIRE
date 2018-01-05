@@ -12,8 +12,7 @@ Definition apply_box {w1 w2} (b : Box w1 w2) (c : Circuit w1) : Circuit w2 :=
   unbox b x.
 Notation "b $ c" := (apply_box b c)  (left associativity, at level 11).
 Coercion output : Pat >-> Circuit.
-
-
+ 
 Definition id_circ {W} : Box W W :=
   box_ p ⇒ (output p).
 Lemma id_circ_WT : forall W, Typed_Box (@id_circ W).
@@ -89,7 +88,7 @@ Fixpoint initMany (b : bool) (n : nat) : Box One (n ⨂ Qubit):=
            output (q, qs)
   end.
 Lemma initMany_WT : forall b n, Typed_Box (initMany b n).
-Proof. induction n; type_check. apply init_WT. assumption. Qed.
+Proof. induction n; type_check. Qed.
 
 Fixpoint inSeqMany (n : nat) {W} (c : Box W W) : Box W W:= 
   match n with
@@ -115,8 +114,8 @@ Notation "g # n" := (inParMany n g) (at level 8).
 
 Definition new_discard : Box One One := 
   box_ () ⇒ 
-    gate_ b ← new0 @();
-    gate_ () ← discard @b;
+    let_ b ← new0 $();
+    discard_ b;
     output (). 
 Lemma new_discard_WT : Typed_Box new_discard.
 Proof. type_check. Qed.
@@ -188,7 +187,7 @@ Definition Deutsch_Jozsa (n : nat) (U__f : Box (S n ⨂ Qubit) (S n ⨂ Qubit)) 
   let_ qs     ← (H· init0) #n $ (());
   let_ (q,qs) ← U__f $ (q,qs);   
   let_ qs     ← (meas · H) #n $ qs;
-  let_ ()     ← discard · meas $q; 
+  let_ _      ← discard · meas $q; 
   output qs. 
 Lemma Deutsch_Jozsa_WT : forall n U__f, Typed_Box U__f -> Typed_Box (Deutsch_Jozsa n U__f).
 Proof.
@@ -214,64 +213,52 @@ Definition bell00 : Box One (Qubit ⊗ Qubit) :=
     let_ b ← init0 $();
     CNOT $(a,b).
 
+Unset Printing Notations.
+Set Printing Coercions.
+Print bell00.
+
 Lemma bell00_WT : Typed_Box bell00.
 Proof. type_check. Qed.
 
 Definition alice : Box (Qubit ⊗ Qubit) (Bit ⊗ Bit) :=
   box_ qa ⇒ 
-    gate_ (q,a) ← CNOT @qa;
-    gate_ q     ← H @q;
-    gate_ x     ← meas @q;
-    gate_ y     ← meas @a;
+    let_ (q,a) ← CNOT $qa;
+    let_ x     ← meas · H $q;
+    let_ y     ← meas $a;
     output (x,y).
 Lemma alice_WT : Typed_Box alice.
 Proof. type_check. Qed.
 
 Definition bob : Box (Bit ⊗ Bit ⊗ Qubit) Qubit :=
   box_ xyb ⇒ 
-    let_ ((x,y),b) ← output xyb ; 
-    gate_ (y,b)  ← bit_ctrl X @(y,b);
-    gate_ (x,b)  ← bit_ctrl Z @(x,b);
-    gate_ ()     ← discard @y ;   
-    gate_ ()     ← discard @x ;
+    let_ (x,y,b)   ← id_circ $ xyb ; 
+    let_ (y,b)     ← bit_ctrl X $ (y,b);
+    let_ (x,b)     ← bit_ctrl Z $ (x,b);
+    discard_ (x,y) ;  
     output b.
 Lemma bob_WT : Typed_Box bob.
 Proof. type_check. Qed.
 
 Definition teleport :=
   box_ q ⇒
-    let_ (a,b) ← unbox bell00 () ;
-    let_ (x,y) ← unbox alice (q,a) ;
+    let_ (a,b) ← bell00 $ () ;
+    let_ (x,y) ← alice  $ (q,a) ;
     unbox bob (x,y,b).
-
 Lemma teleport_WT : Typed_Box teleport.
 Proof. type_check. Defined.
 
 (* Now simplification is quick! *)
-(* Note, however, that there are still hidden "compose"s in teleport,
-   since our pairs all use let bindings and composition. 
-   Sometimes, having let and compose will be unavoidable, since we name the 
-   output of a multi-qubit unitary "x" *)
-Lemma eteleport : exists x, teleport = x.
-Proof.
-  unfold teleport.
-  unfold bell00, alice, bob.
-  simpl.
-(* compute. *)
-  eauto.
-Qed.
-
-Parameter id_gate: Gate Qubit Qubit.
+Eval compute in teleport.
 
 Definition bob_lift : Box (Bit ⊗ Bit ⊗ Qubit) Qubit :=
   box_ xyb ⇒
-    let_ (xy, b) ← output xyb; 
-    lift_ (u,v)  ← xy;
-    gate_ b      ← (if v then X else id_gate) @b;
-    gate_ b      ← (if u then Z else id_gate) @b;
+    let_ (x,y,b) ← id_circ $ xyb; 
+    lift_ (u,v)  ← (x,y);
+    let_ b       ← (if v then X else id_circ) $b;
+    let_ b       ← (if u then Z else id_circ) $b;
     output b.
 Lemma bob_lift_WT : Typed_Box bob_lift.
-Proof. type_check. Defined.
+Proof. type_check. all: try destruct b0; try destruct b; type_check. Defined. 
 
 Definition bob_lift' := 
   box_ xyb ⇒
@@ -292,8 +279,7 @@ Definition teleport_lift : Box Qubit Qubit :=
     let_ (x,y) ← unbox alice (q,a) ;
     unbox bob_lift (x,y,b).
 Lemma teleport_lift_WT : Typed_Box teleport_lift.
-Proof. type_check. Defined.
-
+Proof. type_check. Defined. 
 
 (* teleport lift outside of bob *)
 Definition bob_distant (u v : bool) : Box Qubit Qubit :=
@@ -302,7 +288,7 @@ Definition bob_distant (u v : bool) : Box Qubit Qubit :=
     let_ b ← unbox (if u then boxed_gate Z else id_circ) b;
     output b.
 Lemma bob_distant_WT : forall b1 b2, Typed_Box (bob_distant b1 b2).
-Proof. destruct b1,b2; type_check. Defined.
+Proof. type_check. Defined.
 
 Definition teleport_distant : Box Qubit Qubit :=
   box_ q ⇒
@@ -311,47 +297,7 @@ Definition teleport_distant : Box Qubit Qubit :=
     lift_ (u,v) ← (x,y) ;
     unbox (bob_distant u v) b.
 Lemma teleport_distant_WT : Typed_Box teleport_distant.
-Proof. type_check. all: try destruct b; try destruct b0; type_check. Qed.
-
-Definition teleport_direct :=
-  box_ q ⇒  
-  (* bell00 *)
-    gate_ a     ← init0 @();
-    gate_ a     ← H @a;
-    gate_ b     ← init0 @();
-    gate_ (a,b) ← CNOT @(a,b);
-
-  (* alice *)
-    gate_ (q,a) ← CNOT @(q,a);
-    gate_ q     ← H @q;
-    gate_ x     ← meas @q;
-    gate_ y     ← meas @a;
-
-  (* bob *)
-    gate_ (y,b)  ← bit_ctrl X @(y,b);
-    gate_ (x,b)  ← bit_ctrl Z @(x,b);
-    gate_ ()     ← discard @y;   
-    gate_ ()     ← discard @x;
-    output b.
-Lemma teleport_direct_WT : Typed_Box teleport_direct.
 Proof. type_check. Qed.
-
-Lemma teleport_eq : teleport = teleport_direct.
-Proof.
-  unfold teleport, teleport_direct.
-  simpl.
-  repeat (f_equal; apply functional_extensionality; intros).
-  invert_patterns.
-  assert (H : wproj (qubit v3, qubit v4) = Datatypes.pair (qubit v3) (qubit v4))
-    by reflexivity.
-  rewrite H. clear H.
-  repeat (f_equal; apply functional_extensionality; intros). 
-  invert_patterns. 
-  assert (H : wproj (qubit v5, qubit v6) = Datatypes.pair (qubit v5) (qubit v6))
-    by reflexivity.
-  rewrite H; clear H.
-  simpl. reflexivity.
-Qed.
 
 (*******************************)
 (** Quantum Fourier Transform **)
@@ -382,7 +328,6 @@ Proof.
    apply IHn. 
   type_check.
 Qed. 
-
 
 Opaque rotations.
 
@@ -476,8 +421,7 @@ Fixpoint prepare_basis (li : list bool) : Box One (length li ⨂ Qubit) :=
                  output (p1, p2)
   end.
 Lemma prepare_basis_WT : forall li, Typed_Box (prepare_basis li).
-Proof. induction li; type_check. apply init_WT; assumption. Qed.
-
+Proof. induction li; type_check. Qed.
 
 Fixpoint share n : Box Qubit (S n ⨂ Qubit) :=
   match n with
@@ -496,7 +440,7 @@ Definition lift_eta : Box Bit Qubit :=
     lift_ x ← q;
     unbox (init x) ().
 Lemma lift_eta_bit_WT : Typed_Box lift_eta.
-Proof. type_check. apply init_WT. type_check. Qed.
+Proof. type_check. Qed.
 
 Definition lift_meas : Box Bit Bit :=
   box_ q ⇒
