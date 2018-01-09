@@ -5,6 +5,14 @@ Require Import String.
 
 Definition id := string.
 
+Inductive bexp : Type :=
+| BTrue : bexp
+| BFalse : bexp
+| BId : string -> bexp
+| BNot : bexp -> bexp
+| BAnd : bexp -> bexp -> bexp
+.
+
 Inductive binop : Set :=
 | plus | minus 
 | times | div
@@ -72,6 +80,8 @@ Inductive statement : Set :=
 | s_opaque (name:id) (args:option idlist) (names:idlist)
 | s_qop (q:qop)
 | s_if (x:id) (n:nat) (q:qop)
+| s_ifcall (bx:bexp) (q:qop) (* <= new (Compute q if the binary expression bx
+                                evaluates the value true.) *)
 | s_barrier (args:anylist)
 | s_output (args:anylist)
 .            
@@ -320,12 +330,8 @@ Definition qname : nat -> id := fun x => String (ascii_of_nat 113) (writeNat x).
 Definition cname : nat -> id := fun x => String (ascii_of_nat 99) (writeNat x).
 (* name of the [creg array] used for branching *)
 Definition bname : id := "bits"%string.
-
-Fixpoint pow2 (n : nat) : nat :=
-  match n with
-  | 0 => 1
-  | S n' => 2 * (pow2 n')
-  end.
+(* naming function for ith element of bits *)
+Definition bname_i : nat -> id := fun i => append "bits[" (append (writeNat i) "]").
 
 (* meta_if : return [QASM] code equivalent to [if (bits[bn] == 1) then P1 else P2]  *)
 Fixpoint meta_if_true (p1 : program) (bn : nat) : program :=
@@ -333,10 +339,10 @@ Fixpoint meta_if_true (p1 : program) (bn : nat) : program :=
   | [] => []
   | h :: p1' =>
     (match h with
-     | s_if bname n q =>
-       (s_if bname n q)
+     | s_ifcall bx q =>
+       (s_ifcall (BAnd (BNot (BId (bname_i bn))) bx) q)
      | s_qop q =>
-       (s_if bname 0 q)
+       (s_ifcall (BNot (BId (bname_i bn))) q)
      | _ => h
      end) :: (meta_if_true p1' bn)
   end.
@@ -345,10 +351,10 @@ Fixpoint meta_if_false (p2 : program) (bn : nat) : program :=
   | [] => []
   | h :: p2' =>
     (match h with
-     | s_if bname n q =>
-       (s_if bname (n + (pow2 bn)) q)
+     | s_ifcall bx q =>
+       (s_ifcall (BAnd (BId (bname_i bn)) bx) q)
      | s_qop q =>
-       (s_if bname (pow2 bn) q)
+       (s_ifcall (BId (bname_i bn)) q)
      | _ => h
      end) :: (meta_if_false p2' bn)
   end.
@@ -460,7 +466,15 @@ Fixpoint trans' (c : Min_Circuit) (li : list Var) (n m : nat) :=
     end
   | min_lift p f =>
     match p with
-    | bit x => ([(* Todo *)], 0%nat)
+    | bit x =>
+      let (p1, d1) := (trans' (f true) li (S n) m) in
+      let (p2, d2) := (trans' (f false) li (S n) m) in
+      let bn := (Nat.max d1 d2) in
+      let a := (nth x li 0%nat) in
+      (([s_decl (qreg (qname n) 1);
+           s_ifcall (BId (cname a)) (q_uop (u_U [e_pi; e_nat 0; e_pi] (a_id (qname n))));
+           s_qop (q_meas (a_id (qname n)) (a_id (bname_i bn)))]
+          ++ (meta_if p1 p2 bn)), (S bn))
     | qubit x =>
       let li' := List.remove Nat.eq_dec x li in
       let (p1, d1) := (trans' (f true) li' n m) in

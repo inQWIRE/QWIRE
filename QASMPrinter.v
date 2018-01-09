@@ -8,6 +8,16 @@ Import ListNotations.
 
 (* Print function from program to QASM code *)
 Definition newline := String (Ascii.ascii_of_N 10) EmptyString.
+
+Fixpoint print_bexp (bx : bexp) : string :=
+  match bx with
+  | BTrue => "true"
+  | BFalse => "false"
+  | BId x => x
+  | BNot bx' => append "~" (print_bexp bx')
+  | BAnd bx1 bx2 => append (print_bexp bx1) (append " ^ " (print_bexp bx2))
+  end.
+
 Definition print_binop (b : binop) : string :=
   match b with
   | plus => "+"
@@ -79,7 +89,7 @@ Definition print_uop (op : uop) : string :=
 Definition print_qop (op : qop) : string :=
   match op with
   | q_uop u => print_uop u
-  | q_meas ain aout => "measure " ++ print_argument ain ++ " - > "
+  | q_meas ain aout => "measure " ++ print_argument ain ++ " -> "
                                   ++ print_argument aout ++ " ;" ++ newline
   | q_reset a => "reset " ++ print_argument a ++ " ;" ++ newline
   end.
@@ -114,6 +124,7 @@ Fixpoint print_statement (s : statement) : string :=
                                           ++ print_idlist names ++ " ;" ++ newline
   | s_qop q => print_qop q
   | s_if x n q => "if ( " ++ x ++ " == " ++ writeNat n ++ " ) " ++ print_qop q
+  | s_ifcall bx q => "if ( call(" ++ (print_bexp bx) ++ ") ) " ++ print_qop q
   | s_barrier args => "barrier " ++ print_anylist args ++ " ;" ++ newline
   | s_output args => ""
   end.
