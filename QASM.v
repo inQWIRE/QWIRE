@@ -340,9 +340,9 @@ Fixpoint meta_if_true (p1 : program) (bn : nat) : program :=
   | h :: p1' =>
     (match h with
      | s_ifcall bx q =>
-       (s_ifcall (BAnd (BNot (BId (bname_i bn))) bx) q)
+       (s_ifcall (BAnd (BId (bname_i bn)) bx) q)
      | s_qop q =>
-       (s_ifcall (BNot (BId (bname_i bn))) q)
+       (s_ifcall (BId (bname_i bn)) q)
      | _ => h
      end) :: (meta_if_true p1' bn)
   end.
@@ -352,9 +352,9 @@ Fixpoint meta_if_false (p2 : program) (bn : nat) : program :=
   | h :: p2' =>
     (match h with
      | s_ifcall bx q =>
-       (s_ifcall (BAnd (BId (bname_i bn)) bx) q)
+       (s_ifcall (BAnd (BNot (BId (bname_i bn))) bx) q)
      | s_qop q =>
-       (s_ifcall (BId (bname_i bn)) q)
+       (s_ifcall (BNot (BId (bname_i bn))) q)
      | _ => h
      end) :: (meta_if_false p2' bn)
   end.
