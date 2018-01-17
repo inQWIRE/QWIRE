@@ -857,4 +857,13 @@ Hint Unfold HOAS_Equiv : den_db.
 
 Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard compose_super super swap_list swap_two pad denote_box denote_pat : den_db.
 
+Hint Rewrite hoas_to_db_pat_fresh_empty : proof_db.
+Hint Rewrite denote_OCtx_fresh using validate : proof_db.
+(* add some arithmetic *)
+Hint Rewrite Nat.leb_refl : proof_db.
+Hint Rewrite denote_pat_fresh_id : proof_db.
+Hint Rewrite swap_fresh_seq : proof_db.
+Hint Rewrite apply_U_σ pad_nothing using auto : proof_db.
+
+
 

@@ -14,17 +14,6 @@ Delimit Scope matrix_scope with M.
 (** EXAMPLES START **)
 (*****************************************************************************)
 
-(* TACTICS for doing this kind of proofs *)
-
-Hint Rewrite hoas_to_db_pat_fresh_empty : proof_db.
-Hint Rewrite denote_OCtx_fresh using validate : proof_db.
-
-(* add some arithmetic *)
-Hint Rewrite Nat.leb_refl : proof_db.
-Hint Rewrite denote_pat_fresh_id : proof_db.
-Hint Rewrite swap_fresh_seq : proof_db.
-Hint Rewrite apply_U_σ pad_nothing using auto : proof_db.
-
 Lemma init_ket1 : ⟦init true⟧ I1 = (|1⟩⟨1| : Density 2).
 Proof.
   repeat (autounfold with den_db; simpl).

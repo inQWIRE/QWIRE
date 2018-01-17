@@ -511,7 +511,6 @@ Proof. intros c. intros N E. apply N. rewrite E. reflexivity. Qed.
 Lemma C0_snd : forall (c : C), snd c <> 0 -> c <> 0. 
 Proof. intros c. intros N E. apply N. rewrite E. reflexivity. Qed.
 
-
 Lemma Rmult_div : forall r1 r2 r3 r4 : R, r2 <> 0 -> r4 <> 0 -> 
                                      (r1 / r2 * (r3 / r4) = r1 * r3 / (r2 * r4))%R. 
 Proof. intros. unfold Rdiv. rewrite Rinv_mult_distr; trivial. lra. Qed.
@@ -583,6 +582,20 @@ Lemma Cplus_div2 : /2 + /2 = 1.           Proof. clra. Qed.
 Lemma Cconj_involutive : forall c, (c^*)^* = c. Proof. intros; clra. Qed.
 Lemma Cconj_plus_distr : forall (x y : C), (x + y)^* = x^* + y^*. Proof. intros; clra. Qed.
 Lemma Cconj_mult_distr : forall (x y : C), (x * y)^* = x^* * y^*. Proof. intros; clra. Qed.
+
+Lemma Cmult_conj_real : forall (c : C), snd (c * c^*) = 0.
+Proof.
+  intros c.
+  unfold Cconj.
+  unfold Cmult.
+  simpl.
+  Search (_ * - _)%R.
+  rewrite <- Ropp_mult_distr_r.
+  rewrite Rmult_comm.
+  rewrite Rplus_opp_l.
+  reflexivity.
+Qed.  
+  
 
 Lemma square_rad2 : /√2 * /√2 = /2. 
 Proof. 

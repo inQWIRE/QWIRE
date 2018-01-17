@@ -213,10 +213,6 @@ Definition bell00 : Box One (Qubit ⊗ Qubit) :=
     let_ b ← init0 $();
     CNOT $(a,b).
 
-Unset Printing Notations.
-Set Printing Coercions.
-Print bell00.
-
 Lemma bell00_WT : Typed_Box bell00.
 Proof. type_check. Qed.
 
@@ -248,7 +244,9 @@ Lemma teleport_WT : Typed_Box teleport.
 Proof. type_check. Defined.
 
 (* Now simplification is quick! *)
-Eval compute in teleport.
+Eval cbv in teleport.
+Eval cbn in teleport.
+Eval simpl in teleport.
 
 Definition bob_lift : Box (Bit ⊗ Bit ⊗ Qubit) Qubit :=
   box_ xyb ⇒

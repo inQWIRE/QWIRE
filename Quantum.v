@@ -11,12 +11,6 @@ Open Scope R_scope.
 Open Scope C_scope.
 Open Scope matrix_scope.
 
-(* WARNING: Resize should only be used where m = m' and n = n'.
-   It should be followed with a proof of this: resize_safe. *) 
-Definition resize (m n m' n' : nat) (A : Matrix m n) : Matrix m' n' := A.
-Definition resize_safe (m n m' n' : nat) : Prop := m = m' /\ n = n'.
-Transparent resize.
-
 Definition ket0 : Matrix 2 1:= 
   fun x y => match x, y with 
           | 0, 0 => C1
@@ -215,13 +209,8 @@ Definition swap_two (n i j : nat) : Matrix (2^n) (2^n) :=
 Fixpoint move_to_0_aux (n i : nat) {struct i}: Matrix (2^n) (2^n) := 
   match i with
   | O => swap ⊗ Id (2^(n-2))
-  | S i' =>  (resize (2^i' * 4 * 2^(n-i'-2)) (2^i' * 4 * 2^(n-i'-2)) (2^n) (2^n) 
-             (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2)))) × swap_to_0_aux n i
+  | S i' =>  @Mmult (2^n) (2^n) (2^n) (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2))) (swap_to_0_aux n i)
   end.
-
-Lemma move_to_0_aux_safe : forall (i' n : nat), (i'+2 < n)%nat -> 
-  resize_safe (2^i' * 4 * 2^(n-i'-2)) (2^i' * 4 * 2^(n-i'-2)) (2^n) (2^n).
-Proof. intros. unfold resize_safe. split; unify_pows_two. Qed.
              
 (* Requires: i < n *)
 Definition move_to_0 (n i : nat) : Matrix (2^n) (2^n) := 

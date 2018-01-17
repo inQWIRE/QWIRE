@@ -87,8 +87,16 @@ Proof. type_check. Qed.
 (* Probably want a lemma about alternate's behavior *)
 Lemma lift_alternate_eq : forall W (U V : Unitary W), lift_UV U V ≡ alt_UV U V.
 Proof.
+  intros W U V.
   repeat (autounfold with den_db; intros; simpl).
   specialize (WF_Mixed _ H); intros WF.
+  simpl.
+  rewrite plus_0_r.
+  rewrite Nat.sub_0_r.
+  rewrite Nat.leb_refl.
+  rewrite Nat.sub_diag.
+  simpl.
+  unfold Splus.
   Msimpl.
 Admitted.  
 
