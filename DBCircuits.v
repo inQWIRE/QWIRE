@@ -80,7 +80,8 @@ Definition process_gate_pat {A w1 w2} `{Gate_State A} (g : Gate w1 w2)
   | meas          => fun p _ => match p with
                                 | qubit x => bit x
                                 end
-  | discard       => fun _ _ => unit
+  | discard | assert0 | assert1       => fun _ _ => unit
+  
   end. 
 
 (* process_gate_state g p a returns the state that is obtained from running the
@@ -97,7 +98,7 @@ Definition process_gate_state {A w1 w2} `{Gate_State A} (g : Gate w1 w2) : Pat w
   | meas          => fun p a => match p with
                                 | qubit x => change_type x Bit a
                                 end
-  | discard       => fun p a => remove_pat p a
+  | discard | assert0 | assert1       => fun p a => remove_pat p a
   end.
 
 Fixpoint fresh_state {A} `{Gate_State A} (w : WType) (st : A) : A :=

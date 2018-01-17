@@ -94,7 +94,8 @@ Definition denote_gate' n {w1 w2} (g : Gate w1 w2)
   | new0    => super (|0⟩ ⊗ Id (2^n))
   | new1    => super (|1⟩ ⊗ Id (2^n))
   | meas    => fun ρ => super (|0⟩⟨0| ⊗ Id (2^n)) ρ .+ super (|1⟩⟨1| ⊗ Id (2^n)) ρ
-  | discard => fun ρ => super (⟨0| ⊗ Id (2^n)) ρ .+ super (⟨1| ⊗ Id (2^n)) ρ
+  | discard | assert0 | assert1 => 
+                        fun ρ => super (⟨0| ⊗ Id (2^n)) ρ .+ super (⟨1| ⊗ Id (2^n)) ρ
   end.
 
 Definition denote_gate {W1 W2} (g : Gate W1 W2) : 
@@ -306,7 +307,7 @@ Definition apply_gate {n w1 w2} (g : Gate w1 w2) (l : list nat)
               | x :: _ => apply_meas x
               | _      => super_Zero
               end                               
-  | discard => match l with 
+  | discard | assert0 | assert1 => match l with 
               | x :: _ => apply_discard x
               | _      => super_Zero
               end
@@ -480,12 +481,40 @@ Ltac fold_denote :=
 
 Lemma process_gate_nat : forall {w1 w2} (g : Gate w1 w2) (p1 p2 : Pat w1) (n : nat),
       process_gate_state g p1 n = process_gate_state g p2 n.
-Admitted.
+Proof.
+  intros w1 w2 g p1 p2 n.
+  unfold process_gate_state.
+  destruct g; trivial.
+  + dependent destruction p1.
+    dependent destruction p2.
+    simpl. reflexivity.
+  + unfold remove_pat.
+    dependent destruction p1.
+    dependent destruction p2.
+    simpl. reflexivity.
+  + unfold remove_pat.
+    dependent destruction p1.
+    dependent destruction p2.
+    simpl. reflexivity.
+  + unfold remove_pat.
+    dependent destruction p1.
+    dependent destruction p2.
+    simpl. reflexivity.
+Qed.
+
 Lemma process_gate_denote : forall {w1 w2} (g : Gate w1 w2) (p : Pat w1) Γ,
       process_gate_state g p (⟦Γ⟧)
     = ⟦process_gate_state g p Γ⟧.
-Admitted.
-
+Proof.
+  intros w1 w2 g p Γ.
+  unfold process_gate_state.
+  destruct g; trivial.
+  + simpl.
+    unfold add_fresh_state.
+    unfold denote_OCtx.
+    destruct Γ; simpl.
+    (* hmmm - might need to modify lemma to require valid context? *)
+Admitted. 
 
 (*
 Lemma denote_gate_circuit : forall Γ0 (Γ : OCtx) Γ1 Γ1' {w1 w2 w'} 
@@ -793,6 +822,7 @@ Proof.
   rewrite process_gate_denote. 
   reflexivity.
 Qed.
+
   
 
 Lemma denote_compose : forall {w} (c : Circuit w) Γ, Γ ⊢ c :Circ ->
@@ -837,9 +867,6 @@ Proof.
 Admitted.
 
 
-
-
-
 (*********************************************************)
 (* Equivalence of circuits according to their denotation *)
 (*********************************************************)
@@ -850,6 +877,7 @@ Definition HOAS_Equiv {W1 W2} (b1 b2 : Box W1 W2) :=
 Infix "≡" := HOAS_Equiv.
 
 Hint Unfold HOAS_Equiv : den_db.
+    
 
 (************************)
 (* Hints for automation *)
