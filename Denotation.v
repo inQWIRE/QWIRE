@@ -83,7 +83,7 @@ Instance Denote_Unitary_Correct W : Denote_Correct (Denote_Unitary W) :=
 
 (** Gate Denotation **)
 
-Definition denote_gate' n {w1 w2} (g : Gate w1 w2)
+Definition denote_gate' (safe : bool) n {w1 w2} (g : Gate w1 w2)
            : Superoperator (2^⟦w1⟧ * 2^n) (2^⟦w2⟧ * 2^n) :=
   match g with 
   | U u     => super (⟦u⟧ ⊗ Id (2^n))
@@ -93,12 +93,17 @@ Definition denote_gate' n {w1 w2} (g : Gate w1 w2)
   | new0    => super (|0⟩ ⊗ Id (2^n))
   | new1    => super (|1⟩ ⊗ Id (2^n))
   | meas    => fun ρ => super (|0⟩⟨0| ⊗ Id (2^n)) ρ .+ super (|1⟩⟨1| ⊗ Id (2^n)) ρ
-  | discard | assert0 | assert1 => 
-                        fun ρ => super (⟨0| ⊗ Id (2^n)) ρ .+ super (⟨1| ⊗ Id (2^n)) ρ
+  | discard => Splus (super (⟨0| ⊗ Id (2^n))) (super (⟨1| ⊗ Id (2^n)))
+  (* Safe performs a standard measure-discard, unsafe takes for granted that the 
+     qubit to be removed is in the desired state. *)
+  | assert0 => if safe then Splus (super (⟨0| ⊗ Id (2^n))) (super (⟨1| ⊗ Id (2^n)))
+                      else super (⟨0| ⊗ Id (2^n))
+  | assert1 => if safe then Splus (super (⟨0| ⊗ Id (2^n))) (super (⟨1| ⊗ Id (2^n)))
+                      else super (⟨1| ⊗ Id (2^n))
   end.
 
-Definition denote_gate {W1 W2} (g : Gate W1 W2) : 
-  Superoperator (2^⟦W1⟧) (2^⟦W2⟧) := denote_gate' 0 g.
+Definition denote_gate safe {W1 W2} (g : Gate W1 W2) : 
+  Superoperator (2^⟦W1⟧) (2^⟦W2⟧) := denote_gate' safe 0 g.
 (*  match g with
   | U _ u  => super (⟦u⟧)
   | init0 => new0_op 
@@ -116,20 +121,23 @@ Proof.
 Qed.
 
 
-Lemma WF_denote_gate : forall n W1 W2 (g : Gate W1 W2) ρ,
+Lemma WF_denote_gate : forall safe n W1 W2 (g : Gate W1 W2) ρ,
     WF_Matrix (2^⟦W1⟧ * 2^n) (2^⟦W1⟧ * 2^n) ρ 
- -> WF_Matrix (2^⟦W2⟧ * 2^n) (2^⟦W2⟧ * 2^n) (denote_gate' n g ρ).
+   -> WF_Matrix (2^⟦W2⟧ * 2^n) (2^⟦W2⟧ * 2^n) (denote_gate' safe n g ρ).
 Proof.
-  intros n W1 W2 g ρ wf_ρ.
+  intros safe n W1 W2 g ρ wf_ρ.
   assert (0 < 2^n)%nat by apply pow_gt_0.
   assert (0 <> 2^n)%nat by omega.
-  destruct g; simpl; unfold super; auto with wf_db; try omega.
+  destruct g; simpl; unfold super, Splus; try destruct safe; 
+    auto with wf_db; try omega.
+  specialize (WF_unitary u). intros wf_u. auto with wf_db.
   specialize (WF_unitary u). intros wf_u. auto with wf_db.
 Qed.
 Hint Resolve WF_denote_gate : wf_db.
 
+(* This is only true for "safe" gate denotation *)
 Lemma denote_gate_correct : forall {W1} {W2} (g : Gate W1 W2), 
-                            WF_Superoperator (denote_gate g). 
+                            WF_Superoperator (denote_gate true g). 
 Proof.
   unfold WF_Superoperator.
   intros.
@@ -150,40 +158,95 @@ Proof.
   + simpl in *.
     rewrite kron_1_r.
     unfold super.
-    rewrite (mixed_state_id1 ρ); trivial.
+    rewrite (mixed_dim1 ρ); trivial.
     rewrite Mmult_1_r.
     constructor; apply pure0.
     auto with wf_db.
   + simpl in *.
     rewrite kron_1_r.
     unfold super.
-    rewrite (mixed_state_id1 ρ); trivial.
+    rewrite (mixed_dim1 ρ); trivial.
     rewrite Mmult_1_r.
     constructor; apply pure1.
     auto with wf_db.
   + simpl in *.
     rewrite kron_1_r.
     unfold super.
-    rewrite (mixed_state_id1 ρ); trivial.
+    rewrite (mixed_dim1 ρ); trivial.
     rewrite Mmult_1_r.
     constructor; apply pure0.
     auto with wf_db.
   + simpl in *.
     rewrite kron_1_r.
     unfold super.
-    rewrite (mixed_state_id1 ρ); trivial.
+    rewrite (mixed_dim1 ρ); trivial.
     rewrite Mmult_1_r.
     constructor; apply pure1.
     auto with wf_db.
-  + admit.
   + simpl in *.
-    rewrite 2 kron_1_r.
-    autounfold with M_db; simpl.
+    rewrite kron_1_r.
+    unfold super.
+    Msimpl.
+    specialize (WF_Mixed _ H) as WF.
+    replace (|0⟩⟨0| × ρ × |0⟩⟨0|) with (ρ 0%nat 0%nat .* |0⟩⟨0|) by solve_matrix.
+    replace (|1⟩⟨1| × ρ × |1⟩⟨1|) with (ρ 1%nat 1%nat .* |1⟩⟨1|) by solve_matrix.
+    specialize (mixed_state_trace_1 _ H) as TR1. unfold trace in TR1. simpl in TR1.
+    replace (ρ 1%nat 1%nat) with (1 - ρ O O) by (rewrite <- TR1; clra).
+    replace (ρ O O) with ((fst (ρ O O)), snd (ρ O O)) by clra. 
+    rewrite mixed_state_diag_real by assumption.
+    replace (1 - (fst (ρ O O), 0)) with (RtoC (1 - fst (ρ O O))) by clra.
+    replace (fst (ρ O O), 0) with (RtoC (fst (ρ O O))) by reflexivity.
+    apply Mix_S.
+    (* here's probably where we need positive semidefiniteness *)
     admit.
+    constructor; apply pure0.
+    constructor; apply pure1.
+  + simpl in *.
+    unfold super, Splus.
+    Msimpl.
+    specialize (WF_Mixed _ H) as WF.
+    repeat reduce_matrices.
+    constructor.
+    apply mixed_state_trace_1 in H.
+    unfold trace in H. simpl in H. rewrite Cplus_0_l in H.
+    rewrite H.
+    specialize (@WF_Id 1%nat) as WFI. 
+    replace (list2D_to_matrix [[C1]]) with ('I_ 1).     
+    apply pure_id1.
+    crunch_matrix. 
+    bdestruct (S (S x) <? 1). omega. rewrite andb_false_r. reflexivity.
+  + simpl in *.
+    unfold super, Splus.
+    Msimpl.
+    specialize (WF_Mixed _ H) as WF.
+    repeat reduce_matrices.
+    constructor.
+    apply mixed_state_trace_1 in H.
+    unfold trace in H. simpl in H. rewrite Cplus_0_l in H.
+    rewrite H.
+    specialize (@WF_Id 1%nat) as WFI. 
+    replace (list2D_to_matrix [[C1]]) with ('I_ 1).     
+    apply pure_id1.
+    crunch_matrix. 
+    bdestruct (S (S x) <? 1). omega. rewrite andb_false_r. reflexivity.
+  + simpl in *.
+    unfold super, Splus.
+    Msimpl.
+    specialize (WF_Mixed _ H) as WF.
+    repeat reduce_matrices.
+    constructor.
+    apply mixed_state_trace_1 in H.
+    unfold trace in H. simpl in H. rewrite Cplus_0_l in H.
+    rewrite H.
+    specialize (@WF_Id 1%nat) as WFI. 
+    replace (list2D_to_matrix [[C1]]) with ('I_ 1).     
+    apply pure_id1.
+    crunch_matrix. 
+    bdestruct (S (S x) <? 1). omega. rewrite andb_false_r. reflexivity.
 Admitted.
 
 Instance Denote_Gate W1 W2 : Denote (Gate W1 W2) (Superoperator (2^⟦W1⟧) (2^⟦W2⟧)):=
-    {| denote := denote_gate |}.
+    {| denote := denote_gate true |}.
 Instance Denote_Gate_Correct W1 W2 : Denote_Correct (Denote_Gate W1 W2) :=
 {|
     correctness := WF_Superoperator;
@@ -361,10 +424,6 @@ Proof.
   autorewrite with M_db.
   reflexivity.
 Qed.
-
-Definition SZero {n} : Superoperator n n := fun ρ => Zero n n.
-Definition Splus {m n} (S T : Superoperator m n) : Superoperator m n :=
-  fun ρ => S ρ .+ T ρ.
 
 (** Denoting Min Circuits **)
 

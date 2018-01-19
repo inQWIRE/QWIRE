@@ -1121,6 +1121,15 @@ Ltac reduce_matrix := match goal with
                               | [ |- context[?c :: _ ]] => cbv [c]; clear c
                               end.
 
+(* Reduces matrices anywhere they appear *)
+Ltac reduce_matrices := match goal with 
+                        | [ |- context[?M]] => reduce_aux M
+                        end;
+                        repeat match goal with 
+                               | [ |- context[?c :: _ ]] => cbv [c]; clear c
+                               end.
+
+
 Ltac solve_matrix := assoc_least;
                      repeat reduce_matrix; crunch_matrix;
                      autorewrite with C_db; try clra.

@@ -561,20 +561,23 @@ Hint Rewrite control_sa using (autorewrite with M_db; reflexivity) : M_db.
 In operator language, a density operator is a positive semidefinite, hermitian 
 operator of trace 1 acting on the state space. A density operator describes 
 a pure state if it is a rank one projection. Equivalently, a density operator ρ 
-describes a pure state if and only if ρ = ρ ^ 2 *)
-
-(* We need an additional restriction that trace = 1 to
-   exclude the identity and zero matrices. *)
+describes a pure state if and only if ρ = ρ ^ 2 
+Hence a quantum state state should be:
+  positive-semidefinite = z†Az >= 0 for any column vector z. 
+  hermitian = self-adjoint
+  trace 1
+*)
 
 Notation Density n := (Matrix n n) (only parsing). 
 
+(* don't have positive-semidefinite yet *)
 Definition Pure_State {n} (ρ : Density n) : Prop := 
-  WF_Matrix n n ρ /\ trace ρ = 1 /\ ρ = ρ × ρ.
+  WF_Matrix n n ρ /\ trace ρ = 1 /\ ρ = ρ†  /\ ρ = ρ × ρ.
 
 Lemma pure0 : Pure_State |0⟩⟨0|. 
-Proof. split; [|split]; [auto with wf_db| clra |mlra]. Qed.
+Proof. unfold Pure_State. repeat split. auto with wf_db. clra. mlra. mlra. Qed.
 Lemma pure1 : Pure_State |1⟩⟨1|. 
-Proof. split; [|split]; [auto with wf_db| clra |mlra]. Qed.
+Proof. unfold Pure_State. repeat split. auto with wf_db. clra. mlra. mlra. Qed.
 
 (* Wiki:
 For a finite-dimensional function space, the most general density operator 
@@ -587,7 +590,7 @@ where the coefficients p_j are non-negative and add up to one. *)
 Inductive Mixed_State {n} : (Matrix n n) -> Prop :=
 | Pure_S : forall ρ, Pure_State ρ -> Mixed_State ρ
 | Mix_S : forall (p : R) ρ1 ρ2, 0 < p < 1 -> Mixed_State ρ1 -> Mixed_State ρ2 ->
-                                        Mixed_State (p .* ρ1 .+ (1-p)%R .* ρ2).  
+                                       Mixed_State (p .* ρ1 .+ (1-p)%R .* ρ2).  
 
 Lemma WF_Pure : forall {n} (ρ : Density n), Pure_State ρ -> WF_Matrix n n ρ.
 Proof. unfold Pure_State. intuition. Qed.
@@ -645,10 +648,10 @@ Proof.
   apply (Mix_S (1/2) (f ρ) (g ρ)); auto. 
   lra.
 Qed.
-  
-(* To do: correctness conditions for density matrices and superoperators *)
-(* NOTE: I think these all need fixing *)
 
+Definition SZero {n} : Superoperator n n := fun ρ => Zero n n.
+Definition Splus {m n} (S T : Superoperator m n) : Superoperator m n :=
+  fun ρ => S ρ .+ T ρ.
 
 Definition new0_op : Superoperator 1 2 := super |0⟩.
 Definition new1_op : Superoperator 1 2 := super |1⟩.
@@ -658,20 +661,23 @@ Definition discard_op : Superoperator 2 1 := fun ρ => super ⟨0| ρ .+ super �
 Lemma pure_unitary : forall {n} (U ρ : Matrix n n), 
   is_unitary U -> Pure_State ρ -> Pure_State (super U ρ).
 Proof.
-  intros n U ρ [WFU H] [WFρ [trP P]].
+  intros n U ρ [WFU H] [WFρ [trP [SA SQ]]].
   unfold Pure_State, is_unitary, super in *.
-  split; [|split].
-  + auto with wf_db.
+  intuition.
   + (* I don't actually know how to prove this *)
-    rewrite P.
-    autounfold with M_db; simpl.
+    rewrite SQ.
+    autounfold with M_db; simpl.    
     admit.
+  + autorewrite with M_db.
+    rewrite <- SA.
+    rewrite Mmult_assoc.
+    reflexivity.
   + remember (U × ρ × (U) † × (U × ρ × (U) †)) as rhs.
-    rewrite P.
+    rewrite SQ.
     replace (ρ × ρ) with (ρ × Id n × ρ) by (rewrite Mmult_1_r; trivial).
     rewrite <- H.
     rewrite Heqrhs.
-    repeat rewrite Mmult_assoc. (* Admitted lemma *)
+    repeat rewrite Mmult_assoc. 
     reflexivity.
 Admitted.
 
@@ -691,12 +697,11 @@ Definition dm12 : Matrix 2 2 :=
           end).
 
 Lemma pure_dm12 : Pure_State dm12. Proof.
-  split; [|split].
+  unfold Pure_State. repeat split.
   show_wf.
-  unfold dm12; simpl; clra. 
-  unfold dm12, conj_transpose, super, Mmult.
-  prep_matrix_equality.
-  destruct x as [| [|x]]; destruct y as [|[|y]]; clra.
+  unfold dm12; simpl; clra.  
+  unfold dm12; solve_matrix.
+  unfold dm12; solve_matrix.
 Qed.
 
 Lemma mixed_meas_12 : Mixed_State (meas_op dm12).
@@ -706,9 +711,9 @@ Proof. unfold meas_op.
        replace (super |1⟩⟨1| dm12) with ((1 - 1/2)%R .* |1⟩⟨1|) 
          by (unfold dm12, super; mlra).
        apply Mix_S.
-       lra.
-       constructor; split; [|split]; [auto with wf_db|clra|mlra].
-       constructor; split; [|split]; [auto with wf_db|clra|mlra].
+       lra.       
+       constructor; apply pure0.
+       constructor; apply pure1.
 Qed.
 
 Lemma mixed_unitary : forall {n} (U ρ : Matrix n n), 
@@ -737,9 +742,36 @@ Proof.
     clra.
 Qed.
 
-Lemma pure_state_id1 : forall (ρ : Square 1), Pure_State ρ -> ρ = Id 1.
+Lemma mixed_state_diag_real : forall {n} (ρ : Density n) i , Mixed_State ρ -> 
+                                                        snd (ρ i i) = 0.
 Proof.
-  intros ρ [WFP [TRP PPP]].
+  intros.
+  induction H.
+  + unfold Pure_State in H; intuition. 
+    assert (ρ i i = ρ † i i) by (rewrite <- H1; reflexivity).
+    unfold conj_transpose, Cconj in H2.
+    replace (ρ i i) with (fst (ρ i i), snd (ρ i i)) in H2 by clra. 
+    simpl in H2.
+    inversion H2.
+    lra.
+  + simpl.
+    rewrite IHMixed_State1, IHMixed_State2.
+    repeat rewrite Rmult_0_r, Rmult_0_l.
+    lra.
+Qed.
+
+Lemma pure_id1 : Pure_State ('I_ 1).
+Proof.
+  unfold Pure_State. repeat split. 
+  auto with wf_db. 
+  clra. 
+  autorewrite with M_db; reflexivity. 
+  autorewrite with M_db; reflexivity. 
+Qed.
+
+Lemma pure_dim1 : forall (ρ : Square 1), Pure_State ρ -> ρ = 'I_ 1.
+Proof.
+  intros ρ [WFP [TRP [SA PPP]]].
   prep_matrix_equality.
   destruct x.
   destruct y.  
@@ -750,11 +782,11 @@ Proof.
   + rewrite WFP, WF_Id; trivial; omega.
 Qed.    
 
-Lemma mixed_state_id1 : forall (ρ : Square 1), Mixed_State ρ -> ρ = Id 1.
+Lemma mixed_dim1 : forall (ρ : Square 1), Mixed_State ρ -> ρ = 'I_ 1.
 Proof.
   intros.  
   induction H.
-  + apply pure_state_id1; trivial.
+  + apply pure_dim1; trivial.
   + rewrite IHMixed_State1, IHMixed_State2.
     prep_matrix_equality.
     clra.
