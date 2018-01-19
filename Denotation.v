@@ -43,7 +43,6 @@ Definition denote_OCtx (Γ : OCtx) : nat :=
 Instance Denote_Ctx : Denote Ctx nat := {| denote := denote_Ctx |}.
 Instance Denote_OCtx : Denote OCtx nat := {| denote := denote_OCtx |}.
 
-
 Fixpoint denote_unitary {W} (U : Unitary W) : Square (2^⟦W⟧) :=
   match U with  
   | H => hadamard 
@@ -478,67 +477,6 @@ Ltac fold_denote :=
   | [ |- context[ denote_OCtx ?Γ ] ] => replace (denote_OCtx Γ) with (⟦Γ⟧); auto
   end.
 
-
-Lemma process_gate_nat : forall {w1 w2} (g : Gate w1 w2) (p1 p2 : Pat w1) (n : nat),
-      process_gate_state g p1 n = process_gate_state g p2 n.
-Proof.
-  intros w1 w2 g p1 p2 n.
-  unfold process_gate_state.
-  destruct g; trivial.
-  + dependent destruction p1.
-    dependent destruction p2.
-    simpl. reflexivity.
-  + unfold remove_pat.
-    dependent destruction p1.
-    dependent destruction p2.
-    simpl. reflexivity.
-  + unfold remove_pat.
-    dependent destruction p1.
-    dependent destruction p2.
-    simpl. reflexivity.
-  + unfold remove_pat.
-    dependent destruction p1.
-    dependent destruction p2.
-    simpl. reflexivity.
-Qed.
-
-Lemma process_gate_denote : forall {w1 w2} (g : Gate w1 w2) (p : Pat w1) Γ,
-      process_gate_state g p (⟦Γ⟧)
-    = ⟦process_gate_state g p Γ⟧.
-Proof.
-  intros w1 w2 g p Γ.
-  unfold process_gate_state.
-  destruct g; trivial.
-  + simpl.
-    unfold add_fresh_state.
-    unfold denote_OCtx.
-    destruct Γ; simpl.
-    (* hmmm - might need to modify lemma to require valid context? *)
-Admitted. 
-
-(*
-Lemma denote_gate_circuit : forall Γ0 (Γ : OCtx) Γ1 Γ1' {w1 w2 w'} 
-                           (g : Gate w1 w2) p1 (f : Pat w2 -> Circuit w'),
-      Γ1 ⊢ p1 :Pat ->
-      Γ ⊢ f :Fun ->
-      Γ1' == Γ1 ∙ Γ ->
-
-    ⟨ Γ0 | Γ ⊩ gate g p1 f⟩ 
-    = compose_super (⟨ Γ0 | process_gate_state g p1 Γ
-                          ⊩f (process_gate_pat g p1 Γ) ⟩)
-                    (apply_gate g (pat_to_list (hoas_to_db_pat Γ p1))).
-Proof.
-  intros.
-  simpl. fold_denote.
-  set (p1' := hoas_to_db_pat Γ p1).
-  set (p2 := process_gate_pat g p1 Γ).
-  rewrite (process_gate_nat _ p1' p1).
-  rewrite process_gate_denote. 
-  reflexivity.
-Qed.
-*)
-
-
 Lemma size_WType_length : forall {w} (p : Pat w),
     length (pat_to_list p) = size_WType w.
 Proof.
@@ -719,8 +657,7 @@ Proof.
     rewrite merge_size; auto.
 Qed.
 
-
-Lemma denote_singleton_update : forall Γ x w w',
+Lemma denote_index_update : forall Γ x w w',
       index (Valid Γ) x = Some w ->
       ⟦update_at Γ x (Some w')⟧ = ⟦Γ⟧.
 Proof.
@@ -730,6 +667,17 @@ Proof.
   * simpl in H.
     simpl in *.
     rewrite (IHΓ _ w); auto.
+Qed.
+
+Lemma singleton_update : forall Γ W W' v,
+    SingletonCtx v W Γ ->
+    SingletonCtx v W' (update_at Γ v (Some W')).
+Proof.
+  intros Γ W W' v H.
+  induction H.
+  + simpl. constructor.
+  + simpl. constructor.
+    apply IHSingletonCtx.
 Qed.
 
 Lemma remove_at_singleton : forall x w Γ,
@@ -806,10 +754,283 @@ About get_fresh_pat.
 Locate "_ ⊢ _ :Fun".
 
 
-Lemma denote_gate_circuit : forall {w1 w2 w'} 
-      (g : Gate w1 w2) p1 (f : Pat w2 -> Circuit w') Γ0 Γ (*Γ1 Γ1' Γ Γ0,*),
+Lemma process_gate_nat : forall {w1 w2} (g : Gate w1 w2) (p1 p2 : Pat w1) (n : nat),
+      process_gate_state g p1 n = process_gate_state g p2 n.
+Proof.
+  intros w1 w2 g p1 p2 n.
+  unfold process_gate_state.
+  destruct g; trivial.
+  + dependent destruction p1.
+    dependent destruction p2.
+    simpl. reflexivity.
+  + unfold remove_pat.
+    dependent destruction p1.
+    dependent destruction p2.
+    simpl. reflexivity.
+  + unfold remove_pat.
+    dependent destruction p1.
+    dependent destruction p2.
+    simpl. reflexivity.
+  + unfold remove_pat.
+    dependent destruction p1.
+    dependent destruction p2.
+    simpl. reflexivity.
+Qed.
 
-      ⟨ Γ0 | Γ ⊩ gate g p1 f⟩ 
+Lemma denote_OCtx_merge : forall Γ Γ1 Γ2, Γ == Γ1 ∙ Γ2 -> 
+                          (denote_OCtx Γ = denote_OCtx Γ1 + denote_OCtx Γ2)%nat.
+Proof.
+  intros Γ Γ1 Γ2 H.
+  apply merge_fun_ind in H.
+  induction H.
+  + reflexivity.
+  + rewrite plus_0_r. reflexivity.
+  + inversion H. 
+    - simpl. assumption.
+    - simpl in *. rewrite IHmerge_ind. reflexivity.
+    - simpl in *. rewrite IHmerge_ind. apply plus_n_Sm.  
+Qed.      
+
+Lemma index_merge_l : forall Γ Γ1 Γ2 n w, Γ == Γ1 ∙ Γ2 ->
+                                     index Γ1 n = Some w -> 
+                                     index Γ n = Some w.
+Proof.
+  intros Γ Γ1 Γ2 n w H H0.
+  apply merge_fun_ind in H.
+  generalize dependent n.
+  induction H.
+  + intros n H. destruct n; simpl in H; inversion H.
+  + auto. 
+  + intros n Hi. 
+    inversion H; subst.
+    - destruct n. simpl in Hi. inversion Hi.
+      simpl in *.
+      rewrite IHmerge_ind.
+      reflexivity.
+      assumption.
+    - destruct n. simpl in *. assumption.
+      simpl in *.
+      rewrite IHmerge_ind.
+      reflexivity.
+      assumption.
+    - destruct n. simpl in Hi. inversion Hi.
+      simpl in *.
+      rewrite IHmerge_ind.
+      reflexivity.
+      assumption.
+Qed.
+
+Lemma index_merge_r : forall Γ Γ1 Γ2 n w, Γ == Γ1 ∙ Γ2 ->
+                                     index Γ2 n = Some w -> 
+                                     index Γ n = Some w.
+Proof.
+  intros Γ Γ1 Γ2 n w H H0.
+  apply (index_merge_l Γ Γ2 Γ1).
+  destruct H.
+  constructor.
+  assumption.
+  rewrite merge_comm; assumption.
+  assumption.
+Qed.
+
+Lemma remove_at_merge : forall (Γ Γ1 Γ2 : Ctx) n, Γ == Γ1 ∙ Γ2 ->
+       Valid (remove_at n Γ) == Valid (remove_at n Γ1) ∙ Valid (remove_at n Γ2).
+Proof.
+  intros Γ Γ1 Γ2 n H.
+  apply merge_fun_ind in H.
+  generalize dependent n.
+  dependent induction H.
+  + intros n.
+    constructor.
+    apply valid_valid.
+    replace (remove_at n []) with (@nil (option WType)).    
+    rewrite merge_nil_l.
+    reflexivity.
+    destruct n; reflexivity.
+  + intros n.
+    constructor.
+    apply valid_valid.
+    replace (remove_at n []) with (@nil (option WType)).    
+    rewrite merge_nil_r.
+    reflexivity.
+    destruct n; reflexivity.
+  + intros n.
+    constructor.
+    apply valid_valid.
+    destruct n.
+    simpl.
+    apply merge_ind_fun in H0.
+    destruct H0.
+    apply pf_merge.
+    simpl.
+    edestruct IHmerge_ind with (n := n); try reflexivity.
+    simpl in pf_merge.
+    rewrite <- pf_merge.
+    apply merge_o_ind_fun in H.
+    rewrite H.
+    reflexivity.
+Qed.
+
+Lemma remove_at_collision : forall n W (Γ Γ1 Γ2 : Ctx),  SingletonCtx n W Γ1 -> 
+  Γ == Γ1 ∙ Γ2 -> denote_Ctx (remove_at n Γ2) = denote_Ctx Γ2.
+Proof.
+  intros n. 
+  induction n.
+  + intros W Γ Γ1 Γ2 H H0.
+    simpl.
+    destruct Γ2.
+    reflexivity.
+    inversion H; subst.
+    destruct o. destruct H0. simpl in pf_merge. rewrite pf_merge in pf_valid.
+      apply not_valid in pf_valid. contradiction.
+    reflexivity.
+  + intros W Γ Γ1 Γ2 H H0.
+    simpl.
+    destruct Γ2.
+    reflexivity.
+    simpl.
+    inversion H; subst.
+    apply merge_fun_ind in H0.
+    inversion H0; subst.
+    erewrite IHn.
+    reflexivity.
+    apply H2.
+    apply merge_ind_fun. 
+    apply H8.
+Qed.
+
+
+Lemma process_gate_denote : forall {w1 w2} (g : Gate w1 w2) (p : Pat w1) Γ Γ1 Γ2,
+    Γ == Γ1 ∙ Γ2 ->
+    Γ1 ⊢ p :Pat -> 
+    process_gate_state g p (⟦Γ⟧) = ⟦process_gate_state g p Γ⟧.
+Proof.
+  intros w1 w2 g p Γ Γ1 Γ2 U TP.
+  unfold process_gate_state, add_fresh_state, denote_OCtx.
+  destruct g; simpl; trivial.
+  + unfold denote_OCtx.
+    destruct U.  
+    destruct pf_valid. subst. 
+    simpl.
+    rewrite denote_Ctx_app. 
+    simpl; omega.
+  + unfold denote_OCtx.
+    destruct U.  
+    destruct pf_valid. subst. 
+    simpl.
+    rewrite denote_Ctx_app. 
+    simpl; omega.
+  + unfold denote_OCtx.
+    destruct U.  
+    destruct pf_valid. subst. 
+    simpl.
+    rewrite denote_Ctx_app. 
+    simpl; omega.
+  + unfold denote_OCtx.
+    destruct U.  
+    destruct pf_valid. subst. 
+    simpl.
+    rewrite denote_Ctx_app. 
+    simpl; omega.
+  + dependent destruction p; simpl.
+    inversion TP; subst.
+    apply singleton_index in H1.
+    specialize (index_merge_l Γ Γ0 Γ2 v Qubit U H1) as IM. 
+    destruct Γ as [|Γ]. destruct U. apply not_valid in pf_valid. contradiction.
+    specialize denote_index_update as DU. 
+    eapply DU in IM.
+    simpl in *. rewrite IM. 
+    reflexivity.
+  + dependent destruction p; simpl.
+    inversion TP; subst. rename Γ0 into Γ1.
+    unfold remove_pat.
+    simpl.
+    destruct Γ as [|Γ]. destruct U. apply not_valid in pf_valid. contradiction.
+    destruct Γ2 as [|Γ2]. destruct U. simpl in pf_merge. rewrite pf_merge in *. 
+      apply not_valid in pf_valid. contradiction.
+    specialize (remove_at_merge _ _ _ v U) as RM.
+    rewrite denote_OCtx_merge with (Γ1 := Γ1) (Γ2 := Γ2) by assumption.
+    rewrite denote_OCtx_merge with (Γ1 := Valid (remove_at v Γ1)) 
+                                   (Γ2 := Valid (remove_at v Γ2)) 
+                                   (Γ := Valid (remove_at v Γ)) by assumption.
+    simpl.
+    specialize (remove_at_singleton _ _ _ H1) as E. simpl in E.
+    apply denote_empty_Ctx in E. simpl in E. rewrite E.
+    specialize (singleton_size _ _ _ H1) as SS. simpl in SS. rewrite SS.
+    erewrite remove_at_collision.
+    omega.
+    apply H1.
+    apply U.
+  + dependent destruction p; simpl.
+    inversion TP; subst. rename Γ0 into Γ1.
+    unfold remove_pat.
+    simpl.
+    destruct Γ as [|Γ]. destruct U. apply not_valid in pf_valid. contradiction.
+    destruct Γ2 as [|Γ2]. destruct U. simpl in pf_merge. rewrite pf_merge in *. 
+      apply not_valid in pf_valid. contradiction.
+    specialize (remove_at_merge _ _ _ v U) as RM.
+    rewrite denote_OCtx_merge with (Γ1 := Γ1) (Γ2 := Γ2) by assumption.
+    rewrite denote_OCtx_merge with (Γ1 := Valid (remove_at v Γ1)) 
+                                   (Γ2 := Valid (remove_at v Γ2)) 
+                                   (Γ := Valid (remove_at v Γ)) by assumption.
+    simpl.
+    specialize (remove_at_singleton _ _ _ H1) as E. simpl in E.
+    apply denote_empty_Ctx in E. simpl in E. rewrite E.
+    specialize (singleton_size _ _ _ H1) as SS. simpl in SS. rewrite SS.
+    erewrite remove_at_collision.
+    omega.
+    apply H1.
+    apply U.
+  + dependent destruction p; simpl.
+    inversion TP; subst. rename Γ0 into Γ1.
+    unfold remove_pat.
+    simpl.
+    destruct Γ as [|Γ]. destruct U. apply not_valid in pf_valid. contradiction.
+    destruct Γ2 as [|Γ2]. destruct U. simpl in pf_merge. rewrite pf_merge in *. 
+      apply not_valid in pf_valid. contradiction.
+    specialize (remove_at_merge _ _ _ v U) as RM.
+    rewrite denote_OCtx_merge with (Γ1 := Γ1) (Γ2 := Γ2) by assumption.
+    rewrite denote_OCtx_merge with (Γ1 := Valid (remove_at v Γ1)) 
+                                   (Γ2 := Valid (remove_at v Γ2)) 
+                                   (Γ := Valid (remove_at v Γ)) by assumption.
+    simpl.
+    specialize (remove_at_singleton _ _ _ H1) as E. simpl in E.
+    apply denote_empty_Ctx in E. simpl in E. rewrite E.
+    specialize (singleton_size _ _ _ H1) as SS. simpl in SS. rewrite SS.
+    erewrite remove_at_collision.
+    omega.
+    apply H1.
+    apply U.
+Qed.
+
+(*
+Lemma denote_gate_circuit : forall Γ0 (Γ : OCtx) Γ1 Γ1' {w1 w2 w'} 
+                           (g : Gate w1 w2) p1 (f : Pat w2 -> Circuit w'),
+      Γ1 ⊢ p1 :Pat ->
+      Γ ⊢ f :Fun ->
+      Γ1' == Γ1 ∙ Γ ->
+
+    ⟨ Γ0 | Γ ⊩ gate g p1 f⟩ 
+    = compose_super (⟨ Γ0 | process_gate_state g p1 Γ
+                          ⊩f (process_gate_pat g p1 Γ) ⟩)
+                    (apply_gate g (pat_to_list (hoas_to_db_pat Γ p1))).
+Proof.
+  intros.
+  simpl. fold_denote.
+  set (p1' := hoas_to_db_pat Γ p1).
+  set (p2 := process_gate_pat g p1 Γ).
+  rewrite (process_gate_nat _ p1' p1).
+  rewrite process_gate_denote. 
+  reflexivity.
+Qed.
+*)
+
+
+
+Lemma denote_gate_circuit : forall {w1 w2 w'} 
+      (g : Gate w1 w2) p1 (f : Pat w2 -> Circuit w') Γ0 Γ Γ1 Γ2 (* Γ Γ0,*),     
+       Γ == Γ1 ∙ Γ2 -> Γ1 ⊢ p1 :Pat  ->   
+  ⟨ Γ0 | Γ ⊩ gate g p1 f⟩ 
     = compose_super (⟨ Γ0 | process_gate_state g p1 Γ
                           ⊩ f (process_gate_pat g p1 Γ) ⟩)
                     (apply_gate g (pat_to_list (hoas_to_db_pat Γ p1))).
@@ -819,10 +1040,9 @@ Proof.
   set (p1' := hoas_to_db_pat Γ p1).
   set (p2 := process_gate_pat g p1 Γ).
   rewrite (process_gate_nat _ p1' p1).
-  rewrite process_gate_denote. 
+  rewrite (process_gate_denote _ _ Γ Γ1 Γ2) by assumption.   
   reflexivity.
 Qed.
-
   
 
 Lemma denote_compose : forall {w} (c : Circuit w) Γ, Γ ⊢ c :Circ ->
@@ -859,7 +1079,8 @@ Proof.
 
     specialize (H Γ2 Γ2' (process_gate_pat g p1 Γ3') pf2 H_p2 w' h Γ0 Γ3 Γ3'' H_h pf3).
     fold p2 in H.
-    rewrite H.
+
+  (*  rewrite H. *)
     
     admit (* sort of close *).
 
