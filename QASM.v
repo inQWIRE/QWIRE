@@ -361,7 +361,7 @@ Fixpoint meta_if_false (p2 : program) (bn : nat) : program :=
 Definition meta_if (p1 p2 : program) (bn : nat) : program :=
   (meta_if_true p1 bn) ++ (meta_if_false p2 bn).
 
-(* trans c li n m : pair p d
+(* trans c li n m : pair p (pair d l)
 
    1. Description : A transition function from [min circuit] to [QASM] program.
    2. Input : 
@@ -369,11 +369,11 @@ Definition meta_if (p1 p2 : program) (bn : nat) : program :=
      - li : context of min circuit (list of variable corresponding to its index)
      - n  : number of [qreg] or [creg] declared = argument for new variable name
             ([meas] gate operation creates [creg] variable of the same name with [qreg])
-     - m  : size of [creg] array [bits] for branchgin
+     - m  : size of [creg] array [bits] for brancging
    3. Output :
      - p  : [QASM] program corresponding to c
      - d  : depth of branching (size of [creg] array [bits] used in p)
-
+     - l  : number of [qreg] or [creg] declared after the translation of c
  *)
 Fixpoint pat_to_anylist (li : list Var) (p : Pat) : anylist :=
   match p with
@@ -402,13 +402,16 @@ Fixpoint trans_exp (f : FakeR) : exp :=
   | fake_pow f1 f2 => e_binop (trans_exp f1) pow (trans_exp f2)
   end.
 
-Fixpoint trans' (c : Min_Circuit) (li : list Var) (n m : nat) :=
+Check (1, (1, 2)).
+
+Fixpoint trans' (c : Min_Circuit) (li : list Var) (n m : nat) : (program * (nat * nat)) :=
   match c with
-  | min_output p    => ([s_output (pat_to_anylist li p)], 0%nat)
+  | min_output p    => ([s_output (pat_to_anylist li p)], (0%nat, n))
   | min_gate g p c' =>
     match g with
     | U u     =>
-      let (p', d') := (trans' c' li n m) in
+      let (p', temp) := (trans' c' li n m) in
+      let (d', l') := temp in
       (((match u with
          | CNOT =>
            (match p with
@@ -429,25 +432,30 @@ Fixpoint trans' (c : Min_Circuit) (li : list Var) (n m : nat) :=
             | _ => []
             end)
          | _ => []
-         end) ++ p'), d')
+         end) ++ p'), (d', l'))
     | init0   =>
-      let (p', d') := (trans' c' (li ++ [n]) (S n) m) in
-      (([s_decl (qreg (qname n) 1)] ++ p'), d')
+      let (p', temp) := (trans' c' (li ++ [n]) (S n) m) in
+      let (d', l') := temp in
+      (([s_decl (qreg (qname n) 1)] ++ p'), (d', l'))
     | init1   =>
-      let (p', d') := (trans' c' (li ++ [n]) (S n) m) in
+      let (p', temp) := (trans' c' (li ++ [n]) (S n) m) in
+      let (d', l') := temp in
       (([s_decl (qreg (qname n) 1);
-           s_qop (q_uop (u_U [e_pi; e_nat 0; e_pi] (a_id (qname n))))] ++ p'), d')
+           s_qop (q_uop (u_U [e_pi; e_nat 0; e_pi] (a_id (qname n))))] ++ p'), (d', l'))
     | new0    =>
-      let (p', d') := (trans' c' (li ++ [n]) (S n) m) in
-      (([s_decl (creg (cname n) 1)] ++ p'), d')
+      let (p', temp) := (trans' c' (li ++ [n]) (S n) m) in
+      let (d', l') := temp in
+      (([s_decl (creg (cname n) 1)] ++ p'), (d', l'))
     | new1    =>
-      let (p', d') := (trans' c' (li ++ [S n]) (S (S n)) m) in
+      let (p', temp) := (trans' c' (li ++ [S n]) (S (S n)) m) in
+      let (d', l') := temp in
       (([s_decl (creg (cname (S n)) 1); s_decl (qreg (qname n) 1);
            s_qop (q_uop (u_U [e_pi; e_nat 0; e_pi] (a_id (qname n))));
            s_qop (q_meas (a_id (qname n)) (a_id (cname (S n))))]
-          ++ p'), d')
+          ++ p'), (d', l'))
     | meas    =>
-      let (p', d') := (trans' c' li n m) in
+      let (p', temp) := (trans' c' li n m) in
+      let (d', l') := temp in
       ((match p with
         | qubit x =>
           let a := (nth x li 0%nat) in
@@ -455,42 +463,47 @@ Fixpoint trans' (c : Min_Circuit) (li : list Var) (n m : nat) :=
               s_qop (q_meas (a_id (qname a)) (a_id (cname a)))]
              ++ p')
         | _ => []
-        end), d')
+        end), (d', l'))
     | discard =>
       match p with
       | bit x =>
         let li' := List.remove Nat.eq_dec x li in
         (trans' c' li' n m)
-      | _ => ([], 0%nat)
+      | _ => ([], (0%nat, n))
       end
     end
   | min_lift p f =>
     match p with
     | bit x =>
-      let (p1, d1) := (trans' (f true) li (S n) m) in
-      let (p2, d2) := (trans' (f false) li (S n) m) in
+      let (p1, temp1) := (trans' (f true) li (S n) m) in
+      let (d1, l1) := temp1 in
+      let (p2, temp2) := (trans' (f false) li l1 m) in
+      let (d2, l2) := temp2 in
       let bn := (Nat.max d1 d2) in
       let a := (nth x li 0%nat) in
       (([s_decl (qreg (qname n) 1);
            s_ifcall (BId (cname a)) (q_uop (u_U [e_pi; e_nat 0; e_pi] (a_id (qname n))));
            s_qop (q_meas (a_id (qname n)) (a_id (bname_i bn)))]
-          ++ (meta_if p1 p2 bn)), (S bn))
+          ++ (meta_if p1 p2 bn)), ((S bn), l2))
     | qubit x =>
       let li' := List.remove Nat.eq_dec x li in
-      let (p1, d1) := (trans' (f true) li' n m) in
-      let (p2, d2) := (trans' (f false) li' n m) in
+      let (p1, temp1) := (trans' (f true) li' n m) in
+      let (d1, l1) := temp1 in
+      let (p2, temp2) := (trans' (f false) li' l1 m) in
+      let (d2, l2) := temp2 in
       let bn := (Nat.max d1 d2) in
       let a := (nth x li 0%nat) in
       (([s_decl (creg (cname a) 1);
            s_qop (q_meas (a_id (qname a)) (a_id (cname a)))]
-          ++ (meta_if p1 p2 bn)), (S bn))
-    | _ => ([], 0%nat)
+          ++ (meta_if p1 p2 bn)), ((S bn), l2))
+    | _ => ([], (0%nat, n))
     end
   end.
 Fixpoint trans (c : Min_Circuit) (w : WType) : program :=
   let (p, n) := fresh_pat w 0 in
   let li := pat_to_list p in
-  let (qasm, d) := (trans' c li n 0%nat) in
+  let (qasm, temp) := (trans' c li n 0%nat) in
+  let (d, l) := temp in
   (match d with
    | 0 => qasm
    | S _ =>
