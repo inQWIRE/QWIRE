@@ -240,7 +240,8 @@ Theorem inPar_correct : forall W1 W1' W2 W2' (f : Box W1 W1') (g : Box W2 W2')
      (ρ1 : Square (2^⟦W1⟧)) (ρ2 : Square (2^⟦W2⟧)),
      Typed_Box f -> Typed_Box g ->
      Mixed_State ρ1 -> Mixed_State ρ2 ->
-     denote_box (inPar f g) (ρ1 ⊗ ρ2)%M = (denote_box f ρ1 ⊗ denote_box g ρ2)%M.
+     denote_box true (inPar f g) (ρ1 ⊗ ρ2)%M = 
+    (denote_box true f ρ1 ⊗ denote_box true g ρ2)%M.
 Proof.  
   intros W1 W1' W2 W2' f g ρ1 ρ2 types_f types_g mixed_ρ1 mixed_ρ2.
 
@@ -261,11 +262,11 @@ Proof.
   replace (size_WType W1) with (⟦Γ_1⟧).
   replace (size_WType W2) with (⟦fresh_state W2 ∅⟧).
 
-
-  rewrite denote_compose with (Γ1' := Γ_2) (Γ1 := Γ_2) (Γ := Γ_1).
+  specialize denote_compose as DC. unfold denote_circuit in DC. 
+  rewrite DC with (Γ1' := Γ_2) (Γ1 := Γ_2) (Γ := Γ_1). 
   set (Γ_3 := pat_to_ctx (fresh_pat W1' Γ_2)).
+  rewrite DC with (Γ1' := fresh_state W1' Γ_2) (Γ1 := Γ_3) (Γ := Γ_2). clear DC.
 
-  rewrite denote_compose with (Γ1' := fresh_state W1' Γ_2) (Γ1 := Γ_3) (Γ := Γ_2).
   autounfold with den_db.
   repeat rewrite merge_nil_l.
   (*
@@ -293,8 +294,6 @@ Proof.
     validate. validate.
 Admitted.
 
-
-
 Open Scope circ_scope.
 
 Lemma wf_biased_coin : forall c, WF_Matrix 2 2 (biased_coin c).
@@ -316,7 +315,9 @@ Proof.
   + simpl.
     repeat (simpl; autounfold with den_db). 
     replace 0%nat with (⟦∅⟧) by auto.
-    rewrite denote_compose with (Γ := ∅) (Γ1 := ∅) (Γ1' := ∅);
+    specialize denote_compose as DC. unfold denote_circuit in DC.
+
+    rewrite DC with (Γ := ∅) (Γ1 := ∅) (Γ1' := ∅);
     [ | apply unbox_typing; [type_check | apply coin_flips_WT]
     | type_check
     | solve_merge ].
@@ -327,18 +328,12 @@ Proof.
        unfold fresh_state in IHn.
        rewrite merge_nil_r.
        unfold compose_super.
+       unfold denote_circuit in IHn.
        rewrite IHn.
-
 
     (* Continue reducing *)
     repeat (autounfold with den_db; simpl).
-    autorewrite with M_db. 
-      
-    setoid_rewrite kron_conj_transpose. 
-    autorewrite with M_db.
-    specialize hadamard_sa; intros pf_H.
-    setoid_rewrite control_sa; auto.
-
+    Msimpl.
     solve_matrix.
     * rewrite Cmult_comm.
       rewrite Cmult_assoc.
@@ -461,8 +456,8 @@ Proof.
     replace (S (⟦∅⟧)) with 1%nat by auto.
     replace (Valid [Some Qubit; Some Qubit]) with Γ_1' by (subst; auto).
     
-
-    rewrite denote_compose with (Γ := Γ_1) (Γ1 := Γ_2) (Γ1' := Γ_1');
+    specialize denote_compose as DC. unfold denote_circuit in DC.
+    rewrite DC with (Γ := Γ_1) (Γ1 := Γ_2) (Γ1' := Γ_1');
     [ | apply share_WT; type_check; repeat constructor
     | intros; simpl; type_check
     | type_check ].
@@ -473,7 +468,7 @@ Proof.
     admit (* need padding lemma *).
 Admitted.
 
-(* Can we multiply 16 x 16 matrices? Yes, we can! 
+(* Can we multiply 16 x 16 matrices? Yes, we can!
 Lemma test : ((swap ⊗ swap) × (swap ⊗ swap) = 'I_16)%M.
 Proof. 
   solve_matrix. 

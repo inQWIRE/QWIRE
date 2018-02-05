@@ -337,8 +337,14 @@ Definition apply_new1 {n} : Superoperator (2^n) (2^(n+1)) :=
 (* Requires: k < n *)
 Definition apply_discard {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
   let S := swap_two n 0 k in 
-  fun ρ => super ((⟨0| ⊗ Id (2^(n-1))) × S) ρ .+ super ((⟨1| ⊗ Id (2^(n-1))) × S) ρ.
-  (* super ((⟨0| ⊗ Id (2^{n-1})) × S) *)
+  Splus (super ((⟨0| ⊗ Id (2^(n-1))) × S)) (super ((⟨1| ⊗ Id (2^(n-1))) × S)).
+
+(* Discard the qubit k, assuming it has the value |0⟩ *)
+Definition apply_assert0 {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
+  let S := swap_two n 0 k in super ((⟨0| ⊗ Id (2^(n-1))) × S).
+
+Definition apply_assert1 {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
+  let S := swap_two n 0 k in super ((⟨1| ⊗ Id (2^(n-1))) × S).
 
 (* Confirm transposes are in the right place *)
 Definition apply_meas {n} (k : nat) : Superoperator (2^n) (2^n) :=
@@ -350,11 +356,11 @@ Definition apply_meas {n} (k : nat) : Superoperator (2^n) (2^n) :=
 Definition super_Zero {m n} : Superoperator m n  :=
   fun _ => Zero _ _.
 
-Definition apply_gate {n w1 w2} (g : Gate w1 w2) (l : list nat) 
+Definition apply_gate {n w1 w2} (safe : bool) (g : Gate w1 w2) (l : list nat) 
            : Superoperator (2^n) (2^(n+⟦w2⟧-⟦w1⟧)) :=
   match g with 
   | U u   => match ⟦w1⟧ <=? n with
-              | true => apply_U (denote_unitary u) l
+            | true => apply_U (denote_unitary u) l
               | false => super_Zero
               end
   | NOT   => match 1 <=? n with
@@ -369,8 +375,16 @@ Definition apply_gate {n w1 w2} (g : Gate w1 w2) (l : list nat)
               | x :: _ => apply_meas x
               | _      => super_Zero
               end                               
-  | discard | assert0 | assert1 => match l with 
+  | discard => match l with 
               | x :: _ => apply_discard x
+              | _      => super_Zero
+              end
+  | assert0 => match l with 
+              | x :: _ => if safe then apply_discard x else apply_assert0 x 
+              | _      => super_Zero
+              end
+  | assert1 => match l with 
+              | x :: _ => if safe then apply_discard x else apply_assert1 x
               | _      => super_Zero
               end
   end.
@@ -445,17 +459,19 @@ Instance nat_gate_state : Gate_State nat :=
   ; maps_to := fun _ _ => None
   }.
 
-Fixpoint denote_db_circuit {w} padding input (c : DeBruijn_Circuit w)
+Fixpoint denote_db_circuit {w} safe padding input (c : DeBruijn_Circuit w)
                          : Superoperator (2^(padding+input)) (2^(padding+⟦w⟧)) :=
   match c with
   | db_output p    => super (pad (padding+input) (⟦p⟧))
   | db_gate g p c' => let input' := process_gate_state g p input in
-                      compose_super (denote_db_circuit padding input' c')
-                                    (apply_gate g (pat_to_list p))
+                      compose_super (denote_db_circuit safe padding input' c')
+                                    (apply_gate safe g (pat_to_list p))
   | db_lift p c'   => let S := swap_two input 0 (get_var p) in
-                Splus (compose_super (denote_db_circuit padding (input-1) (c' false))
+                      Splus (compose_super 
+                               (denote_db_circuit safe padding (input-1) (c' false))
                                      (super (⟨0| ⊗ 'I_(2^(input-1)) × S)))
-                      (compose_super (denote_db_circuit padding (input-1) (c' true))
+                             (compose_super 
+                                (denote_db_circuit safe padding (input-1) (c' true))
                                      (super (⟨1| ⊗ 'I_(2^(input-1)) × S)))
   end.
                     
@@ -496,21 +512,27 @@ Fixpoint denote_db_circuit {w}  (pad n : nat) (c : DeBruijn_Circuit w)
 *)
 
 
-Definition denote_db_box {w1 w2} (c : DeBruijn_Box w1 w2) := 
+Definition denote_db_box {w1 w2} (safe : bool) (c : DeBruijn_Box w1 w2) := 
   match c with
-  | db_box _ c' => denote_db_circuit 0 (⟦w1⟧) c'
+  | db_box _ c' => denote_db_circuit safe 0 (⟦w1⟧) c'
   end.
 
 (** Denoting hoas circuits **)
 
 
-Definition denote_box {W1 W2 : WType} (c : Box W1 W2) := 
-    denote_db_box (hoas_to_db_box c).
+Definition denote_box (safe : bool) {W1 W2 : WType} (c : Box W1 W2) := 
+    denote_db_box safe (hoas_to_db_box c).
 Instance Denote_Box {W1 W2} : Denote (Box W1 W2) (Superoperator (2^⟦W1⟧) (2^⟦W2⟧)) :=
-         {| denote := denote_box |}.
+         {| denote := denote_box true |}.
 
-Notation "⟨ Γ0 | Γ ⊩ c ⟩" := 
-    (denote_db_circuit (⟦Γ0⟧) (⟦Γ⟧) (hoas_to_db Γ c)) (at level 20).
+Definition denote_circuit (safe : bool) {W : WType} (c : Circuit W) (Γ0 Γ : OCtx) := 
+  denote_db_circuit safe (⟦Γ0⟧) (⟦Γ⟧) (hoas_to_db Γ c).
+
+(* safe variant *)
+Notation "⟨ Γ0 | Γ ⊩ c ⟩" := (denote_circuit true c Γ0 Γ) (at level 20).
+
+(* unsafe variant *)
+Notation "⟨! Γ0 | Γ ⊩ c !⟩" := (denote_circuit false c Γ0 Γ) (at level 20).
 
 (*
 Lemma denote_db_subst : forall pad n σ w (c : DeBruijn_Circuit w),
@@ -671,7 +693,8 @@ Lemma denote_db_unbox : forall {w1 w2} (b : Box w1 w2),
 Proof.
   destruct b.
   simpl. unfold denote_box.
-  simpl.
+  unfold denote_circuit.
+  simpl. 
   rewrite denote_OCtx_fresh; [ | validate].
   reflexivity.
 Qed.
@@ -1092,9 +1115,10 @@ Lemma denote_gate_circuit : forall {w1 w2 w'}
   ⟨ Γ0 | Γ ⊩ gate g p1 f⟩ 
     = compose_super (⟨ Γ0 | process_gate_state g p1 Γ
                           ⊩ f (process_gate_pat g p1 Γ) ⟩)
-                    (apply_gate g (pat_to_list (hoas_to_db_pat Γ p1))).
+                    (apply_gate true g (pat_to_list (hoas_to_db_pat Γ p1))).
 Proof.
   intros.
+  unfold denote_circuit.
   simpl; fold_denote.
   set (p1' := hoas_to_db_pat Γ p1).
   set (p2 := process_gate_pat g p1 Γ).
@@ -1103,13 +1127,28 @@ Proof.
   reflexivity.
 Qed.
   
+Lemma denote_gate_circuit_unsafe : forall {w1 w2 w'} 
+      (g : Gate w1 w2) p1 (f : Pat w2 -> Circuit w') Γ0 Γ Γ1 Γ2 (* Γ Γ0,*),     
+       Γ == Γ1 ∙ Γ2 -> Γ1 ⊢ p1 :Pat  ->   
+  ⟨! Γ0 | Γ ⊩ gate g p1 f !⟩ 
+    = compose_super (⟨! Γ0 | process_gate_state g p1 Γ
+                          ⊩ f (process_gate_pat g p1 Γ) !⟩)
+                    (apply_gate false g (pat_to_list (hoas_to_db_pat Γ p1))).
+Proof.
+  intros.
+  unfold denote_circuit.
+  simpl; fold_denote.
+  set (p1' := hoas_to_db_pat Γ p1).
+  set (p2 := process_gate_pat g p1 Γ).
+  rewrite (process_gate_nat _ p1' p1).
+  rewrite (process_gate_denote _ _ Γ Γ1 Γ2) by assumption.   
+  reflexivity.
+Qed.
 
-Lemma denote_compose : forall {w} (c : Circuit w) Γ, Γ ⊢ c :Circ ->
-     forall {w'} (f : Pat w -> Circuit w') (Γ0 Γ1 Γ1' : OCtx),
+Lemma denote_compose : forall w (c : Circuit w) Γ, Γ ⊢ c :Circ ->
+     forall w' (f : Pat w -> Circuit w') (Γ0 Γ1 Γ1' : OCtx),
   Γ1 ⊢ f :Fun ->
   Γ1' == Γ1 ∙ Γ ->
-
-
       ⟨ Γ0 | Γ1' ⊩ compose c f ⟩ 
     = compose_super (⟨Γ0 | fresh_state w Γ1 ⊩ f (fresh_pat w Γ1)⟩)
                     (⟨Γ0 ⋓ Γ1 | Γ ⊩ c⟩).
@@ -1163,7 +1202,8 @@ Hint Unfold HOAS_Equiv : den_db.
 (* Hints for automation *)
 (************************)
 
-Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard compose_super super swap_list swap_two pad denote_box denote_pat : den_db.
+Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard compose_super 
+     super Splus swap_list swap_two pad denote_box denote_pat : den_db.
 
 Hint Rewrite hoas_to_db_pat_fresh_empty : proof_db.
 Hint Rewrite denote_OCtx_fresh using validate : proof_db.
