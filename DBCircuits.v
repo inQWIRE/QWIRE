@@ -137,13 +137,13 @@ Fixpoint maps_in_Ctx (x : nat) (Γ : Ctx) : option nat :=
   | S x', None   :: Γ' => maps_in_Ctx x' Γ'
   end.
   
-
+(* Define only for contexts? *)
 (* Ctx's and OCtx's can be used as state *)
 Instance Ctx_State : Gate_State Ctx :=
   { get_fresh w  := do Γ ← get;
-                    do _ ← put (Γ ++ [Some w]);
+                    do _ ← put (Γ ++ [Some w]); (* don't like this *)
                     return_ (length Γ)
-  ; remove_var := remove_at
+  ; remove_var := remove_at (* should be trim_nones (remove_at) *)
   ; change_type x w Γ := update_at Γ x (Some w)
   ; maps_to x Γ := maps_in_Ctx x Γ
   }.

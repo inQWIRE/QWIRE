@@ -452,6 +452,9 @@ Proof. type_check. Qed.
 (** Classical Gates **)
 (*********************)
 
+
+(* These can't be used in oracles since they're not reversible. *)
+
 (* NOT already exists *)
 
 (* AND uses a Taffoli gate with one ancilla *)
@@ -492,6 +495,7 @@ Definition OR : Box (Qubit ⊗ Qubit) Qubit :=
 Lemma OR_WT : Typed_Box OR.
 Proof. type_check. Qed.
 
+
 (** Invalid Circuits **)
 Definition absurd_circ : Box Qubit (Bit ⊗ Qubit) :=
   box_ w ⇒ 
@@ -531,4 +535,5 @@ Next Obligation. Abort.
 *)
 
 Close Scope circ_scope.
+
 (* *)

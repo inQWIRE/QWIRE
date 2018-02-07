@@ -247,6 +247,10 @@ Proof.
       reflexivity.
 Qed.
 
+(*
+remove_pat (qubit 4) [None; None; None; None; Qubit] = [None; None; None; None]. !
+*)
+
 Lemma remove_bit_merge : forall (Γ Γ' : OCtx) v, Γ' == singleton v Bit ∙ Γ ->
                                             remove_pat (bit v)  Γ' = Γ.
 Proof.      
@@ -315,7 +319,6 @@ Qed.
 Opaque merge.
 
 Lemma ancilla_free_valid : forall W (c : Circuit W), 
- (*                          Γ ⊢ c :Circ ->  *)
                            ancilla_free c -> 
                            valid_ancillae c.
 Proof.
@@ -428,6 +431,8 @@ Proof.
       eapply remove_bit_pred.
       apply pf.
 Qed.
+
+
             
 
 Lemma add_fresh_union_l : forall W Γ Γ0 Γ1,

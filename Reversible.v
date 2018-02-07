@@ -87,6 +87,7 @@ Proof. destruct b; simpl; show_wf. Qed.
 
 (* ---------------------------------------*)
 (*---------Classical Circuit Specs -------*)
+(* ---------------------------------------*)
 
 Lemma NOT_spec : forall (b : bool), ⟦boxed_gate X⟧ (bool_to_matrix b) = bool_to_matrix (negb b).
 Proof. destruct b;
@@ -106,21 +107,165 @@ Proof.  intros b1 b2.
         destruct b1, b2; simpl; clra.
 Qed.
 
-Lemma AND_spec : forall (b1 b2 : bool), 
-    ⟦AND⟧ (bool_to_matrix b1 ⊗ bool_to_matrix b2)%M  = bool_to_matrix (andb b1 b2).
-Proof. Admitted.
-(*
+Lemma CCNOT_spec : forall (b1 b2 : bool), 
+    denote_box true CCNOT (bool_to_matrix b1 ⊗ bool_to_matrix b2 ⊗ |0⟩⟨0|)%M  
+      = (bool_to_matrix b1 ⊗ bool_to_matrix b2 ⊗ bool_to_matrix (andb b1 b2))%M.
+Proof.
+  intros b1 b2.
+  specialize (WF_bool_to_matrix b1) as WFb1.
+  specialize (WF_bool_to_matrix b2) as WFb2.
+  repeat rewrite bool_to_matrix_eq in *.
+  repeat (autounfold with den_db; simpl). assoc_least; Msimpl.
+  repeat reduce_matrix. 
+  crunch_matrix.
+  destruct b1, b2; simpl; Csimpl; reflexivity.
+  destruct b1, b2; simpl; Csimpl; reflexivity.
+  destruct b1, b2; simpl; Csimpl; reflexivity.
+  destruct b1, b2; simpl; Csimpl; reflexivity.
+  destruct b1, b2; simpl; Csimpl; reflexivity.
+  rewrite divmod_eq; simpl; Csimpl; reflexivity.
+  destruct b1, b2; simpl; Csimpl; reflexivity.
+  rewrite divmod_eq; simpl; Csimpl; reflexivity.
+  destruct b1, b2; simpl; Csimpl; reflexivity.
+  rewrite divmod_eq; simpl; Csimpl; reflexivity.
+  destruct b1, b2; simpl; Csimpl; reflexivity.
+  rewrite divmod_eq; simpl; Csimpl; reflexivity.
+  rewrite divmod_eq; simpl; Csimpl; reflexivity.
+  rewrite divmod_eq; simpl; Csimpl; reflexivity.
+Qed.
+
+Definition AND' : Box (Qubit ⊗ Qubit) Qubit :=
+  box_ ab ⇒
+    let_ (a,b)      ← output ab;
+    gate_ z         ← init0 @();
+    gate_ (a,(b,z)) ← CCNOT @(a,(b,z));
+    gate_ b         ← meas @b;
+    gate_ ()        ← discard @b;   
+    gate_ a         ← meas @a;
+    gate_ ()        ← discard @a;   
+    output z.
+
+Lemma AND_spec' : forall (b1 b2 : bool), 
+    ⟦AND'⟧ (bool_to_matrix b1 ⊗ bool_to_matrix b2)%M  = bool_to_matrix (andb b1 b2).
+Proof. 
   intros b1 b2. 
   specialize (WF_bool_to_matrix b1) as WFb1.
   specialize (WF_bool_to_matrix b2) as WFb2.
   repeat rewrite bool_to_matrix_eq in *.
-  repeat (autounfold with den_db; simpl); assoc_least; Msimpl.
+  repeat (autounfold with den_db; simpl). assoc_least; Msimpl.
+  solve_matrix.  
+  all: destruct b1 eqn:E1, b2 eqn:E2; simpl; Csimpl; try reflexivity.
+Qed.
+
+Definition new_disc_test : Box Bit (Bit ⊗ Bit) :=
+  box_ b ⇒ 
+  gate_ x    ← new1 @();
+  gate_ y    ← new0 @();
+  gate_ z    ← new1 @();
+  gate_ ()   ← discard @y;
+  gate_ ()   ← discard @b;
+  output (x,z).
+Search AND.
+Lemma typed_test : Typed_Box new_disc_test.
+Proof. type_check.  Qed.
+
+Lemma test_spec : ⟦new_disc_test⟧ |0⟩⟨0| = (|1⟩⟨1| ⊗ |1⟩⟨1|)%M. 
+Proof.
+  repeat (autounfold with den_db; simpl). 
+  Msimpl.
+  solve_matrix.
+  (* fails *)
+Admitted.
+
+Definition new_disc_test' : Box Bit Bit :=
+  box_ b ⇒ 
+  gate_ x    ← new1 @();
+  gate_ y    ← new0 @();
+  gate_ ()   ← discard @y;
+  gate_ ()   ← discard @b;
+  output x.
+Lemma typed_test' : Typed_Box new_disc_test'.
+Proof. type_check.  Qed.
+
+Lemma swap_0_2 : (swap_two 3 0 2)%nat = ((swap ⊗ 'I_ 2) × ('I_ 2 ⊗ swap) × (swap ⊗ 'I_ 2))%M.
+Proof.
+  unfold swap_two.
+  simpl.
+  Msimpl.
+  repeat reduce_matrix.
+  solve_matrix.
+  
+Lemma test_spec' : ⟦new_disc_test'⟧ |0⟩⟨0| = |1⟩⟨1|. 
+Proof.
+  unfold new_disc_test'.
+  simpl.
+  unfold denote_box. simpl.
+  repeat (unfold subst_var, add_fresh_state, get_fresh_var, denote_pat, 
+          remove_pat, hoas_to_db_pat; simpl).
+  unfold swap_list, swap_list_aux, swap_two. simpl.
+  unfold pad. simpl.
+  unfold apply_discard. simpl.
+  unfold swap_two; simpl; Msimpl. (* gah! *)
+  simpl.
+
+  unfold subst_var, add_fresh_state, get_fresh_var.
+  simpl.
+  unfold remove_pat.
+  simpl.
+  unfold hoas_to_db_pat.
+  simpl.
+  repeat (autounfold with den_db; simpl). 
+  Msimpl.
+  repeat reduce_matrix.
+  solve_matrix.
+Admitted.
+
+Definition new_disc_test'' : Box Bit Bit :=
+  box_ b ⇒ 
+  gate_ ()   ← discard @b;
+  gate_ x    ← new1 @();
+  output x.
+Lemma typed_test'' : Typed_Box new_disc_test''.
+Proof. type_check.  Qed.
+
+Lemma test_spec'' : ⟦new_disc_test''⟧ |0⟩⟨0| = |1⟩⟨1|. 
+Proof.
+  repeat (autounfold with den_db; simpl). 
+  Msimpl.
+  solve_matrix.
+Qed.
+
+
+Lemma AND_spec : forall (b1 b2 : bool), 
+    ⟦AND⟧ (bool_to_matrix b1 ⊗ bool_to_matrix b2)%M  = bool_to_matrix (andb b1 b2).
+Proof. 
+  intros b1 b2. 
+  specialize (WF_bool_to_matrix b1) as WFb1.
+  specialize (WF_bool_to_matrix b2) as WFb2.
+  repeat rewrite bool_to_matrix_eq in *.
+  repeat (autounfold with den_db; simpl). 
+  
+assoc_least; Msimpl.
   repeat (try rewrite Mmult_plus_distr_l; try rewrite Mmult_plus_distr_r).
-  unfold bool_to_matrix' in *.
+  all: destruct b1 eqn:E1, b2 eqn:E2.
+  repeat reduce_matrix. simpl. crunch_matrix.
+  repeat reduce_matrix. simpl. crunch_matrix.
+  repeat reduce_matrix. simpl. crunch_matrix.
 
   solve_matrix.
-  destruct b1, b2; Csimpl; reflexivity.
-  destruct b1, b2; Csimpl; reflexivity.
+  all: destruct b1 eqn:E1, b2 eqn:E2; Csimpl; simpl; trivial.
+  - simpl. unfold bool_to_matrix' in *. solve_matrix.
+  - simpl. unfold bool_to_matrix' in *. solve_matrix.
+  - simpl. 
+    repeat rewrite <- bool_to_matrix_eq.
+    unfold bool_to_matrix.
+    solve_matrix. all: admit.
+  - simpl. unfold bool_to_matrix' in *. solve_matrix.
+
+  unfold bool_to_matrix' in *.
+  solve_matrix.
+  destruct b1 eqn:E1, b2 eqn:E2; Csimpl; simpl; try reflexivity.
+  2: destruct b1, b2; Csimpl; simpl; try reflexivity.
 Qed.
 *)
   

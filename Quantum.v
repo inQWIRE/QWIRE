@@ -85,9 +85,8 @@ Definition σz : Matrix 2 2 :=
           end.
   
 Definition control {n : nat} (A : Matrix n n) : Matrix (2*n) (2*n) :=
-  fun x y => if (x <? n) && (y <? n) then (Id n) x y 
-          else if (n <=? x) && (n <=? y) then A (x-n)%nat (y-n)%nat 
-          else C0.
+  fun x y => if (x <? n) && (y =? x) then 1 else 
+          if (n <=? x) && (n <=? y) then A (x-n)%nat (y-n)%nat else 0.
 
 (* Definition cnot := control pauli_x. *)
 (* Direct definition makes our lives easier *)
@@ -104,7 +103,6 @@ Lemma cnot_eq : cnot = control σx.
 Proof.
   unfold cnot, control, σx.
   solve_matrix.
-  destruct (S y <? 2); reflexivity.
 Qed.
 
 (* Swap Matrices *)
@@ -237,6 +235,8 @@ Proof. unfold swap_two.
        reflexivity.
 Qed.
 
+Lemma swap_0_2 : swap 3 0 2 = (swap ⊗ 'I_ 2) × ('I_ 2 ⊗ swap) × (swap ⊗ 'I_ 2).
+
 (*
 Eval compute in ((swap_two 1 0 1) 0 0)%nat.
 Eval compute in (print_matrix (swap_two 1 0 2)).
@@ -266,16 +266,10 @@ Lemma WF_control : forall (n m : nat) (U : Matrix n n),
 Proof.
   intros n m U E WFU. subst.
   unfold control, WF_Matrix in *.
-  intros x y [Hx | Hy]; simpl.
-  + replace (x <? n) with false by (symmetry; apply Nat.ltb_ge; omega). simpl.
-    rewrite WFU.
-    * destruct (n <=? x), (n <=? y); reflexivity.
-    * left. omega. 
-  + replace (y <? n) with false by (symmetry; apply Nat.ltb_ge; omega). 
-    rewrite andb_false_r.
-    rewrite WFU.
-    * destruct (n <=? x), (n <=? y); reflexivity.
-    * right. omega.
+  intros x y [Hx | Hy];
+  bdestruct (x <? n); bdestruct (y =? x); bdestruct (n <=? x); bdestruct (n <=? y);
+    simpl; try reflexivity; try omega. 
+  all: rewrite WFU; [reflexivity|omega].
 Qed.
 
 Hint Resolve WF_hadamard WF_σx WF_σy WF_σz WF_cnot WF_swap WF_control : wf_db.
