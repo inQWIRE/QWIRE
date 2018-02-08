@@ -803,44 +803,27 @@ Ltac Msimpl :=
  *Swap testing*
  **************)
 
-Lemma divmod_0q0 : forall x q, fst (Nat.divmod x 0 q 0) = (x + q)%nat. 
-Proof.
-  induction x.
-  - intros. simpl. reflexivity.
-  - intros. simpl. rewrite IHx. omega.
-Qed.
-
-Lemma divmod_0 : forall x, fst (Nat.divmod x 0 0 0) = x. 
-Proof. intros. rewrite divmod_0q0. omega. Qed.
-
 Lemma swap_spec : forall (q q' : Matrix 2 1), WF_Matrix 2 1 q -> 
                                          WF_Matrix 2 1 q' ->
                                          swap × (q ⊗ q') = q' ⊗ q.
 Proof.
   intros q q' WF WF'.
   solve_matrix.
-  - rewrite divmod_0.
-    destruct y. clra. 
+  - destruct y. clra. 
     rewrite WF by omega. 
     rewrite (WF' O (S y)) by omega.
     clra.
-  - rewrite divmod_0.
-    destruct y. clra. 
+  - destruct y. clra. 
     rewrite WF by omega. 
     rewrite (WF' O (S y)) by omega.
     clra.
-  - rewrite divmod_0.
-    destruct y. clra. 
+  - destruct y. clra. 
     rewrite WF by omega. 
     rewrite (WF' 1%nat (S y)) by omega.
     clra.
-  - rewrite divmod_0.
-    destruct y. clra. 
+  - destruct y. clra. 
     rewrite WF by omega. 
     rewrite (WF' 1%nat (S y)) by omega.
-    clra.
-  - rewrite divmod_S. simpl.
-    rewrite WF' by omega. 
     clra.
 Qed.  
 

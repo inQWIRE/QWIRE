@@ -102,15 +102,11 @@ Proof. type_check.  Qed.
 Lemma test_spec : ⟦new_disc_test⟧ I1 = |1⟩⟨1|. 
 Proof.
   unfold denote; simpl.
-  unfold denote_box; simpl.
-  unfold get_fresh_var. simpl. 
-  unfold subst_var; simpl. (* This ought to call discard 0 (not discard 1) 
-                              after discard 0 *)
+  unfold denote_box. simpl.
   repeat (autounfold with den_db; simpl). 
   Msimpl.
   solve_matrix.
 Qed.
-
 
 (* ---------------------------------------*)
 (*---------Classical Circuit Specs -------*)
@@ -129,7 +125,7 @@ Proof.  intros b1 b2.
         specialize (WF_bool_to_matrix b2) as WFb2.
         repeat rewrite bool_to_matrix_eq in *.
         unfold bool_to_matrix' in *.
-        repeat (autounfold with den_db; simpl); assoc_least; Msimpl;
+        repeat (autounfold with den_db; simpl); Msimpl.
         solve_matrix;
         destruct b1, b2; simpl; clra.
 Qed.
@@ -142,76 +138,40 @@ Proof.
   specialize (WF_bool_to_matrix b1) as WFb1.
   specialize (WF_bool_to_matrix b2) as WFb2.
   repeat rewrite bool_to_matrix_eq in *.
-  repeat (autounfold with den_db; simpl). assoc_least; Msimpl.
-  repeat reduce_matrix. 
-  crunch_matrix.
-  destruct b1, b2; simpl; Csimpl; reflexivity.
-  destruct b1, b2; simpl; Csimpl; reflexivity.
-  destruct b1, b2; simpl; Csimpl; reflexivity.
-  destruct b1, b2; simpl; Csimpl; reflexivity.
-  destruct b1, b2; simpl; Csimpl; reflexivity.
-  rewrite divmod_eq; simpl; Csimpl; reflexivity.
-  destruct b1, b2; simpl; Csimpl; reflexivity.
-  rewrite divmod_eq; simpl; Csimpl; reflexivity.
-  destruct b1, b2; simpl; Csimpl; reflexivity.
-  rewrite divmod_eq; simpl; Csimpl; reflexivity.
-  destruct b1, b2; simpl; Csimpl; reflexivity.
-  rewrite divmod_eq; simpl; Csimpl; reflexivity.
-  rewrite divmod_eq; simpl; Csimpl; reflexivity.
-  rewrite divmod_eq; simpl; Csimpl; reflexivity.
+  unfold bool_to_matrix' in *.
+  repeat (autounfold with den_db; simpl); Msimpl.
+  solve_matrix. 
+  all: destruct b1, b2; simpl; try clra.
 Qed.
 
 Lemma AND_spec : forall (b1 b2 : bool), 
     ⟦AND⟧ (bool_to_matrix b1 ⊗ bool_to_matrix b2)%M  = bool_to_matrix (andb b1 b2).
 Proof. 
   intros b1 b2. 
-  unfold denote. simpl.
-  unfold denote_box. simpl.
-  unfold subst_var. simpl. 
-  repeat (unfold subst_var, add_fresh_state, get_fresh_var, denote_pat, 
-          remove_pat, hoas_to_db_pat; simpl).
-  unfold swap_list, swap_list_aux, swap_two. simpl.
-  unfold pad. simpl. (* Why apply_discard 1? It should be apply_discard 0! *)
-  unfold apply_discard. simpl.
-  unfold swap_two; simpl; Msimpl. 
   specialize (WF_bool_to_matrix b1) as WFb1.
   specialize (WF_bool_to_matrix b2) as WFb2.
   repeat rewrite bool_to_matrix_eq in *.
   repeat (autounfold with den_db; simpl).   
   Msimpl.
   unfold bool_to_matrix'.
-  repeat reduce_matrix. 
-  all: destruct b1 eqn:E1, b2 eqn:E2; simpl; Csimpl; try reflexivity.
-  all: unfold bool_to_matrix'; try crunch_matrix.
-  all: try rewrite divmod_S; simpl; clra.
   solve_matrix.
   all: destruct b1, b2; simpl; Csimpl; try reflexivity.
-
-
-assoc_least; Msimpl.
-  repeat (try rewrite Mmult_plus_distr_l; try rewrite Mmult_plus_distr_r).
-  all: destruct b1 eqn:E1, b2 eqn:E2.
-  repeat reduce_matrix. simpl. crunch_matrix.
-  repeat reduce_matrix. simpl. crunch_matrix.
-  repeat reduce_matrix. simpl. crunch_matrix.
-
-  solve_matrix.
-  all: destruct b1 eqn:E1, b2 eqn:E2; Csimpl; simpl; trivial.
-  - simpl. unfold bool_to_matrix' in *. solve_matrix.
-  - simpl. unfold bool_to_matrix' in *. solve_matrix.
-  - simpl. 
-    repeat rewrite <- bool_to_matrix_eq.
-    unfold bool_to_matrix.
-    solve_matrix. all: admit.
-  - simpl. unfold bool_to_matrix' in *. solve_matrix.
-
-  unfold bool_to_matrix' in *.
-  solve_matrix.
-  destruct b1 eqn:E1, b2 eqn:E2; Csimpl; simpl; try reflexivity.
-  2: destruct b1, b2; Csimpl; simpl; try reflexivity.
 Qed.
-*)
   
+Lemma OR_spec : forall (b1 b2 : bool), 
+    ⟦OR⟧ (bool_to_matrix b1 ⊗ bool_to_matrix b2)%M  = bool_to_matrix (orb b1 b2).
+Proof. 
+  intros b1 b2. 
+  specialize (WF_bool_to_matrix b1) as WFb1.
+  specialize (WF_bool_to_matrix b2) as WFb2.
+  repeat rewrite bool_to_matrix_eq in *.
+  repeat (autounfold with den_db; simpl).   
+  Msimpl.
+  unfold bool_to_matrix'.
+  solve_matrix.
+  all: destruct b1, b2; simpl; Csimpl; try reflexivity.
+Qed.
+
 
 (* ---------------------------------------*)
 

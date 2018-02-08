@@ -785,6 +785,7 @@ Proof.
     apply IHSingletonCtx.
 Qed.
 
+(* Remove_at lemmas may be redundant.  See update_none lemmas *)
 Lemma remove_at_singleton : forall x w Γ,
       SingletonCtx x w Γ ->
       empty_Ctx (remove_at x Γ).
@@ -792,6 +793,15 @@ Proof.
   induction 1; simpl.
   * constructor.
   * constructor. auto.
+Qed.
+
+Lemma update_none_singleton : forall x w Γ,
+      SingletonCtx x w Γ ->
+      empty_Ctx (update_at Γ x None).
+Proof.
+  induction 1; simpl.
+  * repeat constructor.
+  * constructor. assumption.
 Qed.
 
 Lemma denote_empty_Ctx : forall Γ,
@@ -976,6 +986,44 @@ Proof.
     reflexivity.
 Qed.
 
+Lemma update_none_merge : forall (Γ Γ1 Γ2 : Ctx) n, Γ == Γ1 ∙ Γ2 ->
+  Valid (update_at Γ n None) == Valid (update_at Γ1 n None) ∙ 
+                                Valid (update_at Γ2 n None).
+Proof.
+  intros Γ Γ1 Γ2 n H.
+  apply merge_fun_ind in H.
+  generalize dependent n.
+  dependent induction H.
+  - intros n.
+    constructor.
+    apply valid_valid.    
+    replace (update_at [] n None) with (@nil (option WType)).    
+    rewrite merge_nil_l.
+    reflexivity.
+    destruct n; reflexivity.
+  - intros n.
+    constructor.
+    apply valid_valid.
+    replace (update_at [] n None) with (@nil (option WType)).    
+    rewrite merge_nil_r.
+    reflexivity.
+    destruct n; reflexivity.
+  - intros n.
+    constructor.
+    apply valid_valid.
+    destruct n.
+    + simpl.
+      apply merge_ind_fun in H0.
+      destruct H0. inversion pf_merge. reflexivity.
+    + simpl.
+      edestruct IHmerge_ind with (n := n); try reflexivity.
+    simpl in pf_merge.
+    rewrite <- pf_merge.
+    apply merge_o_ind_fun in H.
+    rewrite H.
+    reflexivity.
+Qed.
+
 Lemma remove_at_collision : forall n W (Γ Γ1 Γ2 : Ctx),  SingletonCtx n W Γ1 -> 
   Γ == Γ1 ∙ Γ2 -> denote_Ctx (remove_at n Γ2) = denote_Ctx Γ2.
 Proof.
@@ -1004,6 +1052,33 @@ Proof.
     apply H8.
 Qed.
 
+Lemma update_none_collision : forall n W (Γ Γ1 Γ2 : Ctx),  SingletonCtx n W Γ1 -> 
+  Γ == Γ1 ∙ Γ2 -> denote_Ctx (update_at Γ2 n None) = denote_Ctx Γ2.
+Proof.
+  intros n. 
+  induction n.
+  + intros W Γ Γ1 Γ2 H H0.
+    simpl.
+    destruct Γ2.
+    reflexivity.
+    inversion H; subst.
+    destruct o. destruct H0. simpl in pf_merge. rewrite pf_merge in pf_valid.
+      apply not_valid in pf_valid. contradiction.
+    reflexivity.
+  + intros W Γ Γ1 Γ2 H H0.
+    simpl.
+    destruct Γ2.
+    reflexivity.
+    simpl.
+    inversion H; subst.
+    apply merge_fun_ind in H0.
+    inversion H0; subst.
+    erewrite IHn.
+    reflexivity.
+    apply H2.
+    apply merge_ind_fun. 
+    apply H8.
+Qed.
 
 Lemma process_gate_denote : forall {w1 w2} (g : Gate w1 w2) (p : Pat w1) Γ Γ1 Γ2,
     Γ == Γ1 ∙ Γ2 ->
@@ -1053,16 +1128,16 @@ Proof.
     destruct Γ as [|Γ]. destruct U. apply not_valid in pf_valid. contradiction.
     destruct Γ2 as [|Γ2]. destruct U. simpl in pf_merge. rewrite pf_merge in *. 
       apply not_valid in pf_valid. contradiction.
-    specialize (remove_at_merge _ _ _ v U) as RM.
+    specialize (update_none_merge _ _ _ v U) as RM.
     rewrite denote_OCtx_merge with (Γ1 := Γ1) (Γ2 := Γ2) by assumption.
-    rewrite denote_OCtx_merge with (Γ1 := Valid (remove_at v Γ1)) 
-                                   (Γ2 := Valid (remove_at v Γ2)) 
-                                   (Γ := Valid (remove_at v Γ)) by assumption.
+    rewrite denote_OCtx_merge with (Γ1 := Valid (update_at Γ1 v None)) 
+                                   (Γ2 := Valid (update_at Γ2 v None)) 
+                                   (Γ := Valid (update_at Γ v None)) by assumption.
     simpl.
-    specialize (remove_at_singleton _ _ _ H1) as E. simpl in E.
+    specialize (update_none_singleton _ _ _ H1) as E. simpl in E.
     apply denote_empty_Ctx in E. simpl in E. rewrite E.
     specialize (singleton_size _ _ _ H1) as SS. simpl in SS. rewrite SS.
-    erewrite remove_at_collision.
+    erewrite update_none_collision.
     omega.
     apply H1.
     apply U.
@@ -1073,16 +1148,16 @@ Proof.
     destruct Γ as [|Γ]. destruct U. apply not_valid in pf_valid. contradiction.
     destruct Γ2 as [|Γ2]. destruct U. simpl in pf_merge. rewrite pf_merge in *. 
       apply not_valid in pf_valid. contradiction.
-    specialize (remove_at_merge _ _ _ v U) as RM.
+    specialize (update_none_merge _ _ _ v U) as RM.
     rewrite denote_OCtx_merge with (Γ1 := Γ1) (Γ2 := Γ2) by assumption.
-    rewrite denote_OCtx_merge with (Γ1 := Valid (remove_at v Γ1)) 
-                                   (Γ2 := Valid (remove_at v Γ2)) 
-                                   (Γ := Valid (remove_at v Γ)) by assumption.
+    rewrite denote_OCtx_merge with (Γ1 := Valid (update_at Γ1 v None)) 
+                                   (Γ2 := Valid (update_at Γ2 v None)) 
+                                   (Γ := Valid (update_at Γ v None)) by assumption.
     simpl.
-    specialize (remove_at_singleton _ _ _ H1) as E. simpl in E.
+    specialize (update_none_singleton _ _ _ H1) as E. simpl in E.
     apply denote_empty_Ctx in E. simpl in E. rewrite E.
     specialize (singleton_size _ _ _ H1) as SS. simpl in SS. rewrite SS.
-    erewrite remove_at_collision.
+    erewrite update_none_collision.
     omega.
     apply H1.
     apply U.
@@ -1093,16 +1168,16 @@ Proof.
     destruct Γ as [|Γ]. destruct U. apply not_valid in pf_valid. contradiction.
     destruct Γ2 as [|Γ2]. destruct U. simpl in pf_merge. rewrite pf_merge in *. 
       apply not_valid in pf_valid. contradiction.
-    specialize (remove_at_merge _ _ _ v U) as RM.
+    specialize (update_none_merge _ _ _ v U) as RM.
     rewrite denote_OCtx_merge with (Γ1 := Γ1) (Γ2 := Γ2) by assumption.
-    rewrite denote_OCtx_merge with (Γ1 := Valid (remove_at v Γ1)) 
-                                   (Γ2 := Valid (remove_at v Γ2)) 
-                                   (Γ := Valid (remove_at v Γ)) by assumption.
+    rewrite denote_OCtx_merge with (Γ1 := Valid (update_at Γ1 v None)) 
+                                   (Γ2 := Valid (update_at Γ2 v None)) 
+                                   (Γ := Valid (update_at Γ v None)) by assumption.
     simpl.
-    specialize (remove_at_singleton _ _ _ H1) as E. simpl in E.
+    specialize (update_none_singleton _ _ _ H1) as E. simpl in E.
     apply denote_empty_Ctx in E. simpl in E. rewrite E.
     specialize (singleton_size _ _ _ H1) as SS. simpl in SS. rewrite SS.
-    erewrite remove_at_collision.
+    erewrite update_none_collision.
     omega.
     apply H1.
     apply U.
@@ -1129,8 +1204,6 @@ Proof.
   reflexivity.
 Qed.
 *)
-
-
 
 Lemma denote_gate_circuit : forall {w1 w2 w'} 
       (g : Gate w1 w2) p1 (f : Pat w2 -> Circuit w') Γ0 Γ Γ1 Γ2 (* Γ Γ0,*),     

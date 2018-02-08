@@ -143,7 +143,7 @@ Instance Ctx_State : Gate_State Ctx :=
   { get_fresh w  := do Γ ← get;
                     do _ ← put (Γ ++ [Some w]); (* don't like this *)
                     return_ (length Γ)
-  ; remove_var := remove_at (* should be trim_nones (remove_at) *)
+  ; remove_var x Γ := update_at Γ x None (* should be trim_nones (update_at) *)
   ; change_type x w Γ := update_at Γ x (Some w)
   ; maps_to x Γ := maps_in_Ctx x Γ
   }.

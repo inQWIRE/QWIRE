@@ -1087,8 +1087,19 @@ Ltac destruct_m_1' :=
                  | S _ => _
                  end] ] => is_var x; destruct x
   end.
-Ltac destruct_m_eq' := repeat (destruct_m_1'; try rewrite divmod_S; simpl).
 
+Lemma divmod_0q0 : forall x q, fst (Nat.divmod x 0 q 0) = (x + q)%nat. 
+Proof.
+  induction x.
+  - intros. simpl. reflexivity.
+  - intros. simpl. rewrite IHx. omega.
+Qed.
+
+Lemma divmod_0 : forall x, fst (Nat.divmod x 0 0 0) = x. 
+Proof. intros. rewrite divmod_0q0. omega. Qed.
+
+Ltac destruct_m_eq' := repeat 
+  (progress (try destruct_m_1'; try rewrite divmod_0; try rewrite divmod_S; simpl)).
 
 (* Unify A × B with list (list (evars)) *)
 (* We convert the matrices back to functional representation for 
@@ -1153,5 +1164,5 @@ Ltac reduce_matrices := match goal with
 
 
 Ltac solve_matrix := assoc_least;
-                     repeat reduce_matrix; crunch_matrix;
-                     autorewrite with C_db; try clra.
+                     repeat reduce_matrix; try crunch_matrix;
+                     Csimpl; try clra.
