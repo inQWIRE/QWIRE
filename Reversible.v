@@ -84,6 +84,33 @@ Proof. intros. destruct b; simpl; solve_matrix. Qed.
 Lemma WF_bool_to_matrix : forall b, WF_Matrix 2 2 (bool_to_matrix b).
 Proof. destruct b; simpl; show_wf. Qed.
 
+(******************)
+(** Discard Test **) 
+(******************)
+
+Definition new_disc_test : Box One Bit :=
+  box_ () ⇒ 
+  gate_ x    ← new0 @();
+  gate_ y    ← new0 @();
+  gate_ z    ← new1 @();
+  gate_ ()   ← discard @x;
+  gate_ ()   ← discard @y;
+  output z.
+Lemma typed_test : Typed_Box new_disc_test.
+Proof. type_check.  Qed.
+
+Lemma test_spec : ⟦new_disc_test⟧ I1 = |1⟩⟨1|. 
+Proof.
+  unfold denote; simpl.
+  unfold denote_box; simpl.
+  unfold get_fresh_var. simpl. 
+  unfold subst_var; simpl. (* This ought to call discard 0 (not discard 1) 
+                              after discard 0 *)
+  repeat (autounfold with den_db; simpl). 
+  Msimpl.
+  solve_matrix.
+Qed.
+
 
 (* ---------------------------------------*)
 (*---------Classical Circuit Specs -------*)
@@ -133,94 +160,6 @@ Proof.
   rewrite divmod_eq; simpl; Csimpl; reflexivity.
   rewrite divmod_eq; simpl; Csimpl; reflexivity.
 Qed.
-
-Definition AND' : Box (Qubit ⊗ Qubit) Qubit :=
-  box_ ab ⇒
-    let_ (a,b)      ← output ab;
-    gate_ z         ← init0 @();
-    gate_ (a,(b,z)) ← CCNOT @(a,(b,z));
-    gate_ b         ← meas @b;
-    gate_ ()        ← discard @b;   
-    gate_ a         ← meas @a;
-    gate_ ()        ← discard @a;   
-    output z.
-
-Lemma AND_spec' : forall (b1 b2 : bool), 
-    ⟦AND'⟧ (bool_to_matrix b1 ⊗ bool_to_matrix b2)%M  = bool_to_matrix (andb b1 b2).
-Proof. 
-  intros b1 b2. 
-  specialize (WF_bool_to_matrix b1) as WFb1.
-  specialize (WF_bool_to_matrix b2) as WFb2.
-  repeat rewrite bool_to_matrix_eq in *.
-  repeat (autounfold with den_db; simpl). assoc_least; Msimpl.
-  unfold bool_to_matrix'.
-  repeat reduce_matrix. 
-  all: destruct b1 eqn:E1, b2 eqn:E2; simpl; Csimpl; try reflexivity.
-  all: unfold bool_to_matrix'; try crunch_matrix.
-  all: try rewrite divmod_S; simpl; clra.
-Qed.
-(* ^ solve_matrix shouldn't fail here *)
-
-Definition new_disc_test : Box Bit (Bit ⊗ Bit) :=
-  box_ b ⇒ 
-  gate_ x    ← new1 @();
-  gate_ y    ← new0 @();
-  gate_ z    ← new1 @();
-  gate_ ()   ← discard @y;
-  gate_ ()   ← discard @b;
-  output (x,z).
-Search AND.
-Lemma typed_test : Typed_Box new_disc_test.
-Proof. type_check.  Qed.
-
-Lemma test_spec : ⟦new_disc_test⟧ |0⟩⟨0| = (|1⟩⟨1| ⊗ |1⟩⟨1|)%M. 
-Proof.
-  repeat (autounfold with den_db; simpl). 
-  Msimpl.
-  solve_matrix.
-Qed.
-
-Definition new_disc_test' : Box Bit Bit :=
-  box_ b ⇒ 
-  gate_ x    ← new1 @();
-  gate_ y    ← new0 @();
-  gate_ ()   ← discard @y;
-  gate_ ()   ← discard @b;
-  output x.
-Lemma typed_test' : Typed_Box new_disc_test'.
-Proof. type_check.  Qed.
-  
-Lemma test_spec' : ⟦new_disc_test'⟧ |0⟩⟨0| = |1⟩⟨1|. 
-Proof.
-  unfold new_disc_test'.
-  simpl.
-  unfold denote_box. simpl.
-  repeat (unfold subst_var, add_fresh_state, get_fresh_var, denote_pat, 
-          remove_pat, hoas_to_db_pat; simpl).
-  unfold swap_list, swap_list_aux, swap_two. simpl.
-  unfold pad. simpl.
-  unfold apply_discard. simpl.
-  unfold swap_two; simpl; Msimpl. 
-  repeat (autounfold with den_db; simpl). 
-  Msimpl.
-  solve_matrix.
-Qed.
-
-Definition new_disc_test'' : Box Bit Bit :=
-  box_ b ⇒ 
-  gate_ ()   ← discard @b;
-  gate_ x    ← new1 @();
-  output x.
-Lemma typed_test'' : Typed_Box new_disc_test''.
-Proof. type_check.  Qed.
-
-Lemma test_spec'' : ⟦new_disc_test''⟧ |0⟩⟨0| = |1⟩⟨1|. 
-Proof.
-  repeat (autounfold with den_db; simpl). 
-  Msimpl.
-  solve_matrix.
-Qed.
-
 
 Lemma AND_spec : forall (b1 b2 : bool), 
     ⟦AND⟧ (bool_to_matrix b1 ⊗ bool_to_matrix b2)%M  = bool_to_matrix (andb b1 b2).
