@@ -83,6 +83,7 @@ Instance Denote_Unitary_Correct W : Denote_Correct (Denote_Unitary W) :=
 
 (** Gate Denotation **)
 
+
 Definition denote_gate' (safe : bool) n {w1 w2} (g : Gate w1 w2)
            : Superoperator (2^⟦w1⟧ * 2^n) (2^⟦w2⟧ * 2^n) :=
   match g with 
@@ -333,18 +334,20 @@ Definition apply_new0 {n} : Superoperator (2^n) (2^(n+1)) :=
 Definition apply_new1 {n} : Superoperator (2^n) (2^(n+1)) :=
   super (Id (2^n) ⊗ |1⟩).
 
+(*
 (* Discard the qubit k in an n-qubit system *)
+(* Now using move_to_0 k n instead of swap_two k 0 n *)
 (* Requires: k < n *)
 Definition apply_discard {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
-  let S := swap_two n 0 k in 
+  let S := move_to_0 n k in 
   Splus (super ((⟨0| ⊗ Id (2^(n-1))) × S)) (super ((⟨1| ⊗ Id (2^(n-1))) × S)).
 
 (* Discard the qubit k, assuming it has the value |0⟩ *)
 Definition apply_assert0 {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
-  let S := swap_two n 0 k in super ((⟨0| ⊗ Id (2^(n-1))) × S).
+  let S := move_to_0 n k in super ((⟨0| ⊗ Id (2^(n-1))) × S).
 
 Definition apply_assert1 {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
-  let S := swap_two n 0 k in super ((⟨1| ⊗ Id (2^(n-1))) × S).
+  let S := move_to_0 n k in super ((⟨1| ⊗ Id (2^(n-1))) × S).
 
 (* Confirm transposes are in the right place *)
 Definition apply_meas {n} (k : nat) : Superoperator (2^n) (2^n) :=
@@ -352,6 +355,26 @@ Definition apply_meas {n} (k : nat) : Superoperator (2^n) (2^n) :=
   fun ρ => super (S × (|0⟩⟨0| ⊗ Id (2^(n-1))) × S†) ρ 
         .+ super (S × (|1⟩⟨1| ⊗ Id (2^(n-1))) × S†) ρ.
   (* super S ∘ super (|0⟩⟨0| ⊗ Id (2^(n-1))) *)
+*)
+
+(* Trying to do measure and discard in-place *)
+
+(* Discard the qubit k in an n-qubit system *)
+(* Requires: k < n *)
+Definition apply_discard {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
+  Splus (super (Id (2^k) ⊗ ⟨0| ⊗ Id (2^(n-k-1)))) 
+        (super (Id (2^k) ⊗ ⟨1| ⊗ Id (2^(n-k-1)))).
+
+(* Discard the qubit k, assuming it has the value |0⟩ *)
+Definition apply_assert0 {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
+  (super (Id (2^k) ⊗ ⟨0| ⊗ Id (2^(n-k-1)))).
+        
+Definition apply_assert1 {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
+  (super (Id (2^k) ⊗ ⟨1| ⊗ Id (2^(n-k-1)))).
+
+Definition apply_meas {n} (k : nat) : Superoperator (2^n) (2^n) :=
+  Splus (super (Id (2^k) ⊗ |0⟩⟨0| ⊗ Id (2^(n-k-1)))) 
+        (super (Id (2^k) ⊗ |1⟩⟨1| ⊗ Id (2^(n-k-1)))).
 
 Definition super_Zero {m n} : Superoperator m n  :=
   fun _ => Zero _ _.

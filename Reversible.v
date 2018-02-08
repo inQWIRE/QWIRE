@@ -153,9 +153,13 @@ Proof.
   specialize (WF_bool_to_matrix b2) as WFb2.
   repeat rewrite bool_to_matrix_eq in *.
   repeat (autounfold with den_db; simpl). assoc_least; Msimpl.
-  solve_matrix.  
+  unfold bool_to_matrix'.
+  repeat reduce_matrix. 
   all: destruct b1 eqn:E1, b2 eqn:E2; simpl; Csimpl; try reflexivity.
+  all: unfold bool_to_matrix'; try crunch_matrix.
+  all: try rewrite divmod_S; simpl; clra.
 Qed.
+(* ^ solve_matrix shouldn't fail here *)
 
 Definition new_disc_test : Box Bit (Bit ⊗ Bit) :=
   box_ b ⇒ 
@@ -174,8 +178,7 @@ Proof.
   repeat (autounfold with den_db; simpl). 
   Msimpl.
   solve_matrix.
-  (* fails *)
-Admitted.
+Qed.
 
 Definition new_disc_test' : Box Bit Bit :=
   box_ b ⇒ 
@@ -186,14 +189,6 @@ Definition new_disc_test' : Box Bit Bit :=
   output x.
 Lemma typed_test' : Typed_Box new_disc_test'.
 Proof. type_check.  Qed.
-
-Lemma swap_0_2 : (swap_two 3 0 2)%nat = ((swap ⊗ 'I_ 2) × ('I_ 2 ⊗ swap) × (swap ⊗ 'I_ 2))%M.
-Proof.
-  unfold swap_two.
-  simpl.
-  Msimpl.
-  repeat reduce_matrix.
-  solve_matrix.
   
 Lemma test_spec' : ⟦new_disc_test'⟧ |0⟩⟨0| = |1⟩⟨1|. 
 Proof.
@@ -205,20 +200,11 @@ Proof.
   unfold swap_list, swap_list_aux, swap_two. simpl.
   unfold pad. simpl.
   unfold apply_discard. simpl.
-  unfold swap_two; simpl; Msimpl. (* gah! *)
-  simpl.
-
-  unfold subst_var, add_fresh_state, get_fresh_var.
-  simpl.
-  unfold remove_pat.
-  simpl.
-  unfold hoas_to_db_pat.
-  simpl.
+  unfold swap_two; simpl; Msimpl. 
   repeat (autounfold with den_db; simpl). 
   Msimpl.
-  repeat reduce_matrix.
   solve_matrix.
-Admitted.
+Qed.
 
 Definition new_disc_test'' : Box Bit Bit :=
   box_ b ⇒ 
@@ -240,11 +226,29 @@ Lemma AND_spec : forall (b1 b2 : bool),
     ⟦AND⟧ (bool_to_matrix b1 ⊗ bool_to_matrix b2)%M  = bool_to_matrix (andb b1 b2).
 Proof. 
   intros b1 b2. 
+  unfold denote. simpl.
+  unfold denote_box. simpl.
+  unfold subst_var. simpl. 
+  repeat (unfold subst_var, add_fresh_state, get_fresh_var, denote_pat, 
+          remove_pat, hoas_to_db_pat; simpl).
+  unfold swap_list, swap_list_aux, swap_two. simpl.
+  unfold pad. simpl. (* Why apply_discard 1? It should be apply_discard 0! *)
+  unfold apply_discard. simpl.
+  unfold swap_two; simpl; Msimpl. 
   specialize (WF_bool_to_matrix b1) as WFb1.
   specialize (WF_bool_to_matrix b2) as WFb2.
   repeat rewrite bool_to_matrix_eq in *.
-  repeat (autounfold with den_db; simpl). 
-  
+  repeat (autounfold with den_db; simpl).   
+  Msimpl.
+  unfold bool_to_matrix'.
+  repeat reduce_matrix. 
+  all: destruct b1 eqn:E1, b2 eqn:E2; simpl; Csimpl; try reflexivity.
+  all: unfold bool_to_matrix'; try crunch_matrix.
+  all: try rewrite divmod_S; simpl; clra.
+  solve_matrix.
+  all: destruct b1, b2; simpl; Csimpl; try reflexivity.
+
+
 assoc_least; Msimpl.
   repeat (try rewrite Mmult_plus_distr_l; try rewrite Mmult_plus_distr_r).
   all: destruct b1 eqn:E1, b2 eqn:E2.

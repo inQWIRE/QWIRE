@@ -175,9 +175,9 @@ Ltac unify_pows_two :=
 Fixpoint swap_to_0_aux (n i : nat) {struct i} : Matrix (2^n) (2^n) := 
   match i with
   | O => swap ⊗ Id (2^(n-2))
-  | S i' =>  (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2))) × (* swap i-1 with i *)
+  | S i' =>  (Id (2^i) ⊗ swap ⊗ Id (2^(n-i-2))) × (* swap i-1 with i *)
             swap_to_0_aux n i' × 
-            (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2))) (* swap i-1 with 0 *)
+            (Id (2^i) ⊗ swap ⊗ Id (2^(n-i-2))) (* swap i-1 with 0 *)
   end.
 
 (* Requires: i < n *)
@@ -186,7 +186,7 @@ Definition swap_to_0 (n i : nat) : Matrix (2^n) (2^n) :=
   | O => Id (2^n) 
   | S i' => swap_to_0_aux n i'
   end.
-
+  
 (* Swapping qubits i and j in an n-qubit system, where i < j *) 
 (* Requires i < j, j < n *)
 Fixpoint swap_two_aux (n i j : nat) : Matrix (2^n) (2^n) := 
@@ -207,7 +207,8 @@ Definition swap_two (n i j : nat) : Matrix (2^n) (2^n) :=
 Fixpoint move_to_0_aux (n i : nat) {struct i}: Matrix (2^n) (2^n) := 
   match i with
   | O => swap ⊗ Id (2^(n-2))
-  | S i' =>  @Mmult (2^n) (2^n) (2^n) (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2))) (swap_to_0_aux n i)
+  | S i' => (move_to_0_aux n i') × (Id (2^i) ⊗ swap ⊗ Id (2^(n-i-2))) 
+                  
   end.
              
 (* Requires: i < n *)
@@ -224,18 +225,6 @@ Fixpoint move_to (n i k : nat) : Matrix (2^n) (2^n) :=
   | O => move_to_0 n i 
   | S k' => Id 2 ⊗ move_to (n-1) (i-1) (k')
   end.
-
-Lemma swap_two_base : swap_two 2 1 0 = swap.
-Proof. unfold swap_two. simpl. apply kron_1_r. Qed.
-
-Lemma swap_second_two : swap_two 3 1 2 = Id 2 ⊗ swap.
-Proof. unfold swap_two.
-       simpl.
-       rewrite kron_1_r.
-       reflexivity.
-Qed.
-
-Lemma swap_0_2 : swap 3 0 2 = (swap ⊗ 'I_ 2) × ('I_ 2 ⊗ swap) × (swap ⊗ 'I_ 2).
 
 (*
 Eval compute in ((swap_two 1 0 1) 0 0)%nat.
@@ -430,11 +419,13 @@ Proof.
       replace (2 ^ n)%nat with (4 * 2^(n-2))%nat by unify_pows_two.
       auto with wf_db.
     - specialize Nat.pow_nonzero; intros NZ.
-      replace (2^n)%nat with  (2 ^ i * 4 * 2 ^ (n - i - 2))%nat by unify_pows_two.
+      replace (2^n)%nat with  (2 ^ (i+1) * 4 * 2 ^ (n - i - 3))%nat by unify_pows_two.    
       auto with wf_db.
+      replace (2 ^ i + (2 ^ i + 0))%nat with (2 ^ (i + 1))%nat by unify_pows_two.
+      replace (n - S i - 2)%nat with (n - i - 3)%nat by omega. 
       apply WF_mult; auto with wf_db.
       apply WF_mult; auto with wf_db.
-      replace (2 ^ i * 4 * 2 ^ (n - i - 2))%nat with (2^n)%nat by unify_pows_two.
+      replace (2 ^ (i + 1) * 4 * 2 ^ (n - i - 3))%nat with (2^n)%nat by unify_pows_two.
       apply IHi.
       omega.
   + induction i; simpl.
@@ -786,9 +777,9 @@ Proof.
     clra.
 Qed.  
 
-(***********
-*Automation*
-************)
+(************
+ *Automation*
+ ************)
 
 (* For when autorewrite needs some extra help *)
 
@@ -807,5 +798,147 @@ Ltac Msimpl :=
                                   intros H; simpl in H; rewrite H; clear H
   | _                         => autorewrite with M_db
   end.
+
+(**************
+ *Swap testing*
+ **************)
+
+Lemma divmod_0q0 : forall x q, fst (Nat.divmod x 0 q 0) = (x + q)%nat. 
+Proof.
+  induction x.
+  - intros. simpl. reflexivity.
+  - intros. simpl. rewrite IHx. omega.
+Qed.
+
+Lemma divmod_0 : forall x, fst (Nat.divmod x 0 0 0) = x. 
+Proof. intros. rewrite divmod_0q0. omega. Qed.
+
+Lemma swap_spec : forall (q q' : Matrix 2 1), WF_Matrix 2 1 q -> 
+                                         WF_Matrix 2 1 q' ->
+                                         swap × (q ⊗ q') = q' ⊗ q.
+Proof.
+  intros q q' WF WF'.
+  solve_matrix.
+  - rewrite divmod_0.
+    destruct y. clra. 
+    rewrite WF by omega. 
+    rewrite (WF' O (S y)) by omega.
+    clra.
+  - rewrite divmod_0.
+    destruct y. clra. 
+    rewrite WF by omega. 
+    rewrite (WF' O (S y)) by omega.
+    clra.
+  - rewrite divmod_0.
+    destruct y. clra. 
+    rewrite WF by omega. 
+    rewrite (WF' 1%nat (S y)) by omega.
+    clra.
+  - rewrite divmod_0.
+    destruct y. clra. 
+    rewrite WF by omega. 
+    rewrite (WF' 1%nat (S y)) by omega.
+    clra.
+  - rewrite divmod_S. simpl.
+    rewrite WF' by omega. 
+    clra.
+Qed.  
+
+Lemma kron_assoc : forall (m n o p q r : nat) (A : Matrix m n) (B : Matrix o p) 
+  (C : Matrix q r), (A ⊗ B ⊗ C) = A ⊗ (B ⊗ C).
+Admitted.
+
+Lemma swap_to_0_test_24 : forall (q0 q1 q2 q3 : Matrix 2 1), 
+  WF_Matrix 2 1 q0 -> WF_Matrix 2 1 q1 -> WF_Matrix 2 1 q2 -> WF_Matrix 2 1 q3 ->
+  swap_to_0 4 2 × (q0 ⊗ q1 ⊗ q2 ⊗ q3) = (q2 ⊗ q1 ⊗ q0 ⊗ q3). 
+Proof.
+  intros q0 q1 q2 q3 WF0 WF1 WF2 WF3.
+  unfold swap_to_0, swap_to_0_aux.
+  repeat rewrite Mmult_assoc.
+  rewrite (kron_assoc _ _ _ _ _ _ q0 q1).
+  rewrite kron_mixed_product.
+  rewrite (kron_mixed_product _ _ _ _ _ _ ('I_ (2^1)) swap).
+  rewrite swap_spec by assumption.
+  Msimpl.
+  rewrite (kron_assoc _ _ _ _ _ _ q0).
+  rewrite (kron_assoc _ _ _ _ _ _ q2 q1).
+  setoid_rewrite <- (kron_assoc _ _ _ _ _ _ q0 q2 (q1 ⊗ q3)).
+  simpl.
+  setoid_rewrite (kron_mixed_product _ _ _ _ _ _ swap ('I_4) (q0 ⊗ q2) (q1 ⊗ q3)).
+  rewrite swap_spec by assumption.
+  Msimpl.
+  rewrite (kron_assoc _ _ _ _ _ _ q2 q0).
+  setoid_rewrite <- (kron_assoc _ _ _ _ _ _ q0 q1 q3).
+  setoid_rewrite (kron_assoc _ _ _ _ _ _ ('I_2)).  
+  setoid_rewrite (kron_mixed_product _ _ _ _ _ _ ('I_2) (swap ⊗ 'I_2) q2 _).
+  setoid_rewrite (kron_mixed_product _ _ _ _ _ _ swap ('I_2) _ _).
+  Msimpl.
+  rewrite swap_spec by assumption.
+  repeat setoid_rewrite kron_assoc.
+  reflexivity.
+Qed.
+
+(* To define for general lemma *)
+Parameter big_kron : forall (m n : nat) (l : list (Matrix m n)), 
+  Matrix (m^(length l)) (n^(length l)).
+
+Lemma swap_to_0_spec : forall (q q0 : Matrix 2 1) (n k : nat) (l1 l2 : list (Matrix 2 1)), 
+   length l1 = (k - 1)%nat ->
+   length l2 = (n - k - 2)%nat ->   
+   @Mmult (2^n) (2^n) 1 (swap_to_0 n k) (big_kron 2 1 ([q0] ++ l1 ++ [q] ++ l2)) = 
+     big_kron 2 1 ([q] ++ l1 ++ [q0] ++ l2).
+Admitted.
+
+Lemma swap_two_base : swap_two 2 1 0 = swap.
+Proof. unfold swap_two. simpl. apply kron_1_r. Qed.
+
+Lemma swap_second_two : swap_two 3 1 2 = Id 2 ⊗ swap.
+Proof. unfold swap_two.
+       simpl.
+       rewrite kron_1_r.
+       reflexivity.
+Qed.
+
+Lemma swap_0_2 : swap_two 3 0 2 = ('I_2 ⊗ swap) × (swap ⊗ 'I_2) × ('I_2 ⊗ swap).
+Proof.
+  unfold swap_two.
+  simpl.
+  Msimpl.
+  reflexivity.
+Qed.
+
+Lemma swap_two_spec : forall (q q0 : Matrix 2 1) (n0 n1 n2 n k : nat) (l0 l1 l2 : list (Matrix 2 1)), 
+   length l0 = n0 ->
+   length l1 = n1 ->
+   length l2 = n2 ->   
+   n = (n0 + n1 + n2 + 2)%nat ->
+   @Mmult (2^n) (2^n) 1 
+     (swap_two n n0 (n0+n1+1)) (big_kron 2 1 (l0 ++ [q0] ++ l1 ++ [q] ++ l2)) = 
+     big_kron 2 1 (l0 ++ [q] ++ l1 ++ [q0] ++ l2).
+Admitted.
+
+Lemma move_to_0_test_24 : forall (q0 q1 q2 q3 : Matrix 2 1), 
+  WF_Matrix 2 1 q0 -> WF_Matrix 2 1 q1 -> WF_Matrix 2 1 q2 -> WF_Matrix 2 1 q3 ->
+  move_to_0 4 2 × (q0 ⊗ q1 ⊗ q2 ⊗ q3) = (q2 ⊗ q0 ⊗ q1 ⊗ q3). 
+Proof.
+  intros q0 q1 q2 q3 WF0 WF1 WF2 WF3.
+  unfold move_to_0, move_to_0_aux.
+  repeat rewrite Mmult_assoc.
+  rewrite (kron_assoc _ _ _ _ _ _ q0 q1).
+  simpl.
+  setoid_rewrite (kron_mixed_product _ _ _ _ _ _ (('I_2) ⊗ swap) ('I_2) 
+                                     (q0 ⊗ (q1 ⊗ q2)) q3).
+  setoid_rewrite (kron_mixed_product _ _ _ _ _ _ ('I_2) swap q0 (q1 ⊗ q2)).
+  Msimpl.
+  rewrite swap_spec by assumption.
+  setoid_rewrite <- (kron_assoc _ _ _ _ _ _ q0 q2 q1).
+  setoid_rewrite (kron_assoc _ _ _ _ _ _ (q0 ⊗ q2) q1 q3).
+  setoid_rewrite (kron_mixed_product _ _ _ _ _ _ swap ('I_4) (q0 ⊗ q2) (q1 ⊗ q3)).
+  rewrite swap_spec by assumption.
+  Msimpl.
+  repeat setoid_rewrite kron_assoc.
+  reflexivity.
+Qed.
+
 
 (* *)

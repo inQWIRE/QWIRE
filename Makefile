@@ -42,6 +42,12 @@ HOASProofs.vo: HOASProofs.v HOASExamples.vo Denotation.vo
 Equations.vo: Equations.v TypeChecking.vo Denotation.vo
 	coqc Equations.v
 
+# not yet built by `make`
+Reversible.vo: Reversible.v HOASExamples.vo Denotation.vo
+	coqc Reversible.v
+
+Ancilla.vo : Ancilla.v Denotation.v Typechecking.vo
+	coqc Ancilla.v
 
 #MachineProofs.vo: MachineProofs.v MachineExamples.vo Denotation.vo
 #	coqc MachineProofs.v
