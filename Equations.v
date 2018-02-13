@@ -14,7 +14,6 @@ Require Import TypeChecking.
 
 Definition new (b : bool) : Box One Bit :=
   if b then boxed_gate new1 else boxed_gate new0.
-
   
 
 (** Equality 1: X; meas = meas; NOT **)

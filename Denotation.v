@@ -482,6 +482,26 @@ Instance nat_gate_state : Gate_State nat :=
   ; maps_to := fun _ _ => None
   }.
 
+(* Rewrote lift to remove the bit in-place. Not sure if the corresponding variable
+   is being removed from the context, though *)
+Fixpoint denote_db_circuit {w} safe padding input (c : DeBruijn_Circuit w)
+                         : Superoperator (2^(padding+input)) (2^(padding+⟦w⟧)) :=
+  match c with
+  | db_output p    => super (pad (padding+input) (⟦p⟧))
+  | db_gate g p c' => let input' := process_gate_state g p input in
+                      compose_super (denote_db_circuit safe padding input' c')
+                                    (apply_gate safe g (pat_to_list p))
+  | db_lift p c'   => let k := get_var p in 
+                     Splus  (compose_super 
+                               (denote_db_circuit safe padding (input-1) (c' false))
+                                     (super ('I_(2^k) ⊗ ⟨0| ⊗ 'I_(2^(input-k-1)))))
+                             (compose_super 
+                                (denote_db_circuit safe padding (input-1) (c' true))
+                                     (super ('I_(2^k) ⊗ ⟨1| ⊗ 'I_(2^(input-k-1)))))
+  end.
+
+
+(*
 Fixpoint denote_db_circuit {w} safe padding input (c : DeBruijn_Circuit w)
                          : Superoperator (2^(padding+input)) (2^(padding+⟦w⟧)) :=
   match c with
@@ -497,6 +517,8 @@ Fixpoint denote_db_circuit {w} safe padding input (c : DeBruijn_Circuit w)
                                 (denote_db_circuit safe padding (input-1) (c' true))
                                      (super (⟨1| ⊗ 'I_(2^(input-1)) × S)))
   end.
+
+*)
                     
 (*
 Fixpoint denote_db_circuit {w} Γ0 Γ (c : DeBruijn_Circuit w) 

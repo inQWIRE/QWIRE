@@ -193,50 +193,45 @@ Proof.
     repeat (autounfold with den_db; simpl).
     replace 0%nat with (⟦∅⟧) by auto.
 
+    specialize denote_compose as DC. simpl in DC.
+    unfold denote_circuit in DC.
 
-    rewrite denote_compose with (Γ := ∅) (Γ1 := ∅) (Γ1' := ∅);
+    rewrite DC with (Γ := ∅) (Γ1 := ∅) (Γ1' := ∅);
     [ | apply unbox_typing; [type_check | apply WT_bexp_to_circ]
     | repeat (type_check; try apply WT_bexp_to_circ)
     | type_check ].
-  
-    erewrite denote_compose with (Γ := ∅) (Γ1 := Valid [Some Qubit]) (Γ1' := Valid [Some Qubit]);
+
+    rewrite DC with (Γ := ∅) (Γ1 := Valid [Some Qubit]) (Γ1' := Valid [Some Qubit]);
     [ | apply unbox_typing; [type_check | apply WT_bexp_to_circ]
     | intros; apply AND_WT; type_check; constructor
     | type_check ].
-
+    
     repeat rewrite merge_nil_l.
     unfold compose_super.
 
-    (* prepare to apply induction hypotheses *)
-
-
-    rewrite denote_db_unbox in IHb1.
-    set (IHb1' := (IHb1 : ⟨ ∅ | ∅ ⊩ unbox (bexp_to_circ b1) () ⟩ I1 = bool_to_matrix ⌈ b1 ⌉)).
-    rewrite denote_db_unbox in IHb2.
-    set (IHb2' := (IHb2 : ⟨ ∅ | ∅ ⊩ unbox (bexp_to_circ b2) () ⟩ I1 = bool_to_matrix ⌈ b2 ⌉)).
-
     (* apply IH1 *)
-    rewrite IHb1'.
-   
-    
-
-    (* to apply IH2, must distribute around padding *)
+    rewrite denote_db_unbox in IHb1.
+    unfold denote_circuit in IHb1.
+    simpl in IHb1. simpl.
+    rewrite IHb1.
+        
     rewrite <- (kron_1_l 2 2 (bool_to_matrix ⌈ b1 ⌉)) by 
           (try omega; try apply WF_bool_to_matrix).
 
-    generalize (denote_db_pad (Valid [Some Qubit]) ∅ 1 0 _ (unbox (bexp_to_circ b2) ())
-                              ('I_1) (bool_to_matrix ⌈ b1 ⌉) eq_refl eq_refl); intros H.
-    simpl in H. simpl.
-    rewrite H. 
+    setoid_rewrite (denote_db_pad (Valid [Some Qubit]) ∅ 1 0); trivial.
 
     (* apply IH2 *)
-    unfold I1 in *. simpl in IHb2'. 
-    rewrite IHb2'.
+    unfold I1 in *.
+    rewrite denote_db_unbox in IHb2.
+    unfold denote_circuit in IHb2. simpl in IHb2.
+    unfold denote_circuit. simpl.
+    rewrite IHb2.
 
     (* apply AND_spec *)
     specialize AND_spec; intros HA.
     rewrite denote_db_unbox in HA.
     simpl in HA.
+    unfold denote_circuit in HA.
     rewrite HA.
     rewrite andb_comm.
     reflexivity.
@@ -245,14 +240,15 @@ Proof.
     repeat (autounfold with den_db; simpl).
     replace 0%nat with (⟦∅⟧) by auto.
 
+    specialize denote_compose as DC. simpl in DC.
+    unfold denote_circuit in DC.
 
-
-    rewrite denote_compose with (Γ := ∅) (Γ1 := ∅) (Γ1' := ∅);
+    rewrite DC with (Γ := ∅) (Γ1 := ∅) (Γ1' := ∅);
     [ | apply unbox_typing; [type_check | apply WT_bexp_to_circ]
     | repeat (type_check; try apply WT_bexp_to_circ)
     | type_check ].
   
-    erewrite denote_compose with (Γ := ∅) (Γ1 := Valid [Some Qubit]) (Γ1' := Valid [Some Qubit]);
+    erewrite DC with (Γ := ∅) (Γ1 := Valid [Some Qubit]) (Γ1' := Valid [Some Qubit]);
     [ | apply unbox_typing; [type_check | apply WT_bexp_to_circ]
     | intros; apply XOR_WT; type_check; constructor
     | type_check ].
@@ -260,43 +256,34 @@ Proof.
     repeat rewrite merge_nil_l.
     unfold compose_super.
 
-    (* prepare to apply induction hypotheses *)
-
-
-    rewrite denote_db_unbox in IHb1.
-    set (IHb1' := (IHb1 : ⟨ ∅ | ∅ ⊩ unbox (bexp_to_circ b1) () ⟩ I1 = bool_to_matrix ⌈ b1 ⌉)).
-    rewrite denote_db_unbox in IHb2.
-    set (IHb2' := (IHb2 : ⟨ ∅ | ∅ ⊩ unbox (bexp_to_circ b2) () ⟩ I1 = bool_to_matrix ⌈ b2 ⌉)).
-
     (* apply IH1 *)
-    rewrite IHb1'.
-   
-    
-
-    (* to apply IH2, must distribute around padding *)
+    rewrite denote_db_unbox in IHb1.
+    unfold denote_circuit in IHb1.
+    simpl in IHb1. simpl.
+    rewrite IHb1.
+        
     rewrite <- (kron_1_l 2 2 (bool_to_matrix ⌈ b1 ⌉)) by 
           (try omega; try apply WF_bool_to_matrix).
 
-    generalize (denote_db_pad (Valid [Some Qubit]) ∅ 1 0 _ (unbox (bexp_to_circ b2) ())
-                              ('I_1) (bool_to_matrix ⌈ b1 ⌉) eq_refl eq_refl); intros H.
-    simpl in H. simpl.
-    rewrite H. 
+    setoid_rewrite (denote_db_pad (Valid [Some Qubit]) ∅ 1 0); trivial.
 
     (* apply IH2 *)
-    unfold I1 in *. simpl in IHb2'. 
-    rewrite IHb2'.
+    unfold I1 in *.
+    rewrite denote_db_unbox in IHb2.
+    unfold denote_circuit in IHb2. simpl in IHb2.
+    unfold denote_circuit. simpl.
+    rewrite IHb2.
 
     (* apply AND_spec *)
-    specialize XOR_spec; intros HA.
-    rewrite denote_db_unbox in HA.
-    simpl in HA.
-    rewrite HA.
+    specialize XOR_spec; intros HX.
+    rewrite denote_db_unbox in HX.
+    simpl in HX.
+    unfold denote_circuit in HX.
+    rewrite HX.
     rewrite xorb_comm.
     reflexivity.
     Transparent XOR.
 Qed.
-
-
 
 (* ---------------------------------------*)
 
