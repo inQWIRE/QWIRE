@@ -452,7 +452,6 @@ Proof. type_check. Qed.
 (** Classical Gates **)
 (*********************)
 
-
 (* These can't be used in oracles since they're not reversible. *)
 
 (* NOT already exists *)
@@ -495,6 +494,76 @@ Definition OR : Box (Qubit ⊗ Qubit) Qubit :=
 Lemma OR_WT : Typed_Box OR.
 Proof. type_check. Qed.
 
+
+(***********************)
+(** Reversible Gates  **)
+(***********************)
+
+(* Apply the f(x,z) = g(x) ⊕ z construction, where g is the classical function 
+   and z is an extra target qubit *)
+
+Definition R_TRUE : Box Qubit Qubit :=
+  box_ z ⇒ 
+    gate_ x     ← init1 @();
+    gate_ (x,z) ← CNOT @(x,z);
+    gate_ ()    ← assert1 @x;
+    output z.
+Lemma R_TRUE_WT : Typed_Box R_TRUE.
+Proof. type_check. Qed.
+
+Definition R_FALSE : Box Qubit Qubit :=
+  box_ z ⇒ 
+    gate_ x     ← init0 @();
+    gate_ (x,z) ← CNOT @(x,z);
+    gate_ ()    ← assert0 @x;
+    output z.
+Lemma R_FALSE_WT : Typed_Box R_FALSE.
+Proof. type_check. Qed.
+
+Definition R_NOT : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) :=
+  box_ xz ⇒ 
+    let_ (x,z)      ← output xz;
+    gate_ x         ← X @x;
+    gate_ (x,z)     ← CNOT @(x,z);
+    gate_ x         ← X @x;
+    output (x,z).
+Lemma R_NOT_WT : Typed_Box R_NOT.
+Proof. type_check. Qed.
+
+(* This is with moving onto ancillae - not part of the core R_AND
+Definition R_AND : Box (Qubit ⊗ Qubit ⊗ Qubit) (Qubit ⊗ Qubit ⊗ Qubit) :=
+  box_ xyz ⇒
+    let_ (x,y,z)    ← output xyz;
+    gate_ i         ← init0 @();
+    gate_ j         ← init0 @();
+    gate_ (x,i)     ← CNOT @(x,i);
+    gate_ (y,j)     ← CNOT @(y,j);
+    gate_ (i,(j,z)) ← CCNOT @(i,(j,z));
+    gate_ (y,j)     ← CNOT @(y,j);
+    gate_ (x,i)     ← CNOT @(x,i);
+    gate_ ()        ← assert0 @j;   
+    gate_ ()        ← assert0 @i;   
+    output (x,y,z).
+Lemma R_AND_WT : Typed_Box R_AND.
+Proof. type_check. Qed.
+*)
+
+Definition R_AND : Box (Qubit ⊗ Qubit ⊗ Qubit) (Qubit ⊗ Qubit ⊗ Qubit) :=
+  box_ xyz ⇒
+    let_ (x,y,z)    ← output xyz;
+    gate_ (x,(y,z)) ← CCNOT @(x,(y,z));
+    output (x,y,z).    
+Lemma R_AND_WT : Typed_Box R_AND.
+Proof. type_check. Qed.
+
+Definition R_XOR : Box (Qubit ⊗ Qubit ⊗ Qubit) (Qubit ⊗ Qubit ⊗ Qubit) := 
+  box_ xyz ⇒
+    let_ (x,y,z)    ← output xyz;
+    gate_ (x,z)     ← CNOT @(x,z);
+    gate_ (y,z)     ← CNOT @(y,z);
+    output (x,y,z).
+Lemma R_XOR_WT : Typed_Box R_XOR.
+Proof. type_check. Qed.
 
 (** Invalid Circuits **)
 Definition absurd_circ : Box Qubit (Bit ⊗ Qubit) :=

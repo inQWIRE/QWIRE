@@ -285,13 +285,171 @@ Proof.
     Transparent XOR.
 Qed.
 
-(* ---------------------------------------*)
+(* -----------------------------------------*)
+(*--------- Reversible Circuit Specs -------*)
+(* -----------------------------------------*)
+
+Open Scope matrix_scope.
+
+Lemma R_TRUE_spec : forall z, ⟦R_TRUE⟧ (bool_to_matrix z) = bool_to_matrix (xorb true z). 
+Proof. 
+  intros z. 
+  specialize (WF_bool_to_matrix z) as WF.
+  repeat rewrite bool_to_matrix_eq in *.
+  repeat (autounfold with den_db; simpl).   
+  Msimpl.
+  solve_matrix.
+  all: destruct z; simpl; try clra.
+Qed.
+
+Lemma R_FALSE_spec : forall z, 
+    ⟦R_FALSE⟧ (bool_to_matrix z) = bool_to_matrix (xorb false z). 
+Proof.
+  intros z. 
+  specialize (WF_bool_to_matrix z) as WF.
+  repeat rewrite bool_to_matrix_eq in *.
+  repeat (autounfold with den_db; simpl).   
+  Msimpl.
+  solve_matrix.
+  all: destruct z; simpl; try clra.
+Qed.
+
+Lemma R_NOT_spec : forall (x z : bool), 
+  ⟦R_NOT⟧ (bool_to_matrix x ⊗ bool_to_matrix z) = 
+  bool_to_matrix x ⊗ bool_to_matrix (xorb (negb x) z).
+Proof.
+  intros x z.
+  specialize (WF_bool_to_matrix x) as WFx.
+  specialize (WF_bool_to_matrix z) as WFz.
+  repeat rewrite bool_to_matrix_eq in *.
+  repeat (autounfold with den_db; simpl); Msimpl.
+  solve_matrix. 
+  all: destruct x, z; simpl; try clra.
+Qed.
+
+Lemma R_XOR_spec : forall (x y z : bool), 
+    ⟦R_XOR⟧ (bool_to_matrix x ⊗ bool_to_matrix y ⊗ bool_to_matrix z)  = 
+    bool_to_matrix x ⊗ bool_to_matrix y ⊗ bool_to_matrix (xorb (xorb x y) z).
+Proof.  
+  intros x y z.
+  specialize (WF_bool_to_matrix x) as WFx.
+  specialize (WF_bool_to_matrix y) as WFy.
+  specialize (WF_bool_to_matrix z) as WFz.
+  repeat rewrite bool_to_matrix_eq in *.
+  repeat (autounfold with den_db; simpl); Msimpl.
+  solve_matrix. 
+  all: destruct x, y, z; simpl; try clra. 
+Qed.
+
+Lemma R_AND_spec : forall (x y z : bool), 
+    ⟦R_AND⟧ (bool_to_matrix x ⊗ bool_to_matrix y ⊗ bool_to_matrix z)  = 
+    bool_to_matrix x ⊗ bool_to_matrix y ⊗ bool_to_matrix (xorb (andb x y) z).
+Proof. 
+  intros x y z.
+  specialize (WF_bool_to_matrix x) as WFx.
+  specialize (WF_bool_to_matrix y) as WFy.
+  specialize (WF_bool_to_matrix z) as WFz.
+  repeat rewrite bool_to_matrix_eq in *.
+  repeat (autounfold with den_db; simpl); Msimpl.
+  solve_matrix. 
+  all: destruct x, y, z; simpl; try clra. 
+Qed.
+  
+(* --------------------------------*)
+(* Reversible bexps with variables *)
+(* --------------------------------*)
+
+Inductive rbexp := 
+| rb_t   : rbexp
+| rb_f   : rbexp
+| rb_var : Var -> rbexp
+| rb_and : rbexp -> rbexp -> rbexp 
+| rb_xor : rbexp -> rbexp -> rbexp.
+
+Reserved Notation "Γ1 ∪ Γ2" (at level 30).
+
+(* assumes no conflicts - all wires are 'Qubit' *)
+Fixpoint classical_merge (Γ1 Γ2 : Ctx) := 
+  match Γ1, Γ2 with 
+  | []           , _        => Γ2
+  | _            , []       => Γ1
+  | None :: Γ1'  , o :: Γ2' => o      :: (Γ1' ∪ Γ2') 
+  | Some w :: Γ1', _ :: Γ2' => Some w :: (Γ1' ∪ Γ2') 
+  end where "Γ1 ∪ Γ2" := (classical_merge Γ1 Γ2).
+
+(* Gets a context for the variables in an rbexp *)
+Fixpoint get_context (b : rbexp) : Ctx :=
+  match b with 
+  | rb_t          => [] 
+  | rb_f          => []
+  | rb_var v      => singleton v Qubit 
+  | rb_and b1 b2  => get_context b1 ∪ get_context b2 
+  | rb_xor b1 b2  => get_context b1 ∪ get_context b2 
+  end.
+
+AND_R
+
+(* stack for ancillae? *)
+Fixpoint forward_compile (z : Var) (b : rbexp) : 
+  Circuit (S (⟦get_context b⟧) ⨂ Qubit).
+
+(* forward compile in reverse, excluding gates that target the output qubit *)
+Fixpoint backward_compile (z : Var) (b : rbexp) : 
+  Circuit (S (⟦get_context b⟧) ⨂ Qubit).
+
+
+
+
 
 Inductive reversible {W} : Circuit W -> Set := 
 | rev_output : forall p, reversible (output p)
 | rev_not    : forall p1 c, reversible c -> reversible (gate_ p2 ←  X @p1; c)
 | rev_cnot   : forall p1 c, reversible c -> reversible (gate_ p2 ←  CNOT @p1; c)
 | rev_ccnot  : forall p1 c, reversible c -> reversible (gate_ p2 ← CCNOT @p1; c).
+
+Definition test : forall (n : nat), (n = n)%nat * (n = n)%nat :=
+  fun x => (eq_refl, eq_refl)%core.
+
+Print test.
+
+Definition test2 : { n : nat & n = n & True }%nat.
+  exists 1%nat. reflexivity. exact I. 
+Defined.
+
+Print test2.
+
+Fixpoint make_reversible {W} (c : Circuit W) (r : reversible c)
+  (stack : list ({ W' : WType & Unitary W' & Pat W' })) : Circuit W.
+  induction r eqn:Er.
+  - induction stack eqn:Es.
+    + exact (output p).
+    + destruct a as [W' u p']. 
+      exact (gate_ p'' ← u @p';
+             make_reversible W (output p) r l).
+  - exact (let stack' := ((existT2 _ _ Qubit X p1) :: stack) in stack').
+    pose stack'.
+
+  :=
+  match r with 
+  | rev_output p => match stack with 
+                   | (exist _ W' (u,p')%core :: stack' => gate_ p'' ← u @p';
+                                            make_reversible (rev_output p) r stack'
+  | rev_not p c r' => gate_ p' ← X @p;
+                     make_reversible c r' stack';
+                  
+                  
+               
+ Circuit W. 
+
+
+Fixpoint reverse {W} (c : Circuit W) (R : reversible c): Circuit W := 
+  match R with
+  | rev_output p => output p
+  | rev_not p1 c => reverse c; 
+                   gate_ p ← X 
+  | rev_cnot   : forall p1 c, reversible c -> reversible (gate_ p2 ←  CNOT @p1; c)
+  | rev_ccnot  : forall p1 c, reversible c -> reversible (gate_ p2 ← CCNOT @p1; c).
+
 
 Fixpoint reverse {W} (c : Circuit W) (R : reversible c): Circuit W := 
   match R with
