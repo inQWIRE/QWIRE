@@ -502,6 +502,7 @@ Proof. type_check. Qed.
 (* Apply the f(x,z) = g(x) ⊕ z construction, where g is the classical function 
    and z is an extra target qubit *)
 
+(* This has a more efficient construction where we simply negate z *)
 Definition R_TRUE : Box Qubit Qubit :=
   box_ z ⇒ 
     gate_ x     ← init1 @();
@@ -511,6 +512,7 @@ Definition R_TRUE : Box Qubit Qubit :=
 Lemma R_TRUE_WT : Typed_Box R_TRUE.
 Proof. type_check. Qed.
 
+(* This has a more efficient construction: the identity *)
 Definition R_FALSE : Box Qubit Qubit :=
   box_ z ⇒ 
     gate_ x     ← init0 @();

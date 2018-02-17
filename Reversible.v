@@ -387,19 +387,230 @@ Fixpoint get_context (b : rbexp) : Ctx :=
   | rb_xor b1 b2  => get_context b1 ∪ get_context b2 
   end.
 
-AND_R
 
-(* stack for ancillae? *)
-Fixpoint forward_compile (z : Var) (b : rbexp) : 
-  Circuit (S (⟦get_context b⟧) ⨂ Qubit).
+(* retrieves the nth wire in a list *)
+(* get_wire implements the following function, which I can't convince Coq to accept:
+Fixpoint get_wire {W m} (n : nat) (ps : Pat (m ⨂ W)) (default : Pat W) : Pat W :=
+  match ps with
+  | unit    => default 
+  | (p,ps') => match n with 
+              | O => p
+              | S n' => get_wire n' ps' default 
+              end
+  end.
+*)
 
-(* forward compile in reverse, excluding gates that target the output qubit *)
-Fixpoint backward_compile (z : Var) (b : rbexp) : 
-  Circuit (S (⟦get_context b⟧) ⨂ Qubit).
+Fixpoint get_wire {W m} (n : nat) (ps : Pat (m ⨂ W)) (default : Pat W) : Pat W.
+destruct m as [|m'].
++ exact default.
++ simpl in ps.
+  dependent destruction ps.
+  destruct n as [|n']. 
+  - exact ps1.
+  - exact (get_wire W m' n' ps2 default).
+Defined.
+
+(* Replaces the nth wire in a pattern with the given wire *)
+(* failed definition 
+Fixpoint replace_wire {W m} (p : Pat W) (n : nat) (ps : Pat (m ⨂ W)) : (Pat (m ⨂ W)) :=
+  match ps with
+  | unit      => unit 
+  | (p',ps')  => match n with 
+               | O => p 
+               | S n' => (p',replace_wire p n' ps')
+                end
+  end.*)
+
+Fixpoint replace_wire {W m} (p : Pat W) (n : nat) (ps : Pat (m ⨂ W)) : (Pat (m ⨂ W)).
+destruct m as [|m'].
++ exact ps.
++ dependent destruction ps.
+    destruct n as [|n'].
+  - exact (p, ps2).
+  - exact (ps1, replace_wire W m' p n' ps2).
+Defined.
+
+(*
+Fixpoint position_of (v : Var) (Γ : Ctx) : nat := 
+  match Γ with
+  | []           => 0 
+  | None :: Γ'   => position_of (v - 1)%nat  Γ'
+  | Some w :: Γ' => S (position_of (v - 1)%nat Γ')
+  end.
+*)
+
+Fixpoint position_of (v : Var) (Γ : Ctx) : nat := 
+  match v with
+  | 0     => 0
+  | S v'  => match Γ with
+            | [] => 0
+            | None :: Γ'   => position_of v'  Γ'
+            | Some w :: Γ' => S (position_of v' Γ')
+            end
+  end.
+
+Fixpoint compile (b : rbexp) (Γ : Ctx) : Box (S (⟦Γ⟧) ⨂ Qubit) (S (⟦Γ⟧) ⨂ Qubit) :=
+  box_ tqs ⇒
+  let_ (target, qs) ← output tqs;
+  match b with
+  | rb_t          => let_ target ← unbox R_TRUE target;
+                    output (target,qs)
+  | rb_f          => let_ target ← unbox R_FALSE target;
+                    output (target,qs)
+  | rb_var v      => let n := position_of v Γ in 
+                    let q := get_wire n qs target in 
+                    gate_ (q',target) ← CNOT @(q,target);
+                    let qs' := replace_wire q' n qs in
+                    output (target,qs')
+  | rb_and b1 b2  => gate_ q1            ← init0 @();
+                    let_ (q1,qs)        ← unbox (compile b1 Γ) (q1,qs);
+                    gate_ q2            ← init0 @();
+                    let_ (q2,qs)        ← unbox (compile b2 Γ) (q2,qs);
+                    let_ (target,q1,q2) ← unbox R_AND (target,q1,q2);
+                    let_ (q2,qs)        ← unbox (compile b2 Γ) (q2,qs);
+                    gate_ ()            ← assert0 @q2;
+                    let_ (q1,qs)        ← unbox (compile b2 Γ) (q1,qs);
+                    gate_ ()            ← assert0 @q1;
+                    output (target,qs)
+  | rb_xor b1 b2  => gate_ q1            ← init0 @();
+                    let_ (q1,qs)        ← unbox (compile b1 Γ) (q1,qs);
+                    gate_ q2            ← init0 @();
+                    let_ (q2,qs)        ← unbox (compile b2 Γ) (q2,qs);
+                    let_ (target,q1,q2) ← unbox R_XOR (target,q1,q2);
+                    let_ (q2,qs)        ← unbox (compile b2 Γ) (q2,qs);
+                    gate_ ()            ← assert0 @q2;
+                    let_ (q1,qs)        ← unbox (compile b2 Γ) (q1,qs);
+                    gate_ ()            ← assert0 @q1;
+                    output (target,qs)
+  end.
 
 
+(* Not sure if this lemma is right *)
+Lemma get_wire_WT : forall m Γ Γo v default (p : Pat (m ⨂ Qubit)), 
+  Valid Γ == singleton v Qubit ∙ Γo ->
+  Valid Γ ⊢ p :Pat ->
+  singleton v Qubit ⊢ get_wire (position_of v Γ) p default :Pat.
+Proof.
+  intros m Γ Γo v default p H TP.
+  induction v.
+  - simpl.
+    destruct m. 
+    simpl in p.
+    dependent destruction p.
+    destruct H.
+    inversion TP. subst.
+    destruct Γo. inversion pf_merge. destruct c. inversion pf_merge.
+    inversion pf_merge. destruct o. inversion H0. inversion H0.
+    dependent destruction p.
+    dependent destruction TP. 
+    simpl.
+    unfold solution_left.
+    unfold eq_rect_r.
+    simpl.
 
+Lemma WT_compile : forall (b : rbexp) (Γ Γb Γo : Ctx), 
+    Γb = (get_context b) ->
+    Valid Γ = Γb ⋓ Γo -> 
+    Typed_Box (compile b Γ).
+Proof.
+  induction b.
+  - type_check.
+  - type_check.
+  - type_check.
+    Focus 3. 
+      induction v.
+      destruct Γo.
+        rewrite merge_nil_r in H0. inversion H0. subst.
+        simpl in p2.
+        dependent destruction p2. 
+        dependent destruction p2_2.
+        dependent destruction H1_0.
+        dependent destruction H1_0_2.
+        rewrite merge_nil_r in e. subst.
+        simpl.
+        unfold solution_left.
+        unfold eq_rect_r.
+        simpl.
+        apply H1_0_1.
+        (* *)
+        destruct o. simpl in H0. inversion H0.
+        simpl in H0.
+        Transparent merge.
+        simpl in H0.
+        Opaque merge.
+        simpl.
+        destruct Γ. inversion H0.
+        inversion H0. subst. clear H0.
+        dependent destruction p2. 
+        simpl.
+        unfold solution_left.
+        unfold eq_rect_r.
+        unfold eq_rect.
+        simpl.
+        dependent destruction H1_0.
+        
+(* without generalize hypothesis *)
+Lemma WT_compile : forall (b : rbexp), Typed_Box (compile b (get_context b)).
+Proof.
+  induction b.
+  - type_check.
+  - type_check.
+  - type_check.
+    Focus 3. 
+      induction v.
+      simpl in p2. 
+      dependent destruction p2. 
+      dependent destruction p2_2.
+      dependent destruction H0.
+      dependent destruction H0_0.
+      rewrite merge_nil_r in e. subst.
+      simpl.
+      unfold solution_left.
+      unfold eq_rect_r.
+      simpl.
+      apply H0_.
+      simpl.
+      apply IHv.
+      apply H0.
+    Focus 2.
+      reflexivity.
+    validate.
+    Focus 4.
+      induction v.
+      simpl in p2. 
+      dependent destruction p2. 
+      dependent destruction p2_2.
+      dependent destruction H0.
+      dependent destruction H0_0.
+      rewrite merge_nil_r in e. subst.
+      simpl.
+      unfold solution_left.
+      unfold eq_rect_r.
+      simpl.
+      econstructor.
+      all: type_check.
+      rewrite merge_nil_r in IHv.
+      apply IHv. assumption. apply pf_valid.
+    all:type_check.
+  -
 
+type_check.
+    Focus 4.
+      4: constructor.
+      3: apply H1_.
+      2: rewrite merge_nil_r; reflexivity.
+      apply H1_.
+      simpl.
+      apply IHv.
+      apply H0.
+    
+      
+
+ unfold denote_Ctx in p2. simpl in p2.
+  - type_check.
+  - type_check.
+
+(*
 
 Inductive reversible {W} : Circuit W -> Set := 
 | rev_output : forall p, reversible (output p)
@@ -407,16 +618,6 @@ Inductive reversible {W} : Circuit W -> Set :=
 | rev_cnot   : forall p1 c, reversible c -> reversible (gate_ p2 ←  CNOT @p1; c)
 | rev_ccnot  : forall p1 c, reversible c -> reversible (gate_ p2 ← CCNOT @p1; c).
 
-Definition test : forall (n : nat), (n = n)%nat * (n = n)%nat :=
-  fun x => (eq_refl, eq_refl)%core.
-
-Print test.
-
-Definition test2 : { n : nat & n = n & True }%nat.
-  exists 1%nat. reflexivity. exact I. 
-Defined.
-
-Print test2.
 
 Fixpoint make_reversible {W} (c : Circuit W) (r : reversible c)
   (stack : list ({ W' : WType & Unitary W' & Pat W' })) : Circuit W.
@@ -458,5 +659,5 @@ Fixpoint reverse {W} (c : Circuit W) (R : reversible c): Circuit W :=
   | rev_cnot   : forall p1 c, reversible c -> reversible (gate_ p2 ←  CNOT @p1; c)
   | rev_ccnot  : forall p1 c, reversible c -> reversible (gate_ p2 ← CCNOT @p1; c).
   
-
+*)
 
