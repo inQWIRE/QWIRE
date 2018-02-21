@@ -96,7 +96,8 @@ Program Fixpoint hoas_to_min (c: Circuit) (li : list Var) (n : nat) : Min_Circui
     | init0 | init1 => min_gate g unit (hoas_to_min (c' (qubit n)) (li ++ [n]) (S n))
     | new0 | new1   => min_gate g unit (hoas_to_min (c' (qubit n)) (li ++ [n]) (S n))
     | meas          => min_gate g (hash_pat p li) 
-                                 (hoas_to_min (c' (qubit_to_bit p)) li n)
+                                (hoas_to_min (c' (qubit_to_bit p)) li n)
+    | measQ         => min_gate g (hash_pat p li) (hoas_to_min (c' p) li n)
     | discard       => let li' := List.remove Nat.eq_dec (get_var p) li in
                       min_gate g (hash_pat p li) (hoas_to_min (c' unit) li' n)
     end

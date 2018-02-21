@@ -729,6 +729,7 @@ Inductive Gate : WType -> WType -> Set :=
   | new0 : Gate One Bit
   | new1 : Gate One Bit
   | meas : Gate Qubit Bit
+  | measQ : Gate Qubit Qubit (* Nondestructive measurement *)
   | discard : Gate Bit One.
 
 Coercion U : Unitary >-> Gate.

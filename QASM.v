@@ -291,13 +291,13 @@ Fixpoint min_circuit_translation_helper (c : Min_Circuit) : Min_Circuit :=
 Eval simpl in (match (hoas_to_min_box bell00 One) with
                | min_box W C => min_circuit_translation_helper C
                end).
-Eval simpl in (match (hoas_to_min_box alice (Qubit ⊗ Qubit)) with
+Eval simpl in (match (hoas_to_min_box alice_for_qasm (Qubit ⊗ Qubit)) with
                | min_box W C => min_circuit_translation_helper C
                end).
-Eval simpl in (match (hoas_to_min_box bob (Bit ⊗ Bit ⊗ Qubit)) with
+Eval simpl in (match (hoas_to_min_box bob_for_qasm (Qubit ⊗ Qubit ⊗ Qubit)) with
                | min_box W C => min_circuit_translation_helper C
                end).
-Eval simpl in (match (hoas_to_min_box teleport Qubit) with
+Eval simpl in (match (hoas_to_min_box teleport_for_qasm One) with
                | min_box W C => min_circuit_translation_helper C
                end).
 
@@ -464,6 +464,16 @@ Fixpoint trans' (c : Min_Circuit) (li : list Var) (n m : nat) : (program * (nat 
              ++ p')
         | _ => []
         end), (d', l'))
+    | measQ   =>
+      let (p', temp) := (trans' c' li (S n) m) in
+      let (d', l') := temp in
+      ((match p with
+        | qubit x =>
+          let a:= (nth x li 0%nat) in
+          ([s_decl (creg (cname n) 1);
+              s_qop (q_meas (a_id (qname a)) (a_id (cname n)))] ++ p')
+        | _ => []
+        end), (d', l'))
     | discard =>
       match p with
       | bit x =>
@@ -514,14 +524,19 @@ Fixpoint trans (c : Min_Circuit) (w : WType) : program :=
 Eval simpl in trans (match (hoas_to_min_box bell00 One) with
                      | min_box W C => min_circuit_translation_helper C
                      end) One.
-Eval simpl in trans (match (hoas_to_min_box alice (Qubit ⊗ Qubit)) with
+Eval simpl in trans (match (hoas_to_min_box alice_for_qasm (Qubit ⊗ Qubit)) with
                      | min_box W C => min_circuit_translation_helper C
                      end) (Qubit ⊗ Qubit).
-Eval simpl in trans (match (hoas_to_min_box bob (Bit ⊗ Bit ⊗ Qubit)) with
+Eval simpl in trans (match (hoas_to_min_box bob_for_qasm (Bit ⊗ Bit ⊗ Qubit)) with
                      | min_box W C => min_circuit_translation_helper C
                      end) (Bit ⊗ Bit ⊗ Qubit).
-Eval simpl in trans (match (hoas_to_min_box teleport Qubit) with
+Eval simpl in trans (match (hoas_to_min_box teleport_for_qasm One) with
                      | min_box W C => min_circuit_translation_helper C
-                     end) Qubit.
-
+                     end) One.
+Eval simpl in hoas_to_min_box teleport_for_qasm One.
 Close Scope circ_scope.
+
+(*
+Extraction Language Haskell.
+Recursive Extraction trans.
+*)

@@ -331,6 +331,30 @@ Definition teleport :=
 Lemma teleport_WT : Typed_Box teleport Qubit Qubit.
 Proof. type_check. Defined.
 
+Definition alice_for_qasm : Box :=
+  box_ qa ⇒ 
+    gate_ (q,a) ← CNOT @qa;
+    gate_ q     ← H @q;
+    gate_ x     ← measQ @q;
+    gate_ y     ← measQ @a;
+    output (x,y).
+
+Definition bob_for_qasm : Box :=
+  box_ xyb ⇒ 
+    let_ ((x,y),b) ← output xyb ; 
+    gate_ (y,b)  ← ctrl σx @(y,b);
+    gate_ (x,b)  ← ctrl σz @(x,b);
+    output b.
+
+Definition teleport_for_qasm :=
+  box_ () ⇒
+    gate_ q    ← init0 @();
+    let_ (a,b) ← unbox bell00 () ;
+    let_ (x,y) ← unbox alice_for_qasm (q,a) ;
+    let_ p     ← unbox bob_for_qasm (x,y,b) ;
+    gate_ po   ← meas @p ;
+    output po.
+
 (* Now simplification is quick! *)
 (* Note, however, that there are still hidden "compose"s in teleport,
    since our pairs all use let bindings and composition. 
