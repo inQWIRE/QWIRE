@@ -849,13 +849,13 @@ Ltac invalid_contradiction :=
   end.
 
 
-Inductive merge_o {A} : option A -> option A -> option A -> Prop :=
+Inductive merge_o {A : Set} : option A -> option A -> option A -> Set :=
 | merge_None : merge_o None None None
 | merge_Some_l : forall w, merge_o (Some w) None (Some w)
 | merge_Some_r : forall w, merge_o None (Some w) (Some w).
 
     
-Inductive merge_ind : OCtx -> OCtx -> OCtx -> Prop :=
+Inductive merge_ind : OCtx -> OCtx -> OCtx -> Set :=
 | m_nil_l : forall Γ, merge_ind ∅ (Valid Γ) (Valid Γ)
 | m_nil_r : forall Γ, merge_ind (Valid Γ) ∅ (Valid Γ)
 | m_cons  : forall o1 o2 o Γ1 Γ2 Γ,
@@ -865,11 +865,7 @@ Inductive merge_ind : OCtx -> OCtx -> OCtx -> Prop :=
 
 Lemma merge_o_ind_fun : forall o1 o2 o,
     merge_o o1 o2 o -> merge_wire o1 o2 = Valid [o].
-Proof.
-  induction 1; auto.
-Qed.
-
-
+Proof. induction 1; auto. Qed.
 
 Lemma merge_ind_fun : forall Γ1 Γ2 Γ,
     merge_ind Γ1 Γ2 Γ ->

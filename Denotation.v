@@ -922,9 +922,9 @@ Proof.
   induction H.
   + reflexivity.
   + rewrite plus_0_r. reflexivity.
-  + inversion H. 
-    - simpl. assumption.
-    - simpl in *. rewrite IHmerge_ind. reflexivity.
+  + inversion m. 
+    - simpl. assumption. 
+    - simpl in *. rewrite IHmerge_ind. inversion m; subst; reflexivity.
     - simpl in *. rewrite IHmerge_ind. apply plus_n_Sm.  
 Qed.      
 
@@ -939,7 +939,7 @@ Proof.
   + intros n H. destruct n; simpl in H; inversion H.
   + auto. 
   + intros n Hi. 
-    inversion H; subst.
+    inversion m; subst.
     - destruct n. simpl in Hi. inversion Hi.
       simpl in *.
       rewrite IHmerge_ind.
@@ -996,15 +996,15 @@ Proof.
     apply valid_valid.
     destruct n.
     simpl.
-    apply merge_ind_fun in H0.
-    destruct H0.
+    apply merge_ind_fun in H.
+    destruct H.
     apply pf_merge.
     simpl.
     edestruct IHmerge_ind with (n := n); try reflexivity.
     simpl in pf_merge.
     rewrite <- pf_merge.
-    apply merge_o_ind_fun in H.
-    rewrite H.
+    apply merge_o_ind_fun in m.
+    rewrite m.
     reflexivity.
 Qed.
 
@@ -1035,14 +1035,14 @@ Proof.
     apply valid_valid.
     destruct n.
     + simpl.
-      apply merge_ind_fun in H0.
-      destruct H0. inversion pf_merge. reflexivity.
+      apply merge_ind_fun in H.
+      destruct H. inversion pf_merge. reflexivity.
     + simpl.
       edestruct IHmerge_ind with (n := n); try reflexivity.
     simpl in pf_merge.
     rewrite <- pf_merge.
-    apply merge_o_ind_fun in H.
-    rewrite H.
+    apply merge_o_ind_fun in m.
+    rewrite m.
     reflexivity.
 Qed.
 
