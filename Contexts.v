@@ -1,4 +1,4 @@
-Require Import Prelim.
+Require Export Prelim.
 
 Open Scope list_scope.
 
@@ -839,7 +839,7 @@ Ltac simplify_invalid := repeat rewrite merge_I_l in *;
 Ltac invalid_contradiction :=
   (* don't want any of the proofs to be used in conclusion *)
   absurd False; [ inversion 1 | ]; 
-  try match goal with
+  repeat match goal with
   | [ H : ?Γ == ?Γ1 ∙ ?Γ2 |- _ ] => destruct H
   end;
   subst; simplify_invalid;
@@ -922,6 +922,104 @@ Proof.
         apply IHΓ1.
         split; [apply valid_valid | auto].
 Qed.
+
+Lemma merge_intersection : forall Γ1 Γ2 Γ3 Γ4,
+  is_valid (Γ1 ⋓ Γ2) ->
+  (Γ1 ⋓ Γ2) = (Γ3 ⋓ Γ4) ->
+  { Γ13 : OCtx & { Γ14 : OCtx & { Γ23 : OCtx & { Γ24 : OCtx &
+  Γ1 == Γ13 ∙ Γ14 /\ Γ2 == Γ23 ∙ Γ24 /\ Γ3 == Γ13 ∙ Γ23 /\ Γ4 == Γ14 ∙ Γ24}}}}.
+Proof.
+  intros Γ1 Γ2 Γ3 Γ4 V M.  
+  assert (H : (Γ1 ⋓ Γ2) == Γ3 ∙ Γ4). constructor; assumption. 
+  clear M V.
+  apply merge_fun_ind in H.
+  remember (Γ1 ⋓ Γ2) as Γ. 
+  generalize dependent Γ2.
+  generalize dependent Γ1.
+  induction H. 
+  - intros Γ1 Γ2.
+    exists ∅, Γ1, ∅, Γ2. 
+    repeat split; try apply valid_valid.
+    destruct Γ1; [invalid_contradiction|apply valid_valid].
+    rewrite merge_nil_l; reflexivity.
+    destruct Γ2; [invalid_contradiction| apply valid_valid].
+    rewrite merge_nil_l; reflexivity.
+    assumption.
+  - intros Γ1 Γ2.
+    exists Γ1, ∅, Γ2, ∅. 
+    repeat split; try apply valid_valid.
+    destruct Γ1; [invalid_contradiction|apply valid_valid].
+    rewrite merge_nil_r; reflexivity.
+    destruct Γ2; [invalid_contradiction| apply valid_valid].
+    rewrite merge_nil_r; reflexivity.
+    assumption.
+  - rename Γ1 into Γ3. rename Γ2 into Γ4. rename o1 into o3. rename o2 into o4.
+    intros Γ1 Γ2 H.
+    destruct Γ1 as [|Γ1]. invalid_contradiction.
+    destruct Γ2 as [|Γ2]. invalid_contradiction.
+    destruct Γ1 as [|o1 Γ1], Γ2 as [|o2 Γ2]. 
+    + inversion H.
+    + rewrite merge_nil_l in H. inversion H. subst.
+      exists ∅, ∅, (Valid (o3 :: Γ3)), (Valid (o4 :: Γ4)).
+      repeat split; try apply valid_valid.      
+      apply merge_ind_fun.
+      constructor; assumption.
+    + rewrite merge_nil_r in H. inversion H. subst.
+      exists (Valid (o3 :: Γ3)), (Valid (o4 :: Γ4)), ∅, ∅.
+      repeat split; try apply valid_valid.      
+      apply merge_ind_fun.
+      constructor; assumption.
+    + assert (M12 : (Valid (o :: Γ) == Valid (o1 :: Γ1) ∙ Valid (o2 :: Γ2))).
+      constructor. apply valid_valid. assumption.
+      clear H.
+      apply merge_fun_ind in M12.
+      inversion M12. subst. clear M12.
+      destruct (IHmerge_ind (Valid Γ1) (Valid Γ2)) as [Γ13 [Γ14 [Γ23 [Γ24 pf]]]].
+      apply merge_ind_fun in H8 as [V M]. assumption.
+      destruct pf as [pf1 [pf2 [pf3 pf4]]].
+      destruct Γ13 as [|Γ13]. invalid_contradiction.
+      destruct Γ14 as [|Γ14]. invalid_contradiction.
+      destruct Γ23 as [|Γ23]. invalid_contradiction.
+      destruct Γ24 as [|Γ24]. invalid_contradiction.
+      destruct pf1 as [_ M1], pf2 as [_ M2], pf3 as [_ M3], pf4 as [_ M4].
+      simpl in *.
+      inversion m; subst; inversion H4; subst.
+      * exists (Valid (None :: Γ13)), (Valid (None :: Γ14)), 
+          (Valid (None :: Γ23)), (Valid (None :: Γ24)).
+        repeat split; try apply valid_valid; simpl.         
+        rewrite <- M1; reflexivity.
+        rewrite <- M2; reflexivity.
+        rewrite <- M3; reflexivity.
+        rewrite <- M4; reflexivity.
+      * exists (Valid (Some w :: Γ13)), (Valid (None :: Γ14)), 
+          (Valid (None :: Γ23)), (Valid (None :: Γ24)).
+        repeat split; try apply valid_valid; simpl.         
+        rewrite <- M1; reflexivity.
+        rewrite <- M2; reflexivity.
+        rewrite <- M3; reflexivity.
+        rewrite <- M4; reflexivity.
+      * exists (Valid (None :: Γ13)), (Valid (None :: Γ14)), 
+          (Valid (Some w :: Γ23)), (Valid (None :: Γ24)).
+        repeat split; try apply valid_valid; simpl.         
+        rewrite <- M1; reflexivity.
+        rewrite <- M2; reflexivity.
+        rewrite <- M3; reflexivity.
+        rewrite <- M4; reflexivity.
+      * exists (Valid (None :: Γ13)), (Valid (Some w :: Γ14)), 
+          (Valid (None :: Γ23)), (Valid (None :: Γ24)).
+        repeat split; try apply valid_valid; simpl.         
+        rewrite <- M1; reflexivity.
+        rewrite <- M2; reflexivity.
+        rewrite <- M3; reflexivity.
+        rewrite <- M4; reflexivity.
+      * exists (Valid (None :: Γ13)), (Valid (None :: Γ14)), 
+          (Valid (None :: Γ23)), (Valid (Some w :: Γ24)).
+        repeat split; try apply valid_valid; simpl.         
+        rewrite <- M1; reflexivity.
+        rewrite <- M2; reflexivity.
+        rewrite <- M3; reflexivity.
+        rewrite <- M4; reflexivity.
+Qed.        
       
 
 (* Validate tactic *)

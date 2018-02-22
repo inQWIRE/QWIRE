@@ -1,7 +1,5 @@
-Require Import Prelim.
 Require Import Datatypes.
-
-Require Import TypeChecking.
+Require Export TypeChecking.
 Import ListNotations.
 Open Scope list_scope.
 

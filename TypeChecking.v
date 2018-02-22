@@ -1,8 +1,4 @@
-Require Import Prelim.
-
-Require Export Contexts.
 Require Export HOASCircuits.
-
 
 (** Projecting out elements of tensors **)
 

@@ -3,7 +3,7 @@ Require Import Complex.
 Require Import Psatz.
 Require Import String.
 
-Require Import Prelim.
+Require Export Prelim.
 
 Open Scope R_scope.
 Open Scope C_scope.

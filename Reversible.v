@@ -452,90 +452,6 @@ destruct m as [|m'].
   - exact (ps1, replace_wire W m' p n' ps2).
 Defined.
 
-Lemma merge_intersection : forall Γ1 Γ2 Γ3 Γ4,
-  is_valid (Γ1 ⋓ Γ2) ->
-  (Γ1 ⋓ Γ2) = (Γ3 ⋓ Γ4) ->
-  { Γ13 : OCtx & { Γ14 : OCtx & { Γ23 : OCtx & { Γ24 : OCtx &
-  Γ1 == Γ13 ∙ Γ14 /\ Γ2 == Γ23 ∙ Γ24 /\ Γ3 == Γ13 ∙ Γ23 /\ Γ4 == Γ14 ∙ Γ24}}}}.
-Proof.
-  intros Γ1 Γ2 Γ3 Γ4 V M.  
-  assert (H : (Γ1 ⋓ Γ2) == Γ3 ∙ Γ4). constructor; assumption. 
-  clear M V.
-  apply merge_fun_ind in H.
-  dependent induction H. 
-  - exists ∅, Γ1, ∅, Γ2. repeat split; type_check. 3: assumption. 
-    destruct Γ1. rewrite merge_I_l in x. inversion x. apply valid_valid.
-    destruct Γ2. rewrite merge_I_r in x. inversion x. apply valid_valid.
-  - exists Γ1, ∅, Γ2, ∅. repeat split; type_check. 3: assumption. 
-    destruct Γ1. rewrite merge_I_l in x. inversion x. apply valid_valid.
-    destruct Γ2. rewrite merge_I_r in x. inversion x. apply valid_valid.
-  - rename Γ3 into Γ4. rename Γ0 into Γ3. rename o1 into o3. rename o2 into o4.
-    destruct Γ1 as [|Γ1]. inversion x. 
-    destruct Γ2 as [|Γ2]. inversion x.
-    destruct Γ1 as [|o1 Γ1], Γ2 as [|o2 Γ2]. 
-    + inversion x.
-    + rewrite merge_nil_l in x. inversion x. subst.
-      exists ∅, ∅, (Valid (o3 :: Γ3)), (Valid (o4 :: Γ4)).
-      repeat split; type_check.
-      apply merge_ind_fun.
-      constructor; assumption.
-    + rewrite merge_nil_r in x. inversion x. subst.
-      exists (Valid (o3 :: Γ3)), (Valid (o4 :: Γ4)), ∅, ∅.
-      repeat split; type_check.
-      apply merge_ind_fun.
-      constructor; assumption.
-    + assert (M12 : (Valid (o :: Γ) == Valid (o1 :: Γ1) ∙ Valid (o2 :: Γ2))).
-      constructor. apply valid_valid. assumption.
-      clear x.
-      apply merge_fun_ind in M12.
-      inversion M12. subst. clear M12.
-      destruct (IHmerge_ind (Valid Γ1) (Valid Γ2)) as [Γ13 [Γ14 [Γ23 [Γ24 pf]]]].
-      apply merge_ind_fun in H7 as [V M]. assumption.
-      destruct pf as [pf1 [pf2 [pf3 pf4]]].
-      destruct Γ13 as [|Γ13]. clear -pf1. invalid_contradiction.
-      destruct Γ14 as [|Γ14]. clear -pf1. invalid_contradiction.
-      destruct Γ23 as [|Γ23]. clear -pf2. invalid_contradiction.
-      destruct Γ24 as [|Γ24]. clear -pf2. invalid_contradiction.
-      inversion m; subst; inversion H3; subst.
-      Transparent merge.
-      * exists (Valid (None :: Γ13)), (Valid (None :: Γ14)), 
-          (Valid (None :: Γ23)), (Valid (None :: Γ24)).
-        repeat split; type_check. 
-        rewrite <- pf_merge2. reflexivity.
-        rewrite <- pf_merge1. reflexivity.
-        rewrite <- pf_merge0. reflexivity.
-        rewrite <- pf_merge. reflexivity.
-      * exists (Valid (Some w :: Γ13)), (Valid (None :: Γ14)), 
-          (Valid (None :: Γ23)), (Valid (None :: Γ24)).
-        repeat split; type_check. 
-        rewrite <- pf_merge2. reflexivity.
-        rewrite <- pf_merge1. reflexivity.
-        rewrite <- pf_merge0. reflexivity.
-        rewrite <- pf_merge. reflexivity.
-      * exists (Valid (None :: Γ13)), (Valid (None :: Γ14)), 
-          (Valid (Some w :: Γ23)), (Valid (None :: Γ24)).
-        repeat split; type_check. 
-        rewrite <- pf_merge2. reflexivity.
-        rewrite <- pf_merge1. reflexivity.
-        rewrite <- pf_merge0. reflexivity.
-        rewrite <- pf_merge. reflexivity.
-      * exists (Valid (None :: Γ13)), (Valid (Some w :: Γ14)), 
-          (Valid (None :: Γ23)), (Valid (None :: Γ24)).
-        repeat split; type_check. 
-        rewrite <- pf_merge2. reflexivity.
-        rewrite <- pf_merge1. reflexivity.
-        rewrite <- pf_merge0. reflexivity.
-        rewrite <- pf_merge. reflexivity.
-      * exists (Valid (None :: Γ13)), (Valid (None :: Γ14)), 
-          (Valid (None :: Γ23)), (Valid (Some w :: Γ24)).
-        repeat split; type_check. 
-        rewrite <- pf_merge2. reflexivity.
-        rewrite <- pf_merge1. reflexivity.
-        rewrite <- pf_merge0. reflexivity.
-        rewrite <- pf_merge. reflexivity.
-      Opaque merge.
-Qed.        
-
 (* Different approach *)
 Fixpoint default_wire (W : WType) : Pat W := 
   match W with
@@ -572,7 +488,8 @@ destruct m1.
   exact (ps1_1, zip_wires).
 Defined.
 
-(* Shares the kth of n qubits to the target qubit *)
+(* Shares the kth of n qubits to the (first) target qubit *)
+(* Returns the identity circuit if k > n *)
 Fixpoint share_to (n k : nat) : Box (S n ⨂ Qubit) (S n ⨂ Qubit) := 
   match n with 
   | 0 => id_circ (* error: n < k *)
