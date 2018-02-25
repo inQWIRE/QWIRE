@@ -1,8 +1,5 @@
-Require Import Arith.
-Require Import Reals.
-Require Import List.
-Require Import FakeR.
-Import ListNotations.
+Require Import Prelim.
+
 Open Scope list_scope.
 
 (*** Context Definitions ***)
@@ -57,10 +54,20 @@ Definition size_OCtx (Γ : OCtx) : nat :=
 Lemma ctx_octx : forall Γ Γ', Valid Γ = Valid Γ' <-> Γ = Γ'.
 Proof. intuition; congruence. Defined.
 
-Inductive SingletonCtx : Var -> WType -> Ctx -> Set :=
+(* Operations on contexts *)
+
+
+
+(**********************)
+(* Singleton Contexts *)
+(**********************)
+
+Inductive SingletonCtx : Var -> WType -> Ctx -> Prop :=
 | SingletonHere : forall w, SingletonCtx 0 w [Some w]
 | SingletonLater : forall x w Γ, SingletonCtx x w Γ -> SingletonCtx (S x) w (None::Γ)
 .
+Inductive SingletonOCtx x w : OCtx -> Prop :=
+| SingletonValid : forall Γ, SingletonCtx x w Γ -> SingletonOCtx x w (Valid Γ).
 
 Fixpoint singleton (x : Var) (W : WType) : Ctx :=
   match x with
@@ -83,6 +90,9 @@ Proof.
   simpl. rewrite IHSingletonCtx. reflexivity.
 Defined.
 
+(***********)
+(* Merging *)
+(***********)
 
 Definition merge_wire (o1 o2 : option WType) : OCtx :=
   match o1, o2 with
@@ -568,26 +578,31 @@ Defined.
 
 
 
+
+Record valid_merge Γ1 Γ2 Γ :=
+  { pf_valid : is_valid Γ
+  ; pf_merge : Γ = Γ1 ⋓ Γ2 }.
+(* pretty bad notation *)
+Notation "Γ == Γ1 ∙ Γ2" := (valid_merge Γ1 Γ2 Γ) (at level 20).
+
+
 (*** Automation ***)
-
-
 
 (* Local check for multiple evars *)
 Ltac has_evars term := 
   match term with
-    | ?L = ?R        => has_evar L; has_evar R
-    | ?L = ?R        => has_evars L
-    | ?L = ?R        => has_evars R
-    | ?Γ1 ⋓ ?Γ2      => has_evar Γ1; has_evar Γ2
-    | ?Γ1 ⋓ ?Γ2      => has_evars Γ1
-    | ?Γ1 ⋓ ?Γ2      => has_evars Γ2
+    | ?L = ?R         => has_evars (L ⋓ R)
+    | ?L == ?R1 ∙ ?R2 => has_evars (L ⋓ R1 ⋓ R2)
+    | ?Γ1 ⋓ ?Γ2       => has_evar Γ1; has_evar Γ2
+    | ?Γ1 ⋓ ?Γ2       => has_evars Γ1
+    | ?Γ1 ⋓ ?Γ2       => has_evars Γ2
   end.
 
 (* Assumes at most one evar *)
 Ltac monoid := 
   try match goal with
   | [ |- ?Γ1 = ?Γ2 ] => has_evar Γ1; symmetry
-  end;
+  end; 
   repeat match goal with
   (* reassociate *)
   | [ |- context[?Γ1 ⋓ ?Γ2 ⋓ ?Γ3 ]] => rewrite <- (merge_assoc Γ1 Γ2 Γ3)
@@ -633,8 +648,10 @@ Proof. intros. inversion H; subst. reflexivity. Qed.
 Lemma test_evar_ctx : forall x y z, x ⋓ y ⋓ z = z ⋓ x ⋓ y.
 Proof. intros. eapply create_evar. 2: monoid. constructor. Qed.
 
-
+(**************************)
 (* Extra helper functions *)
+(**************************)
+
 Definition xor_option {a} (o1 : option a) (o2 : option a) : option a :=
   match o1, o2 with
   | Some a1, None => Some a1
@@ -642,17 +659,76 @@ Definition xor_option {a} (o1 : option a) (o2 : option a) : option a :=
   | _   , _       => None
   end.
 
-
-
-Fixpoint index (ls : OCtx) (i : nat) : option WType :=
-  match ls with
+(* index into an OCtx *)
+Fixpoint index (Γ : OCtx) (i : nat) : option WType :=
+  match Γ with
   | Invalid => None
-  | Valid [] => None
-  | Valid (h :: t) => match i with
-              | O => h
-              | S i => index (Valid t) i
-              end
+  | Valid Γ' => maybe (Γ' !! i) None
   end.
+
+
+Lemma index_invalid : forall i, index Invalid i = None.
+Proof.
+  auto.
+Qed.
+Lemma index_empty : forall i, index ∅ i = None.
+Proof.
+  intros.
+  simpl. 
+  rewrite nth_nil.
+  auto.
+Qed.
+
+Lemma singleton_index : forall x w Γ,
+      SingletonCtx x w Γ ->
+      index Γ x = Some w.
+Proof.
+  induction 1; simpl; auto.
+Qed.
+
+
+(* trim the None's from the end of a Ctx *)
+Fixpoint trim (Γ : Ctx) : Ctx :=
+  match Γ with
+  | [] => []
+  | None :: Γ' => match trim Γ' with
+                  | [] => []
+                  | Γ''  => None :: Γ''
+                  end
+  | Some w :: Γ' => Some w :: trim Γ'
+  end.
+
+Lemma index_trim : forall Γ i,    
+    index (trim Γ) i = index Γ i.
+Proof.
+  induction Γ as [ | [w | ] Γ]; intros i.
+  * simpl. auto.
+  * simpl. destruct i; simpl; auto.
+    apply IHΓ.
+  * simpl. remember (trim Γ) as Γ'.
+    destruct Γ' as [ | o Γ']; auto.
+    + rewrite nth_nil.
+      destruct i; simpl; auto. 
+      simpl in IHΓ. 
+      rewrite <- IHΓ.
+      rewrite nth_nil.
+      auto.
+    + destruct i; simpl; auto.
+      apply IHΓ.
+Qed.
+
+(* empty context *)
+Inductive empty_Ctx : Ctx -> Prop :=
+| empty_nil : empty_Ctx []
+| empty_cons : forall Γ, empty_Ctx Γ -> empty_Ctx (None :: Γ)
+.
+Lemma trim_empty : forall Γ, empty_Ctx Γ -> trim Γ = [].
+Proof.
+  induction 1; simpl; auto.
+  rewrite IHempty_Ctx; auto.
+Qed.
+
+
 
 (* length is the actual length of the underlying list, as opposed to size, which
  * is the number of Some entries in the list 
@@ -663,6 +739,8 @@ Definition length_OCtx (ls : OCtx) : nat :=
   | Valid ls => length ls
   end.
 
+
+(* property of merge *)
 
 Lemma merge_dec Γ1 Γ2 : is_valid (Γ1 ⋓ Γ2) + {Γ1 ⋓ Γ2 = Invalid}.
 Proof.
@@ -683,54 +761,211 @@ Defined.
 
 (* Patterns and Gates *)
 
-Inductive Pat : Set :=
-| unit : Pat
-| qubit : Var -> Pat
-| bit : Var -> Pat
-| pair : Pat -> Pat -> Pat.
+Open Scope circ_scope.
+Inductive Pat : WType ->  Set :=
+| unit : Pat One
+| qubit : Var -> Pat Qubit
+| bit : Var -> Pat Bit
+| pair : forall {W1 W2}, Pat W1 -> Pat W2 -> Pat (W1 ⊗ W2).
+
+
+Fixpoint pat_to_list {w} (p : Pat w) : list Var :=
+  match p with
+  | unit => []
+  | qubit x => [x]
+  | bit x => [x]
+  | pair p1 p2 => pat_to_list p1 ++ pat_to_list p2
+  end.
+
+
+Fixpoint pat_map {w} (f : Var -> Var) (p : Pat w) : Pat w :=
+  match p with
+  | unit => unit
+  | qubit x => qubit (f x)
+  | bit x => bit (f x)
+  | pair p1 p2 => pair (pat_map f p1) (pat_map f p2)
+  end.
 
 (* Not sure if this is the right approach. See below. *)
-Inductive Types_Pat : OCtx -> Pat -> WType -> Set :=
-| types_unit : Types_Pat ∅ unit One
-| types_qubit : forall x Γ, (SingletonCtx x Qubit Γ) -> Types_Pat Γ (qubit x) Qubit
-| types_bit : forall x Γ, (SingletonCtx x Bit Γ) -> Types_Pat Γ (bit x) Bit
-| types_pair : forall Γ1 Γ2 Γ p1 p2 w1 w2,
+Inductive Types_Pat : OCtx -> forall {W : WType}, Pat W -> Set :=
+| types_unit : Types_Pat ∅ unit
+| types_qubit : forall x Γ, SingletonCtx x Qubit Γ -> Types_Pat Γ (qubit x)
+| types_bit : forall x Γ, SingletonCtx x Bit Γ -> Types_Pat Γ (bit x)
+| types_pair : forall Γ1 Γ2 Γ w1 w2 (p1 : Pat w1) (p2 : Pat w2),
         is_valid Γ 
       -> Γ = Γ1 ⋓ Γ2
-      -> Types_Pat Γ1 p1 w1
-      -> Types_Pat Γ2 p2 w2
-      -> Types_Pat Γ (pair p1 p2) (Tensor w1 w2).
+      -> Types_Pat Γ1 p1
+      -> Types_Pat Γ2 p2
+      -> Types_Pat Γ (pair p1 p2).
 
-Lemma pat_ctx_valid : forall Γ p W, Types_Pat Γ p W -> is_valid Γ.
-Proof. intros Γ p W TP. unfold is_valid. inversion TP; eauto. Qed.
+Lemma pat_ctx_valid : forall Γ W (p : Pat W), Types_Pat Γ p -> is_valid Γ.
+Proof. intros Γ W p TP. unfold is_valid. inversion TP; eauto. Qed.
 
 Open Scope circ_scope.
 Inductive Unitary : WType -> Set := 
   | H         : Unitary Qubit 
-  | σx        : Unitary Qubit
-  | σy        : Unitary Qubit
-  | σz        : Unitary Qubit
-  | CNOT      : Unitary (Qubit ⊗ Qubit)
-  | ROT3      : forall (theta phi lambda : FakeR), Unitary Qubit
+  | X         : Unitary Qubit
+  | Y         : Unitary Qubit
+  | Z         : Unitary Qubit
+(*  | R         : C -> Unitary Qubit (* may add. see also T and S *) *)
   | ctrl      : forall {W} (U : Unitary W), Unitary (Qubit ⊗ W) 
   | bit_ctrl  : forall {W} (U : Unitary W), Unitary (Bit ⊗ W) 
   | transpose : forall {W} (U : Unitary W), Unitary W.
 
 
 (* NOT, CNOT and Tofolli notation *)
-Notation NOT := σx.
-(* Notation CNOT := (ctrl σx). *)
-Notation T := (ctrl (ctrl σx)).
+Notation CNOT := (ctrl X).
+Notation CCNOT := (ctrl (ctrl X)).
 
 Inductive Gate : WType -> WType -> Set := 
   | U : forall {W} (u : Unitary W), Gate W W
-  | init0 : Gate One Qubit
-  | init1 : Gate One Qubit
-  | new0 : Gate One Bit
-  | new1 : Gate One Bit
-  | meas : Gate Qubit Bit
-  | measQ : Gate Qubit Qubit (* Nondestructive measurement *)
-  | discard : Gate Bit One.
+  | NOT     : Gate Bit Bit
+  | init0   : Gate One Qubit
+  | init1   : Gate One Qubit
+  | new0    : Gate One Bit
+  | new1    : Gate One Bit
+  | meas    : Gate Qubit Bit
+  | discard : Gate Bit One
+  | assert0 : Gate Qubit One
+  | assert1 : Gate Qubit One.
 
 Coercion U : Unitary >-> Gate.
 Close Scope circ_scope.
+
+
+
+Ltac simplify_invalid := repeat rewrite merge_I_l in *;
+                         repeat rewrite merge_I_r in *.
+  
+Ltac invalid_contradiction :=
+  (* don't want any of the proofs to be used in conclusion *)
+  absurd False; [ inversion 1 | ]; 
+  try match goal with
+  | [ H : ?Γ == ?Γ1 ∙ ?Γ2 |- _ ] => destruct H
+  end;
+  subst; simplify_invalid;
+  match goal with
+  | [ H : is_valid Invalid  |- _ ] => apply (False_rect _ (not_valid H))
+  | [ H : Valid _ = Invalid |- _ ] => inversion H
+  end.
+
+
+Inductive merge_o {A : Set} : option A -> option A -> option A -> Set :=
+| merge_None : merge_o None None None
+| merge_Some_l : forall w, merge_o (Some w) None (Some w)
+| merge_Some_r : forall w, merge_o None (Some w) (Some w).
+
+    
+Inductive merge_ind : OCtx -> OCtx -> OCtx -> Set :=
+| m_nil_l : forall Γ, merge_ind ∅ (Valid Γ) (Valid Γ)
+| m_nil_r : forall Γ, merge_ind (Valid Γ) ∅ (Valid Γ)
+| m_cons  : forall o1 o2 o Γ1 Γ2 Γ,
+    merge_o o1 o2 o ->
+    merge_ind (Valid Γ1) (Valid Γ2) (Valid Γ) ->
+    merge_ind (Valid (o1 :: Γ1)) (Valid (o2 :: Γ2)) (Valid (o :: Γ)).
+
+Lemma merge_o_ind_fun : forall o1 o2 o,
+    merge_o o1 o2 o -> merge_wire o1 o2 = Valid [o].
+Proof. induction 1; auto. Qed.
+
+Lemma merge_ind_fun : forall Γ1 Γ2 Γ,
+    merge_ind Γ1 Γ2 Γ ->
+    Γ == Γ1 ∙ Γ2.
+Proof.
+  induction 1.
+  * split; [apply valid_valid | auto ].
+  * split; [apply valid_valid | rewrite merge_nil_r; auto ].
+  * destruct IHmerge_ind.
+    split; [apply valid_valid | ].
+    simpl. erewrite merge_o_ind_fun; [ | eauto].
+    unfold merge in pf_merge0.
+    rewrite <- pf_merge0.
+    auto.
+Qed.
+
+Lemma merge_o_fun_ind : forall o1 o2 o,
+    merge_wire o1 o2 = Valid [o] -> merge_o o1 o2 o.
+Proof.
+  intros [w1 | ] [w2 | ] [w | ]; simpl; inversion 1; constructor.
+Qed.
+
+Lemma merge_fun_ind : forall Γ1 Γ2 Γ,
+    Γ == Γ1 ∙ Γ2 ->
+    merge_ind Γ1 Γ2 Γ.
+Proof.
+  intros [ | Γ1] [ | Γ2] [ | Γ]; intros; try invalid_contradiction.
+  generalize dependent Γ.
+  generalize dependent Γ2.
+  induction Γ1 as [ | o1 Γ1]; intros Γ2 Γ [pf_valid pf_merge].
+  * simpl in pf_merge. rewrite pf_merge. constructor.
+  * destruct Γ2 as [ | o2 Γ2].
+    + rewrite merge_nil_r in pf_merge.
+      rewrite pf_merge.
+      constructor.
+    + destruct o1 as [w1 | ], o2 as [w2 | ].
+      - simpl in *. invalid_contradiction.
+      - simpl in pf_merge.
+        destruct (merge' Γ1 Γ2) as [ | Γ'] eqn:H_Γ'; [invalid_contradiction | ].
+        rewrite pf_merge.
+        constructor; [apply merge_o_fun_ind; auto | ].
+        apply IHΓ1.
+        split; [apply valid_valid | auto].
+      - simpl in pf_merge.
+        destruct (merge' Γ1 Γ2) as [ | Γ'] eqn:H_Γ'; [invalid_contradiction | ].
+        rewrite pf_merge.
+        constructor; [apply merge_o_fun_ind; auto | ].
+        apply IHΓ1.
+        split; [apply valid_valid | auto].
+      - simpl in pf_merge.
+        destruct (merge' Γ1 Γ2) as [ | Γ'] eqn:H_Γ'; [invalid_contradiction | ].
+        rewrite pf_merge.
+        constructor; [apply merge_o_fun_ind; auto | ].
+        apply IHΓ1.
+        split; [apply valid_valid | auto].
+Qed.
+      
+
+(* Validate tactic *)
+
+
+Ltac validate :=
+  repeat ((*idtac "validate";*) match goal with
+  (* Pattern contexts are valid *)
+  | [H : Types_Pat _ _ |- _ ]    => apply pat_ctx_valid in H
+  (* Solve trivial *)
+  | [|- is_valid (Valid _)]                  => apply valid_valid
+  | [H : is_valid ?Γ |- is_valid ?Γ ] => exact H
+  | [H: is_valid (?Γ1 ⋓ ?Γ2) |- is_valid (?Γ2 ⋓ ?Γ1) ] => rewrite merge_comm; exact H
+  (* Remove nils *)
+  | [|- context [∅ ⋓ ?Γ] ]             => rewrite (merge_nil_l Γ)
+  | [|- context [?Γ ⋓ ∅] ]             => rewrite (merge_nil_r Γ)
+  (* Reduce hypothesis to binary disjointness *)
+  | [H: is_valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) |- _ ] => rewrite (merge_assoc Γ1 Γ2 Γ3) in H
+  | [H: is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) |- _ ]   => apply valid_split in H as [? [? ?]]
+  (* Reduce goal to binary disjointness *)
+  | [|- is_valid (?Γ1 ⋓ (?Γ2 ⋓ ?Γ3)) ] => rewrite (merge_assoc Γ1 Γ2 Γ3)
+  | [|- is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) ]   => apply valid_join; validate
+  end).
+
+
+Ltac goal_evars :=
+  match goal with
+  | [ |- ?g ] => has_evars g
+  end.
+
+
+(* Proofs about merge relation *)
+Ltac solve_merge :=
+  match goal with 
+  | [ |- ?g ] => has_evars g
+  | [ |- _  ] => 
+    repeat match goal with
+    | [ H : _ == _ ∙ _ |- _ ] => destruct H
+    end;
+    subst;
+    repeat match goal with
+    | [ |- _ == _ ∙ _ ] => split
+    | [ |- is_valid _ ] => validate
+    | [ |- _ = _ ] => monoid
+    end
+  end.

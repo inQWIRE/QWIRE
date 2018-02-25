@@ -1,9 +1,7 @@
-Require Import Program.
 Require Import Psatz.
-Require Import Omega.
 Require Import Reals.
-Require Import FakeR.
-Require Import Bool.
+
+Require Export Prelim.
 Require Export Complex.
 Require Export Matrix.
 
@@ -13,23 +11,17 @@ Open Scope R_scope.
 Open Scope C_scope.
 Open Scope matrix_scope.
 
-(* WARNING: Resize should only be used where m = m' and n = n'.
-   It should be followed with a proof of this: resize_safe. *) 
-Definition resize (m n m' n' : nat) (A : Matrix m n) : Matrix m' n' := A.
-Definition resize_safe (m n m' n' : nat) : Prop := m = m' /\ n = n'.
-Transparent resize.
-
 Definition ket0 : Matrix 2 1:= 
   fun x y => match x, y with 
-          | 0, 0 => 1
-          | 1, 0 => 0
-          | _, _ => 0
+          | 0, 0 => C1
+          | 1, 0 => C0
+          | _, _ => C0
           end.
 Definition ket1 : Matrix 2 1 := 
   fun x y => match x, y with 
-          | 0, 0 => 0
-          | 1, 0 => 1
-          | _, _ => 0
+          | 0, 0 => C0
+          | 1, 0 => C1
+          | _, _ => C0
           end.
 
 Definition ket (x : nat) : Matrix 2 1 := if x =? 0 then ket0 else ket1.
@@ -71,56 +63,58 @@ Definition pauli_z : Matrix 2 2 := fun x y => if (x =? y) && (x <? 2)
                                            then (-1) ^ x * Ci else 0.
 *)
 
-Definition pauli_x : Matrix 2 2 := 
-  (fun x y => match x, y with
-          | 0, 0 => 0
-          | 0, 1 => 1
-          | 1, 0 => 1
-          | 1, 1 => 0
-          | _, _ => 0
-          end).
+Definition σx : Matrix 2 2 := 
+  fun x y => match x, y with
+          | 0, 1 => C1
+          | 1, 0 => C1
+          | _, _ => C0
+          end.
 
-Definition pauli_y : Matrix 2 2 := 
-  (fun x y => match x, y with
+Definition σy : Matrix 2 2 := 
+  fun x y => match x, y with
           | 0, 1 => -Ci
           | 1, 0 => Ci
-          | _, _ => 0
-          end).
+          | _, _ => C0
+          end.
 
-Definition pauli_z : Matrix 2 2 := 
-  (fun x y => match x, y with
-          | 0, 0 => 1
-          | 1, 1 => -1
-          | _, _ => 0
-          end).
+Definition σz : Matrix 2 2 := 
+  fun x y => match x, y with
+          | 0, 0 => C1
+          | 1, 1 => -C1
+          | _, _ => C0
+          end.
   
 Definition control {n : nat} (A : Matrix n n) : Matrix (2*n) (2*n) :=
-  (fun x y => if (x <? n) && (y <? n) then (Id n) x y 
-          else if (n <=? x) && (n <=? y) then A (x-n)%nat (y-n)%nat 
-          else 0).
+  fun x y => if (x <? n) && (y =? x) then 1 else 
+          if (n <=? x) && (n <=? y) then A (x-n)%nat (y-n)%nat else 0.
 
 (* Definition cnot := control pauli_x. *)
 (* Direct definition makes our lives easier *)
 Definition cnot : Matrix 4 4 :=
   fun x y => match x, y with 
-          | 0, 0 => 1
-          | 1, 1 => 1
-          | 2, 3 => 1
-          | 3, 2 => 1
-          | _, _ => 0
+          | 0, 0 => C1
+          | 1, 1 => C1
+          | 2, 3 => C1
+          | 3, 2 => C1
+          | _, _ => C0
           end.          
 
+Lemma cnot_eq : cnot = control σx.
+Proof.
+  unfold cnot, control, σx.
+  solve_matrix.
+Qed.
 
 (* Swap Matrices *)
 
 Definition swap : Matrix 4 4 :=
-  (fun x y => match x, y with
-          | 0, 0 => 1
-          | 1, 2 => 1
-          | 2, 1 => 1
-          | 3, 3 => 1
-          | _, _ => 0
-          end).
+  fun x y => match x, y with
+          | 0, 0 => C1
+          | 1, 2 => C1
+          | 2, 1 => C1
+          | 3, 3 => C1
+          | _, _ => C0
+          end.
 
 (* Rotation Matrices (theta, phi, lambda) := Rz(phi) Ry(theta) Rz(lambda) *)
 
@@ -137,7 +131,33 @@ Definition rotation (theta phi lambda : FakeR) : Matrix 2 2 :=
         end).
 
 (* Does this overwrite the other Hint DB M? *)
-Hint Unfold ket0 ket1 hadamard pauli_x pauli_y pauli_z control cnot swap : M_db.
+Hint Unfold ket0 ket1 hadamard σx σy σz control cnot swap : M_db.
+
+(* Lemmas *)
+Lemma MmultX1 : σx × |1⟩ = |0⟩. Proof. solve_matrix. Qed.
+Lemma Mmult1X : ⟨1| × σx = ⟨0|. Proof. solve_matrix. Qed.
+Lemma MmultX0 : σx × |0⟩ = |1⟩. Proof. solve_matrix. Qed.
+Lemma Mmult0X : ⟨0| × σx = ⟨1|. Proof. solve_matrix. Qed.
+Hint Rewrite Mmult0X Mmult1X MmultX0 MmultX1 : M_db.
+
+Lemma swap_swap : swap × swap = Id 4.
+Proof.
+  solve_matrix.
+  destruct (x =? y); auto.
+Qed.
+
+Lemma swap_swap_r : forall n A, WF_Matrix n 4 A ->
+      A × swap × swap = A.
+Proof.
+  intros.
+  rewrite Mmult_assoc.
+  rewrite swap_swap. 
+  apply Mmult_1_r.
+  auto.
+Qed.
+
+Hint Rewrite swap_swap swap_swap_r using (auto 100 with wf_db): M_db.
+
 
 Lemma double_mult : forall (n : nat), (n + n = 2 * n)%nat. Proof. intros. omega. Qed.
 Lemma pow_two_succ_l : forall x, (2^x * 2 = 2 ^ (x + 1))%nat.
@@ -169,9 +189,9 @@ Ltac unify_pows_two :=
 Fixpoint swap_to_0_aux (n i : nat) {struct i} : Matrix (2^n) (2^n) := 
   match i with
   | O => swap ⊗ Id (2^(n-2))
-  | S i' =>  (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2))) × (* swap i-1 with i *)
+  | S i' =>  (Id (2^i) ⊗ swap ⊗ Id (2^(n-i-2))) × (* swap i-1 with i *)
             swap_to_0_aux n i' × 
-            (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2))) (* swap i-1 with 0 *)
+            (Id (2^i) ⊗ swap ⊗ Id (2^(n-i-2))) (* swap i-1 with 0 *)
   end.
 
 (* Requires: i < n *)
@@ -180,7 +200,8 @@ Definition swap_to_0 (n i : nat) : Matrix (2^n) (2^n) :=
   | O => Id (2^n) 
   | S i' => swap_to_0_aux n i'
   end.
- 
+  
+(* Swapping qubits i and j in an n-qubit system, where i < j *) 
 (* Requires i < j, j < n *)
 Fixpoint swap_two_aux (n i j : nat) : Matrix (2^n) (2^n) := 
   match i with 
@@ -188,6 +209,7 @@ Fixpoint swap_two_aux (n i j : nat) : Matrix (2^n) (2^n) :=
   | S i' => Id 2 ⊗ swap_two_aux (n-1) (i') (j-1)
   end.
 
+(* Swapping qubits i and j in an n-qubit system *)
 (* Requires i < n, j < n *)
 Definition swap_two (n i j : nat) : Matrix (2^n) (2^n) :=
   if i =? j then Id (2^n) 
@@ -199,13 +221,9 @@ Definition swap_two (n i j : nat) : Matrix (2^n) (2^n) :=
 Fixpoint move_to_0_aux (n i : nat) {struct i}: Matrix (2^n) (2^n) := 
   match i with
   | O => swap ⊗ Id (2^(n-2))
-  | S i' =>  (resize (2^i' * 4 * 2^(n-i'-2)) (2^i' * 4 * 2^(n-i'-2)) (2^n) (2^n) 
-             (Id (2^i') ⊗ swap ⊗ Id (2^(n-i'-2)))) × swap_to_0_aux n i
+  | S i' => (move_to_0_aux n i') × (Id (2^i) ⊗ swap ⊗ Id (2^(n-i-2))) 
+                  
   end.
-
-Lemma move_to_0_aux_safe : forall (i' n : nat), (i'+2 < n)%nat -> 
-  resize_safe (2^i' * 4 * 2^(n-i'-2)) (2^i' * 4 * 2^(n-i'-2)) (2^n) (2^n).
-Proof. intros. unfold resize_safe. split; unify_pows_two. Qed.
              
 (* Requires: i < n *)
 Definition move_to_0 (n i : nat) : Matrix (2^n) (2^n) := 
@@ -221,16 +239,6 @@ Fixpoint move_to (n i k : nat) : Matrix (2^n) (2^n) :=
   | O => move_to_0 n i 
   | S k' => Id 2 ⊗ move_to (n-1) (i-1) (k')
   end.
-
-Lemma swap_two_base : swap_two 2 1 0 = swap.
-Proof. unfold swap_two. simpl. apply kron_1_r. Qed.
-
-Lemma swap_second_two : swap_two 3 1 2 = Id 2 ⊗ swap.
-Proof. unfold swap_two.
-       simpl.
-       rewrite kron_1_r.
-       reflexivity.
-Qed.
 
 (*
 Eval compute in ((swap_two 1 0 1) 0 0)%nat.
@@ -249,9 +257,9 @@ Lemma WF_braket1 : WF_Matrix 2 2 |1⟩⟨1|. Proof. show_wf. Qed.
 Hint Resolve WF_bra0 WF_bra1 WF_ket0 WF_ket1 WF_braket0 WF_braket1 : wf_db.
 
 Lemma WF_hadamard : WF_Matrix 2 2 hadamard. Proof. show_wf. Qed.
-Lemma WF_pauli_x : WF_Matrix 2 2 pauli_x. Proof. show_wf. Qed.
-Lemma WF_pauli_y : WF_Matrix 2 2 pauli_y. Proof. show_wf. Qed.
-Lemma WF_pauli_z : WF_Matrix 2 2 pauli_z. Proof. show_wf. Qed.
+Lemma WF_σx : WF_Matrix 2 2 σx. Proof. show_wf. Qed.
+Lemma WF_σy : WF_Matrix 2 2 σy. Proof. show_wf. Qed.
+Lemma WF_σz : WF_Matrix 2 2 σz. Proof. show_wf. Qed.
 Lemma WF_cnot : WF_Matrix 4 4 cnot. Proof. show_wf. Qed.
 Lemma WF_swap : WF_Matrix 4 4 swap. Proof. show_wf. Qed.
 
@@ -279,20 +287,13 @@ Lemma WF_control : forall (n m : nat) (U : Matrix n n),
 Proof.
   intros n m U E WFU. subst.
   unfold control, WF_Matrix in *.
-  intros x y [Hx | Hy]; simpl.
-  + replace (x <? n) with false by (symmetry; apply Nat.ltb_ge; omega). simpl.
-    rewrite WFU.
-    * destruct (n <=? x), (n <=? y); reflexivity.
-    * left. omega. 
-  + replace (y <? n) with false by (symmetry; apply Nat.ltb_ge; omega). 
-    rewrite andb_false_r.
-    rewrite WFU.
-    * destruct (n <=? x), (n <=? y); reflexivity.
-    * right. omega.
+  intros x y [Hx | Hy];
+  bdestruct (x <? n); bdestruct (y =? x); bdestruct (n <=? x); bdestruct (n <=? y);
+    simpl; try reflexivity; try omega. 
+  all: rewrite WFU; [reflexivity|omega].
 Qed.
 
-Hint Resolve WF_hadamard WF_pauli_x WF_pauli_y WF_pauli_z WF_cnot WF_swap 
-             WF_rotation WF_control : wf_db.
+Hint Resolve WF_hadamard WF_σx WF_σy WF_σz WF_cnot WF_swap WF_control : wf_db.
 
 (** Unitaries are unitary **)
 
@@ -310,48 +311,49 @@ Proof.
   show_wf.
   unfold Mmult, Id.
   prep_matrix_equality.
-  destruct x as [| [|x]]; destruct y as [|[|y]]; try Csolve.
-  simpl.
-  replace ((S (S x) <? 2)) with (false) by reflexivity.
+  autounfold with M_db.
+  destruct x as [| [|x]]; destruct y as [|[|y]]; simpl; autorewrite with C_db; 
+    try reflexivity.
+  replace ((S (S x) <? 2)) with false by reflexivity.
   rewrite andb_false_r.
-  clra.
+  reflexivity.
 Qed.
 
-Lemma σx_unitary : is_unitary pauli_x.
+Lemma σx_unitary : is_unitary σx.
 Proof. 
   split.
   show_wf.
   unfold Mmult, Id.
   prep_matrix_equality.
-  destruct x as [| [|x]]; destruct y as [|[|y]]; try Csolve.
+  destruct x as [| [|x]]; destruct y as [|[|y]]; try clra.
   simpl.
-  replace ((S (S x) <? 2)) with (false) by reflexivity.
+  replace ((S (S x) <? 2)) with false by reflexivity.
   rewrite andb_false_r.
   clra.
 Qed.
 
-Lemma σy_unitary : is_unitary pauli_y.
+Lemma σy_unitary : is_unitary σy.
 Proof.
   split.
   show_wf.
   unfold Mmult, Id.
   prep_matrix_equality.
-  destruct x as [| [|x]]; destruct y as [|[|y]]; try Csolve.
+  destruct x as [| [|x]]; destruct y as [|[|y]]; try clra.
   simpl.
-  replace ((S (S x) <? 2)) with (false) by reflexivity.
+  replace ((S (S x) <? 2)) with false by reflexivity.
   rewrite andb_false_r.
   clra.
 Qed.
 
-Lemma σz_unitary : is_unitary pauli_z.
+Lemma σz_unitary : is_unitary σz.
 Proof.
   split.
   show_wf.
   unfold Mmult, Id.
   prep_matrix_equality.
-  destruct x as [| [|x]]; destruct y as [|[|y]]; try Csolve.
+  destruct x as [| [|x]]; destruct y as [|[|y]]; try clra.
   simpl.
-  replace ((S (S x) <? 2)) with (false) by reflexivity.
+  replace ((S (S x) <? 2)) with false by reflexivity.
   rewrite andb_false_r.
   clra.
 Qed.
@@ -458,11 +460,13 @@ Proof.
       replace (2 ^ n)%nat with (4 * 2^(n-2))%nat by unify_pows_two.
       auto with wf_db.
     - specialize Nat.pow_nonzero; intros NZ.
-      replace (2^n)%nat with  (2 ^ i * 4 * 2 ^ (n - i - 2))%nat by unify_pows_two.
+      replace (2^n)%nat with  (2 ^ (i+1) * 4 * 2 ^ (n - i - 3))%nat by unify_pows_two.    
       auto with wf_db.
+      replace (2 ^ i + (2 ^ i + 0))%nat with (2 ^ (i + 1))%nat by unify_pows_two.
+      replace (n - S i - 2)%nat with (n - i - 3)%nat by omega. 
       apply WF_mult; auto with wf_db.
       apply WF_mult; auto with wf_db.
-      replace (2 ^ i * 4 * 2 ^ (n - i - 2))%nat with (2^n)%nat by unify_pows_two.
+      replace (2 ^ (i + 1) * 4 * 2 ^ (n - i - 3))%nat with (2^n)%nat by unify_pows_two.
       apply IHi.
       omega.
   + induction i; simpl.
@@ -517,19 +521,19 @@ Proof.
   repeat (try destruct x; try destruct y; try clra; trivial).
 Qed.
 
-Lemma pauli_x_sa : pauli_x† = pauli_x.
+Lemma σx_sa : σx† = σx.
 Proof. 
   prep_matrix_equality. 
   repeat (try destruct x; try destruct y; try clra; trivial).
 Qed.
 
-Lemma pauli_y_sa : pauli_y† = pauli_y.
+Lemma σy_sa : σy† = σy.
 Proof.
   prep_matrix_equality. 
   repeat (try destruct x; try destruct y; try clra; trivial).
 Qed.
 
-Lemma pauli_z_sa : pauli_z† = pauli_z.
+Lemma σz_sa : σz† = σz.
 Proof.
   prep_matrix_equality. 
   repeat (try destruct x; try destruct y; try clra; trivial).
@@ -571,7 +575,7 @@ Qed.
 Lemma braket0_sa : |0⟩⟨0|† = |0⟩⟨0|. Proof. mlra. Qed.
 Lemma braket1_sa : |1⟩⟨1|† = |1⟩⟨1|. Proof. mlra. Qed.
 
-Hint Rewrite hadamard_sa pauli_x_sa pauli_y_sa pauli_z_sa cnot_sa swap_sa 
+Hint Rewrite hadamard_sa σx_sa σy_sa σz_sa cnot_sa swap_sa 
              braket1_sa braket0_sa : M_db.
 
 Hint Rewrite control_sa using (autorewrite with M_db; reflexivity) : M_db.
@@ -583,20 +587,26 @@ Hint Rewrite control_sa using (autorewrite with M_db; reflexivity) : M_db.
 In operator language, a density operator is a positive semidefinite, hermitian 
 operator of trace 1 acting on the state space. A density operator describes 
 a pure state if it is a rank one projection. Equivalently, a density operator ρ 
-describes a pure state if and only if ρ = ρ ^ 2 *)
+describes a pure state if and only if ρ = ρ ^ 2 
+Hence a quantum state state should be:
+  positive-semidefinite = z†Az >= 0 for any column vector z. 
+  hermitian = self-adjoint
+  trace 1
+*)
 
 (* We need an additional restriction that trace = 1 to
    exclude the identity and zero matrices. *)
 
 Notation Density n := (Matrix n n) (only parsing). 
 
+(* don't have positive-semidefinite yet *)
 Definition Pure_State {n} (ρ : Density n) : Prop := 
-  WF_Matrix n n ρ /\ trace ρ = 1 /\ ρ = ρ × ρ.
+  WF_Matrix n n ρ /\ trace ρ = 1 /\ ρ = ρ†  /\ ρ = ρ × ρ.
 
 Lemma pure0 : Pure_State |0⟩⟨0|. 
-Proof. split; [|split]; [auto with wf_db| clra |mlra]. Qed.
+Proof. unfold Pure_State. repeat split. auto with wf_db. clra. mlra. mlra. Qed.
 Lemma pure1 : Pure_State |1⟩⟨1|. 
-Proof. split; [|split]; [auto with wf_db| clra |mlra]. Qed.
+Proof. unfold Pure_State. repeat split. auto with wf_db. clra. mlra. mlra. Qed.
 
 (* Wiki:
 For a finite-dimensional function space, the most general density operator 
@@ -609,7 +619,7 @@ where the coefficients p_j are non-negative and add up to one. *)
 Inductive Mixed_State {n} : (Matrix n n) -> Prop :=
 | Pure_S : forall ρ, Pure_State ρ -> Mixed_State ρ
 | Mix_S : forall (p : R) ρ1 ρ2, 0 < p < 1 -> Mixed_State ρ1 -> Mixed_State ρ2 ->
-                                        Mixed_State (p .* ρ1 .+ (1-p)%R .* ρ2).  
+                                       Mixed_State (p .* ρ1 .+ (1-p)%R .* ρ2).  
 
 Lemma WF_Pure : forall {n} (ρ : Density n), Pure_State ρ -> WF_Matrix n n ρ.
 Proof. unfold Pure_State. intuition. Qed.
@@ -629,6 +639,16 @@ Definition WF_Superoperator {m n} (f : Superoperator m n) :=
 
 Definition super {m n} (M : Matrix m n) : Superoperator n m := fun ρ => 
   M × ρ × M†.
+
+Lemma super_I : forall n ρ,
+      WF_Matrix n n ρ ->
+      super ('I_n) ρ = ρ.
+Proof.
+  intros.
+  unfold super.
+  autorewrite with M_db.
+  reflexivity.
+Qed.
 
 Definition compose_super {m n p} (g : Superoperator n p) (f : Superoperator m n)
                       : Superoperator m p :=
@@ -654,13 +674,13 @@ Proof.
   unfold sum_super. 
   set (wf_f' := wf_f _ pf_ρ).
   set (wf_g' := wf_g _ pf_ρ).
-  apply (Mix_S (1/2) (f ρ) (g ρ)); auto. Rsolve.
+  apply (Mix_S (1/2) (f ρ) (g ρ)); auto. 
+  lra.
 Qed.
-  
 
-(* To do: correctness conditions for density matrices and superoperators *)
-(* NOTE: I think these all need fixing *)
-
+Definition SZero {n} : Superoperator n n := fun ρ => Zero n n.
+Definition Splus {m n} (S T : Superoperator m n) : Superoperator m n :=
+  fun ρ => S ρ .+ T ρ.
 
 Definition new0_op : Superoperator 1 2 := super |0⟩.
 Definition new1_op : Superoperator 1 2 := super |1⟩.
@@ -670,20 +690,23 @@ Definition discard_op : Superoperator 2 1 := fun ρ => super ⟨0| ρ .+ super �
 Lemma pure_unitary : forall {n} (U ρ : Matrix n n), 
   is_unitary U -> Pure_State ρ -> Pure_State (super U ρ).
 Proof.
-  intros n U ρ [WFU H] [WFρ [trP P]].
+  intros n U ρ [WFU H] [WFρ [trP [SA SQ]]].
   unfold Pure_State, is_unitary, super in *.
-  split; [|split].
-  + auto with wf_db.
+  intuition.
   + (* I don't actually know how to prove this *)
-    rewrite P.
-    autounfold with M_db; simpl.
+    rewrite SQ.
+    autounfold with M_db; simpl.    
     admit.
+  + autorewrite with M_db.
+    rewrite <- SA.
+    rewrite Mmult_assoc.
+    reflexivity.
   + remember (U × ρ × (U) † × (U × ρ × (U) †)) as rhs.
-    rewrite P.
+    rewrite SQ.
     replace (ρ × ρ) with (ρ × Id n × ρ) by (rewrite Mmult_1_r; trivial).
     rewrite <- H.
     rewrite Heqrhs.
-    repeat rewrite Mmult_assoc. (* Admitted lemma *)
+    repeat rewrite Mmult_assoc. 
     reflexivity.
 Admitted.
 
@@ -703,12 +726,11 @@ Definition dm12 : Matrix 2 2 :=
           end).
 
 Lemma pure_dm12 : Pure_State dm12. Proof.
-  split; [|split].
+  unfold Pure_State. repeat split.
   show_wf.
-  unfold dm12; simpl; clra. 
-  unfold dm12, conj_transpose, super, Mmult.
-  prep_matrix_equality.
-  destruct x as [| [|x]]; destruct y as [|[|y]]; clra.
+  unfold dm12; simpl; clra.  
+  unfold dm12; solve_matrix.
+  unfold dm12; solve_matrix.
 Qed.
 
 Lemma mixed_meas_12 : Mixed_State (meas_op dm12).
@@ -718,9 +740,9 @@ Proof. unfold meas_op.
        replace (super |1⟩⟨1| dm12) with ((1 - 1/2)%R .* |1⟩⟨1|) 
          by (unfold dm12, super; mlra).
        apply Mix_S.
-       lra.
-       constructor; split; [|split]; [auto with wf_db|clra|mlra].
-       constructor; split; [|split]; [auto with wf_db|clra|mlra].
+       lra.       
+       constructor; apply pure0.
+       constructor; apply pure1.
 Qed.
 
 Lemma mixed_unitary : forall {n} (U ρ : Matrix n n), 
@@ -743,20 +765,42 @@ Proof.
   intros.
   induction H.
   + unfold Pure_State in H; intuition.
-  + (* Needs two lemmas we didn't prove in Matrix.v *)
-    Lemma trace_plus_dist : forall n (A B : Square n), trace (A .+ B) = trace A + trace B. 
-    Admitted.
-    Lemma trace_mult_dist : forall n p (A : Square n), trace (p .* A) = p * trace A. 
-    Admitted.
-    rewrite trace_plus_dist.
+  + rewrite trace_plus_dist.
     rewrite 2 trace_mult_dist.
     rewrite IHMixed_State1, IHMixed_State2.
     clra.
 Qed.
 
-Lemma pure_state_id1 : forall (ρ : Square 1), Pure_State ρ -> ρ = Id 1.
+Lemma mixed_state_diag_real : forall {n} (ρ : Density n) i , Mixed_State ρ -> 
+                                                        snd (ρ i i) = 0.
 Proof.
-  intros ρ [WFP [TRP PPP]].
+  intros.
+  induction H.
+  + unfold Pure_State in H; intuition. 
+    assert (ρ i i = ρ † i i) by (rewrite <- H1; reflexivity).
+    unfold conj_transpose, Cconj in H2.
+    replace (ρ i i) with (fst (ρ i i), snd (ρ i i)) in H2 by clra. 
+    simpl in H2.
+    inversion H2.
+    lra.
+  + simpl.
+    rewrite IHMixed_State1, IHMixed_State2.
+    repeat rewrite Rmult_0_r, Rmult_0_l.
+    lra.
+Qed.
+
+Lemma pure_id1 : Pure_State ('I_ 1).
+Proof.
+  unfold Pure_State. repeat split. 
+  auto with wf_db. 
+  clra. 
+  autorewrite with M_db; reflexivity. 
+  autorewrite with M_db; reflexivity. 
+Qed.
+
+Lemma pure_dim1 : forall (ρ : Square 1), Pure_State ρ -> ρ = 'I_ 1.
+Proof.
+  intros ρ [WFP [TRP [SA PPP]]].
   prep_matrix_equality.
   destruct x.
   destruct y.  
@@ -767,13 +811,161 @@ Proof.
   + rewrite WFP, WF_Id; trivial; omega.
 Qed.    
 
-Lemma mixed_state_id1 : forall (ρ : Square 1), Mixed_State ρ -> ρ = Id 1.
+Lemma mixed_dim1 : forall (ρ : Square 1), Mixed_State ρ -> ρ = 'I_ 1.
 Proof.
   intros.  
   induction H.
-  + apply pure_state_id1; trivial.
+  + apply pure_dim1; trivial.
   + rewrite IHMixed_State1, IHMixed_State2.
     prep_matrix_equality.
     clra.
 Qed.  
+
+(************
+ *Automation*
+ ************)
+
+(* For when autorewrite needs some extra help *)
+
+Ltac Msimpl := 
+  repeat match goal with 
+  | [ |- context[(?A ⊗ ?B)†]]    => let H := fresh "H" in 
+                                  specialize (kron_conj_transpose _ _ _ _ A B) as H;
+                                  simpl in H; rewrite H; clear H
+  | [ |- context[(control ?U)†]] => let H := fresh "H" in 
+                                  specialize (control_sa _ U) as H;
+                                  simpl in H; rewrite H; 
+                                  [clear H | Msimpl; reflexivity]
+  | [|- context[(?A ⊗ ?B) × (?C ⊗ ?D)]] => 
+                                  let H := fresh "H" in 
+                                  specialize (kron_mixed_product _ _ _ _ _ _ A B C D);
+                                  intros H; simpl in H; rewrite H; clear H
+  | _                         => autorewrite with M_db
+  end.
+
+(**************
+ *Swap testing*
+ **************)
+
+Lemma swap_spec : forall (q q' : Matrix 2 1), WF_Matrix 2 1 q -> 
+                                         WF_Matrix 2 1 q' ->
+                                         swap × (q ⊗ q') = q' ⊗ q.
+Proof.
+  intros q q' WF WF'.
+  solve_matrix.
+  - destruct y. clra. 
+    rewrite WF by omega. 
+    rewrite (WF' O (S y)) by omega.
+    clra.
+  - destruct y. clra. 
+    rewrite WF by omega. 
+    rewrite (WF' O (S y)) by omega.
+    clra.
+  - destruct y. clra. 
+    rewrite WF by omega. 
+    rewrite (WF' 1%nat (S y)) by omega.
+    clra.
+  - destruct y. clra. 
+    rewrite WF by omega. 
+    rewrite (WF' 1%nat (S y)) by omega.
+    clra.
+Qed.  
+
+Lemma kron_assoc : forall (m n o p q r : nat) (A : Matrix m n) (B : Matrix o p) 
+  (C : Matrix q r), (A ⊗ B ⊗ C) = A ⊗ (B ⊗ C).
+Admitted.
+
+Lemma swap_to_0_test_24 : forall (q0 q1 q2 q3 : Matrix 2 1), 
+  WF_Matrix 2 1 q0 -> WF_Matrix 2 1 q1 -> WF_Matrix 2 1 q2 -> WF_Matrix 2 1 q3 ->
+  swap_to_0 4 2 × (q0 ⊗ q1 ⊗ q2 ⊗ q3) = (q2 ⊗ q1 ⊗ q0 ⊗ q3). 
+Proof.
+  intros q0 q1 q2 q3 WF0 WF1 WF2 WF3.
+  unfold swap_to_0, swap_to_0_aux.
+  repeat rewrite Mmult_assoc.
+  rewrite (kron_assoc _ _ _ _ _ _ q0 q1).
+  rewrite kron_mixed_product.
+  rewrite (kron_mixed_product _ _ _ _ _ _ ('I_ (2^1)) swap).
+  rewrite swap_spec by assumption.
+  Msimpl.
+  rewrite (kron_assoc _ _ _ _ _ _ q0).
+  rewrite (kron_assoc _ _ _ _ _ _ q2 q1).
+  setoid_rewrite <- (kron_assoc _ _ _ _ _ _ q0 q2 (q1 ⊗ q3)).
+  simpl.
+  setoid_rewrite (kron_mixed_product _ _ _ _ _ _ swap ('I_4) (q0 ⊗ q2) (q1 ⊗ q3)).
+  rewrite swap_spec by assumption.
+  Msimpl.
+  rewrite (kron_assoc _ _ _ _ _ _ q2 q0).
+  setoid_rewrite <- (kron_assoc _ _ _ _ _ _ q0 q1 q3).
+  setoid_rewrite (kron_assoc _ _ _ _ _ _ ('I_2)).  
+  setoid_rewrite (kron_mixed_product _ _ _ _ _ _ ('I_2) (swap ⊗ 'I_2) q2 _).
+  setoid_rewrite (kron_mixed_product _ _ _ _ _ _ swap ('I_2) _ _).
+  Msimpl.
+  rewrite swap_spec by assumption.
+  repeat setoid_rewrite kron_assoc.
+  reflexivity.
+Qed.
+
+(* To define for general lemma *)
+Parameter big_kron : forall (m n : nat) (l : list (Matrix m n)), 
+  Matrix (m^(length l)) (n^(length l)).
+
+Lemma swap_to_0_spec : forall (q q0 : Matrix 2 1) (n k : nat) (l1 l2 : list (Matrix 2 1)), 
+   length l1 = (k - 1)%nat ->
+   length l2 = (n - k - 2)%nat ->   
+   @Mmult (2^n) (2^n) 1 (swap_to_0 n k) (big_kron 2 1 ([q0] ++ l1 ++ [q] ++ l2)) = 
+     big_kron 2 1 ([q] ++ l1 ++ [q0] ++ l2).
+Admitted.
+
+Lemma swap_two_base : swap_two 2 1 0 = swap.
+Proof. unfold swap_two. simpl. apply kron_1_r. Qed.
+
+Lemma swap_second_two : swap_two 3 1 2 = Id 2 ⊗ swap.
+Proof. unfold swap_two.
+       simpl.
+       rewrite kron_1_r.
+       reflexivity.
+Qed.
+
+Lemma swap_0_2 : swap_two 3 0 2 = ('I_2 ⊗ swap) × (swap ⊗ 'I_2) × ('I_2 ⊗ swap).
+Proof.
+  unfold swap_two.
+  simpl.
+  Msimpl.
+  reflexivity.
+Qed.
+
+Lemma swap_two_spec : forall (q q0 : Matrix 2 1) (n0 n1 n2 n k : nat) (l0 l1 l2 : list (Matrix 2 1)), 
+   length l0 = n0 ->
+   length l1 = n1 ->
+   length l2 = n2 ->   
+   n = (n0 + n1 + n2 + 2)%nat ->
+   @Mmult (2^n) (2^n) 1 
+     (swap_two n n0 (n0+n1+1)) (big_kron 2 1 (l0 ++ [q0] ++ l1 ++ [q] ++ l2)) = 
+     big_kron 2 1 (l0 ++ [q] ++ l1 ++ [q0] ++ l2).
+Admitted.
+
+Lemma move_to_0_test_24 : forall (q0 q1 q2 q3 : Matrix 2 1), 
+  WF_Matrix 2 1 q0 -> WF_Matrix 2 1 q1 -> WF_Matrix 2 1 q2 -> WF_Matrix 2 1 q3 ->
+  move_to_0 4 2 × (q0 ⊗ q1 ⊗ q2 ⊗ q3) = (q2 ⊗ q0 ⊗ q1 ⊗ q3). 
+Proof.
+  intros q0 q1 q2 q3 WF0 WF1 WF2 WF3.
+  unfold move_to_0, move_to_0_aux.
+  repeat rewrite Mmult_assoc.
+  rewrite (kron_assoc _ _ _ _ _ _ q0 q1).
+  simpl.
+  setoid_rewrite (kron_mixed_product _ _ _ _ _ _ (('I_2) ⊗ swap) ('I_2) 
+                                     (q0 ⊗ (q1 ⊗ q2)) q3).
+  setoid_rewrite (kron_mixed_product _ _ _ _ _ _ ('I_2) swap q0 (q1 ⊗ q2)).
+  Msimpl.
+  rewrite swap_spec by assumption.
+  setoid_rewrite <- (kron_assoc _ _ _ _ _ _ q0 q2 q1).
+  setoid_rewrite (kron_assoc _ _ _ _ _ _ (q0 ⊗ q2) q1 q3).
+  setoid_rewrite (kron_mixed_product _ _ _ _ _ _ swap ('I_4) (q0 ⊗ q2) (q1 ⊗ q3)).
+  rewrite swap_spec by assumption.
+  Msimpl.
+  repeat setoid_rewrite kron_assoc.
+  reflexivity.
+Qed.
+
+
 (* *)
