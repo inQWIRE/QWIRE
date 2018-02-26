@@ -861,15 +861,11 @@ Proof.
   reflexivity.
 Qed.
 
-(* To define for general lemma *)
-Parameter big_kron : forall (m n : nat) (l : list (Matrix m n)), 
-  Matrix (m^(length l)) (n^(length l)).
-
 Lemma swap_to_0_spec : forall (q q0 : Matrix 2 1) (n k : nat) (l1 l2 : list (Matrix 2 1)), 
    length l1 = (k - 1)%nat ->
    length l2 = (n - k - 2)%nat ->   
-   @Mmult (2^n) (2^n) 1 (swap_to_0 n k) (big_kron 2 1 ([q0] ++ l1 ++ [q] ++ l2)) = 
-     big_kron 2 1 ([q] ++ l1 ++ [q0] ++ l2).
+   @Mmult (2^n) (2^n) 1 (swap_to_0 n k) (⨂ ([q0] ++ l1 ++ [q] ++ l2)) = 
+     ⨂ ([q] ++ l1 ++ [q0] ++ l2).
 Admitted.
 
 Lemma swap_two_base : swap_two 2 1 0 = swap.
@@ -896,8 +892,8 @@ Lemma swap_two_spec : forall (q q0 : Matrix 2 1) (n0 n1 n2 n k : nat) (l0 l1 l2 
    length l2 = n2 ->   
    n = (n0 + n1 + n2 + 2)%nat ->
    @Mmult (2^n) (2^n) 1 
-     (swap_two n n0 (n0+n1+1)) (big_kron 2 1 (l0 ++ [q0] ++ l1 ++ [q] ++ l2)) = 
-     big_kron 2 1 (l0 ++ [q] ++ l1 ++ [q0] ++ l2).
+     (swap_two n n0 (n0+n1+1)) (⨂ (l0 ++ [q0] ++ l1 ++ [q] ++ l2)) = 
+     ⨂ (l0 ++ [q] ++ l1 ++ [q0] ++ l2).
 Admitted.
 
 Lemma move_to_0_test_24 : forall (q0 q1 q2 q3 : Matrix 2 1), 

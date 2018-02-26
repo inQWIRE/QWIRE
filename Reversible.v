@@ -508,6 +508,43 @@ Fixpoint share_to (n k : nat) : Box (S n ⨂ Qubit) (S n ⨂ Qubit) :=
 Lemma share_to_WT : forall n k, Typed_Box (share_to n k).
 Proof. induction n; type_check. destruct k; type_check. apply IHn; type_check. Qed.
 
+Lemma share_to_spec : forall (t b : bool) (k n : nat) (l1 l2 : list (Square 2)),
+  (k < n)%nat ->
+  length l1 = k ->
+  length l2 = (n - k - 1)%nat ->
+  ⟦share_to n k⟧  ((bool_to_matrix t) ⊗ big_kron l1  ⊗ (bool_to_matrix b) ⊗ big_kron l2) = (bool_to_matrix (xorb t b) ⊗ big_kron l1 ⊗ (bool_to_matrix b) ⊗ big_kron l2).
+Proof.
+  intros t b k n l1 l2 Lt H2 H1.
+  induction n; [omega|]. 
+  destruct k.
+  - simpl in *.
+    rewrite Nat.sub_0_r in *.
+    clear Lt.
+    repeat (autounfold with den_db; simpl).
+    unfold subst_var; simpl.
+    unfold fresh_state.
+    unfold lookup_maybe; simpl.
+
+subst_var_seq:
+  forall len start x : nat,
+  (x < len)%nat -> subst_var (seq start len) (start + x)%nat = x
+subst_var_σ_n: forall n x : nat, (x < n)%nat -> subst_var (σ_{ n}) x = x
+
+
+    unfold subst_var. simpl.
+    
+  
+  - omega.
+    simpl in *.
+    destruct l2; [|inversion H1].
+    destruct k; [|omega].
+    simpl.
+    unfold I1. simpl.
+    rewrite (kron_1_r _ _ (bool_to_matrix (xorb t b) ⊗ big_kron l1 ⊗ bool_to_matrix b)).
+    
+inversion H0.
+                                      
+
 Fixpoint compile (b : rbexp) (Γ : Ctx) : Box (S (⟦Γ⟧) ⨂ Qubit) (S (⟦Γ⟧) ⨂ Qubit) :=
   box_ tqs ⇒
   let_ (target, qs) ← output tqs;

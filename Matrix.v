@@ -149,6 +149,21 @@ Definition transpose {m n} (A : Matrix m n) : Matrix n m :=
 Definition conj_transpose {m n} (A : Matrix m n) : Matrix n m := 
   (fun x y => Cconj (A y x)).
 
+(* Kronecker of n copies of A *)
+Fixpoint kron_n n {m1 m2} (A : Matrix m1 m2) : Matrix (m1^n) (m2^n) :=
+  match n with
+  | 0    => 'I_1
+  | S n' => kron A (kron_n n' A)
+  end.
+
+(* Kronecker product of a list *)
+Fixpoint big_kron {m n} (As : list (Matrix m n)) : 
+  Matrix (m^(length As)) (n^(length As)) := 
+  match As with
+  | [] => 'I_1
+  | A :: As' => kron A (big_kron As')
+  end.
+
 Infix "∘" := dot (at level 40, left associativity) : matrix_scope.
 Infix ".+" := Mplus (at level 50, left associativity) : matrix_scope.
 Infix ".*" := scale (at level 40, left associativity) : matrix_scope.
@@ -160,10 +175,11 @@ Notation "A †" := (conj_transpose A) (at level 0) : matrix_scope.
 Notation "Σ^ n f" := (Csum f n) (at level 90) : matrix_scope.
 Hint Unfold Zero Id trace dot Mplus scale Mmult kron mat_equiv transpose 
             conj_transpose : M_db.
-Open Scope matrix_scope.
+Notation "n ⨂ A" := (kron_n n A) (at level 30, no associativity) : matrix_scope.
+Notation "⨂ A" := (big_kron A) (at level 60): matrix_scope.
 
-(* Similar to Msolve but often faster *)
-(* I'd rather not use compute. *)
+Open Scope matrix_scope.
+  
 Ltac destruct_m_1 :=
   match goal with
   | [ |- context[match ?x with 
@@ -1166,3 +1182,4 @@ Ltac reduce_matrices := match goal with
 Ltac solve_matrix := assoc_least;
                      repeat reduce_matrix; try crunch_matrix;
                      Csimpl; try clra.
+       
