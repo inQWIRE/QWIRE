@@ -38,7 +38,7 @@ Definition inSeq {w1 w2 w3} (c1 : Box w1 w2) (c2 : Box w2 w3): Box w1 w3 :=
   box_ p1 ⇒ 
     let_ p2 ← unbox c1 p1;
     unbox c2 p2.
-Notation "b' · b" := (inSeq b b') (right associativity, at level 10) : circ_scope.
+Notation "b' · b" := (inSeq b b') (right associativity, at level 9) : circ_scope.
 Lemma inSeq_WT : forall W1 W2 W3 (c1 : Box W1 W2) (c2 : Box W2 W3), 
                  Typed_Box c1 -> Typed_Box c2 -> Typed_Box (c2 · c1).
 Proof. type_check. Qed.
