@@ -84,6 +84,191 @@ Proof. intros. destruct b; simpl; solve_matrix. Qed.
 Lemma WF_bool_to_matrix : forall b, WF_Matrix 2 2 (bool_to_matrix b).
 Proof. destruct b; simpl; show_wf. Qed.
 
+
+(**********************)
+(* Syntactic Property *)
+(**********************)
+
+Open Scope circ_scope.
+Close Scope matrix_scope.
+
+
+Ltac destruct_pats :=
+  repeat match goal with
+  | [ p : Pat (S _ ⨂ _) |- _ ] => dependent destruction p
+  | [ p : Pat Qubit |- _ ] => dependent destruction p
+  | [ p : Pat Bit |- _ ] => dependent destruction p
+  | [ p : Pat (_ ⊗ _) |- _] => dependent destruction p
+  | [ p : Pat One |- _] => dependent destruction p
+  end.
+
+Definition partition (i : nat) {n} (p : Pat (n ⨂ Qubit))  (pf : (i < n)%nat)
+                 : Pat (i ⨂ Qubit) * Var * Pat ((n-i-1) ⨂ Qubit).
+Proof.
+  destruct n.
+  { absurd False; auto. inversion pf. }
+  induction i.
+  * simpl. replace (n-0)%nat with n by omega.
+    destruct_pats. 
+    exact ((unit,v), p2)%core.
+  * simpl. 
+    assert (pf' : (i < S n)%nat) by omega.
+    destruct (IHi pf') as [[p1 x] p2].
+    (* ((v,p0),x,p3) *)
+    replace (S n - i - 1)%nat with (S (n - i - 1))%nat in p2 by omega.
+    dependent destruction p2. dependent destruction p2_1.
+    (* ((v,p1),x,p2_2) *)
+    refine ((_, x), p2_2)%core.
+    exact (qubit v,p1).
+Defined.
+Definition join (i : nat) {n} (pf : (i < n)%nat)
+                (p1 : Pat (i ⨂ Qubit)) (x : Var) (p2 : Pat ((n-i-1) ⨂ Qubit))
+              : Pat (n ⨂ Qubit).
+Proof.
+  destruct n.
+  { absurd False; auto. inversion pf. }
+  induction i.
+  * simpl in *. replace (n-0)%nat with n in p2 by omega.
+    exact (qubit x, p2).
+  * replace (S n - i - 1)%nat with (S (n - i - 1))%nat in IHi by omega.
+    simpl in *.
+    destruct_pats.
+    assert (pf' : (i < S n)%nat) by omega.
+    exact (IHi pf' p1_2 (qubit x, p2)).
+Defined.
+ 
+Definition unitary_at1 {n} (U : Unitary Qubit) (ls : list nat)
+        : Box (n ⨂ Qubit) (n ⨂ Qubit).
+Proof.
+    destruct ls as [ | i _]; [(* ERROR *) exact id_circ | ].
+    (* if i >= n, error *)
+    destruct (lt_dec i n) as [pf | ]; [ | (* ERROR *) exact id_circ ].
+    refine (box_ p ⇒ _).
+    destruct (partition i p pf) as [[p1 x] p2].
+
+    refine (gate_ x' ← U @qubit x ; _). dependent destruction x'.
+    refine (output (join i pf p1 v p2)).
+Defined.
+
+Definition assert (b : bool) : Gate Qubit One := if b then assert1 else assert0.
+
+Definition assert_at (b : bool) {n : nat} (i : nat) : Box (S n ⨂ Qubit) (n ⨂ Qubit).
+Proof.
+  (* if i > n, error *)
+  destruct (lt_dec i (S n)) as [pf | ].
+  * (* i < S n *) 
+    refine (box_ p ⇒ _ ). 
+    destruct (partition i p pf) as [[p1 x] p2].
+    refine (let_ y ← assert b $ qubit x; _).
+    dependent destruction y.
+    (* need to join *) admit.
+  * (* i >= n *) refine (box_ p ⇒ _). 
+                 refine (let_ x ← (assert b || id_circ) $ p; _).
+                 dependent destruction x.
+                 refine (output x2).
+Admitted.
+
+Definition init_at (b : bool) {n : nat} (i : nat) : Box (n ⨂ Qubit) (S n ⨂ Qubit).
+Proof.
+  (* if i >= n, error *)
+  destruct (lt_dec i n) as [pf | ].
+  * (* i < n *)
+    refine (box_ p ⇒ _).
+    (* need to split p into p1 and p2, around i, then insert i there *)
+    admit.
+  * (* i >= n -- ERROR *)
+    refine (box_ p ⇒ let_ x ← init b $ (); output (x,p)).
+Admitted.
+
+Definition unitary_at {n} {w} (U : Unitary w) (ls : list nat) 
+        : Box (n ⨂ Qubit) (n ⨂ Qubit).
+Proof.
+  induction U.
+  * (* H *) exact (unitary_at1 H ls).
+  * (* X *) exact (unitary_at1 X ls).
+  * (* Y *) exact (unitary_at1 Y ls).
+  * (* Z *) exact (unitary_at1 Z ls).
+  * (* ctrl *)
+    destruct ls as [ | i [ | j _]]; [ (* ERROR *) exact id_circ 
+                                    | (* ERROR *) exact id_circ | ].
+    (* if i >= n or j >= n or i = j, error *)
+    destruct (lt_dec i n); [ | (* ERROR *) exact id_circ ].
+    destruct (lt_dec j n); [ | (* ERROR *) exact id_circ ].
+    destruct (Nat.eq_dec i j); [ (* ERROR *) exact id_circ | ].
+    
+    admit.
+
+  * (* bit_ctrl *) admit.
+  * (* transpose U *) admit.
+Admitted.
+
+
+
+
+Inductive Classical_Gate : forall (n t : nat),
+  Box ((n+t) ⨂ Qubit) ((n+t) ⨂ Qubit) -> Type :=
+| classical_X {n t} i : Classical_Gate n t (unitary_at X [i])
+| classical_CNOT {n t} i j : Classical_Gate n t (unitary_at CNOT [i;j])
+| classical_CCNOT {n t} i j k : Classical_Gate n t (unitary_at CCNOT [i;j;k])
+.
+Definition uncompute {n t} b (pf : Classical_Gate n t b) 
+                   : Box ((n+t) ⨂ Qubit) ((n+t) ⨂ Qubit).
+Proof.
+  destruct pf.
+  * (* X *) (* if i < n, then uncompute it, otherwise leave it alone *)
+    destruct (lt_dec i n).
+    + exact (unitary_at X [i]).
+    + exact id_circ.
+  * (* CNOT *) (* if j < n then uncompute it, otherwise leave it alone *)
+    destruct (lt_dec j n).
+    + exact (unitary_at CNOT [i;j]).
+    + exact id_circ.
+  * (* CCNOT *) (* if k < n then uncompute it, otherwise leave it alone *)
+    destruct (lt_dec k n).
+    + exact (unitary_at CCNOT [i;j;k]).
+    + exact id_circ.
+Defined.
+(*
+Program Definition inSeq' {q m n r s} 
+    (C : Box q ((S m + n) ⨂ r)) (C' : Box ((m + S n) ⨂ r) s) : Box q s 
+    := C' · C.
+Next Obligation. replace (m + S n) by
+Program Definition inSeq'' {q m n r s} 
+    (C : Box q ((m + S n) ⨂ r)) (C' : Box ((S m + n) ⨂ r) s) : Box q s 
+    := C' · C.
+
+*)
+Lemma Tensor_S_plus : forall m n q,
+    (S m + n) ⨂ q = (m + S n) ⨂ q.
+Proof.
+  intros.  replace (S m + n)%nat with (m + S n)%nat by omega.
+  reflexivity.
+Qed.
+
+Program Definition coerce {n t} (c : Box ((n + S t) ⨂ Qubit) ((n + S t) ⨂ Qubit))
+                              :  Box ((S n + t) ⨂ Qubit) ((S n + t) ⨂ Qubit) := c.
+Next Obligation.
+  rewrite <- Tensor_S_plus. reflexivity.
+Defined.
+Next Obligation.
+  rewrite <- Tensor_S_plus. reflexivity.
+Defined.
+
+Program Inductive Symmetric {t} : forall n,  Box ((n+t) ⨂ Qubit) ((n+t) ⨂ Qubit) -> Type :=
+| s_idcirc {n} : Symmetric n id_circ
+| s_classical_l {n g b} : forall (pf : Classical_Gate n (S t) g),
+                Symmetric (S n) b ->
+                Symmetric (S n) (coerce (uncompute g pf) · coerce g ·  b)
+| s_classical_r {n g b} : forall (pf : Classical_Gate n (S t) g),
+                Symmetric (S n) b ->
+                Symmetric (S n) (coerce g ·  b · coerce (uncompute g pf))
+| s_init {n} (x : bool) {b} i : 
+           (i < S n)%nat ->
+           Symmetric (S n) b ->
+           Symmetric n (assert_at x i · b · init_at x i)
+.
+
+
 (******************)
 (** Discard Test **) 
 (******************)
