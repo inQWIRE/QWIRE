@@ -18,7 +18,7 @@ Inductive binop : Set :=
 | times | div
 | pow
 .
-    
+
 Inductive unaryop : Set :=
 | sin
 | cos
@@ -84,9 +84,26 @@ Inductive statement : Set :=
                                 evaluates the value true.) *)
 | s_barrier (args:anylist)
 | s_output (args:anylist)
+| s_error (msg:string) (* msg explains about the compile error *)
 .            
 
 Definition program := list statement.
+
+Notation " b1 + b2 " := (e_binop b1 plus b2) (at level 50, left associativity)
+                     : qasm_scope.
+Notation " b1 - b2 " := (e_binop b1 minus b2) (at level 50, left associativity)
+                     : qasm_scope.
+Notation " b1 * b2 " := (e_binop b1 times b2) (at level 40, left associativity)
+                     : qasm_scope.
+Notation " b1 / b2 " := (e_binop b1 div b2) (at level 40, left associativity)
+                     : qasm_scope.
+Notation " - b "     := (e_unop neg b) : qasm_scope.
+Notation "0" := (e_nat 0) : qasm_scope.
+Notation "2" := (e_nat 2) : qasm_scope.
+Notation "4" := (e_nat 4) : qasm_scope.
+Open Scope qasm_scope.
+Notation pi := (e_pi).
+Close Scope qasm_scope.
 
 (** Convert from Minimal Circuits to QASM **)
 
@@ -102,207 +119,41 @@ Definition program := list statement.
 
 Require Import HOASCircuits.
 Require Import HOASExamples.
-Require Import FlatCircuits.
+Require Import DBCircuits.
+Require Import Monad.
 Require Import Contexts.
 Require Import Arith.
 Require Import Reals.
-Require Import FakeR.
 Require Import List.
 
-Open Scope circ_scope.
 Open Scope R_scope.
 Import ListNotations.
 Require Import Notations.
+Open Scope circ_scope.
 
-(* Universal gate representation for controlled universal gates
+Locate "()".
+Definition test01 : Box One (Bit ⊗ Bit) :=
+  box_ () ⇒
+    gate_ a ← init0 @();
+    gate_ b ← init1 @();
+    gate_ a' ← meas @a;
+    gate_ b' ← meas @b;
+    output (a', b').
 
-Universal gates - U(theta, phi, lambda) : rotation, cx : CNOT
+Definition test01_db := hoas_to_db_box test01.
 
-// 1-parameter 0-pulse single qubit gate
-gate u1(lambda) q { U(0,0,lambda) q; }
-// controlled-U
-gate cu3(theta,phi,lambda) c, t
-{
-  // implements controlled-U(theta,phi,lambda) with  target t and control c
-  u1((lambda-phi)/2) t;
-  cx c,t;
-  u3(-theta/2,0,-(phi+lambda)/2) t;
-  cx c,t;
-  u3(theta/2,phi,0) t;
-}
+Definition test10 : Box One (Bit ⊗ Bit) :=
+  box_ () ⇒
+    gate_ b ← init0 @();
+    gate_ a ← init1 @();
+    gate_ a' ← meas @a;
+    gate_ b' ← meas @b;
+    output (a', b').
 
-// 1-parameter 0-pulse single qubit gate
-gate u1(lambda) q { U(0,0,lambda) q; }
-// C3 gate: sqrt(S) phase gate
-gate t a { u1(pi/4) a; }
-// C3 gate: conjugate of sqrt(S)
-gate tdg a { u1(-pi/4) a; }
-// C3 gate: Toffoli
-gate ccx a,b,c
-{
-  h c;
-  cx b,c; tdg c;
-  cx a,c; t c;
-  cx b,c; tdg c;
-  cx a,c; t b;
-  t c; h c;
-  cx a,b; t a; 
-  tdg b;
-  cx a,b;
-}
-*)
-Fixpoint control_unitary_gate_circuit (cp : Pat) (C : Min_Circuit) : Min_Circuit :=
-  match C with
-  | min_gate g p C' =>
-    match g with
-    | (U u) =>
-      match u with
-      | ROT3 th ph la =>
-        match cp with
-        | c =>
-          match p with
-          | t =>
-            min_gate (U (ROT3 (fake_int 0) (fake_int 0) (fake_div (fake_minus la ph) (fake_int 2)))) t
-            (min_gate (U CNOT) (pair c t)
-            (min_gate (U (ROT3 (fake_minus (fake_int 0) (fake_div th (fake_int 2))) (fake_int 0) (fake_minus (fake_int 0) (fake_div (fake_plus ph la) (fake_int 2))))) t
-            (min_gate (U CNOT) (pair c t)
-            (min_gate (U (ROT3 (fake_div th (fake_int 2)) ph (fake_int 0))) t
-            (control_unitary_gate_circuit cp C')))))
-          end
-        end
-      | CNOT => match p with
-                | pair b c =>
-                  match cp with
-                  | a =>
-                  min_gate (U (ROT3 (fake_div fake_pi (fake_int 2)) (fake_int 0) fake_pi)) c
-                  (min_gate (U CNOT) (pair b c) (min_gate (U (ROT3 (fake_int 0) (fake_int 0) (fake_minus (fake_int 0) (fake_div fake_pi (fake_int 4))))) c
-                  (min_gate (U CNOT) (pair a c) (min_gate (U (ROT3 (fake_int 0) (fake_int 0) (fake_div fake_pi (fake_int 4)))) c
-                  (min_gate (U CNOT) (pair b c) (min_gate (U (ROT3 (fake_int 0) (fake_int 0) (fake_minus (fake_int 0) (fake_div fake_pi (fake_int 4))))) c
-                  (min_gate (U CNOT) (pair a c) (min_gate (U (ROT3 (fake_int 0) (fake_int 0) (fake_div fake_pi (fake_int 4)))) b
-                  (min_gate (U (ROT3 (fake_int 0) (fake_int 0) (fake_div fake_pi (fake_int 4)))) c (min_gate (U (ROT3 (fake_div fake_pi (fake_int 2)) (fake_int 0) fake_pi)) c
-                  (min_gate (U CNOT) (pair a b) (min_gate (U (ROT3 (fake_int 0) (fake_int 0) (fake_div fake_pi (fake_int 4)))) a
-                  (min_gate (U (ROT3 (fake_int 0) (fake_int 0) (fake_minus (fake_int 0) (fake_div fake_pi (fake_int 4))))) b
-                  (min_gate (U CNOT) (pair a b)
-                  (control_unitary_gate_circuit cp C')))))))))))))))
-                  end
-                | _ => (control_unitary_gate_circuit cp C')
-                end
-      | _ => (control_unitary_gate_circuit cp C')
-      end
-    | _ => (control_unitary_gate_circuit cp C')
-    end
-  | min_output p => min_output p
-  | min_lift p f =>
-    min_lift p (fun b => match b with
-                         | true => (control_unitary_gate_circuit cp (f true))
-                         | flase => (control_unitary_gate_circuit cp (f false))
-                         end)
-  end.
+Definition test10_db := hoas_to_db_box test10.
 
-Fixpoint append_gate_last {W} (nu : Unitary W) (np : Pat) (c : Min_Circuit) : Min_Circuit :=
-  match c with
-  | min_output p => min_gate (U nu) np (min_output p)
-  | min_gate g p c' => min_gate g p (append_gate_last nu np c')
-  | min_lift p f =>
-    min_lift p (fun b => match b with
-                         | true => (append_gate_last nu np (f true))
-                         | flase => (append_gate_last nu np (f false))
-                         end)
-  end.
-
-Fixpoint transpose_unitary_gate_circuit (c : Min_Circuit) : Min_Circuit :=
-  match c with
-  | min_output p => min_output p
-  | min_gate g p c' =>
-    match g with
-      | U u =>
-        match u with
-        | ROT3 th ph la =>
-          append_gate_last (ROT3 (fake_minus (fake_int 0) th) (fake_minus (fake_int 0) ph) (fake_minus (fake_int 0) la)) p (transpose_unitary_gate_circuit c')
-        | CNOT =>
-          append_gate_last (CNOT) p (transpose_unitary_gate_circuit c')
-        | _ => (transpose_unitary_gate_circuit c')
-        end
-      | _ => (transpose_unitary_gate_circuit c')
-    end
-  | min_lift p f =>
-    min_lift p (fun b => match b with
-                         | true => (transpose_unitary_gate_circuit (f true))
-                         | false => (transpose_unitary_gate_circuit (f false))
-                         end)
-  end.
-
-Fixpoint unitary_gate_translation {W} (u : Unitary W) (p po : Pat) : Min_Circuit :=
-  match u with
-    | H => min_gate (U (ROT3 (fake_div fake_pi (fake_int 2)) (fake_int 0) fake_pi)) p (min_output po)
-    | σx => min_gate (U (ROT3 fake_pi (fake_int 0) fake_pi)) p (min_output po)
-    | σy => min_gate (U (ROT3 fake_pi (fake_div fake_pi (fake_int 2)) (fake_div fake_pi (fake_int 2)))) p (min_output po)
-    | σz => min_gate (U (ROT3 (fake_int 0) (fake_int 0) fake_pi)) p (min_output po)
-    | CNOT => min_gate (U CNOT) p (min_output po)
-    | ROT3 th ph la => min_gate (U (ROT3 th ph la)) p (min_output po)
-    | ctrl u' =>
-      match p with
-      | pair p1 p2 =>
-        control_unitary_gate_circuit p1 (unitary_gate_translation u' p2 po)
-      | _ => unitary_gate_translation u' p po
-      end
-    | bit_ctrl u' =>
-      match p with
-      | pair p1 p2 =>
-        min_lift p1 (fun b => match b with
-                              | true => unitary_gate_translation u' p2 po
-                              | false => min_output po
-                              end)
-      | _ => min_output po
-      end
-    | transpose u' => transpose_unitary_gate_circuit (unitary_gate_translation u' p po)
-  end.
-
-(* Merge c1 into c2 *)
-Fixpoint min_circuit_merge (c1 c2 : Min_Circuit) : Min_Circuit :=
-  match c1 with
-  | min_output p => c2
-  | min_gate g p c' => min_gate g p (min_circuit_merge c' c2)
-  | min_lift p f =>
-    min_lift p (fun b => match b with
-                         | true => (min_circuit_merge (f true) c2)
-                         | false => (min_circuit_merge (f false) c2)
-                         end)
-  end.
-
-Fixpoint min_circuit_translation_helper (c : Min_Circuit) : Min_Circuit :=
-  match c with
-  | min_output p => min_output p
-  | min_gate g p c' =>
-    match g with
-    | U u =>
-      min_circuit_merge (unitary_gate_translation u p p) (min_circuit_translation_helper c')
-    | _   => min_gate g p (min_circuit_translation_helper c')
-    end
-  | min_lift p f =>
-    min_lift p (fun b => match b with
-                         | true => (min_circuit_translation_helper (f true))
-                         | false => (min_circuit_translation_helper (f false))
-                         end)
-  end.
-
-(* Min Circuit Translation Helper Examples *)
-
-Eval simpl in (match (hoas_to_min_box bell00 One) with
-               | min_box W C => min_circuit_translation_helper C
-               end).
-Eval simpl in (match (hoas_to_min_box alice_for_qasm (Qubit ⊗ Qubit)) with
-               | min_box W C => min_circuit_translation_helper C
-               end).
-Eval simpl in (match (hoas_to_min_box bob_for_qasm (Qubit ⊗ Qubit ⊗ Qubit)) with
-               | min_box W C => min_circuit_translation_helper C
-               end).
-Eval simpl in (match (hoas_to_min_box teleport_for_qasm One) with
-               | min_box W C => min_circuit_translation_helper C
-               end).
-
-
-(* Translate [min circuit] to [QASM] *)
+Eval compute in test01_db.
+Eval compute in test10_db.
 
 (** Naming functions for qreg, creg, and bits **)
 Require Import Ascii.
@@ -333,210 +184,343 @@ Definition bname : id := "bits"%string.
 (* naming function for ith element of bits *)
 Definition bname_i : nat -> id := fun i => append "bits[" (append (writeNat i) "]").
 
+Fixpoint get_var_name (li : list string) (x : nat) : string :=
+  match x with
+  | 0 => match li with
+        | [] => ""
+        | h :: t => h
+        end
+  | S x' => match li with
+           | [] => ""
+           | h :: t => get_var_name t x'
+           end
+  end.
+Fixpoint add_var_name (li : list string) (name : string) : list string := li ++ [name].
+Fixpoint put_var_name (li : list string) (x : nat) (name : string) : list string :=
+  match x with
+  | 0 => match li with
+        | [] => []
+        | h :: t => name :: t
+        end
+  | S x' => match li with
+           | [] => []
+           | h :: t => h :: (put_var_name t x' name)
+           end
+  end.
+Fixpoint remove_var_name (li : list string) (x : nat) : list string :=
+  match x with
+  | 0 => match li with
+        | [] => []
+        | h :: t => t
+        end
+  | S x' => match li with
+           | [] => []
+           | h :: t => h :: (remove_var_name t x')
+           end
+  end.
+
+Open Scope qasm_scope.
+
 (* meta_if : return [QASM] code equivalent to [if (bits[bn] == 1) then P1 else P2]  *)
-Fixpoint meta_if_true (p1 : program) (bn : nat) : program :=
+Fixpoint meta_if_true (p1 : program) (bname : string) : program :=
   match p1 with
   | [] => []
   | h :: p1' =>
     (match h with
      | s_ifcall bx q =>
-       (s_ifcall (BAnd (BId (bname_i bn)) bx) q)
+       (s_ifcall (BAnd (BId bname) bx) q)
      | s_qop q =>
-       (s_ifcall (BId (bname_i bn)) q)
+       (s_ifcall (BId bname) q)
      | _ => h
-     end) :: (meta_if_true p1' bn)
+     end) :: (meta_if_true p1' bname)
   end.
-Fixpoint meta_if_false (p2 : program) (bn : nat) : program :=
+Fixpoint meta_if_false (p2 : program) (bname : string) : program :=
   match p2 with
   | [] => []
   | h :: p2' =>
     (match h with
      | s_ifcall bx q =>
-       (s_ifcall (BAnd (BNot (BId (bname_i bn))) bx) q)
+       (s_ifcall (BAnd (BNot (BId bname)) bx) q)
      | s_qop q =>
-       (s_ifcall (BNot (BId (bname_i bn))) q)
+       (s_ifcall (BNot (BId bname)) q)
      | _ => h
-     end) :: (meta_if_false p2' bn)
+     end) :: (meta_if_false p2' bname)
   end.
-Definition meta_if (p1 p2 : program) (bn : nat) : program :=
-  (meta_if_true p1 bn) ++ (meta_if_false p2 bn).
+Definition meta_if (p1 p2 : program) (bname : string) : program :=
+  (meta_if_true p1 bname) ++ (meta_if_false p2 bname).
 
-(* trans c li n m : pair p (pair d l)
+Fixpoint process_ctrl (p : program) (ctrl_name : string) : program :=
+  match p with
+  | [] => []
+  | h :: t =>
+    match h with
+    | s_ifcall bexp qop =>
+      match qop with
+      | q_uop (u_U [theta; phi; lambda] target_arg) =>
+        let c := (a_id ctrl_name) in
+        let t := target_arg in
+        [s_ifcall bexp (q_uop (u_U [0; 0; (lambda-phi)/2] t));
+                                             (* u1((lambda-phi)/2) t *)
+           s_ifcall bexp (q_uop (u_CX c t)); (* cx c,t *)
+           s_ifcall bexp (q_uop (u_U [-theta/2; 0; -(phi+lambda)/2] t));
+                                             (* u3(-theta/2,0,-(phi+lambda)/2) t *)
+           s_ifcall bexp (q_uop (u_CX c t)); (* cx c,t *)
+           s_ifcall bexp (q_uop (u_U [theta/2; phi; 0] t))]
+                                             (* u3(theta/2,phi,0) t *)
+      | q_uop (u_CX ctrl2_arg target_arg) =>
+        let a := (a_id ctrl_name) in
+        let b := ctrl2_arg in
+        let c := target_arg in
+        [s_ifcall bexp (q_uop (u_U [pi/2;0;pi] c)); (* h c *)
+           s_ifcall bexp (q_uop (u_CX b c));          (* cx b,c *)
+           s_ifcall bexp (q_uop (u_U [0;0;-pi/4] c)); (* tdg c *)
+           s_ifcall bexp (q_uop (u_CX a c));          (* cx a,c *)
+           s_ifcall bexp (q_uop (u_U [0;0;pi/4] c));  (* t c *)
+           s_ifcall bexp (q_uop (u_CX b c));          (* cx b,c *)
+           s_ifcall bexp (q_uop (u_U [0;0;-pi/4] c)); (* tdg c *)
+           s_ifcall bexp (q_uop (u_CX a c));          (* cx a,c *)
+           s_ifcall bexp (q_uop (u_U [0;0;pi/4] b));  (* t b *)
+           s_ifcall bexp (q_uop (u_U [0;0;pi/4] c));  (* t c *)
+           s_ifcall bexp (q_uop (u_U [pi/2;0;pi] c)); (* h c *)
+           s_ifcall bexp (q_uop (u_CX a b));          (* cx a,b *)
+           s_ifcall bexp (q_uop (u_U [0;0;pi/4] a));  (* t a *)
+           s_ifcall bexp (q_uop (u_U [0;0;-pi/4] b)); (* tdg b *)
+           s_ifcall bexp (q_uop (u_CX a b))]          (* cx a,b *)
+      | _ => [s_error "db_gate Unitary ctrl process error"]
+      end
+    | s_qop qop =>
+      match qop with
+      | q_uop (u_U [theta; phi; lambda] target_arg) =>
+        let c := (a_id ctrl_name) in
+        let t := target_arg in
+        [s_qop (q_uop (u_U [0; 0; (lambda-phi)/2] t));
+                                                    (* u1((lambda-phi)/2) t *)
+           s_qop (q_uop (u_CX c t));                (* cx c,t *)
+           s_qop (q_uop (u_U [-theta/2; 0; -(phi+lambda)/2] t));
+                                                    (* u3(-theta/2,0,-(phi+lambda)/2) t *)
+           s_qop (q_uop (u_CX c t));                (* cx c,t *)
+           s_qop (q_uop (u_U [theta/2; phi; 0] t))] (* u3(theta/2,phi,0) t *)
+      | q_uop (u_CX ctrl2_arg target_arg) =>
+        let a := (a_id ctrl_name) in
+        let b := ctrl2_arg in
+        let c := target_arg in
+        [s_qop (q_uop (u_U [pi/2;0;pi] c));   (* h c *)
+           s_qop (q_uop (u_CX b c));          (* cx b,c *)
+           s_qop (q_uop (u_U [0;0;-pi/4] c)); (* tdg c *)
+           s_qop (q_uop (u_CX a c));          (* cx a,c *)
+           s_qop (q_uop (u_U [0;0;pi/4] c));  (* t c *)
+           s_qop (q_uop (u_CX b c));          (* cx b,c *)
+           s_qop (q_uop (u_U [0;0;-pi/4] c)); (* tdg c *)
+           s_qop (q_uop (u_CX a c));          (* cx a,c *)
+           s_qop (q_uop (u_U [0;0;pi/4] b));  (* t b *)
+           s_qop (q_uop (u_U [0;0;pi/4] c));  (* t c *)
+           s_qop (q_uop (u_U [pi/2;0;pi] c)); (* h c *)
+           s_qop (q_uop (u_CX a b));          (* cx a,b *)
+           s_qop (q_uop (u_U [0;0;pi/4] a));  (* t a *)
+           s_qop (q_uop (u_U [0;0;-pi/4] b)); (* tdg b *)
+           s_qop (q_uop (u_CX a b))]          (* cx a,b *)
+      | _ => [s_error "db_gate Unitary ctrl process error"]
+      end
+    | _ => [s_error "db_gate Unitary ctrl process error"]
+    end ++ (process_ctrl t bname)
+  end.
 
-   1. Description : A transition function from [min circuit] to [QASM] program.
-   2. Input : 
-     - c  : min circuit
-     - li : context of min circuit (list of variable corresponding to its index)
-     - n  : number of [qreg] or [creg] declared = argument for new variable name
-            ([meas] gate operation creates [creg] variable of the same name with [qreg])
-     - m  : size of [creg] array [bits] for brancging
-   3. Output :
-     - p  : [QASM] program corresponding to c
-     - d  : depth of branching (size of [creg] array [bits] used in p)
-     - l  : number of [qreg] or [creg] declared after the translation of c
- *)
-Fixpoint pat_to_anylist (li : list Var) (p : Pat) : anylist :=
+Fixpoint process_transpose (p : program) : program :=
+  match p with
+  | [] => []
+  | h :: t =>
+    (process_transpose t)
+      ++ match h with
+         | s_ifcall bexp qop =>
+           match qop with
+           | q_uop (u_U [theta; phi; lambda] target_name) =>
+             [s_ifcall bexp (q_uop (u_U [-theta; -phi; -lambda] target_name))]
+           | q_uop (u_CX ctrl2_name target_name) =>
+             [s_ifcall bexp (q_uop (u_CX ctrl2_name target_name))]
+           | _ => [s_error "db_gate Unitary transpose process error"]
+           end
+         | s_qop (q_uop (u_U [theta; phi; lambda] target_name)) =>
+           [s_qop (q_uop (u_U [-theta; -phi; -lambda] target_name))]
+         | s_qop (q_uop (u_CX ctrl2_name target_name)) =>
+           [s_qop (q_uop (u_CX ctrl2_name target_name))]
+         | _ => [s_error "db_gate Unitary transpose process error"]
+         end
+  end.
+
+Program Fixpoint unitary_to_qasm {W} (li : list string) (u : Unitary W) (p : Pat W) : program :=
+  match u with
+  | H =>
+    match p with
+    | qubit x => [s_qop (q_uop (u_U [pi/2;0;pi] (a_id (get_var_name li x))))]
+    | unit | bit _ | pair _ _ => [s_error "db_gate Unitary H error"] 
+    end
+  | X =>
+    match p with
+    | qubit x => [s_qop (q_uop (u_U [pi;0;pi] (a_id (get_var_name li x))))]
+    | unit | bit _ | pair _ _ => [s_error "db_gate Unitary X error"]
+    end
+  | Y =>
+    match p with
+    | qubit x => [s_qop (q_uop (u_U [pi;pi/2;pi/2] (a_id (get_var_name li x))))]
+    | unit | bit _ | pair _ _ => [s_error "db_gate Unitary Y error"]
+    end
+  | Z =>
+    match p with
+    | qubit x => [s_qop (q_uop (u_U [0;0;pi] (a_id (get_var_name li x))))]
+    | unit | bit _ | pair _ _ => [s_error "db_gate Unitary Z error"]
+    end
+  | ctrl u' =>
+    match p with
+    | pair p1 p2 =>
+      match p1 with
+      | qubit x => (process_ctrl (unitary_to_qasm li u' p2) (get_var_name li x))
+      | unit | bit _ | pair _ _ => [s_error "db_gate Unitary ctrl error"]
+      end
+    | unit | bit _ | qubit _ => [s_error "db_gate Unitary ctrl error"]
+    end
+  | bit_ctrl u' =>
+    match p with
+    | pair p1 p2 =>
+      match p1 with
+      | bit x => (meta_if_true (unitary_to_qasm li u' p2) (get_var_name li x))
+      | unit | qubit _ | pair _ _ => [s_error "db_gate Unitary bit_ctrl error"]
+      end
+    | unit | bit _ | qubit _ => [s_error "db_gate Unitary bit_ctrl error"]
+    end
+  | transpose u' => (process_transpose (unitary_to_qasm li u' p))
+  end.
+
+Fixpoint pat_to_anylist {w} (li : list string) (p : Pat w) : anylist :=
   match p with
   | unit => []
-  | qubit x => [a_id (qname (nth x li 0%nat))]
-  | bit x => [a_id (cname (nth x li 0%nat))]
+  | qubit x => [a_id (get_var_name li x)]
+  | bit x => [a_id (get_var_name li x)]
   | pair p1 p2 => (pat_to_anylist li p1) ++ (pat_to_anylist li p2)
   end.
 
-(* trans_exp : translate FakeR to [exp] *)
-(** Note that this translation does not use the [e_real] constructor of [exp]. **)
-Fixpoint trans_exp (f : FakeR) : exp :=
-  match f with
-  | fake_pi => e_pi
-  | fake_e => e_unop e_to (e_nat 1)
-  | fake_mult f1 f2 => e_binop (trans_exp f1) times (trans_exp f2)
-  | fake_div f1 f2 => e_binop (trans_exp f1) div (trans_exp f2)
-  | fake_plus f1 f2 => e_binop (trans_exp f1) plus (trans_exp f2)
-  | fake_minus f1 f2 => e_binop (trans_exp f1) minus (trans_exp f2)
-  | fake_int z =>
-    match z with
-    | Z0 => e_nat 0
-    | Zpos n => e_nat (nat_of_P n)
-    | Zneg n => e_binop (e_nat 0) minus (e_nat (nat_of_P n))
-    end
-  | fake_pow f1 f2 => e_binop (trans_exp f1) pow (trans_exp f2)
-  end.
-
-Check (1, (1, 2)).
-
-Fixpoint trans' (c : Min_Circuit) (li : list Var) (n m : nat) : (program * (nat * nat)) :=
+Open Scope type_scope.
+Close Scope circ_scope.
+Program Fixpoint db_to_qasm {w} (li : list string) (v : nat) (c : DeBruijn_Circuit w) : (program * nat) :=
   match c with
-  | min_output p    => ([s_output (pat_to_anylist li p)], (0%nat, n))
-  | min_gate g p c' =>
+  | db_output p => ([s_output (pat_to_anylist li p)], v)
+  | db_gate g p c' =>
     match g with
-    | U u     =>
-      let (p', temp) := (trans' c' li n m) in
-      let (d', l') := temp in
-      (((match u with
-         | CNOT =>
-           (match p with
-            | pair (qubit x1) (qubit x2) =>
-              let qx1 := (nth x1 li 0%nat) in
-              let qx2 := (nth x2 li 0%nat) in
-              let a1 := (a_id (qname qx1)) in
-              let a2 := (a_id (qname qx2)) in
-              [s_qop (q_uop (u_CX a1 a2))]
-            | _ => []
-            end) 
-         | ROT3 th ph la =>
-           (match p with
-            | qubit x =>
-              let qx := (nth x li 0%nat) in
-              let a := (a_id (qname qx)) in
-              [s_qop (q_uop (u_U [(trans_exp th); (trans_exp ph); (trans_exp la)] a))]
-            | _ => []
-            end)
-         | _ => []
-         end) ++ p'), (d', l'))
-    | init0   =>
-      let (p', temp) := (trans' c' (li ++ [n]) (S n) m) in
-      let (d', l') := temp in
-      (([s_decl (qreg (qname n) 1)] ++ p'), (d', l'))
-    | init1   =>
-      let (p', temp) := (trans' c' (li ++ [n]) (S n) m) in
-      let (d', l') := temp in
-      (([s_decl (qreg (qname n) 1);
-           s_qop (q_uop (u_U [e_pi; e_nat 0; e_pi] (a_id (qname n))))] ++ p'), (d', l'))
-    | new0    =>
-      let (p', temp) := (trans' c' (li ++ [n]) (S n) m) in
-      let (d', l') := temp in
-      (([s_decl (creg (cname n) 1)] ++ p'), (d', l'))
-    | new1    =>
-      let (p', temp) := (trans' c' (li ++ [S n]) (S (S n)) m) in
-      let (d', l') := temp in
-      (([s_decl (creg (cname (S n)) 1); s_decl (qreg (qname n) 1);
-           s_qop (q_uop (u_U [e_pi; e_nat 0; e_pi] (a_id (qname n))));
-           s_qop (q_meas (a_id (qname n)) (a_id (cname (S n))))]
-          ++ p'), (d', l'))
-    | meas    =>
-      let (p', temp) := (trans' c' li n m) in
-      let (d', l') := temp in
-      ((match p with
-        | qubit x =>
-          let a := (nth x li 0%nat) in
-          ([s_decl (creg (cname a) 1);
-              s_qop (q_meas (a_id (qname a)) (a_id (cname a)))]
-             ++ p')
-        | _ => []
-        end), (d', l'))
-    | measQ   =>
-      let (p', temp) := (trans' c' li (S n) m) in
-      let (d', l') := temp in
-      ((match p with
-        | qubit x =>
-          let a:= (nth x li 0%nat) in
-          ([s_decl (creg (cname n) 1);
-              s_qop (q_meas (a_id (qname a)) (a_id (cname n)))] ++ p')
-        | _ => []
-        end), (d', l'))
+    | U u =>
+      let qasm_unitary := (unitary_to_qasm li u p) in
+      let (qasm_ramnent, v') := (db_to_qasm li v c') in
+      (qasm_unitary ++ qasm_ramnent, v')
+    | NOT =>
+      match p with
+      | bit x =>
+        let (qasm, v') := (db_to_qasm li (S v) c') in
+        ([s_decl (qreg (qname v) 1);
+            s_ifcall (BNot (BId (get_var_name li x)))
+                     (q_uop (u_U [e_pi; e_nat 0; e_pi] (a_id (qname v))));
+            s_qop (q_meas (a_id (qname v)) (a_id (get_var_name li x)))]
+           ++ qasm, v')
+      | unit | qubit _ | pair _ _ => ([s_error "db_gate NOT error"], v)
+      end
+    | init0 =>
+      match p with
+      | unit =>
+        let li' := add_var_name li (qname v) in
+        let (qasm, v') := (db_to_qasm li' (S v) c') in
+        (([s_decl (qreg (qname v) 1)] ++ qasm), v')
+      | bit _ | qubit _ | pair _ _ => ([s_error "db_gate init0 error"], v)
+      end
+    | init1 =>
+      match p with
+      | unit =>
+        let li' := add_var_name li (qname v) in
+        let (qasm, v') := (db_to_qasm li' (S v) c') in
+        (([s_decl (qreg (qname v) 1);
+             s_qop (q_uop (u_U [e_pi; e_nat 0; e_pi] (a_id (qname v))))]
+            ++ qasm), v')
+      | bit _ | qubit _ | pair _ _ => ([s_error "db_gate init1 error"], v)
+      end
+    | new0 =>
+      match p with
+      | unit =>
+        let li' := add_var_name li (cname v) in
+        let (qasm, v') := (db_to_qasm li' (S v) c') in
+        (([s_decl (creg (cname v) 1)] ++ qasm), v')
+      | bit _ | qubit _ | pair _ _ => ([s_error "db_gate new0 error"], v)
+      end
+    | new1 =>
+      match p with
+      | unit =>
+        let li' := add_var_name li (cname v) in
+        let (qasm, v') := (db_to_qasm li' (S (S v)) c') in
+        (([s_decl (creg (cname v) 1);
+             s_decl (qreg (qname (S v)) 1);
+             s_qop (q_uop (u_U [e_pi; e_nat 0; e_pi] (a_id (qname (S v)))));
+             s_qop (q_meas (a_id (qname (S v))) (a_id (cname v)))]
+            ++ qasm), v')
+      | bit _ | qubit _ | pair _ _ => ([s_error "db_gate new1 error"], v)
+      end
+    | meas =>
+      match p with
+      | qubit x =>
+        let li' := (put_var_name li x (cname v)) in
+        let (qasm, v') := (db_to_qasm li' (S v) c') in
+        (([s_decl (creg (cname v) 1);
+             s_qop (q_meas (a_id (get_var_name li x)) (a_id (cname v)))]
+            ++ qasm), v')
+      | unit | bit _ | pair _ _ => ([s_error "db_gate meas error"], v)
+      end
+    | measQ =>
+      match p with
+      | qubit x =>
+        let (qasm, v') := (db_to_qasm li (S v) c') in
+        (([s_decl (creg (cname v) 1);
+             s_qop (q_meas (a_id (get_var_name li x)) (a_id (cname v)))]
+            ++ qasm), v')
+      | unit | bit _ | pair _ _ => ([s_error "db_gate measQ error"], v)
+      end
     | discard =>
       match p with
       | bit x =>
-        let li' := List.remove Nat.eq_dec x li in
-        (trans' c' li' n m)
-      | _ => ([], (0%nat, n))
+        let li' := (remove_var_name li x) in
+        (db_to_qasm li' v c')
+      | unit | qubit _ | pair _ _ => ([s_error "db_gate discard error"], v)
+      end
+    | assert0 | assert1 =>
+      match p with
+      | qubit x =>
+        let li' := (remove_var_name li x) in
+        (db_to_qasm li' v c')
+      | unit | bit _ | pair _ _ => ([s_error "db_gate assert error"], v)
       end
     end
-  | min_lift p f =>
+  | db_lift p f =>
     match p with
     | bit x =>
-      let (p1, temp1) := (trans' (f true) li (S n) m) in
-      let (d1, l1) := temp1 in
-      let (p2, temp2) := (trans' (f false) li l1 m) in
-      let (d2, l2) := temp2 in
-      let bn := (Nat.max d1 d2) in
-      let a := (nth x li 0%nat) in
-      (([s_decl (qreg (qname n) 1);
-           s_ifcall (BId (cname a)) (q_uop (u_U [e_pi; e_nat 0; e_pi] (a_id (qname n))));
-           s_qop (q_meas (a_id (qname n)) (a_id (bname_i bn)))]
-          ++ (meta_if p1 p2 bn)), ((S bn), l2))
+      let (qasm_true, v') := db_to_qasm li (S (S v)) (f true) in
+      let (qasm_false, v'') := db_to_qasm li v' (f false) in
+      (([s_decl (qreg (qname v) 1);
+           s_decl (creg (cname (S v)) 1);
+           s_ifcall (BId (get_var_name li x))
+                    (q_uop (u_U [e_pi; e_nat 0; e_pi] (a_id (qname v))));
+           s_qop (q_meas (a_id (qname v)) (a_id (cname (S v))))]
+          ++ meta_if qasm_true qasm_false (cname (S v))), v'')
     | qubit x =>
-      let li' := List.remove Nat.eq_dec x li in
-      let (p1, temp1) := (trans' (f true) li' n m) in
-      let (d1, l1) := temp1 in
-      let (p2, temp2) := (trans' (f false) li' l1 m) in
-      let (d2, l2) := temp2 in
-      let bn := (Nat.max d1 d2) in
-      let a := (nth x li 0%nat) in
-      (([s_decl (creg (cname a) 1);
-           s_qop (q_meas (a_id (qname a)) (a_id (cname a)))]
-          ++ (meta_if p1 p2 bn)), ((S bn), l2))
-    | _ => ([], (0%nat, n))
+      let (qasm_true, v') := db_to_qasm li (S v) (f true) in
+      let (qasm_false, v'') := db_to_qasm li v' (f false) in
+      (([s_decl (creg (cname v) 1);
+           s_qop (q_meas (a_id (get_var_name li x)) (a_id (cname v)))]
+          ++ meta_if qasm_true qasm_false (cname v)), v'')
+    | unit | pair _ _ => ([s_error "db_lift error"], v)
     end
   end.
-Fixpoint trans (c : Min_Circuit) (w : WType) : program :=
-  let (p, n) := fresh_pat w 0 in
-  let li := pat_to_list p in
-  let (qasm, temp) := (trans' c li n 0%nat) in
-  let (d, l) := temp in
-  (match d with
-   | 0 => qasm
-   | S _ =>
-     [s_decl (creg bname d)] ++ qasm
-   end).
 
-(* Min Circuit Translation Examples *)
-Eval simpl in trans (match (hoas_to_min_box bell00 One) with
-                     | min_box W C => min_circuit_translation_helper C
-                     end) One.
-Eval simpl in trans (match (hoas_to_min_box alice_for_qasm (Qubit ⊗ Qubit)) with
-                     | min_box W C => min_circuit_translation_helper C
-                     end) (Qubit ⊗ Qubit).
-Eval simpl in trans (match (hoas_to_min_box bob_for_qasm (Bit ⊗ Bit ⊗ Qubit)) with
-                     | min_box W C => min_circuit_translation_helper C
-                     end) (Bit ⊗ Bit ⊗ Qubit).
-Eval simpl in trans (match (hoas_to_min_box teleport_for_qasm One) with
-                     | min_box W C => min_circuit_translation_helper C
-                     end) One.
-Eval simpl in hoas_to_min_box teleport_for_qasm One.
-Close Scope circ_scope.
+Definition db_to_qasm_box {w1 w2} (b : DeBruijn_Box w1 w2) : program :=
+  match w1 with
+  | One =>
+    match b with
+    | db_box _ c => fst (db_to_qasm [] 0 c)
+    end
+  | _ => []
+  end.
 
-(*
-Extraction Language Haskell.
-Recursive Extraction trans.
-*)
+Close Scope type_scope.
+Close Scope qasm_scope.

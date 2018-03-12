@@ -127,6 +127,7 @@ Fixpoint print_statement (s : statement) : string :=
   | s_ifcall bx q => "if(call(" ++ (print_bexp bx) ++ ")) " ++ print_qop q
   | s_barrier args => "barrier " ++ print_anylist args ++ ";" ++ newline
   | s_output args => ""
+  | s_error msg => "Compile Error : " ++ msg ++ newline
   end.
 
 Fixpoint printer' (p : program) : string :=
@@ -137,50 +138,3 @@ Fixpoint printer' (p : program) : string :=
 
 Fixpoint printer (p : program) : string
   := "OPENQASM 2.0;" ++ newline ++ "include ""qelib1.inc"";" ++ newline ++ printer' p.
-
-(* Examples : [Min Circuit] to [QASM] *)
-Require Import HOASCircuits.
-Require Import HOASExamples.
-Require Import FlatCircuits.
-Require Import Contexts.
-Open Scope circ_scope.
-Definition bell00_t1 := Eval simpl in (match (hoas_to_min_box bell00 One) with
-                                       | min_box W C => min_circuit_translation_helper C
-                                       end).
-Definition alice_t1 := Eval simpl in (match (hoas_to_min_box alice_for_qasm (Qubit ⊗ Qubit)) with
-                                      | min_box W C => min_circuit_translation_helper C
-                                      end).
-Definition bob_t1 := Eval simpl in (match (hoas_to_min_box bob_for_qasm (Bit ⊗ Bit ⊗ Qubit)) with
-                                    | min_box W C => min_circuit_translation_helper C
-                                    end).
-Definition teleport_t1 := Eval simpl in (match (hoas_to_min_box teleport_for_qasm One) with
-                                         | min_box W C => min_circuit_translation_helper C
-                                         end).
-
-Definition bell00_t2 := Eval simpl in trans bell00_t1 One.
-Definition alice_t2 := Eval simpl in trans alice_t1 (Qubit ⊗ Qubit).
-Definition bob_t2 := Eval simpl in trans bob_t1 (Bit ⊗ Bit ⊗ Qubit).
-Definition teleport_t2 := Eval simpl in trans teleport_t1 One.
-
-Definition bell00_t3 := Eval compute in printer bell00_t2.
-Definition alice_t3 := Eval compute in printer alice_t2.
-Definition bob_t3 := Eval compute in printer bob_t2.
-Definition teleport_t3 := Eval compute in printer teleport_t2.
-
-Print bell00_t1.
-Print bell00_t2.
-Print bell00_t3.
-
-Print alice_t1.
-Print alice_t2.
-Print alice_t3.
-
-Print bob_t1.
-Print bob_t2.
-Print bob_t3.
-
-Print teleport_t1.
-Print teleport_t2.
-Print teleport_t3.
-
-Close Scope circ_scope.

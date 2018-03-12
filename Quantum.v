@@ -116,20 +116,6 @@ Definition swap : Matrix 4 4 :=
           | _, _ => C0
           end.
 
-(* Rotation Matrices (theta, phi, lambda) := Rz(phi) Ry(theta) Rz(lambda) *)
-
-Definition rotation (theta phi lambda : FakeR) : Matrix 2 2 :=
-  let t := (FakeRtoR theta) in
-  let p := (FakeRtoR phi) in
-  let l := (FakeRtoR lambda) in
-  (fun x y => match x, y with
-        | 0, 0 => (cos((p + l) / 2) - Ci * sin((p + l) / 2)) * cos (t / 2)
-        | 0, 1 => -(cos((p - l) / 2) - Ci * sin((p - l) / 2)) * sin (t / 2)
-        | 1, 0 => (cos((p - l) / 2) + Ci * sin((p - l) / 2)) * sin (t / 2)
-        | 1, 1 => (cos((p + l) / 2) + Ci * sin((p + l) / 2)) * cos (t / 2)
-        | _, _ => 0
-        end).
-
 (* Does this overwrite the other Hint DB M? *)
 Hint Unfold ket0 ket1 hadamard σx σy σz control cnot swap : M_db.
 
@@ -262,24 +248,6 @@ Lemma WF_σy : WF_Matrix 2 2 σy. Proof. show_wf. Qed.
 Lemma WF_σz : WF_Matrix 2 2 σz. Proof. show_wf. Qed.
 Lemma WF_cnot : WF_Matrix 4 4 cnot. Proof. show_wf. Qed.
 Lemma WF_swap : WF_Matrix 4 4 swap. Proof. show_wf. Qed.
-
-Lemma WF_rotation : forall (t p l : FakeR), WF_Matrix 2 2 (rotation t p l).
-Proof.
-  intros t p l x y H1. destruct H1 as [H2 | H2].
-  - destruct H2 eqn:Hx.
-    + reflexivity.
-    + simpl. destruct m eqn:Heqm.
-      * inversion H2. inversion H0.
-      * reflexivity. 
-  - destruct x eqn:Hx.
-    + destruct H2 eqn:Hy.
-      * reflexivity.
-      * simpl. destruct m; [inversion g | reflexivity].
-    + destruct H2 eqn:Hy.
-      * destruct n; reflexivity.
-      * destruct n; try reflexivity.
-        destruct m; [inversion g | reflexivity].
-Qed.
 
 Lemma WF_control : forall (n m : nat) (U : Matrix n n), 
       (m = 2 * n)%nat ->
@@ -431,16 +399,7 @@ Proof.
   clra.
 Qed.
 
-Lemma rotation_unitary : forall (t p l : FakeR), is_unitary (rotation t p l).
-Proof.
-  split.
-  show_wf.
-  unfold Mmult, Id, rotation.
-  prep_matrix_equality.
-  destruct x as [| [|x]].
-  - destruct y as [|[|y]].
-    + Admitted.
-  
+
 Lemma kron_unitary : forall {m n} (A : Matrix m m) (B : Matrix n n),
   is_unitary A -> is_unitary B -> is_unitary (A ⊗ B).
 Admitted.
@@ -593,9 +552,6 @@ Hence a quantum state state should be:
   hermitian = self-adjoint
   trace 1
 *)
-
-(* We need an additional restriction that trace = 1 to
-   exclude the identity and zero matrices. *)
 
 Notation Density n := (Matrix n n) (only parsing). 
 

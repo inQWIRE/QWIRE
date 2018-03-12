@@ -59,15 +59,7 @@ Instance Denote_Unitary W : Denote (Unitary W) (Square (2^⟦W⟧)) :=
 Lemma WF_unitary : forall {W} (U : Unitary W), 
       WF_Matrix (2^⟦W⟧) (2^⟦W⟧) (⟦U⟧).
 Proof.
-  unfold WF_Matrix.
   induction U; simpl; auto with wf_db.
-  - apply WF_rotation.
-  - apply WF_control. omega. unfold WF_Matrix. apply IHU.
-  - apply WF_control. omega. unfold WF_Matrix. apply IHU.
-  - apply WF_transpose. unfold WF_Matrix.
-    intros.
-    destruct H as [H | H]; assert (L : (x >= 2 ^ 〚 W 〛)%nat \/ (y >= 2 ^ 〚 W 〛)%nat);
-    auto; apply IHU in L; simpl in L; rewrite L; clra.
 Qed.
 Hint Resolve WF_unitary : wf_db.
 
@@ -78,8 +70,6 @@ Proof.
   + apply σx_unitary.
   + apply σy_unitary.
   + apply σz_unitary.
-  + apply cnot_unitary.
-  + apply rotation_unitary.
   + simpl. apply control_unitary; assumption. (* NB: Admitted lemma *)
   + simpl. apply control_unitary; assumption. (* NB: Admitted lemma *)
   + simpl. apply transpose_unitary; assumption.
@@ -93,7 +83,6 @@ Instance Denote_Unitary_Correct W : Denote_Correct (Denote_Unitary W) :=
 
 (** Gate Denotation **)
 
-
 Definition denote_gate' (safe : bool) n {w1 w2} (g : Gate w1 w2)
            : Superoperator (2^⟦w1⟧ * 2^n) (2^⟦w2⟧ * 2^n) :=
   match g with 
@@ -104,6 +93,7 @@ Definition denote_gate' (safe : bool) n {w1 w2} (g : Gate w1 w2)
   | new0    => super (|0⟩ ⊗ Id (2^n))
   | new1    => super (|1⟩ ⊗ Id (2^n))
   | meas    => fun ρ => super (|0⟩⟨0| ⊗ Id (2^n)) ρ .+ super (|1⟩⟨1| ⊗ Id (2^n)) ρ
+  | measQ   => fun ρ => super (|0⟩⟨0| ⊗ Id (2^n)) ρ .+ super (|1⟩⟨1| ⊗ Id (2^n)) ρ
   | discard => Splus (super (⟨0| ⊗ Id (2^n))) (super (⟨1| ⊗ Id (2^n)))
   (* Safe performs a standard measure-discard, unsafe takes for granted that the 
      qubit to be removed is in the desired state. *)
@@ -194,6 +184,24 @@ Proof.
     rewrite Mmult_1_r.
     constructor; apply pure1.
     auto with wf_db.
+  + simpl in *.
+    rewrite kron_1_r.
+    unfold super.
+    Msimpl.
+    specialize (WF_Mixed _ H) as WF.
+    replace (|0⟩⟨0| × ρ × |0⟩⟨0|) with (ρ 0%nat 0%nat .* |0⟩⟨0|) by solve_matrix.
+    replace (|1⟩⟨1| × ρ × |1⟩⟨1|) with (ρ 1%nat 1%nat .* |1⟩⟨1|) by solve_matrix.
+    specialize (mixed_state_trace_1 _ H) as TR1. unfold trace in TR1. simpl in TR1.
+    replace (ρ 1%nat 1%nat) with (1 - ρ O O) by (rewrite <- TR1; clra).
+    replace (ρ O O) with ((fst (ρ O O)), snd (ρ O O)) by clra. 
+    rewrite mixed_state_diag_real by assumption.
+    replace (1 - (fst (ρ O O), 0)) with (RtoC (1 - fst (ρ O O))) by clra.
+    replace (fst (ρ O O), 0) with (RtoC (fst (ρ O O))) by reflexivity.
+    apply Mix_S.
+    (* here's probably where we need positive semidefiniteness *)
+    admit.
+    constructor; apply pure0.
+    constructor; apply pure1.
   + simpl in *.
     rewrite kron_1_r.
     unfold super.
@@ -386,6 +394,10 @@ Definition apply_meas {n} (k : nat) : Superoperator (2^n) (2^n) :=
   Splus (super (Id (2^k) ⊗ |0⟩⟨0| ⊗ Id (2^(n-k-1)))) 
         (super (Id (2^k) ⊗ |1⟩⟨1| ⊗ Id (2^(n-k-1)))).
 
+Definition apply_measQ {n} (k : nat) : Superoperator (2^n) (2^n) :=
+  Splus (super (Id (2^k) ⊗ |0⟩⟨0| ⊗ Id (2^(n-k-1)))) 
+        (super (Id (2^k) ⊗ |1⟩⟨1| ⊗ Id (2^(n-k-1)))).
+
 Definition super_Zero {m n} : Superoperator m n  :=
   fun _ => Zero _ _.
 
@@ -406,6 +418,10 @@ Definition apply_gate {n w1 w2} (safe : bool) (g : Gate w1 w2) (l : list nat)
   | new1    => apply_new1
   | meas    => match l with 
               | x :: _ => apply_meas x
+              | _      => super_Zero
+              end                               
+  | measQ   => match l with 
+              | x :: _ => apply_measQ x
               | _      => super_Zero
               end                               
   | discard => match l with 

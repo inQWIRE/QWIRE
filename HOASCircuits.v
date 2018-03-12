@@ -60,7 +60,6 @@ Notation "Γ ⊢ f :Fun" := (forall Γ0 Γ0' p0, Γ0' == Γ0 ∙ Γ ->
 Definition Typed_Box {W1 W2 : WType} (b : Box W1 W2) : Set := 
   forall Γ (p : Pat W1), Γ ⊢ p :Pat -> Γ ⊢ unbox b p :Circ.
 
-(* Composition lemma *)
 
 (* Prevent compute from unfolding important fixpoints *)
 Opaque merge.
