@@ -124,30 +124,95 @@ Proof.
   induction x; intros; simpl; auto.
 Qed.
 
-Lemma size_pat_to_ctx : forall {w} (p : Pat w) Γ, Types_Pat Γ p ->
-    ⟦pat_to_ctx p⟧= ⟦w⟧.
+Lemma size_merge : forall (Γ1 Γ2 : OCtx), is_valid (Γ1 ⋓ Γ2) -> ⟦Γ1 ⋓ Γ2⟧ = (⟦Γ1⟧ + ⟦Γ2⟧)%nat.
 Proof.
-  induction 1; simpl; auto; try apply size_singleton.
-  admit (* lemma about denote_OCtx (_ ⋓ _) *).
-Admitted.
+  intros Γ1 Γ2 H.
+  remember (Γ1 ⋓ Γ2) as Γ.
+  assert (M : Γ == Γ1 ∙ Γ2) by (constructor; auto). clear H HeqΓ.
+  apply merge_fun_ind in M.
+  dependent induction M; trivial.
+  inversion m; subst; trivial.
+  - simpl in *. rewrite IHM. omega.
+  - simpl in *. rewrite IHM. omega.
+Qed.
 
+Lemma pat_to_ctx_unique : forall {W} Γ (p : Pat W), Types_Pat Γ p ->
+                                               Γ = pat_to_ctx p.
+Proof.
+  intros W Γ p.
+  generalize dependent Γ.
+  induction p.
+  - intros. inversion H. reflexivity.
+  - intros. simpl. inversion H; subst. 
+    apply singleton_equiv in H2; subst.
+    reflexivity.
+  - intros. simpl. inversion H; subst. 
+    apply singleton_equiv in H2; subst.
+    reflexivity.
+  - intros.
+    simpl.
+    dependent destruction H.
+    erewrite <- IHp1 by apply H.
+    erewrite <- IHp2 by apply H0.
+    reflexivity.
+Qed.    
 
 Lemma size_OCtx_WType : forall Γ w (p : Pat w), Types_Pat Γ p -> ⟦Γ⟧=⟦w⟧.
-Admitted.
+Proof.
+  induction 1; trivial.
+  - apply singleton_size in s; trivial.
+  - apply singleton_size in s; trivial.
+  - subst. apply size_merge in i. 
+    rewrite i. 
+    rewrite IHTypes_Pat1, IHTypes_Pat2.
+    reflexivity.
+Qed.
+
+Lemma size_pat_to_ctx : forall {W} (p : Pat W) Γ, Types_Pat Γ p ->
+    ⟦pat_to_ctx p⟧= ⟦W⟧.
+Proof.
+  intros.
+  erewrite <- pat_to_ctx_unique by apply H.
+  eapply size_OCtx_WType; apply H.
+Qed.
+
+
+(* This isn't true. Counterexamples:
+Transparent merge.
+Eval simpl in OCtx_dom (pat_to_ctx (qubit O, qubit O)).
+Eval simpl in pat_to_list (qubit O, qubit O).
+Eval simpl in OCtx_dom (pat_to_ctx (qubit 2%nat, qubit 1%nat)).
+Eval simpl in pat_to_list (qubit 2%nat, qubit 1%nat).
+Opaque merge.
 
 Lemma OCtx_dom_pat : forall w (p : Pat w),
       OCtx_dom (pat_to_ctx p) = pat_to_list p.
-Admitted.
+Proof. 
+  induction p; trivial.
+  - simpl.
+    induction v; simpl; trivial.
+    rewrite IHv.
+    reflexivity.
+  - simpl.
+    induction v; simpl; trivial.
+    rewrite IHv.
+    reflexivity.
+  - simpl. 
+Abort.
+*)
 
+(* unused *)
 Lemma remove_refl : forall σ,
   fold_left (fun σ x => remove_var x σ) (get_σ σ) σ = st_{0}.
 Admitted.
 
 
-
 Lemma fresh_state_pat : forall w,
       fresh_state w ∅ ⊢ fresh_pat w ∅ :Pat.
+Proof.
+  induction w; repeat constructor.
 Admitted.
+
 
 (* Do these belong back in Denotation? *) 
 Theorem inSeq_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2),
@@ -399,15 +464,6 @@ Admitted.
   
 Hint Unfold apply_box : den_db.
 
-Close Scope circ_scope.
-Fixpoint kron_n n {m1 m2} (A : Matrix m1 m2) : Matrix (m1^n) (m2^n) :=
-  match n with
-  | 0    => Id 1
-  | S n' => A ⊗ kron_n n' A
-  end.
-Notation "n ⨂ A" := (kron_n n A) : matrix_scope.
-Open Scope circ_scope.
-
 Open Scope matrix_scope.
 Fixpoint prepare (ls : list nat) : Matrix 1%nat (2^(length ls)) :=
   fold_left (fun A x => ket x ⊗ A) ls (Id 1).
@@ -481,6 +537,9 @@ Qed. *)
 (***********************)
 
 Delimit Scope circ_scope with qc.
+Close Scope circ_scope. 
+Open Scope matrix_scope.
+
 
 (* f(x) = 0. Unitary: Identity *)
 Definition f0 : Matrix 4 4 := Id 4.
@@ -495,9 +554,6 @@ Definition f2 : Matrix 4 4 := fun x y =>
   | _, _                      => 0
   end.
 
-Close Scope circ_scope. 
-
-Open Scope matrix_scope.
 (* f(x) = 1. Unitary: Id ⊗ X *)
 Definition f3 : Matrix 4 4 := Id 2 ⊗ σx.
 
@@ -646,7 +702,7 @@ Proof.
   solve_matrix.
 Qed.
 
-(* Works, but commented out for efficient compilation 
+(* Works, but commented out for efficient compilation *)
 Definition M_alice (ρ : Matrix 4 4) : Matrix 4 4 :=
   fun x y => 
   match x, y with 

@@ -84,6 +84,223 @@ Proof. intros. destruct b; simpl; solve_matrix. Qed.
 Lemma WF_bool_to_matrix : forall b, WF_Matrix 2 2 (bool_to_matrix b).
 Proof. destruct b; simpl; show_wf. Qed.
 
+
+(**********************)
+(* Syntactic Property *)
+(**********************)
+
+Open Scope circ_scope.
+Close Scope matrix_scope.
+
+
+Ltac destruct_pats :=
+  repeat match goal with
+  | [ p : Pat (S _ ⨂ _) |- _ ] => dependent destruction p
+  | [ p : Pat Qubit |- _ ] => dependent destruction p
+  | [ p : Pat Bit |- _ ] => dependent destruction p
+  | [ p : Pat (_ ⊗ _) |- _] => dependent destruction p
+  | [ p : Pat One |- _] => dependent destruction p
+  end.
+
+Definition partition (i : nat) {n} (p : Pat (n ⨂ Qubit))  (pf : (i < n)%nat)
+                 : Pat (S i ⨂ Qubit) * Pat ((n-i - 1) ⨂ Qubit).
+Proof.
+  destruct n.
+  { absurd False; auto. inversion pf. }
+  induction i.
+  * simpl in *. 
+    dependent destruction p. 
+    replace (n-0)%nat with n by omega.
+    refine (_, p2)%core.
+    exact (p1,()).
+  * simpl.
+    assert (pf' : (i < S n)%nat) by omega.
+    destruct (IHi pf') as [p1 p2].
+    replace (S n - i - 1)%nat with (S (n-i - 1))%nat in p2 by omega.
+    simpl in p1, p2. 
+    dependent destruction p2.
+    refine (_, p2_2)%core.
+    refine (p2_1, p1).
+Defined.
+Definition head {n} (p : Pat (n ⨂ Qubit)) (pf : (0 < n)%nat)
+                  : Var * Pat ((n-1)%nat ⨂ Qubit).
+Proof.
+  destruct (partition 0 p pf) as [p1 p2].
+  dependent destruction p1.
+  dependent destruction p1_1.
+  replace (n - 0 - 1)%nat with (n - 1)%nat in p2 by omega.
+  exact (v,p2)%core.
+Defined.
+
+Definition join {i j : nat}
+                (p1 : Pat (i ⨂ Qubit)) (p2 : Pat (j ⨂ Qubit))
+              : Pat ((i + j) ⨂ Qubit).
+Proof.
+  dependent induction i.
+  - exact p2.
+  - replace (S i + j)%nat with (S (i + j))%nat by omega.
+    dependent destruction p1; rename p1_1 into x, p1_2 into p1.
+    refine (x,IHi j p1 p2).
+Defined.
+(*
+  destruct n.
+  { absurd False; auto. inversion pf. }
+  induction i.
+  * simpl in *. replace (n-0)%nat with n in p2 by omega. 
+    dependent destruction p1.
+    exact (p1_1,p2).
+  * assert (pf' : (i < S n)%nat) by omega.
+    replace (S n - i - 1)%nat with (S (n - i - 1))%nat in IHi by omega.
+    simpl in *.
+    dependent destruction p1.
+    exact (IHi pf' p1_2 (p1_1, p2)).
+*)
+
+Definition unitary_at1 {n} (U : Unitary Qubit) (ls : list nat)
+        : Box (n ⨂ Qubit) (n ⨂ Qubit).
+Proof.
+    destruct ls as [ | i _]; [(* ERROR *) exact id_circ | ].
+    (* should have i < n *)
+    destruct (lt_dec i n) as [pf | ]; [ | (* ERROR *) exact id_circ ].
+    refine (box_ p ⇒ _).
+    destruct (partition i p pf) as [p1 p2].
+    simpl in p1.
+    dependent destruction p1; rename p1_1 into x, p1_2 into p1.
+    
+    refine (gate_ x' ← U @x ; _). 
+    set (p' := @join (S i) _ (x',p1) p2). 
+    replace (S i + (n - i - 1))%nat with n in p' by omega.
+    exact (output p').
+Defined.
+
+
+
+Definition assert (b : bool) : Gate Qubit One := if b then assert1 else assert0.
+
+Definition assert_at (b : bool) {n : nat} (i : nat) : Box (S n ⨂ Qubit) (n ⨂ Qubit).
+Proof.
+  (* if i > n, error *)
+  destruct (lt_dec i (S n)) as [pf | ].
+  * (* i < S n *) 
+    refine (box_ p ⇒ _ ). 
+    destruct (partition i p pf) as [p1 p2].
+    dependent destruction p1; rename p1_1 into x, p1_2 into p1.
+    refine (let_ y ← assert b $ x; _).
+    dependent destruction y.
+    set (p' := join p1 p2).
+    replace (i + (S n - i - 1))%nat with n in p' by omega.
+    exact (output p').
+    
+  * (* i >= n *) refine (box_ p ⇒ _). 
+                 refine (let_ x ← (assert b || id_circ) $ p; _).
+                 dependent destruction x.
+                 refine (output x2).
+Defined.
+
+Definition init_at (b : bool) {n : nat} (i : nat) : Box (n ⨂ Qubit) (S n ⨂ Qubit).
+Proof.
+  (* if i >= n, error *)
+  destruct (lt_dec i n) as [pf | ].
+  * (* i < n *)
+    refine (box_ p ⇒ _).
+    destruct (partition i p pf) as [p1 p2].
+    refine (let_ x ← init b $ (); _).
+    set (px := (x,()) : Pat (1 ⨂ Qubit)).
+    set (p' := join (join p1 px) p2).
+    replace (S i + 1 + (n - i - 1))%nat with (S n) in p' by omega.
+    exact (output p').
+  * (* i >= n -- ERROR *)
+    refine (box_ p ⇒ let_ x ← init b $ (); output (x,p)).
+Defined.
+
+Definition unitary_at {n} {w} (U : Unitary w) (ls : list nat) 
+        : Box (n ⨂ Qubit) (n ⨂ Qubit).
+Proof.
+  destruct U.
+  * (* H *) exact (unitary_at1 H ls).
+  * (* X *) exact (unitary_at1 X ls).
+  * (* Y *) exact (unitary_at1 Y ls).
+  * (* Z *) exact (unitary_at1 Z ls).
+  * (* ctrl *)
+    destruct ls as [ | i [ | j ls]]; [ (* ERROR *) exact id_circ 
+                                     | (* ERROR *) exact id_circ | ].
+    (* if i >= n or j >= n or i = j, error *)
+    destruct (lt_dec i n) as [pf_i | ]; [ | (* ERROR *) exact id_circ ].
+    destruct (lt_dec j n) as [pf_j | ]; [ | (* ERROR *) exact id_circ ].
+    destruct (Nat.eq_dec i j) as [pf_eq | ]; [ (* ERROR *) exact id_circ | ].
+    
+    -- 
+    refine (box_ p ⇒ _).
+    destruct (partition i p pf_i) as [p1 p2]; clear p.
+    dependent destruction p1; rename p1_1 into x, p1_2 into p1.
+
+    admit.
+
+  * (* bit_ctrl *) admit.
+  * (* transpose U *) 
+    destruct ls as [ | i _]; [(* ERROR *) exact id_circ | ].
+    destruct (lt_dec i n) as [pf | ]; [ | (* ERROR *) exact id_circ ].
+    
+Admitted.
+
+
+
+
+Inductive Classical_Gate : forall (n t : nat),
+  Box ((n+t) ⨂ Qubit) ((n+t) ⨂ Qubit) -> Type :=
+| classical_X {n t} i : Classical_Gate n t (unitary_at X [i])
+| classical_CNOT {n t} i j : Classical_Gate n t (unitary_at CNOT [i;j])
+| classical_CCNOT {n t} i j k : Classical_Gate n t (unitary_at CCNOT [i;j;k])
+.
+Definition uncompute {n t} b (pf : Classical_Gate n t b) 
+                   : Box ((n+t) ⨂ Qubit) ((n+t) ⨂ Qubit).
+Proof.
+  destruct pf.
+  * (* X *) (* if i < n, then uncompute it, otherwise leave it alone *)
+    destruct (lt_dec i n).
+    + exact (unitary_at X [i]).
+    + exact id_circ.
+  * (* CNOT *) (* if j < n then uncompute it, otherwise leave it alone *)
+    destruct (lt_dec j n).
+    + exact (unitary_at CNOT [i;j]).
+    + exact id_circ.
+  * (* CCNOT *) (* if k < n then uncompute it, otherwise leave it alone *)
+    destruct (lt_dec k n).
+    + exact (unitary_at CCNOT [i;j;k]).
+    + exact id_circ.
+Defined.
+
+Lemma Tensor_S_plus : forall m n q,
+    (S m + n) ⨂ q = (m + S n) ⨂ q.
+Proof.
+  intros.  replace (S m + n)%nat with (m + S n)%nat by omega.
+  reflexivity.
+Qed.
+
+Program Definition coerce {n t} (c : Box ((n + S t) ⨂ Qubit) ((n + S t) ⨂ Qubit))
+                              :  Box ((S n + t) ⨂ Qubit) ((S n + t) ⨂ Qubit) := c.
+Next Obligation.
+  rewrite <- Tensor_S_plus. reflexivity.
+Defined.
+Next Obligation.
+  rewrite <- Tensor_S_plus. reflexivity.
+Defined.
+
+Program Inductive Symmetric {t} : forall n,  Box ((n+t) ⨂ Qubit) ((n+t) ⨂ Qubit) -> Type :=
+| s_idcirc {n} : Symmetric n id_circ
+| s_classical_l {n g b} : forall (pf : Classical_Gate n (S t) g),
+                Symmetric (S n) b ->
+                Symmetric (S n) (coerce (uncompute g pf) · coerce g ·  b)
+| s_classical_r {n g b} : forall (pf : Classical_Gate n (S t) g),
+                Symmetric (S n) b ->
+                Symmetric (S n) (coerce g ·  b · coerce (uncompute g pf))
+| s_init {n} (x : bool) {b} i : 
+           (i < S n)%nat ->
+           Symmetric (S n) b ->
+           Symmetric n (assert_at x i · b · init_at x i)
+.
+
+
 (******************)
 (** Discard Test **) 
 (******************)
@@ -507,6 +724,43 @@ Fixpoint share_to (n k : nat) : Box (S n ⨂ Qubit) (S n ⨂ Qubit) :=
 
 Lemma share_to_WT : forall n k, Typed_Box (share_to n k).
 Proof. induction n; type_check. destruct k; type_check. apply IHn; type_check. Qed.
+
+Lemma share_to_spec : forall (t b : bool) (k n : nat) (l1 l2 : list (Square 2)),
+  (k < n)%nat ->
+  length l1 = k ->
+  length l2 = (n - k - 1)%nat ->
+  ⟦share_to n k⟧  ((bool_to_matrix t) ⊗ big_kron l1  ⊗ (bool_to_matrix b) ⊗ big_kron l2) = (bool_to_matrix (xorb t b) ⊗ big_kron l1 ⊗ (bool_to_matrix b) ⊗ big_kron l2).
+Proof.
+  intros t b k n l1 l2 Lt H2 H1.
+  induction n; [omega|]. 
+  destruct k.
+  - simpl in *.
+    rewrite Nat.sub_0_r in *.
+    clear Lt.
+    repeat (autounfold with den_db; simpl).
+    unfold subst_var; simpl.
+    unfold fresh_state.
+    unfold lookup_maybe; simpl.
+
+subst_var_seq:
+  forall len start x : nat,
+  (x < len)%nat -> subst_var (seq start len) (start + x)%nat = x
+subst_var_σ_n: forall n x : nat, (x < n)%nat -> subst_var (σ_{ n}) x = x
+
+
+    unfold subst_var. simpl.
+    
+  
+  - omega.
+    simpl in *.
+    destruct l2; [|inversion H1].
+    destruct k; [|omega].
+    simpl.
+    unfold I1. simpl.
+    rewrite (kron_1_r _ _ (bool_to_matrix (xorb t b) ⊗ big_kron l1 ⊗ bool_to_matrix b)).
+    
+inversion H0.
+                                      
 
 Fixpoint compile (b : rbexp) (Γ : Ctx) : Box (S (⟦Γ⟧) ⨂ Qubit) (S (⟦Γ⟧) ⨂ Qubit) :=
   box_ tqs ⇒
