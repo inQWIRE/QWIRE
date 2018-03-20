@@ -1183,3 +1183,14 @@ Ltac solve_matrix := assoc_least;
                      repeat reduce_matrix; try crunch_matrix;
                      Csimpl; try clra.
        
+(* Tactics to show implicit arguments *)
+Definition kron' := @kron.      
+Lemma kron_shadow : @kron = kron'. reflexivity. Qed.
+
+Definition Mmult' := @Mmult.
+Lemma Mmult_shadow : @Mmult = Mmult'. reflexivity. Qed.
+
+Ltac show_dimensions := try rewrite kron_shadow in *; 
+                        try rewrite Mmult_shadow in *.
+Ltac hide_dimensions := try rewrite <- kron_shadow in *; 
+                        try rewrite <- Mmult_shadow in *.

@@ -81,8 +81,8 @@ Instance Denote_Unitary_Correct W : Denote_Correct (Denote_Unitary W) :=
     denote_correct := fun U => unitary_gate_unitary U
 |}.
 
-(** Gate Denotation **)
 
+(** Gate Denotation **)
 
 Definition denote_gate' (safe : bool) n {w1 w2} (g : Gate w1 w2)
            : Superoperator (2^⟦w1⟧ * 2^n) (2^⟦w2⟧ * 2^n) :=
@@ -1304,6 +1304,32 @@ Proof.
 Admitted.
 
 
+Lemma denote_box_correct : forall {W1} {W2} (c : Box W1 W2), 
+                            Typed_Box c -> 
+                            WF_Superoperator (denote_box true c).
+Proof. 
+  intros W1 W2 c T.
+  unfold denote_box.
+  destruct c.
+  simpl.
+  remember (fresh_pat W1 ∅) as p.
+  induction (c p).
+  - simpl.
+    unfold WF_Superoperator.
+    intros ρ H.
+    unfold pad.
+    unfold denote_pat.
+    unfold hoas_to_db_pat.
+    admit.
+  - simpl.
+    unfold WF_Superoperator.
+    intros ρ H0.
+    unfold compose_super.
+    admit.
+    - admit.
+Admitted.
+
+
 (*********************************************************)
 (* Equivalence of circuits according to their denotation *)
 (*********************************************************)
@@ -1311,7 +1337,7 @@ Admitted.
 Definition HOAS_Equiv {W1 W2} (b1 b2 : Box W1 W2) :=
   forall ρ, Mixed_State ρ -> ⟦b1⟧ ρ = ⟦b2⟧ ρ.
 
-Infix "≡" := HOAS_Equiv.
+Infix "≡" := HOAS_Equiv : circ_scope.
 
 Hint Unfold HOAS_Equiv : den_db.
     

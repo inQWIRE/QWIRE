@@ -616,6 +616,14 @@ Proof.
   lra.
 Qed.
 
+(* e^(iθ) *)
+Definition Cexp (θ : R) : C := (cos θ, sin θ).
+
+(*
+Definition Cexp' (θ : R) : C := cos θ + Ci * (sin θ).
+Lemma Cexp_eq : forall θ, Cexp θ = Cexp' θ. Proof. intros. clra. Qed.
+*)
+
 (**************)
 (* Automation *)
 (**************)

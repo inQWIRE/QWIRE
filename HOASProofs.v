@@ -478,12 +478,11 @@ Proof.
 Qed.
 
 Hint Unfold pure : den_db.
-
+Close Scope matrix_scope.
 
 Lemma share_correct : forall n α β, 
-      @denote _ _ (@Denote_Box _ _) (share n) (pure (α.*|0⟩ .+ β.*|1⟩))
-    = pure (α.*(S n ⨂ |0⟩) .+ β.*(S n ⨂ |1⟩)).
-Close Scope matrix_scope.
+      (@denote _ _ (@Denote_Box _ _) (share n) (pure (α.*|0⟩ .+ β.*|1⟩))
+    = pure (α.*(S n ⨂ |0⟩) .+ β.*(S n ⨂ |1⟩)))%M.
 Proof.
   induction n; intros.
   * repeat (autounfold with den_db; simpl).
@@ -564,7 +563,9 @@ Definition balanced (U : Unitary (Qubit ⊗ Qubit)%qc) :=
 
 Lemma f2_WF : WF_Matrix 4 4 f2. Proof. show_wf. Qed.
 Hint Resolve f2_WF : wf_db.
-  
+
+Close Scope matrix_scope.
+Open Scope circ_scope.  
 (* Set Ltac Profiling. *)
 
 Lemma deutsch_constant : forall U_f, constant U_f -> 
@@ -796,6 +797,7 @@ Qed.
 
 (* Teleport with Dynamic Lifting *)
 
+Open Scope matrix_scope.
 Definition M_bob_distant (b1 b2 : bool) (ρ : Density 2) : Matrix 2 2 := 
   match b1, b2 with
   | true, true   => σz × σx × ρ × σx × σz  
@@ -803,6 +805,7 @@ Definition M_bob_distant (b1 b2 : bool) (ρ : Density 2) : Matrix 2 2 :=
   | false, true  => σx × ρ × σx  
   | false, false => ρ
   end.
+Close Scope matrix_scope.
 
 Definition bob_distant_spec : forall b1 b2 (ρ : Density 2), 
     Mixed_State ρ -> 
@@ -886,5 +889,3 @@ Abort (* This is only true if ρ is a classical state *).
 *)
 *)
 
-
-*)

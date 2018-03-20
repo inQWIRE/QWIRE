@@ -584,6 +584,7 @@ Lemma WF_Mixed : forall {n} (ρ : Density n), Mixed_State ρ -> WF_Matrix n n ρ
 Proof. induction 1; auto with wf_db. Qed.
 Hint Resolve WF_Mixed : wf_db.
 
+
 (** Density matrices and superoperators **)
 
 Definition Superoperator m n := Density m -> Density n.

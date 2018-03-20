@@ -120,6 +120,17 @@ Definition merge (Γ1 Γ2 : OCtx) : OCtx :=
   | _, _ => Invalid
   end. 
 
+(* Merge will generally be opaque outside of this file *)
+Lemma merge_shadow : merge = fun Γ1 Γ2 => 
+  match Γ1 with
+  | Invalid => Invalid
+  | Valid Γ1' => match Γ2 with
+                | Invalid => Invalid
+                | Valid Γ2' => merge' Γ1' Γ2'
+                end
+  end. Proof. reflexivity. Qed.
+Ltac unlock_merge := rewrite merge_shadow in *.
+
 Notation "∅" := (Valid []).
 Infix "⋓" := merge (left associativity, at level 50).
 Coercion Valid : Ctx >-> OCtx.

@@ -38,7 +38,6 @@ Proof. type_check. Qed.
 Lemma NOT_meas_comm : X_meas ≡ meas_NOT.
 Proof.
   repeat (autounfold with den_db; intros; simpl).
-  specialize (WF_Mixed _ H); intros WF.
   Msimpl.
   rewrite Mmult_plus_distr_l.
   rewrite Mmult_plus_distr_r.
@@ -88,7 +87,6 @@ Lemma lift_alternate_eq : forall W (U V : Unitary W), lift_UV U V ≡ alt_UV U V
 Proof.
   intros W U V.
   repeat (autounfold with den_db; intros; simpl).
-  specialize (WF_Mixed _ H); intros WF.
   simpl.
   rewrite plus_0_r.
   rewrite Nat.sub_0_r.

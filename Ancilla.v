@@ -129,15 +129,47 @@ Proof.
     simpl.
 *)
 
-Definition valid_ancillae {W} (c : Circuit W) := forall Γ Γ0, 
+Definition valid_ancillae {W} (c : Circuit W) : Prop := forall Γ Γ0, 
   (* Γ' == Γ0 ∙ Γ -> *) (* necessary? *)
   Γ ⊢ c:Circ -> (* <- is this right? *)
   ⟨ Γ0 | Γ ⊩ c ⟩ = ⟨! Γ0 | Γ ⊩ c !⟩.
 
-(*
-Definition valid_ancillae {W1 W2} (c : Box W1 W2) := 
+Definition valid_ancillae_box {W1 W2} (c : Box W1 W2) := 
   denote_box true c = denote_box false c.
-*)
+
+Definition valid_ancillae' {W} (c : Circuit W) := forall Γ Γ0 ρ, 
+  Γ ⊢ c:Circ -> (* <- is this right? *)
+  Mixed_State ρ ->
+  trace (⟨! Γ0 | Γ ⊩ c !⟩ ρ) = 1.
+
+Definition valid_ancillae_box' {W1 W2} (c : Box W1 W2) : Prop := forall ρ, 
+  Mixed_State ρ ->
+  trace (denote_box false c ρ) = 1.
+
+Print valid_ancillae_box'.
+
+Lemma valid_ancillae_equal : forall W (c : Circuit W), 
+  valid_ancillae c <-> valid_ancillae' c.
+Proof.
+  intros.
+  unfold valid_ancillae, valid_ancillae'.
+  split.
+  - intros VA.
+    
+    
+  unfold valid_ancillae, valid_ancillae'.
+  induction c.
+  - simpl.
+
+
+Lemma valid_ancillae_box_equal : forall W1 W2 (c : Box W1 W2), 
+  valid_ancillae_box c <-> valid_ancillae_box' c.
+Proof.
+  intros.
+  destruct c.
+  induction (c p).
+  - 
+
 
 Lemma id_correct : forall W p, valid_ancillae (@output W p).
 Proof.
@@ -432,6 +464,7 @@ Proof.
       apply pf.
 Qed.
 
+(* *)
 
             
 
@@ -521,136 +554,4 @@ apply M. eapply t0. apply pf1. apply t.
     apply H.
 Admitted.    
 
-
-(* Add a requirement that the circuit is well-typed? *)
-Lemma ancilla_free_valid : forall W (c : Circuit W), ancilla_free c -> valid_ancillae c.
-Proof.
-  intros W c H.
-  induction c.  
-  + unfold valid_ancillae. reflexivity.
-  + assert (forall p : Pat w2, valid_ancillae (c p)) as VA.
-      intros p'.
-      apply H0.
-      dependent destruction H.
-      apply H1.
-    clear H0.
-    intros Γ0 Γ Γ' M.
-    unfold valid_ancillae in *. 
-    erewrite denote_gate_circuit. 2: admit. 2: admit.
-    erewrite denote_gate_circuit_unsafe. 2: admit. 2: admit.
-    unfold denote_circuit in *.
-    simpl in *.
-    erewrite VA. 2: admit.
-    destruct g eqn:gE.
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - dependent destruction H. inversion H.
-    - dependent destruction H. inversion H.
-  + dependent destruction H.
-    unfold valid_ancillae in *.      
-    intros Γ0 Γ Γ' H1.
-    unfold denote_circuit in *.
-    simpl in *.
-    replace (denote_OCtx Γ - 1)%nat with (denote_OCtx (DBCircuits.remove_pat p Γ)).
-    erewrite H0.
-    erewrite H0.
-    reflexivity.
-    apply H.
-Admitted.    
-
-      
-      2: rewrite merge_nil_l.
-with (Γ0 := Γ0) (Γ1 := ∅).
-      
-      rewrite VA.
-      simpl.
-
-rewrite VA. reflexivity. 
-    - simpl. unfold apply_new0. simpl. 
-      unfold DBCircuits.get_fresh_var. simpl. 
-      unfold DBCircuits.add_fresh_state. 
-      simpl.
-      destruct Γ.
-      simpl.      
-      Search DBCircuits.hoas_to_db Invalid.
-      rewrite VA.
-
-rewrite VA. reflexivity.
-    - simpl. rewrite VA. reflexivity.
-     
-    inversion H; subst.
-    inversion H6.
-    apply H7.
-    assumption.
-    apply 
-
-    inversion H; subst.
-    specialize (H0
-    apply H0 in H7.
-    apply H7 in H0.
-
-
-
-inversion H; subst. clear H. 
-  unfold valid_ancillae.
-  
-  induction (c p).
-  + unfold valid_ancillae.
-    unfold denote_box. simpl.
-    reflexivity.
-    simpl.
-    reflexivity.
-  + unfold valid_ancillae in *.
-
-    inversion H; subst.
-    specialize (H0 
-
-    assert ⟦ b ⟧ = ⟨ [] | DBCircuits.fresh_state w1 [] ⊩ unbox b (DBCircuits.fresh_pat w1 []) ⟩
-
-
-    specialize denote_db_unbox with (b:=(c p)).  (w2:=W).
-    replace (denote_box true box_ () ⇒ (c p)) with (⟦(box_ () ⇒ (c p))⟧) in H0.
-
-
-    (* Apply IH *)
-    rewrite denote_db_unbox in H0.
-    unfold fresh_pat in IHn.
-    unfold fresh_state in IHn.
-    rewrite merge_nil_r.
-    unfold compose_super.
-    rewrite IHn.
-
-
-    replace (denote_box true box_ () ⇒ (c p)) with (⟦c⟧) in H0.
-
-    unfold denote_box in *.
-
-
-    destruct g.
-    unfold denote_box in *.
-    - simpl in *.
-      
-    simpl in *.
-    
-
-(*
-C0;
-assert0 p;
-C1; 
-p' <- init0;
-C2
-output ;
-
-=
-
-C0;
-rename p into p';
-C1;
-C2; 
-*)
+(* *)
