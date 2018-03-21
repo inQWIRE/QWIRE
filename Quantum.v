@@ -11,6 +11,10 @@ Open Scope R_scope.
 Open Scope C_scope.
 Open Scope matrix_scope.
 
+(*******************************************)
+(* Representations of quantum basis states *)
+(*******************************************)
+
 Definition ket0 : Matrix 2 1:= 
   fun x y => match x, y with 
           | 0, 0 => C1
@@ -37,6 +41,28 @@ Notation "|0⟩⟨0|" := (|0⟩×⟨0|).
 Notation "|1⟩⟨1|" := (|1⟩×⟨1|).
 Notation "|1⟩⟨0|" := (|1⟩×⟨0|).
 Notation "|0⟩⟨1|" := (|0⟩×⟨1|).
+
+Definition bool_to_matrix (b : bool) : Matrix 2 2 := if b then |1⟩⟨1| else |0⟩⟨0|.
+
+Definition bool_to_matrix' (b : bool) : Matrix 2 2 := fun x y =>
+  match x, y with
+  | 0, 0 => if b then 0 else 1
+  | 1, 1 => if b then 1 else 0
+  | _, _ => 0
+  end.  
+
+Definition bool_to_ket (b : bool) : Matrix 2 1 := if b then |1⟩ else |0⟩.
+  
+Lemma bool_to_matrix_eq : forall b, bool_to_matrix b = bool_to_matrix' b.
+Proof. intros. destruct b; simpl; solve_matrix. Qed.
+
+Lemma bool_to_ket_matrix_eq : forall b, outer_product (bool_to_ket b) = bool_to_matrix b.
+Proof. unfold outer_product. destruct b; simpl; reflexivity. Qed.
+
+
+(*************)
+(* Unitaries *)
+(*************)
 
 Definition hadamard : Matrix 2 2 := 
   (fun x y => match x, y with
@@ -239,8 +265,15 @@ Lemma WF_ket0 : WF_Matrix 2 1 |0⟩. Proof. show_wf. Qed.
 Lemma WF_ket1 : WF_Matrix 2 1 |1⟩. Proof. show_wf. Qed.
 Lemma WF_braket0 : WF_Matrix 2 2 |0⟩⟨0|. Proof. show_wf. Qed.
 Lemma WF_braket1 : WF_Matrix 2 2 |1⟩⟨1|. Proof. show_wf. Qed.
+Lemma WF_bool_to_ket : forall b, WF_Matrix 2 1 (bool_to_ket b).
+Proof. destruct b; simpl; show_wf. Qed.
+Lemma WF_bool_to_matrix : forall b, WF_Matrix 2 2 (bool_to_matrix b).
+Proof. destruct b; simpl; show_wf. Qed.
+Lemma WF_bool_to_matrix' : forall b, WF_Matrix 2 2 (bool_to_matrix' b).
+Proof. intros. rewrite <- bool_to_matrix_eq. apply WF_bool_to_matrix. Qed.
 
 Hint Resolve WF_bra0 WF_bra1 WF_ket0 WF_ket1 WF_braket0 WF_braket1 : wf_db.
+Hint Resolve WF_bool_to_ket WF_bool_to_matrix WF_bool_to_matrix' : wf_db.
 
 Lemma WF_hadamard : WF_Matrix 2 2 hadamard. Proof. show_wf. Qed.
 Lemma WF_σx : WF_Matrix 2 2 σx. Proof. show_wf. Qed.
@@ -607,6 +640,14 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma super_outer_product : forall m (φ : Matrix m 1) (U : Matrix m m), 
+    super U (outer_product φ) = outer_product (U × φ).
+Proof.
+  intros. unfold super, outer_product.
+  autorewrite with M_db.
+  repeat rewrite Mmult_assoc. reflexivity.
+Qed.
+
 Definition compose_super {m n p} (g : Superoperator n p) (f : Superoperator m n)
                       : Superoperator m p :=
   fun ρ => g (f ρ).
@@ -778,9 +819,9 @@ Proof.
     clra.
 Qed.  
 
-(************
- *Automation*
- ************)
+(**************)
+(* Automation *)
+(**************)
 
 (* For when autorewrite needs some extra help *)
 
@@ -800,9 +841,9 @@ Ltac Msimpl :=
   | _                         => autorewrite with M_db
   end.
 
-(**************
- *Swap testing*
- **************)
+(****************************************)
+(* Tests and Lemmas about swap matrices *)
+(****************************************)
 
 Lemma swap_spec : forall (q q' : Matrix 2 1), WF_Matrix 2 1 q -> 
                                          WF_Matrix 2 1 q' ->
@@ -919,6 +960,5 @@ Proof.
   repeat setoid_rewrite kron_assoc.
   reflexivity.
 Qed.
-
 
 (* *)

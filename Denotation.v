@@ -321,6 +321,20 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma swap_list_spec_1 : forall n i j (A1 : Square (2^i)%nat) (A2 : Square (2^j)%nat)
+  (U : Square (2^1)%nat) (ρ : Square (2^1)%nat), (i + j + 1 = n)%nat ->
+  super (swap_list n [i] × pad n U × (swap_list n [i])†) (A1 ⊗ ρ ⊗ A2) = 
+  A1 ⊗ (super U ρ) ⊗ A2.
+Admitted.
+
+Lemma swap_list_spec_2 : forall n i j k 
+  (A1 : Square (2^i)%nat) (A2 : Square (2^j)%nat) (A3 : Square (2^k)%nat)   
+  (U : Square (2^2)%nat) (ρ1 ρ2 ρ1' ρ2': Square (2^1)%nat), (i + j + k + 2 = n)%nat ->
+  (super U (ρ1 ⊗ ρ2)) = ρ1' ⊗ ρ2' -> 
+  super (swap_list n [i; (i+j+1)%nat] × pad n U × (swap_list n [i; (i+j+1)%nat])†) 
+    (A1 ⊗ ρ1 ⊗ A2 ⊗ ρ2 ⊗ A3) = A1 ⊗ ρ1' ⊗ A2 ⊗ ρ2' ⊗ A3.
+Admitted.
+
 Definition apply_U {m n} (U : Square (2^m)) (l : list nat) 
            : Superoperator (2^n) (2^n) :=
   let S := swap_list n l in 
@@ -334,32 +348,9 @@ Definition apply_new0 {n} : Superoperator (2^n) (2^(n+1)) :=
 Definition apply_new1 {n} : Superoperator (2^n) (2^(n+1)) :=
   super (Id (2^n) ⊗ |1⟩).
 
-(*
-(* Discard the qubit k in an n-qubit system *)
-(* Now using move_to_0 k n instead of swap_two k 0 n *)
-(* Requires: k < n *)
-Definition apply_discard {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
-  let S := move_to_0 n k in 
-  Splus (super ((⟨0| ⊗ Id (2^(n-1))) × S)) (super ((⟨1| ⊗ Id (2^(n-1))) × S)).
+(* In-place measurement and discarding *)
 
-(* Discard the qubit k, assuming it has the value |0⟩ *)
-Definition apply_assert0 {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
-  let S := move_to_0 n k in super ((⟨0| ⊗ Id (2^(n-1))) × S).
-
-Definition apply_assert1 {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
-  let S := move_to_0 n k in super ((⟨1| ⊗ Id (2^(n-1))) × S).
-
-(* Confirm transposes are in the right place *)
-Definition apply_meas {n} (k : nat) : Superoperator (2^n) (2^n) :=
-  let S := swap_two n 0 k in 
-  fun ρ => super (S × (|0⟩⟨0| ⊗ Id (2^(n-1))) × S†) ρ 
-        .+ super (S × (|1⟩⟨1| ⊗ Id (2^(n-1))) × S†) ρ.
-  (* super S ∘ super (|0⟩⟨0| ⊗ Id (2^(n-1))) *)
-*)
-
-(* Trying to do measure and discard in-place *)
-
-(* Discard the qubit k in an n-qubit system *)
+(* Discard the qubit k (in place) in an n-qubit system *)
 (* Requires: k < n *)
 Definition apply_discard {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
   Splus (super (Id (2^k) ⊗ ⟨0| ⊗ Id (2^(n-k-1)))) 
@@ -461,6 +452,30 @@ Proof.
   autorewrite with M_db.
   reflexivity.
 Qed.
+
+Lemma apply_U_spec_1 : forall n i j (A1 : Square (2^i)%nat) (A2 : Square (2^j)%nat)
+  (U : Square (2^1)%nat) (ρ : Square (2^1)%nat), (i + j + 1 = n)%nat ->
+  @apply_U 1%nat n U [i] (A1 ⊗ ρ ⊗ A2) = A1 ⊗ (super U ρ) ⊗ A2.
+Proof.
+  intros.
+  unfold apply_U.
+  apply swap_list_spec_1.
+  assumption.
+Qed.
+
+Lemma apply_U_spec_2 : forall n i j k 
+  (A1 : Square (2^i)%nat) (A2 : Square (2^j)%nat) (A3 : Square (2^k)%nat)   
+  (U : Square (2^2)%nat) (ρ1 ρ2 ρ1' ρ2': Square (2^1)%nat), (i + j + k + 2 = n)%nat ->
+  (super U (ρ1 ⊗ ρ2)) = ρ1' ⊗ ρ2' -> 
+  @apply_U 2%nat n U [i; (i+j+1)%nat] (A1 ⊗ ρ1 ⊗ A2 ⊗ ρ2 ⊗ A3) = A1 ⊗ ρ1' ⊗ A2 ⊗ ρ2' ⊗ A3.
+Proof.
+  intros.
+  unfold apply_U.
+  apply swap_list_spec_2.
+  assumption.
+  assumption.
+Qed.
+
 
 (** Denoting Min Circuits **)
 
@@ -651,7 +666,6 @@ Proof.
   reflexivity.
 Qed.
 
-Open Scope circ_scope.
 Lemma hoas_to_db_pat_fresh : forall w Γ w',
       Γ = fresh_state w' ∅ ->
       hoas_to_db_pat (fresh_state w Γ) (fresh_pat w Γ) 
@@ -670,7 +684,7 @@ Proof.
 
   * f_equal.
     +admit. (* more general lemma *)
-    + rewrite IHw2 with (w' := w' ⊗ w1).
+    + rewrite IHw2 with (w' := Tensor w' w1).
       - f_equal. Search OCtx_dom fresh_state.
         rewrite OCtx_dom_fresh; auto.
         simpl.
@@ -1329,6 +1343,53 @@ Proof.
     - admit.
 Admitted.
 
+(* Lemmas regarding denotation with padding *)
+
+(* needs defining *)
+Parameter decr_circuit_once : forall {W}, Circuit W -> Circuit W.
+
+Fixpoint decr_circuit {W} (n : nat) (c : Circuit W) : Circuit W :=
+  match n with 
+  | 0 => c
+  | S n' => decr_circuit n' (decr_circuit_once c)
+  end. 
+
+Fixpoint decr_pat_once {W} (p : Pat W) :=
+  match p with 
+  | unit => unit 
+  | qubit v => qubit (v-1)%nat 
+  | bit v => bit (v-1)%nat
+  | pair p1 p2 => pair (decr_pat_once p1) (decr_pat_once p2)
+  end.
+
+Lemma decr_pat_once_qubit : forall n Γ, 
+    decr_pat_once (fresh_pat (NTensor n Qubit) (Valid (Some Qubit :: Γ)))
+    = fresh_pat (NTensor n Qubit) (Valid Γ).
+Proof.
+  induction n; intros.
+  - simpl. reflexivity.
+  - simpl. rewrite IHn. rewrite Nat.sub_0_r. reflexivity.
+Qed.
+
+Lemma decr_circuit_pat : forall W1 W2 (c : Box W1 W2) (p : Pat W1), 
+    decr_circuit_once (unbox c p) = unbox c (decr_pat_once p).
+Admitted.
+
+Lemma denote_db_pad_left : forall (Γ0 Γ : Ctx) pad n W (c : Circuit W) 
+  (ρ1 : Square (2^pad)) (ρ2 : Square (2^n)), 
+  ⟦Γ0⟧ = pad ->
+  ⟦Γ⟧ = n ->  
+  ⟨Γ0 | Valid (repeat None pad ++ Γ) ⊩ c ⟩ (ρ1 ⊗ ρ2) = 
+  ρ1 ⊗ (⟨ ∅ | Γ ⊩ decr_circuit pad c ⟩ ρ2).
+Admitted.
+
+Lemma denote_db_pad_right : forall (Γ0 Γ : OCtx) pad n w (c : Circuit w) (ρ1 : Square (2^n)) (ρ2 : Square (2^pad)),
+  ⟦Γ0⟧ = pad ->
+  ⟦Γ⟧ = n ->
+  ⟨ Γ0 | Γ ⊩ c ⟩ (ρ1 ⊗ ρ2) = ⟨ ∅ | Γ ⊩ c ⟩ ρ1 ⊗ ρ2.
+Admitted.
+
+
 
 (*********************************************************)
 (* Equivalence of circuits according to their denotation *)
@@ -1348,6 +1409,22 @@ Hint Unfold HOAS_Equiv : den_db.
 
 Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard compose_super 
      super Splus swap_list swap_two pad denote_box denote_pat : den_db.
+
+Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard compose_super 
+     Splus swap_list swap_two pad denote_box denote_pat : ket_den_db.
+
+Ltac ket_denote :=
+  intros; 
+  repeat (autounfold with ket_den_db; simpl);
+  repeat rewrite <- bool_to_ket_matrix_eq;
+  repeat replace (|0⟩⟨0|) with (outer_product |0⟩) by reflexivity;
+  repeat replace (|1⟩⟨1|) with (outer_product |1⟩) by reflexivity;
+  repeat rewrite outer_product_kron;
+  repeat rewrite super_outer_product;
+  apply outer_product_eq.
+
+Ltac matrix_denote :=
+  intros; repeat (autounfold with den_db; simpl).
 
 Hint Rewrite hoas_to_db_pat_fresh_empty : proof_db.
 Hint Rewrite denote_OCtx_fresh using validate : proof_db.

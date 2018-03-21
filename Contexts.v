@@ -26,6 +26,16 @@ Fixpoint interpret (w:WType) : Set :=
     | One   => unit
     | w1 ⊗ w2 => (interpret w1) * (interpret w2)
   end.
+
+(* Large tensor product. Right associative with a trailing One  *)
+Fixpoint NTensor (n : nat) (W : WType) := 
+  match n with 
+  | 0    => One
+  | S n' => W ⊗ NTensor n' W
+  end.
+
+Infix "⨂" := NTensor (at level 30) : circ_scope.
+
 Close Scope circ_scope.
 
 
@@ -53,10 +63,6 @@ Definition size_OCtx (Γ : OCtx) : nat :=
 
 Lemma ctx_octx : forall Γ Γ', Valid Γ = Valid Γ' <-> Γ = Γ'.
 Proof. intuition; congruence. Defined.
-
-(* Operations on contexts *)
-
-
 
 (**********************)
 (* Singleton Contexts *)

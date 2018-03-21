@@ -149,6 +149,9 @@ Definition transpose {m n} (A : Matrix m n) : Matrix n m :=
 Definition conj_transpose {m n} (A : Matrix m n) : Matrix n m := 
   (fun x y => Cconj (A y x)).
 
+Definition outer_product {m} (v : Matrix m 1) : Square m := 
+  Mmult v (conj_transpose v).
+
 (* Kronecker of n copies of A *)
 Fixpoint kron_n n {m1 m2} (A : Matrix m1 m2) : Matrix (m1^n) (m2^n) :=
   match n with
@@ -448,6 +451,21 @@ Lemma WF_conj_transpose : forall {m n : nat} (A : Matrix m n),
 Proof. unfold WF_Matrix, conj_transpose, Cconj. intros m n A H x y H0. simpl. 
 rewrite H. clra. omega. Qed.
 
+Lemma WF_outer_product : forall {n} (v : Matrix n 1), WF_Matrix n 1 v ->
+                                                 WF_Matrix n n (outer_product v).
+Proof. intros. apply WF_mult; [|apply WF_conj_transpose]; assumption. Qed.
+
+Lemma WF_big_kron : forall n m (l : list (Matrix m n)), 
+                        (forall i, WF_Matrix m n (nth i l (Zero m n))) ->
+                         WF_Matrix (m^(length l)) (n^(length l)) (⨂ l). 
+Proof.                         
+  intros n m l H.
+  induction l.
+  - simpl. apply WF_Id.
+  - simpl. apply WF_kron; trivial. apply (H O).
+    apply IHl. intros i. apply (H (S i)).
+Qed.
+
 (***************************************)
 (* Tactics for showing well-formedness *)
 (***************************************)
@@ -473,7 +491,7 @@ Ltac show_wf :=
 
 (* Create HintDb wf_db. *)
 Hint Resolve WF_Zero WF_Id WF_I1 WF_mult WF_plus WF_scale WF_kron WF_transpose 
-     WF_conj_transpose : wf_db.
+     WF_conj_transpose WF_outer_product WF_big_kron : wf_db.
 
 
 (** Basic Matrix Lemmas **)
@@ -981,15 +999,25 @@ Proof.
     rewrite H, H0; reflexivity.
 Qed.
 
+Lemma outer_product_eq : forall m (φ ψ : Matrix m 1), φ = ψ -> 
+                                                 outer_product φ = outer_product ψ.
+Proof. congruence. Qed.
 
-
+Lemma outer_product_kron : forall m n (φ : Matrix m 1) (ψ : Matrix n 1), 
+    outer_product φ ⊗ outer_product ψ = outer_product (φ ⊗ ψ).
+Proof. 
+  intros. unfold outer_product. 
+  specialize (kron_conj_transpose _ _ _ _ φ ψ) as KT. 
+  simpl in *. rewrite KT.
+  specialize (kron_mixed_product _ _ _ _ _ _ φ ψ (φ†) (ψ†)) as KM. 
+  simpl in *. rewrite KM.
+  reflexivity.
+Qed.
 
 Hint Rewrite kron_1_l kron_1_r Mmult_1_l Mmult_1_r id_conj_transpose_eq
      Mmult_conj_transpose kron_conj_transpose
      id_conj_transpose_eq conj_transpose_involutive using 
      (auto 100 with wf_db; autorewrite with M_db; auto 100 with wf_db; omega) : M_db.
-
-
 
 (* Note on "using [tactics]": Most generated subgoals will be of the form 
    WF_Matrix M, where auto with wf_db will work.

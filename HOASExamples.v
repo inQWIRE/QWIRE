@@ -56,17 +56,6 @@ Lemma inPar_WT : forall W1 W1' W2 W2' (c1 : Box W1 W2) (c2 : Box W1' W2'),
   Typed_Box (c1 || c2).
 Proof. type_check. Qed.
 
-(* Right associative Tensor. Right associative with a trailing One  *)
-Fixpoint NTensor (n : nat) (W : WType) := 
-  match n with 
-  | 0    => One
-  | S n' => W ⊗ NTensor n' W
-  end.
-
-Infix "⨂" := NTensor (at level 30). 
-(* Transparent Tensor. *)
-(* Opaque NTensor. *)
-
 Fixpoint units (n : nat) : Pat (n ⨂ One) := 
   match n with
   | O => unit
