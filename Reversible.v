@@ -683,7 +683,7 @@ Fixpoint share_to' (n k : nat) : Square_Box (S n ⨂ Qubit) ⊗ Qubit :=
 Lemma share_to_WT : forall n k, Typed_Box (share_to n k).
 Proof. induction n; type_check. destruct k; type_check. apply IHn; type_check. Qed.
 
-Lemma size_NTensor : forall n W, size_WType (n ⨂ W) = (n * size_WType W)%nat.
+Lemma size_ntensor : forall n W, size_wtype (n ⨂ W) = (n * size_wtype W)%nat.
 Proof.
   intros n W.
   induction n; trivial.
@@ -692,7 +692,7 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma size_repeat_ctx : forall n W, denote_Ctx (repeat (Some W) n) = n.
+Lemma size_repeat_ctx : forall n W, size_ctx (repeat (Some W) n) = n.
 Proof.
   induction n; trivial.
   intros; simpl.
@@ -709,7 +709,7 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma fresh_state_NTensor : forall n (Γ : Ctx), fresh_state (n ⨂ Qubit) (Valid Γ) = 
+Lemma fresh_state_ntensor : forall n (Γ : Ctx), fresh_state (n ⨂ Qubit) (Valid Γ) = 
                                            Valid (Γ ++ List.repeat (Some Qubit) n).
 Proof.                            
   induction n. 
@@ -717,7 +717,7 @@ Proof.
   - intros. simpl. rewrite IHn. rewrite <- app_assoc. reflexivity.
 Qed.
 
-Lemma ctx_dom_repeat : forall n, Ctx_dom (repeat (Some Qubit) n) = seq 0 n.
+Lemma ctx_dom_repeat : forall n, ctx_dom (repeat (Some Qubit) n) = seq 0 n.
 Proof.      
   induction n; trivial.
   simpl.
@@ -897,7 +897,7 @@ Proof.
     simpl.
 
 (* Show that padding and subst_var are the identity *)
-    rewrite fresh_state_NTensor. 
+    rewrite fresh_state_ntensor. 
     remember (repeat (Some Qubit) (S (S n'))) as Qubits.
     replace (([Some Qubit] ++ repeat (Some Qubit) n') ++ [Some Qubit])%core with 
         Qubits.
@@ -929,7 +929,7 @@ Proof.
       rewrite ntensor_pat_to_list_shifted by omega.
       rewrite <- seq_S. simpl. reflexivity.
     simpl.
-    rewrite size_NTensor. simpl.
+    rewrite size_ntensor. simpl.
     rewrite Nat.add_1_r, Nat.mul_1_r.
     rewrite swap_list_n_id.
     rewrite pad_nothing.
@@ -963,8 +963,8 @@ Proof.
     simpl.
 
     repeat (autounfold with den_db; simpl).
-    rewrite fresh_state_NTensor. simpl.
-    rewrite size_NTensor. simpl. rewrite Nat.add_1_r, Nat.mul_1_r.
+    rewrite fresh_state_ntensor. simpl.
+    rewrite size_ntensor. simpl. rewrite Nat.add_1_r, Nat.mul_1_r.
     replace ([Some Qubit]) with (repeat (Some Qubit) 1) by reflexivity.
     rewrite repeat_combine.
     replace (Some Qubit :: repeat (Some Qubit) (n'+1)) with 
@@ -1022,12 +1022,12 @@ Proof.
       destruct H. simpl. rewrite <- merge_assoc. rewrite merge_comm. assumption.
 
       unfold compose_super. simpl.
-      rewrite fresh_state_NTensor. simpl.
+      rewrite fresh_state_ntensor. simpl.
       replace ([Some Qubit]) with (repeat (Some Qubit) 1) by reflexivity.
       rewrite repeat_combine.
       rewrite size_repeat_ctx.      
       unfold denote_pat. simpl.
-      rewrite size_NTensor. simpl. rewrite Nat.mul_1_r, Nat.add_1_r.
+      rewrite size_ntensor. simpl. rewrite Nat.mul_1_r, Nat.add_1_r.
       rewrite ctx_dom_repeat.      
       repeat rewrite seq_shift.      
       replace (0%nat :: seq 1 (S n')) with (σ_{2+n'}) by reflexivity.
@@ -1037,11 +1037,10 @@ Proof.
       rewrite merge_nil_l.
       replace ([Some Qubit]) with (repeat (Some Qubit) 1) by reflexivity.
       rewrite ntensor_pat_to_list_shifted by omega.
-      unfold denote_OCtx. simpl.
-      Transparent merge. simpl. 
-        specialize (merge_singleton_append Qubit (repeat (Some Qubit) n')) as MSA.
-        simpl in MSA. rewrite repeat_length in MSA. rewrite MSA. clear MSA.
-      Opaque merge.
+      unfold size_octx. simpl.
+      specialize (merge_singleton_append Qubit (repeat (Some Qubit) n')) as MSA.
+      simpl in MSA. rewrite repeat_length in MSA. 
+      unlock_merge. simpl. rewrite MSA. clear MSA.
       rewrite <- seq_S.
       replace (@Datatypes.cons Var O (seq (S O) (S n'))) with (σ_{2+n'}) by
           reflexivity.
@@ -1056,7 +1055,7 @@ Proof.
       specialize (IH k l1 l2).
       specialize (denote_db_unbox (share_to n' k)) as DDU.
       simpl in DDU. rewrite DDU in IH. clear DDU.
-      rewrite fresh_state_NTensor in IH. simpl in IH.
+      rewrite fresh_state_ntensor in IH. simpl in IH.
 
       repeat rewrite kron_assoc.
       setoid_rewrite kron_assoc.
@@ -1095,7 +1094,7 @@ Proof.
       rewrite IH; trivial.      
       2: intros i; apply (WF1 (S i)).
       unfold super.
-      rewrite size_NTensor. simpl. rewrite Nat.mul_1_r, Nat.add_1_r. simpl.
+      rewrite size_ntensor. simpl. rewrite Nat.mul_1_r, Nat.add_1_r. simpl.
       apply WF_big_kron in WF2; trivial.
       assert (WF1': WF_Matrix (2 ^ length l1) (2 ^ length l1) (⨂ l1)).
       apply WF_big_kron. intros j. apply (WF1 (S j)).
@@ -1270,6 +1269,37 @@ Lemma compile_self_inverse : forall b Γ, Γ ⊂ get_context b ->
                                     self_inverse (compile b Γ).
 Admitted.
 
+Delimit Scope circ_scope with qc.
+
+Lemma is_valid_singleton_merge : forall W (Γ : Ctx) n, (length Γ <= n)%nat ->
+                                                  is_valid (Γ ⋓ singleton n W).
+Proof.
+  induction Γ; intros.
+  - unlock_merge. simpl. apply valid_valid. 
+  - destruct n. simpl in H; omega.
+    unlock_merge. simpl.
+    simpl in H. 
+    destruct IHΓ with (n := n). omega.
+    rewrite H0.
+    destruct a; simpl; apply valid_valid.
+Qed.
+
+Lemma size_ctx_app : forall (Γ1 Γ2 : Ctx), 
+          size_ctx (Γ1 ++ Γ2) = (size_ctx Γ1 + size_ctx Γ2)%nat.
+Proof.
+  induction Γ1; trivial.
+  intros.
+  simpl.
+  rewrite IHΓ1.
+  destruct a; reflexivity.
+Qed.
+
+Lemma singleton_length : forall n W, length (singleton n W) = (n + 1)%nat.
+Proof.
+  induction n; trivial. 
+  intros W. simpl. rewrite IHn. reflexivity.
+Qed.
+
 Theorem compile_correct : forall b (Γ : Ctx) (f : Var -> bool) (t : bool), 
   get_context b ⊂ Γ ->
   ⟦compile b Γ⟧ ((ctx_to_matrix Γ f) ⊗ (bool_to_matrix t)) = 
@@ -1280,12 +1310,12 @@ Proof.
   - simpl.
     unfold denote_box.
     unfold denote_db_box. simpl.
-    rewrite size_NTensor. simpl. rewrite Nat.mul_1_r, Nat.add_1_r. 
-    rewrite fresh_state_NTensor. simpl.
+    rewrite size_ntensor. simpl. rewrite Nat.mul_1_r, Nat.add_1_r. 
+    rewrite fresh_state_ntensor. simpl.
     rewrite pad_nothing.
     rewrite repeat_length. 
     unfold denote_pat.
-    remember (denote_Ctx Γ) as n.
+    remember (size_ctx Γ) as n.
     replace (pat_to_list _) with (σ_{S n}).
     Focus 2.
       clear.
@@ -1306,7 +1336,7 @@ Proof.
       simpl.
       reflexivity.
     simpl.
-    rewrite size_NTensor. simpl. rewrite Nat.add_1_r, Nat.mul_1_r.
+    rewrite size_ntensor. simpl. rewrite Nat.add_1_r, Nat.mul_1_r.
     rewrite swap_list_n_id.
     rewrite (repeat_combine (option WType) n 1).
     rewrite ctx_dom_repeat.
@@ -1330,15 +1360,15 @@ Proof.
     reflexivity.
   - simpl.
     unfold denote_box. simpl.
-    remember (denote_Ctx Γ) as n.
-    rewrite fresh_state_NTensor. simpl.    
-    rewrite size_NTensor. simpl. rewrite Nat.add_1_r, Nat.mul_1_r.
+    remember (size_ctx Γ) as n.
+    rewrite fresh_state_ntensor. simpl.    
+    rewrite size_ntensor. simpl. rewrite Nat.add_1_r, Nat.mul_1_r.
     rewrite (repeat_combine (option WType) n 1).
     rewrite pad_nothing.
     unfold denote_pat. simpl.
     rewrite ctx_dom_repeat.
     rewrite subst_var_σ_n by (rewrite repeat_length; omega).
-    rewrite size_NTensor. simpl. rewrite Nat.add_1_r, Nat.mul_1_r.
+    rewrite size_ntensor. simpl. rewrite Nat.add_1_r, Nat.mul_1_r.
     replace (pat_to_list _) with (σ_{n}).
     Focus 2.
       clear; simpl.
@@ -1372,8 +1402,8 @@ Proof.
     
     repeat (autounfold with den_db; simpl).
     unfold add_fresh_state. simpl.
-    rewrite fresh_state_NTensor. simpl.
-    rewrite size_NTensor. simpl. rewrite Nat.add_1_r, Nat.mul_1_r.
+    rewrite fresh_state_ntensor. simpl.
+    rewrite size_ntensor. simpl. rewrite Nat.add_1_r, Nat.mul_1_r.
     rewrite (repeat_combine (option WType) _ 1%nat).
     rewrite (repeat_combine (option WType) _ 1%nat).
     unfold get_fresh_var. simpl.
@@ -1383,7 +1413,101 @@ Proof.
     specialize denote_compose as DC. simpl in DC.
     unfold denote_circuit in DC.
 
+    remember (Valid (repeat (Some Qubit) (size_ctx Γ + 1 + 1))) as Γ1'.
+    replace (@denote_db_circuit (Tensor (NTensor (size_ctx Γ) Qubit) Qubit) true 0 
+                                (S (S (size_ctx Γ)))) with 
+            (@denote_db_circuit (Tensor (NTensor (size_ctx Γ) Qubit) Qubit) true 
+                                (⟦∅⟧) (⟦Γ1'⟧)) by
+            (simpl; subst; repeat rewrite Nat.add_1_r; 
+             unfold size_octx; rewrite size_repeat_ctx; reflexivity).
+    
+    erewrite DC.
+    Focus 2.
+      apply WT_compile.
+      econstructor.
+      4: constructor; apply singleton_singleton.
+      3: apply (types_pat_fresh_ntensor _ O).
+      2: reflexivity.
+      apply is_valid_singleton_merge.
+      simpl. rewrite repeat_length. omega.
+    Focus 3.
+      simpl. subst.
+      constructor. apply valid_valid.
+      instantiate (1 := (singleton (size_ctx Γ) Qubit)).      
+      rewrite merge_comm. rewrite <- merge_assoc. 
+      rewrite (merge_comm (singleton _ _)). rewrite merge_assoc.
+      Search repeat "append".
+      replace (singleton (size_ctx Γ)) with
+              (singleton (length (repeat (Some Qubit) (size_ctx Γ)))) by 
+              (rewrite repeat_length; reflexivity).
+      rewrite merge_singleton_append.
+      replace (singleton (size_ctx Γ + 1)%nat) with
+              (singleton (length (repeat (Some Qubit) (size_ctx Γ)++[Some Qubit])))
+        by (rewrite (repeat_combine (option WType) _ 1), repeat_length; reflexivity).
+      rewrite merge_singleton_append.
+      repeat rewrite (repeat_combine (option WType) _ 1).
+      reflexivity.
 
+    Focus 2.
+      intros.
+      rewrite repeat_length.
+      specialize WT_compile as WT.
+      unfold Typed_Box in WT.
+      type_check.
+      11: apply WT.
+      11: type_check.
+      12: type_check.
+      12: type_check.
+      12: rewrite merge_assoc; constructor; validate; reflexivity.
+      9: reflexivity.
+      all: type_check.
+      8: apply singleton_singleton.
+      4: apply WT.
+      3: apply singleton_singleton.
+      3: type_check. 
+      4: type_check.
+      4: type_check.
+      2: reflexivity.
+      validate.
+      validate.
+      type_check.
+
+
+
+  simpl.  
+  rewrite fresh_state_ntensor. simpl.
+  repeat rewrite denote_ctx_app. simpl.
+  repeat rewrite app_length. 
+  Search singleton.
+  specialize singleton_size as SS. simpl in SS. repeat rewrite SS. clear SS.
+  simpl.
+  repeat rewrite size_repeat_ctx.
+  rewrite Nat.add_1_r. simpl.
+  rewrite repeat_length.
+    
+  erewrite (size_octx_merge (Valid (repeat (Some Qubit) (size_ctx Γ)))
+           (Valid (None :: singleton (size_ctx Γ) Qubit))) by (apply 
+     (is_valid_singleton_merge _ _ (S (size_ctx Γ))); rewrite repeat_length; omega).
+
+    unfold size_octx.
+    rewrite size_repeat_ctx.
+    rewrite merge_nil_l.
+    rewrite singleton_length.
+
+    remember ((singleton (size_ctx Γ) Qubit ++
+                     repeat (Some Qubit) (size_ctx Γ)) ++ 
+                    [Some Qubit]) as Γ1''.
+    replace (@denote_db_circuit (Tensor (NTensor (size_ctx Γ) Qubit) Qubit) true 0 
+                                (S (S (size_ctx Γ)))) with 
+            (@denote_db_circuit (Tensor (NTensor (size_ctx Γ) Qubit) Qubit) true 
+                                (⟦∅⟧) (⟦Γ1''⟧)) by
+        (simpl; subst; repeat rewrite size_ctx_app; rewrite size_repeat_ctx, 
+                     singleton_size; simpl; rewrite Nat.add_1_r; easy).
+    
+    erewrite DC.
+    
+
+    
     
 (*
 Fixpoint make_reversible {W} (c : Circuit W) (r : reversible c)

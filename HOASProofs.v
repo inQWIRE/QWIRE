@@ -119,22 +119,6 @@ Fixpoint upper_bound (li : list nat) : nat :=
   | n :: li' => max (S n) (upper_bound li')
   end.
 
-Lemma size_singleton : forall x w, size_Ctx (singleton x w) = 1%nat.
-Proof.
-  induction x; intros; simpl; auto.
-Qed.
-
-Lemma size_merge : forall (Γ1 Γ2 : OCtx), is_valid (Γ1 ⋓ Γ2) -> ⟦Γ1 ⋓ Γ2⟧ = (⟦Γ1⟧ + ⟦Γ2⟧)%nat.
-Proof.
-  intros Γ1 Γ2 H.
-  remember (Γ1 ⋓ Γ2) as Γ.
-  assert (M : Γ == Γ1 ∙ Γ2) by (constructor; auto). clear H HeqΓ.
-  apply merge_fun_ind in M.
-  dependent induction M; trivial.
-  inversion m; subst; trivial.
-  - simpl in *. rewrite IHM. omega.
-  - simpl in *. rewrite IHM. omega.
-Qed.
 
 Lemma pat_to_ctx_unique : forall {W} Γ (p : Pat W), Types_Pat Γ p ->
                                                Γ = pat_to_ctx p.
@@ -157,25 +141,13 @@ Proof.
     reflexivity.
 Qed.    
 
-Lemma size_OCtx_WType : forall Γ w (p : Pat w), Types_Pat Γ p -> ⟦Γ⟧=⟦w⟧.
-Proof.
-  induction 1; trivial.
-  - apply singleton_size in s; trivial.
-  - apply singleton_size in s; trivial.
-  - subst. apply size_merge in i. 
-    rewrite i. 
-    rewrite IHTypes_Pat1, IHTypes_Pat2.
-    reflexivity.
-Qed.
-
 Lemma size_pat_to_ctx : forall {W} (p : Pat W) Γ, Types_Pat Γ p ->
     ⟦pat_to_ctx p⟧= ⟦W⟧.
 Proof.
   intros.
   erewrite <- pat_to_ctx_unique by apply H.
-  eapply size_OCtx_WType; apply H.
+  symmetry. eapply types_pat_size; apply H.
 Qed.
-
 
 (* This isn't true. Counterexamples:
 Transparent merge.
@@ -230,17 +202,16 @@ Proof.
   set (Γ2_0 := fresh_state W2 ∅).
   assert (⟦Γ1_0⟧ = ⟦W1⟧).
   { unfold Γ1_0.
-    rewrite denote_OCtx_fresh; auto.
+    rewrite size_octx_fresh; auto.
     validate. }
   assert (⟦Γ2_0⟧ = ⟦W2⟧).
   { unfold Γ2_0.
-    rewrite denote_OCtx_fresh; auto.
+    rewrite size_octx_fresh; auto.
     validate. }
 
   replace 0%nat with (⟦∅⟧:nat) by auto.
-  replace (size_WType W1) with (⟦Γ1_0⟧) by auto.
-  replace (size_WType W2) with (⟦Γ2_0⟧) by auto.
-
+  replace (size_wtype W1) with (⟦Γ1_0⟧) by auto.
+  replace (size_wtype W2) with (⟦Γ2_0⟧) by auto.
 
   apply denote_compose. 
   * apply types_f. apply fresh_state_pat. 
@@ -254,11 +225,10 @@ Qed.
 Lemma merge_singleton_end : forall Γ w,
       Valid (Γ ++ [Some w]) = Valid Γ ⋓ singleton (length Γ) w.
 Proof.
-  Transparent merge.
+  unlock_merge.
   induction Γ as [ | [w' | ] Γ]; intros; simpl in *; auto.
   * rewrite <- IHΓ. reflexivity.
   * rewrite <- IHΓ. reflexivity.
-  Opaque merge.
 Qed.
 
 Lemma fresh_state_decompose : forall w Γ,
@@ -323,9 +293,9 @@ Proof.
   assert (Γ_2 ⊢ p_2 :Pat) by admit (* need a vaiant of fresh_pat_typed *).
 
   replace 0%nat with (⟦∅⟧) by auto.
-  replace (size_WType W1 + size_WType W2)%nat with (⟦Γ_2⟧).
-  replace (size_WType W1) with (⟦Γ_1⟧).
-  replace (size_WType W2) with (⟦fresh_state W2 ∅⟧).
+  replace (size_wtype W1 + size_wtype W2)%nat with (⟦Γ_2⟧).
+  replace (size_wtype W1) with (⟦Γ_1⟧).
+  replace (size_wtype W2) with (⟦fresh_state W2 ∅⟧).
 
   specialize denote_compose as DC. unfold denote_circuit in DC. 
   rewrite DC with (Γ1' := Γ_2) (Γ1 := Γ_2) (Γ := Γ_1). 
@@ -353,9 +323,9 @@ Proof.
   * apply types_f; auto.
   * intros. type_check. apply types_g. auto.
   * admit (* this is not true... *).
-  * rewrite denote_OCtx_fresh; auto. validate.
-  * unfold Γ_1. rewrite denote_OCtx_fresh. auto. validate.
-  * unfold Γ_2, Γ_1. repeat rewrite denote_OCtx_fresh. auto.
+  * rewrite size_octx_fresh; auto. validate.
+  * unfold Γ_1. rewrite size_octx_fresh. auto. validate.
+  * unfold Γ_2, Γ_1. repeat rewrite size_octx_fresh. auto.
     validate. validate.
 Admitted.
 

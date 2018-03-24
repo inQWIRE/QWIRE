@@ -159,17 +159,14 @@ Proof.
     
   unfold valid_ancillae, valid_ancillae'.
   induction c.
-  - simpl.
-
+Admitted.
 
 Lemma valid_ancillae_box_equal : forall W1 W2 (c : Box W1 W2), 
   valid_ancillae_box c <-> valid_ancillae_box' c.
 Proof.
   intros.
   destruct c.
-  induction (c p).
-  - 
-
+Admitted.
 
 Lemma id_correct : forall W p, valid_ancillae (@output W p).
 Proof.
@@ -178,24 +175,14 @@ Proof.
   reflexivity.
 Qed.
 
-(* Lemmas for ancilla_free_valid *)
-Transparent merge.
-
-Lemma append_merge : forall Γ W, 
-  Valid (Γ ++ [Some W]) = (Valid Γ) ⋓ singleton (length Γ) W.
-Proof.
-  intros Γ W.
+(* Also in Reversible.v *)
+Lemma merge_singleton_append : forall W (Γ : Ctx), 
+        Γ ⋓ (singleton (length Γ) W) = Valid (Γ ++ [Some W]). 
+Proof. 
   induction Γ.
-  + simpl.
-    reflexivity.
-  + simpl.
-    simpl in *.
-    inversion IHΓ.
-    destruct a.
-    simpl.
-    reflexivity.
-    simpl.
-    reflexivity.
+  - simpl. rewrite merge_nil_l. reflexivity.
+  - unlock_merge. simpl in *.
+    destruct a; simpl; rewrite IHΓ; reflexivity.
 Qed.
 
 Lemma add_fresh_merge : forall Γ W, 
@@ -218,7 +205,7 @@ Proof.
     simpl.
     unfold get_fresh_var.
     simpl.
-    rewrite append_merge.
+    rewrite <- merge_singleton_append.
     rewrite merge_comm.
     reflexivity.
 Qed.
@@ -255,28 +242,30 @@ Proof.
       simpl.
       edestruct IHv.
       constructor.
-      2: rewrite merge_nil_r; reflexivity.
+      2: rewrite merge_nil_r; easy.
       apply valid_valid.
       rewrite merge_nil_r in pf_merge0.
       inversion pf_merge0.
       constructor.
       apply valid_valid.
       rewrite merge_nil_r.
-      reflexivity.
+      easy.
     + destruct H.
       constructor.
       apply valid_valid.
-      simpl in pf_merge.
+      unlock_merge. simpl in *.
       destruct (merge' (singleton v W) Γ) eqn:E. 
-      rewrite pf_merge in pf_valid. apply not_valid in pf_valid. contradiction.
-      inversion pf_merge.
+      rewrite pf_merge in pf_valid. invalid_contradiction. 
       simpl.
       edestruct IHv.
       constructor.
-      2: symmetry in E; apply E.
-      apply valid_valid.
-      inversion pf_merge0.
-      reflexivity.
+      2: symmetry in E; unlock_merge; apply E.
+      apply valid_valid.      
+      unlock_merge.
+      rewrite <- pf_merge0.
+      inversion pf_merge.
+      simpl.
+      easy.
 Qed.
 
 (*
@@ -291,13 +280,13 @@ Proof.
   dependent induction H.
   - destruct v; inversion x.
   - induction v.
-    + reflexivity. 
+    + simpl. unfold remove_pat. simpl. admit. (* Now this case isn't true either? *)
     + simpl. 
       unfold remove_pat in *.
       simpl in *.
       inversion IHv.
       (* Bah! 
-         I think this needs to be true, the definition of remove_pat might
+         This needs to be true: The definition of remove_pat might
          need to be changed to trim trailing Nones. *)
 Admitted.
 
@@ -321,34 +310,16 @@ Proof.
     apply IHp2.
 Qed.
 
-Lemma denote_singleton : forall v W Γ, SingletonCtx v W Γ -> 
-                                  denote_OCtx Γ = 1%nat.
-Proof.
-  intros v W Γ H.
-  generalize dependent v.
-  induction Γ.
-  - intros v H. inversion H.
-  - intros v H. 
-    inversion H; subst.
-    reflexivity.
-    simpl.
-    eapply IHΓ.
-    apply H3.
-Qed.  
-
 Lemma remove_bit_pred : forall Γ Γ' v, Γ' == (singleton v Bit) ∙ Γ ->
-                        denote_OCtx (remove_pat (bit v) Γ') = (denote_OCtx Γ' - 1)%nat.
+                        size_octx (remove_pat (bit v) Γ') = (size_octx Γ' - 1)%nat.
 Proof.
   intros Γ Γ' v H.
-  remember H as H'. clear HeqH'.
-  apply denote_OCtx_merge in H.
-  apply remove_bit_merge in H'.
-  rewrite H, H'.
-  rewrite (denote_singleton v Bit) by apply singleton_singleton.
-  omega.
+  remember H as H'. clear HeqH'. apply remove_bit_merge in H'.
+  destruct H. rewrite pf_merge in *. rewrite size_octx_merge by easy. 
+  erewrite remove_bit_merge.
+  2: constructor; trivial.
+  unfold size_octx at 2. rewrite singleton_size. omega.
 Qed.
-
-Opaque merge.
 
 Lemma ancilla_free_valid : forall W (c : Circuit W), 
                            ancilla_free c -> 
@@ -440,7 +411,7 @@ Proof.
     intros Γ Γ0 WT.
     unfold denote_circuit in *.
     simpl in *.
-    replace (denote_OCtx Γ - 1)%nat with (denote_OCtx (DBCircuits.remove_pat p Γ)).
+    replace (size_octx Γ - 1)%nat with (size_octx (DBCircuits.remove_pat p Γ)).
     erewrite VA.
     erewrite VA.
     reflexivity.
@@ -467,12 +438,15 @@ Qed.
 (* *)
 
             
+(* Subsequent stuff doesn't work - not sure what it was supposed to do.
 
-Lemma add_fresh_union_l : forall W Γ Γ0 Γ1,
+Lemma add_fresh_union_l : forall W (Γ : Ctx) Γ0 Γ1,
           Γ == Γ0 ∙ Γ1 ->
-          add_fresh_state W Γ == (Γ0 ⋓ (SingletonCtx (length Γ) W)) ∙ Γ1.
-
+          add_fresh_state W Γ == (Γ0 ⋓ (singleton (length Γ) W)) ∙ Γ1.
+Proof.
       type_check.
+
+(* Not sure how this was supposed to go:
  eapply t0; [apply pf1|apply t].
     - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
     - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
@@ -491,6 +465,7 @@ type_check. apply M. eapply t0. apply pf1. apply t.
     Focus 2.
     
     Search process_gate_state process_gate_pat.
+*)
 
 Lemma process_gate_typing : forall W W' g p (c : Circuit W) Γ Γ0 Γ', Γ' == Γ0 ∙ Γ ->
                                            Γ ⊢ c :Circ ->
@@ -547,11 +522,11 @@ apply M. eapply t0. apply pf1. apply t.
     intros Γ0 Γ Γ' H1.
     unfold denote_circuit in *.
     simpl in *.
-    replace (denote_OCtx Γ - 1)%nat with (denote_OCtx (DBCircuits.remove_pat p Γ)).
+    replace (size_octx Γ - 1)%nat with (size_octx (DBCircuits.remove_pat p Γ)).
     erewrite H0.
     erewrite H0.
     reflexivity.
     apply H.
 Admitted.    
 
-(* *)
+*)

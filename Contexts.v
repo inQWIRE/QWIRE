@@ -10,12 +10,12 @@ Notation " W1 ⊗ W2 " := (Tensor W1 W2) (at level 40, left associativity)
                      : circ_scope.
 
 Open Scope circ_scope.
-Fixpoint size_WType (W : WType) : nat := 
+Fixpoint size_wtype (W : WType) : nat := 
   match W with
   | One => 0
   | Qubit => 1
   | Bit => 1
-  | W1 ⊗ W2 => size_WType W1 + size_WType W2
+  | W1 ⊗ W2 => size_wtype W1 + size_wtype W2
   end.
 
 (* Coq interpretations of wire types *)
@@ -48,16 +48,16 @@ Inductive OCtx :=
 | Valid : Ctx -> OCtx.
 
 (* The size of a context is the number of wires it holds *)
-Fixpoint size_Ctx (Γ : Ctx) : nat :=
+Fixpoint size_ctx (Γ : Ctx) : nat :=
   match Γ with
   | [] => 0
-  | None :: Γ' => size_Ctx Γ'
-  | Some _ :: Γ' => S (size_Ctx Γ')
+  | None :: Γ' => size_ctx Γ'
+  | Some _ :: Γ' => S (size_ctx Γ')
   end.
-Definition size_OCtx (Γ : OCtx) : nat :=
+Definition size_octx (Γ : OCtx) : nat :=
   match Γ with
   | Invalid => 0
-  | Valid Γ' => size_Ctx Γ'
+  | Valid Γ' => size_ctx Γ'
   end.
 
 
@@ -503,8 +503,8 @@ Defined.
 Ltac valid_invalid_absurd := try (absurd (is_valid Invalid); 
                                   [apply not_valid | auto]; fail).
 
-Lemma size_ctx_merge : forall (Γ1 Γ2 : OCtx), is_valid (Γ1 ⋓ Γ2) ->
-                       size_OCtx (Γ1 ⋓ Γ2) = (size_OCtx Γ1 + size_OCtx Γ2)%nat.
+Lemma size_octx_merge : forall (Γ1 Γ2 : OCtx), is_valid (Γ1 ⋓ Γ2) ->
+                       size_octx (Γ1 ⋓ Γ2) = (size_octx Γ1 + size_octx Γ2)%nat.
 Proof.
   intros Γ1 Γ2 valid.
   destruct Γ1 as [ | Γ1];
@@ -531,6 +531,15 @@ Proof.
       [absurd (is_valid Invalid); auto; apply not_valid | ].
     simpl in *. rewrite IHΓ1; auto. apply valid_valid.
 Defined.
+
+Lemma size_ctx_app : forall (Γ1 Γ2 : Ctx),
+      size_ctx (Γ1 ++ Γ2) = (size_ctx Γ1 + size_ctx Γ2)%nat.
+Proof.
+  induction Γ1; intros; simpl; auto.
+  destruct a; trivial.
+  rewrite IHΓ1; easy.
+Qed.
+
 
 
 (*** Disjointness ***)
@@ -735,14 +744,14 @@ Proof.
 Qed.
 
 (* empty context *)
-Inductive empty_Ctx : Ctx -> Prop :=
-| empty_nil : empty_Ctx []
-| empty_cons : forall Γ, empty_Ctx Γ -> empty_Ctx (None :: Γ)
+Inductive empty_ctx : Ctx -> Prop :=
+| empty_nil : empty_ctx []
+| empty_cons : forall Γ, empty_ctx Γ -> empty_ctx (None :: Γ)
 .
-Lemma trim_empty : forall Γ, empty_Ctx Γ -> trim Γ = [].
+Lemma trim_empty : forall Γ, empty_ctx Γ -> trim Γ = [].
 Proof.
   induction 1; simpl; auto.
-  rewrite IHempty_Ctx; auto.
+  rewrite IHempty_ctx; auto.
 Qed.
 
 
@@ -750,8 +759,8 @@ Qed.
 (* length is the actual length of the underlying list, as opposed to size, which
  * is the number of Some entries in the list 
  *)
-Definition length_OCtx (ls : OCtx) : nat :=
-  match ls with
+Definition octx_length (Γ : OCtx) : nat :=
+  match Γ with
   | Invalid => O
   | Valid ls => length ls
   end.

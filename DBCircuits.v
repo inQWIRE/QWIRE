@@ -50,23 +50,22 @@ Definition add_fresh_state {A} `{Gate_State A} w (a:A) := snd (get_fresh w a).
 Definition remove_pat {A} `{Gate_State A} {w} (p : Pat w) (a : A) : A :=
   fold_left (fun a x => remove_var x a)  (pat_to_list p) a.
 
-Fixpoint Ctx_dom (Γ : Ctx) :=
+Fixpoint ctx_dom (Γ : Ctx) :=
   match Γ with
   | [] => []
-  | Some w :: Γ' => 0 :: fmap S (Ctx_dom Γ')
-  | None :: Γ' => fmap S (Ctx_dom Γ')
+  | Some w :: Γ' => 0 :: fmap S (ctx_dom Γ')
+  | None :: Γ' => fmap S (ctx_dom Γ')
   end.
-Definition OCtx_dom (Γ : OCtx) : list nat :=
+Definition octx_dom (Γ : OCtx) : list nat :=
   match Γ with
-  | Valid Γ' => Ctx_dom Γ'
+  | Valid Γ' => ctx_dom Γ'
   | Invalid => []
   end.
 
-Definition remove_Ctx {A} `{Gate_State A} (Γ : Ctx) (a : A) : A :=
-  fold_left (fun a x => remove_var x a) (Ctx_dom Γ) a.
-Definition remove_OCtx {A} `{Gate_State A} (Γ : OCtx) (a : A) : A :=
-  fold_left (fun a x => remove_var x a) (OCtx_dom Γ) a.
-
+Definition remove_ctx {A} `{Gate_State A} (Γ : Ctx) (a : A) : A :=
+  fold_left (fun a x => remove_var x a) (ctx_dom Γ) a.
+Definition remove_octx {A} `{Gate_State A} (Γ : OCtx) (a : A) : A :=
+  fold_left (fun a x => remove_var x a) (octx_dom Γ) a.
 
 (* process_gate_pat g p a returns the pattern that is obtained from running the
    gate g with input pattern p and state a 
@@ -1034,7 +1033,7 @@ Lemma is_valid_fresh : forall Γ w,
 Admitted.
 
 Lemma get_fresh_var_OCtx : forall Γ w,
-      get_fresh_var w Γ = length_OCtx Γ.
+      get_fresh_var w Γ = octx_length Γ.
 Proof.
   destruct Γ as [ | Γ]; auto.
 Qed.
@@ -1042,7 +1041,7 @@ Qed.
 
 Lemma length_fresh_state : forall w Γ,
       is_valid Γ ->
-      length_OCtx (fresh_state w Γ) = (length_OCtx Γ + size_WType w)%nat.
+      octx_length (fresh_state w Γ) = (octx_length Γ + size_wtype w)%nat.
 Proof.
   induction w; intros; (destruct Γ as [ | Γ]; [invalid_contradiction | ]); 
     simpl; auto.
@@ -1055,7 +1054,7 @@ Proof.
 Qed.
 
 Lemma length_fresh_state' : forall w (σ : substitution),
-      length (fresh_state w σ) = (length σ + size_WType w)%nat.
+      length (fresh_state w σ) = (length σ + size_wtype w)%nat.
 Proof.
   induction w; intros; simpl; auto.
   * rewrite app_length; auto.
@@ -1069,7 +1068,7 @@ Qed.
 
 Require Import List.
 Lemma swap_fresh_seq : forall w (σ : substitution),
-    pat_to_list (fresh_pat w σ) = seq (get_fresh_var w σ) (size_WType w).
+    pat_to_list (fresh_pat w σ) = seq (get_fresh_var w σ) (size_wtype w).
 Proof.
   induction w; intros; simpl; auto.
   rewrite IHw1.
@@ -1085,11 +1084,11 @@ Qed.
 
 Existing Instance listF.
 Existing Instance listF_correct.
-Lemma Ctx_dom_app : forall Γ1 Γ2,
-      Ctx_dom (Γ1 ++ Γ2) = Ctx_dom Γ1 ++ fmap (fun x => length Γ1 + x)%nat (Ctx_dom Γ2).
+Lemma ctx_dom_app : forall Γ1 Γ2,
+      ctx_dom (Γ1 ++ Γ2) = ctx_dom Γ1 ++ fmap (fun x => length Γ1 + x)%nat (ctx_dom Γ2).
 Proof. 
   induction Γ1 as [ | [w | ] Γ1]; intros.
-  * simpl. replace (list_fmap (fun x => x) (Ctx_dom Γ2)) with (fmap (fun x => x) (Ctx_dom Γ2)) by auto.
+  * simpl. replace (list_fmap (fun x => x) (ctx_dom Γ2)) with (fmap (fun x => x) (ctx_dom Γ2)) by auto.
     rewrite fmap_id.
     auto.
   * simpl. 
@@ -1104,18 +1103,18 @@ Qed.
 Transparent fmap.
 
 
-Lemma OCtx_dom_fresh : forall w Γ, 
+Lemma octx_dom_fresh : forall w Γ, 
       is_valid Γ ->
-      OCtx_dom (fresh_state w Γ) = OCtx_dom Γ ++ seq (length_OCtx Γ) (size_WType w).
+      octx_dom (fresh_state w Γ) = octx_dom Γ ++ seq (octx_length Γ) (size_wtype w).
 Proof.
   induction w; 
   (destruct Γ as [ | Γ]; [intros; invalid_contradiction | ]);
   intros; simpl.
 
-  * rewrite Ctx_dom_app. simpl.
+  * rewrite ctx_dom_app. simpl.
     rewrite Nat.add_0_r.
     auto.
-  * rewrite Ctx_dom_app. simpl.
+  * rewrite ctx_dom_app. simpl.
     rewrite Nat.add_0_r.
     auto.
   * rewrite app_nil_r. 
@@ -1132,8 +1131,8 @@ Qed.
 
 Opaque fmap.
 Lemma ge_length_dom : forall Γ x,
-      (x >= length_OCtx Γ)%nat ->
-      inb x (OCtx_dom Γ) = false.
+      (x >= octx_length Γ)%nat ->
+      inb x (octx_dom Γ) = false.
 Proof.
   destruct Γ as [ | Γ]; [intros; auto | ].
   induction Γ as [ | [w | ] Γ]; intros; auto.
@@ -1157,23 +1156,23 @@ Transparent fmap.
 (******************************************)
 
 Definition hoas_to_db_pat Γ {w} (p : Pat w) : Pat w := 
-  subst_pat (OCtx_dom Γ) p.
-Fixpoint flatten_Ctx (Γ : Ctx) :=
+  subst_pat (octx_dom Γ) p.
+Fixpoint flatten_ctx (Γ : Ctx) :=
   match Γ with
   | []           => []
-  | Some w :: Γ' => Some w :: flatten_Ctx Γ'
-  | None   :: Γ' => flatten_Ctx Γ'
+  | Some w :: Γ' => Some w :: flatten_ctx Γ'
+  | None   :: Γ' => flatten_ctx Γ'
   end.
-Definition flatten_OCtx Γ :=
+Definition flatten_octx Γ :=
   match Γ with
-  | Valid Γ' => Valid (flatten_Ctx Γ')
+  | Valid Γ' => Valid (flatten_ctx Γ')
   | Invalid  => Invalid
   end.
 
 
 Lemma SingletonCtx_dom : forall x w Γ,
       SingletonCtx x w Γ ->
-      Ctx_dom Γ = [x].
+      ctx_dom Γ = [x].
 Proof.
   induction 1; simpl; auto.
   rewrite IHSingletonCtx.
@@ -1181,19 +1180,19 @@ Proof.
 Qed.
 Lemma SingletonCtx_flatten : forall x w Γ,
       SingletonCtx x w Γ ->
-      flatten_Ctx Γ = [Some w].
+      flatten_ctx Γ = [Some w].
 Proof.
   induction 1; auto.
 Qed.
 
 Lemma hoas_to_db_pat_typed : forall Γ w (p : Pat w),
       Γ ⊢ p :Pat ->
-      flatten_OCtx Γ ⊢ hoas_to_db_pat Γ p :Pat.
+      flatten_octx Γ ⊢ hoas_to_db_pat Γ p :Pat.
 Proof.
   induction 1.
   * simpl. constructor.
   * simpl. unfold hoas_to_db_pat. simpl.
-    constructor. Search SingletonCtx flatten_Ctx.
+    constructor. Search SingletonCtx flatten_ctx.
     erewrite SingletonCtx_flatten; eauto.
     admit (* true *).
   * admit.
@@ -1219,7 +1218,7 @@ Fixpoint hoas_to_db {w} Γ (c : Circuit w) : DeBruijn_Circuit w :=
 
 Lemma hoas_to_db_typed : forall Γ w (c : Circuit w),
       Γ ⊢ c :Circ ->
-      Types_DB (flatten_OCtx Γ) (hoas_to_db Γ c).
+      Types_DB (flatten_octx Γ) (hoas_to_db Γ c).
 Proof.
   induction 1.
   * simpl. constructor. apply hoas_to_db_pat_typed. subst. auto.
