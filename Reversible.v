@@ -293,19 +293,6 @@ Proof.
     dependent destruction p1; rename p1_1 into x, p1_2 into p1.
     refine (x,IHi j p1 p2).
 Defined.
-(*
-  destruct n.
-  { absurd False; auto. inversion pf. }
-  induction i.
-  * simpl in *. replace (n-0)%nat with n in p2 by omega. 
-    dependent destruction p1.
-    exact (p1_1,p2).
-  * assert (pf' : (i < S n)%nat) by omega.
-    replace (S n - i - 1)%nat with (S (n - i - 1))%nat in IHi by omega.
-    simpl in *.
-    dependent destruction p1.
-    exact (IHi pf' p1_2 (p1_1, p2)).
-*)
 
 Definition unitary_at1 {n} (U : Unitary Qubit) (ls : list nat)
         : Box (n ⨂ Qubit) (n ⨂ Qubit).
@@ -448,6 +435,53 @@ Program Inductive Symmetric {t} : forall n,  Box ((n+t) ⨂ Qubit) ((n+t) ⨂ Qu
            Symmetric (S n) b ->
            Symmetric n (assert_at x i · b · init_at x i)
 .
+
+
+Lemma size_ntensor : forall n W, size_wtype (n ⨂ W) = (n * size_wtype W)%nat.
+Proof.
+  intros n W.
+  induction n; trivial.
+  simpl.
+  rewrite IHn.
+  reflexivity.
+Qed.
+
+Lemma inSeq_assoc : forall {w1 w2 w3 w4} (b1 : Box w1 w2) (b2 : Box w2 w3) (b3 : Box w3 w4),
+      b3 · (b2 · b1) = (b3 · b2) · b1.
+Proof.
+  intros w1 w2 w3 w4 [c1] [c2] [c3]. unfold inSeq. simpl.
+  apply f_equal; apply functional_extensionality; intros p1.
+  simpl.
+  remember (c1 p1) as c. clear c1 p1 Heqc.
+  dependent induction c.
+  - reflexivity.
+  - simpl. apply f_equal; apply functional_extensionality; intros p2.
+    rewrite H.
+    reflexivity.
+  - simpl. apply f_equal; apply functional_extensionality; intros p2.
+    rewrite H.
+    reflexivity.
+Qed.
+  
+
+Lemma symmetric_spec : forall {n t} (b : Box ((n+t) ⨂ Qubit) ((n + t) ⨂ Qubit)) ρ,
+                                    Symmetric n b  -> WF_Matrix (2^(n+t))%nat (2^(n+t))%nat ρ ->
+                                    ⟦ inSeq b b ⟧ ρ = ρ.
+Proof.
+  intros n t b ρ pf.
+  induction pf; intros wf_ρ.
+  - simpl. autounfold with den_db. simpl. 
+    rewrite size_ntensor. simpl. rewrite Nat.mul_1_r.
+    rewrite pad_nothing.
+    rewrite hoas_to_db_pat_fresh_empty.
+    rewrite denote_pat_fresh_id.
+    simpl. 
+    rewrite size_ntensor. simpl. rewrite Nat.mul_1_r.
+    rewrite super_I; auto.
+  - replace (((coerce (uncompute g pf)) · (coerce g) · b) · (coerce (uncompute g pf)) · (coerce g) · b)
+      with ((coerce (uncompute g pf) · ((coerce g) · b · coerce (uncompute g pf)) · coerce g) · b)
+      by (repeat rewrite <- inSeq_assoc; reflexivity).
+Admitted.
 
 (* -----------------------------------------*)
 (*--------- Reversible Circuit Specs -------*)
@@ -683,14 +717,6 @@ Fixpoint share_to' (n k : nat) : Square_Box (S n ⨂ Qubit) ⊗ Qubit :=
 Lemma share_to_WT : forall n k, Typed_Box (share_to n k).
 Proof. induction n; type_check. destruct k; type_check. apply IHn; type_check. Qed.
 
-Lemma size_ntensor : forall n W, size_wtype (n ⨂ W) = (n * size_wtype W)%nat.
-Proof.
-  intros n W.
-  induction n; trivial.
-  simpl.
-  rewrite IHn.
-  reflexivity.
-Qed.
 
 Lemma size_repeat_ctx : forall n W, size_ctx (repeat (Some W) n) = n.
 Proof.
