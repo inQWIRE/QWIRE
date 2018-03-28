@@ -422,20 +422,19 @@ Next Obligation.
   rewrite <- Tensor_S_plus. reflexivity.
 Defined.
 
-Program Inductive Symmetric {t} : forall n,  Box ((n+t) ⨂ Qubit) ((n+t) ⨂ Qubit) -> Type :=
-| s_idcirc {n} : Symmetric n id_circ
+Program Inductive Symmetric t : forall n,  Box ((n+t) ⨂ Qubit) ((n+t) ⨂ Qubit) -> Type :=
+| s_idcirc {n} : Symmetric t n id_circ
 | s_classical_l {n g b} : forall (pf : Classical_Gate n (S t) g),
-                Symmetric (S n) b ->
-                Symmetric (S n) (coerce (uncompute g pf) · coerce g ·  b)
+                Symmetric t (S n) b ->
+                Symmetric t (S n) (coerce (uncompute g pf) · coerce g ·  b)
 | s_classical_r {n g b} : forall (pf : Classical_Gate n (S t) g),
-                Symmetric (S n) b ->
-                Symmetric (S n) (coerce g ·  b · coerce (uncompute g pf))
+                Symmetric t (S n) b ->
+                Symmetric t (S n) (coerce g ·  b · coerce (uncompute g pf))
 | s_init {n} (x : bool) {b} i : 
            (i < S n)%nat ->
-           Symmetric (S n) b ->
-           Symmetric n (assert_at x i · b · init_at x i)
+           Symmetric t (S n) b ->
+           Symmetric t n (assert_at x i · b · init_at x i)
 .
-
 
 Lemma size_ntensor : forall n W, size_wtype (n ⨂ W) = (n * size_wtype W)%nat.
 Proof.
@@ -462,6 +461,30 @@ Proof.
     rewrite H.
     reflexivity.
 Qed.
+  
+
+Require Ring.
+
+About denote_box.
+Lemma symmetric_id : forall {n t} (c : Box ((n+t) ⨂ Qubit) ((n + t) ⨂ Qubit)),
+    Symmetric t n c -> forall ρ ρ',
+    WF_Matrix (2^n)%nat (2^n)%nat ρ ->
+    WF_Matrix (2^t)%nat (2^t)%nat ρ' ->
+    exists ρ'', WF_Matrix (2^t)%nat (2^t)%nat ρ'' 
+             /\ ⟦c⟧ (ρ ⊗ ρ' : Matrix (2^n * 2^t) (2^n*2^t))%M = (ρ ⊗ ρ'')%M.
+Proof.
+  intros n t c pf_c.
+  induction pf_c; intros ρ ρ' pf_ρ pf_ρ'.
+  - exists ρ'. split; auto.
+    simpl. autounfold with den_db. simpl. 
+    rewrite size_ntensor. simpl. rewrite Nat.mul_1_r.
+    rewrite pad_nothing.
+    rewrite hoas_to_db_pat_fresh_empty.
+    rewrite denote_pat_fresh_id.
+    matrix_denote.
+    rewrite size_ntensor. simpl. rewrite Nat.mul_1_r.
+    Msimpl. reflexivity.
+Admitted.
   
 
 Lemma symmetric_spec : forall {n t} (b : Box ((n+t) ⨂ Qubit) ((n + t) ⨂ Qubit)) ρ,

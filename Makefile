@@ -24,7 +24,7 @@ HOASCircuits.vo: HOASCircuits.v Contexts.vo
 TypeChecking.vo: TypeChecking.v HOASCircuits.vo
 	coqc TypeChecking.v
 
-HOASExamples.vo: HOASExamples.v TypeChecking.vo HoasLib.vo
+HOASExamples.vo: HOASExamples.v TypeChecking.vo HOASLib.vo
 	coqc HOASExamples.v
 
 HOASLib.vo: HOASLib.v TypeChecking.vo
