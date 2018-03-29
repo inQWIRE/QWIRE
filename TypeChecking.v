@@ -149,6 +149,7 @@ Ltac invert_patterns :=
   | [ H : Types_Pat ?Γ (pair _ _) |- _ ]   => is_var Γ; dependent destruction H
   end.
 
+Create HintDb typed_db.
 
 Ltac type_check_once := 
   intros;

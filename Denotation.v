@@ -1335,10 +1335,59 @@ Admitted.
 Definition HOAS_Equiv {W1 W2} (b1 b2 : Box W1 W2) :=
   forall ρ, Mixed_State ρ -> ⟦b1⟧ ρ = ⟦b2⟧ ρ.
 
-Infix "≡" := HOAS_Equiv : circ_scope.
+Locate "≡".
+Notation "a ≡ b" := (HOAS_Equiv a b) (at level 60) : circ_scope.
 
 Hint Unfold HOAS_Equiv : den_db.
     
+Open Scope circ_scope.
+Lemma HOAS_Equiv_id_l : forall w (b : Box w w),
+    id_circ · b ≡ b.
+Admitted.
+Lemma HOAS_Equiv_id_r : forall w (b : Box w w),
+    b · id_circ ≡ b.
+Admitted.
+Lemma HOAS_Equiv_refl : forall w1 w2 (b : Box w1 w2), b ≡ b.
+Proof. intros w b ρ H. auto.
+Qed.
+Lemma HOAS_Equiv_sym : forall w1 w2 (b1 b2: Box w1 w2), (b1 ≡ b2) -> b2 ≡ b1.
+Proof.
+  intros. intros ρ H'. rewrite H; auto.
+Qed.
+Lemma HOAS_Equiv_trans : forall w1 w2 (b1 b2 b3 : Box w1 w2), (b1 ≡ b2) -> (b2 ≡ b3) -> b1 ≡ b3.
+Proof.
+  intros. intros ρ Hρ. rewrite H; auto.
+Qed.
+
+
+Lemma inSeq_assoc : forall {w1 w2 w3 w4} (b1 : Box w1 w2) (b2 : Box w2 w3) (b3 : Box w3 w4),
+      b3 · (b2 · b1) = (b3 · b2) · b1.
+Proof.
+  intros w1 w2 w3 w4 [c1] [c2] [c3]. unfold inSeq. simpl.
+  apply f_equal; apply functional_extensionality; intros p1.
+  simpl.
+  remember (c1 p1) as c. clear c1 p1 Heqc.
+  dependent induction c.
+  - reflexivity.
+  - simpl. apply f_equal; apply functional_extensionality; intros p2.
+    rewrite H.
+    reflexivity.
+  - simpl. apply f_equal; apply functional_extensionality; intros p2.
+    rewrite H.
+    reflexivity.
+Qed.
+
+Require Import Setoid.
+Require Import Relation_Definitions.
+
+Add Parametric Relation W1 W2 : (Box W1 W2) (@HOAS_Equiv W1 W2)
+       reflexivity proved by (HOAS_Equiv_refl W1 W2)
+       symmetry proved by (HOAS_Equiv_sym W1 W2)
+       transitivity proved by (HOAS_Equiv_trans W1 W2)
+       as eq_set_rel.
+
+
+
 
 (************************)
 (* Hints for automation *)
@@ -1419,3 +1468,9 @@ Proof.
   * solve_merge.
     apply is_valid_fresh. validate.
 Qed.
+
+
+Lemma HOAS_Equiv_inSeq : forall w1 w2 w3 (b1 b1' : Box w1 w2) (b2 b2' : Box w2 w3),
+    b1 ≡ b1' -> b2 ≡ b2' -> (b2 · b1) ≡ (b2' · b1').
+Admitted.
+
