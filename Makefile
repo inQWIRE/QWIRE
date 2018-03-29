@@ -1,4 +1,4 @@
-all: HOASProofs.vo Equations.vo
+all: Denotation.vo
 
 Monad.vo: Monad.v
 	coqc Monad.v
@@ -24,8 +24,11 @@ HOASCircuits.vo: HOASCircuits.v Contexts.vo
 TypeChecking.vo: TypeChecking.v HOASCircuits.vo
 	coqc TypeChecking.v
 
-HOASExamples.vo: HOASExamples.v TypeChecking.vo
+HOASExamples.vo: HOASExamples.v TypeChecking.vo HOASLib.vo
 	coqc HOASExamples.v
+
+HOASLib.vo: HOASLib.v TypeChecking.vo
+	coqc HOASLib.v
 
 DBCircuits.vo : DBCircuits.v HOASCircuits.vo Monad.vo
 	coqc DBCircuits.v
@@ -33,7 +36,7 @@ DBCircuits.vo : DBCircuits.v HOASCircuits.vo Monad.vo
 FlatCircuits.vo: FlatCircuits.v HOASCircuits.vo Monad.vo
 	coqc FlatCircuits.v
 
-Denotation.vo: Denotation.v Quantum.vo DBCircuits.vo
+Denotation.vo: Denotation.v Quantum.vo DBCircuits.vo HOASLib.vo
 	coqc Denotation.v
 
 HOASProofs.vo: HOASProofs.v HOASExamples.vo Denotation.vo

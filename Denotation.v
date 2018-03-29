@@ -5,6 +5,7 @@ Require Import Omega.
 Require Import Monad.
 Require Export Contexts.
 Require Import HOASCircuits.
+Require Import HOASLib.
 Require Import DBCircuits.
 Require Export Quantum.
 
@@ -124,6 +125,7 @@ Proof.
 Qed.
 Hint Resolve WF_denote_gate : wf_db.
 
+Close Scope circ_scope.
 (* This is only true for "safe" gate denotation *)
 Lemma denote_gate_correct : forall {W1} {W2} (g : Gate W1 W2), 
                             WF_Superoperator (denote_gate true g). 
@@ -940,6 +942,7 @@ Proof.
     apply merge_ind_fun in H.
     destruct H.
     apply pf_merge.
+  Transparent merge.
     simpl.
     edestruct IHmerge_ind with (n := n); try reflexivity.
     simpl in pf_merge.
@@ -1370,3 +1373,49 @@ Hint Rewrite apply_U_σ pad_nothing using auto : proof_db.
 
 
 
+(*********************)
+(* Composition lemma *)
+(*********************)
+
+Lemma fresh_state_pat : forall w,
+      fresh_state w ∅ ⊢ fresh_pat w ∅ :Pat.
+Proof.
+  induction w; repeat constructor.
+Admitted.
+
+
+(* Do these belong back in Denotation? *) 
+Theorem inSeq_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2),
+      Typed_Box g -> Typed_Box f ->
+     ⟦inSeq f g⟧ = compose_super (⟦g⟧) (⟦f⟧).
+Proof.
+  intros W1 W2 W3 g f types_g types_f.
+  autounfold with den_db; simpl. 
+
+  destruct f as [f]. 
+  destruct g as [g].
+  autounfold with den_db; simpl.
+
+  set (Γ1_0 := fresh_state W1 ∅).
+  set (Γ2_0 := fresh_state W2 ∅).
+  assert (⟦Γ1_0⟧ = ⟦W1⟧).
+  { unfold Γ1_0.
+    rewrite size_octx_fresh; auto.
+    validate. }
+  assert (⟦Γ2_0⟧ = ⟦W2⟧).
+  { unfold Γ2_0.
+    rewrite size_octx_fresh; auto.
+    validate. }
+
+  replace 0%nat with (⟦∅⟧:nat) by auto.
+  replace (size_wtype W1) with (⟦Γ1_0⟧) by auto.
+  replace (size_wtype W2) with (⟦Γ2_0⟧) by auto.
+
+  apply denote_compose. 
+  * apply types_f. apply fresh_state_pat. 
+  * unfold Typed_Box in types_g. intros Γ Γ' p pf wf_p.
+    solve_merge.
+    apply types_g. monoid. auto.
+  * solve_merge.
+    apply is_valid_fresh. validate.
+Qed.

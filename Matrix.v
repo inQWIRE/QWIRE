@@ -490,8 +490,9 @@ Ltac show_wf :=
     repeat (destruct y; try reflexivity; try omega).
 
 (* Create HintDb wf_db. *)
-Hint Resolve WF_Zero WF_Id WF_I1 WF_mult WF_plus WF_scale WF_kron WF_transpose 
-     WF_conj_transpose WF_outer_product WF_big_kron : wf_db.
+Hint Resolve WF_Zero WF_Id WF_I1 WF_mult WF_plus WF_scale WF_transpose 
+     WF_conj_transpose WF_outer_product WF_big_kron WF_kron : wf_db.
+Hint Extern 2 (_ = _) => unify_pows_two : wf_db.
 
 
 (** Basic Matrix Lemmas **)
