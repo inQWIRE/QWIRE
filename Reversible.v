@@ -436,7 +436,7 @@ Fixpoint symmetric_reverse  n t c (pf_sym : Symmetric_Box n t c)
                                       (g · c' · g)
   | sym_ancilla  n t c pf_c b i pf_i => let c' := symmetric_reverse (S n) t c pf_c in
                                         (assert_at b (n+t) i (in_source_in_scope _ _ _ pf_i) 
-                                         · c · init_at b (n+t) i (in_source_in_scope _ _ _ pf_i))
+                                         · c' · init_at b (n+t) i (in_source_in_scope _ _ _ pf_i))
   end.
 
 Lemma symmetric_reverse_symmetric : forall n t c (pf_sym : Symmetric_Box n t c),
@@ -470,6 +470,16 @@ Admitted.
 Lemma denote_id_circ : forall w ρ, ⟦@id_circ w⟧ ρ = ρ.
 Admitted.
 
+Lemma init_assert : forall b n t i (pf : i < S n), 
+    init_at b (n+t) i (in_source_in_scope (S n) t i pf) 
+  · assert_at b (n+t) i (in_source_in_scope (S n) t i pf) ≡ id_circ.
+Admitted.
+Lemma assert_init : forall b n t i (pf : i < S n), 
+    assert_at b (n+t) i (in_source_in_scope (S n) t i pf) 
+  · init_at b (n+t) i (in_source_in_scope (S n) t i pf) ≡ id_circ.
+Admitted.
+
+
 Lemma symmetric_reversible : forall n t c (pf_sym : Symmetric_Box n t c),
       symmetric_reverse n t c pf_sym · c ≡ id_circ.
 Proof.
@@ -485,7 +495,14 @@ Proof.
         apply HOAS_Equiv_id_l.
       }
       apply IHpf_sym.
-  - (* target_r *) admit (* same as target_r *).
+  - (* target_r *) 
+    transitivity (g · (symmetric_reverse n t c pf_sym · c) · g).
+    { repeat rewrite inSeq_assoc; reflexivity. }
+    transitivity (g · g); [ | apply symmetric_gate_target_reversible; auto ]. 
+    apply HOAS_Equiv_inSeq; [ | reflexivity].
+    rewrite HOAS_Equiv_inSeq; [apply HOAS_Equiv_id_l | reflexivity | ].
+    apply IHpf_sym.
+
   - (* source *)
     transitivity (g · (symmetric_reverse n t c pf_sym · (g · g) · c) · g).
     { repeat rewrite inSeq_assoc; reflexivity. }
@@ -501,7 +518,25 @@ Proof.
     rewrite HOAS_Equiv_inSeq; [ | reflexivity | apply IHpf_sym].
     apply HOAS_Equiv_id_l.
   - (* ancilla *)
-Admitted.
+    set (close := assert_at b (n + t) i (in_source_in_scope (S n) t i pf)).
+    set (open := init_at b (n + t) i (in_source_in_scope (S n) t i pf)).
+    set (c' := symmetric_reverse (S n) t c pf_sym).
+    transitivity (close · (c' · (open · close) · c) · open).
+    { repeat (rewrite inSeq_assoc); reflexivity. }
+    transitivity (close · (c' · c) · open).
+    { apply HOAS_Equiv_inSeq; [ | reflexivity].
+      apply HOAS_Equiv_inSeq; [ reflexivity | ].
+      apply HOAS_Equiv_inSeq; [ | reflexivity].
+      rewrite HOAS_Equiv_inSeq; [ apply HOAS_Equiv_id_l | reflexivity | ].
+      apply init_assert.
+    }
+    transitivity (close · open).
+    { apply HOAS_Equiv_inSeq; [ | reflexivity].
+      rewrite HOAS_Equiv_inSeq; [  | reflexivity | apply IHpf_sym ].
+      apply HOAS_Equiv_id_l.
+    }
+    apply assert_init.
+Qed.
 
 
 Lemma size_ntensor : forall n W, size_wtype (n ⨂ W) = (n * size_wtype W)%nat.

@@ -1341,10 +1341,10 @@ Notation "a ≡ b" := (HOAS_Equiv a b) (at level 60) : circ_scope.
 Hint Unfold HOAS_Equiv : den_db.
     
 Open Scope circ_scope.
-Lemma HOAS_Equiv_id_l : forall w (b : Box w w),
+Lemma HOAS_Equiv_id_l : forall w1 w2 (b : Box w1 w2),
     id_circ · b ≡ b.
 Admitted.
-Lemma HOAS_Equiv_id_r : forall w (b : Box w w),
+Lemma HOAS_Equiv_id_r : forall w1 w2 (b : Box w1 w2),
     b · id_circ ≡ b.
 Admitted.
 Lemma HOAS_Equiv_refl : forall w1 w2 (b : Box w1 w2), b ≡ b.
