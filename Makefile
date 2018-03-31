@@ -52,6 +52,8 @@ Reversible.vo: Reversible.v HOASExamples.vo Denotation.vo
 Ancilla.vo : Ancilla.v Denotation.v Typechecking.vo
 	coqc Ancilla.v
 
+Symmetric.vo : Symmetric.v Denotation.vo TypeChecking.vo
+
 #MachineProofs.vo: MachineProofs.v MachineExamples.vo Denotation.vo
 #	coqc MachineProofs.v
 
