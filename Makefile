@@ -49,10 +49,11 @@ Equations.vo: Equations.v TypeChecking.vo Denotation.vo
 Reversible.vo: Reversible.v HOASExamples.vo Denotation.vo
 	coqc Reversible.v
 
-Ancilla.vo : Ancilla.v Denotation.v Typechecking.vo
+Ancilla.vo : Ancilla.v Denotation.v TypeChecking.vo
 	coqc Ancilla.v
 
-Symmetric.vo : Symmetric.v Denotation.vo TypeChecking.vo
+Symmetric.vo : Symmetric.v Denotation.vo TypeChecking.vo Ancilla.vo Reversible.vo
+	coqc Symmetric.v
 
 #MachineProofs.vo: MachineProofs.v MachineExamples.vo Denotation.vo
 #	coqc MachineProofs.v
