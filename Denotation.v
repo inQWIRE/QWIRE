@@ -1341,12 +1341,32 @@ Notation "a ≡ b" := (HOAS_Equiv a b) (at level 60) : circ_scope.
 Hint Unfold HOAS_Equiv : den_db.
     
 Open Scope circ_scope.
-Lemma HOAS_Equiv_id_l : forall w (b : Box w w),
-    id_circ · b ≡ b.
-Admitted.
-Lemma HOAS_Equiv_id_r : forall w (b : Box w w),
-    b · id_circ ≡ b.
-Admitted.
+
+
+Lemma inSeq_id_l : forall w1 w2 (b : Box w1 w2),
+    id_circ · b = b.
+Proof.
+  destruct b. unfold inSeq. simpl.
+  apply f_equal.
+  apply functional_extensionality; intros p.
+  remember (c p) as c0. clear c p Heqc0.
+  induction c0; auto.
+  * simpl. apply f_equal. apply functional_extensionality; intros p'.
+    apply H.
+  * simpl. apply f_equal. apply functional_extensionality; intros p'.
+    apply H.
+Qed.
+
+
+Lemma inSeq_id_r : forall w1 w2 (b : Box w1 w2),
+    b · id_circ = b.
+Proof.
+  destruct b.
+  unfold inSeq.
+  simpl.
+  reflexivity.
+Qed.
+
 Lemma HOAS_Equiv_refl : forall w1 w2 (b : Box w1 w2), b ≡ b.
 Proof. intros w b ρ H. auto.
 Qed.
