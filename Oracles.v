@@ -962,98 +962,38 @@ Proof.
     simpl. apply IHv.
 Qed.
 
-Program Definition CNOT_at_option (n : nat) (i j : Var) : Square_Box n ⨂ Qubit :=
-  match (i <? n) && (j <? n) && negb (i =? j) with
-  | true  => CNOT_at n i j _ _ _
-  | false => id_circ
-  end.
-Next Obligation. bdestruct (i <? n); easy. Defined.
-Next Obligation.  bdestruct (j <? n); [|rewrite andb_false_r in *]; easy. Defined.
-Next Obligation.  bdestruct (i =? j); [rewrite andb_false_r in *|]; easy. Defined.
-
-Lemma CNOT_at_option_WT : forall n i j, Typed_Box (CNOT_at_option n i j).
-Proof.
-  intros. unfold CNOT_at_option.
-  Admitted.
-(* super frustrating 
-
-  destruct (i <? n).
-
-  generalize dependent CNOT_at_option_obligation_1.
-  generalize dependent CNOT_at_option_obligation_2.
-  generalize dependent CNOT_at_option_obligation_3.
-  generalize dependent anonymous'.
-
-
-intros n. unfold CNOT_at_option.
-induction n.
-  - simpl. type_check.
-  - destruct i. simpl.
-    destruct j. simpl. type_check.
-    simpl. 
-    rewrite andb_true_r.
-    destruct j
-    simpl. type_check.
-  intuition.
-  remember ((i <? n) && (j <? n) && ¬ (i =? j)) as b.
-  destruct ((i <? n) && (j <? n) && ¬ (i =? j)).
-
-  unfold CNOT_at_option_obligation_1, CNOT_at_option_obligation_2, 
-  CNOT_at_option_obligation_3.
-  simpl.
-  bdestruct (i <? n); bdestruct (j <? n); bdestruct (i =? j); try omega.
-  unfold eq_rect. simpl.
-  unfold eq_ind. simpl.
-  apply Nat.ltb_lt in H. rewrite H.
-
-  simpl.
-*)
-
-Ltac show_subset := 
-  simpl in *;
-  match goal with
-  | [H : ?Γ1 ∪ ?Γ2 ⊂ ?Γ |- ?Γ1 ⊂ ?Γ ] => apply (fst (subset_classical_merge _ _ _ H))
-  | [H : ?Γ1 ∪ ?Γ2 ⊂ ?Γ |- ?Γ2 ⊂ ?Γ ] => apply (snd (subset_classical_merge _ _ _ H))
-  end.
-
-Local Obligation Tactic := program_simpl; try show_subset; try omega.
-Program Fixpoint compile (b : rbexp) (Γ : Ctx) (pf : (get_context b ⊂ Γ)) : Square_Box (S (⟦Γ⟧) ⨂ Qubit) :=
+Local Obligation Tactic := program_simpl; try omega.
+Program Fixpoint compile (b : rbexp) (Γ : Ctx) : Square_Box (S (⟦Γ⟧) ⨂ Qubit) :=
   match b with
   | rb_t          => R_TRUE || id_circ 
   | rb_f          => R_FALSE || id_circ
   | rb_var v      => 
     (* share_to' (⟦Γ⟧) (position_of v Γ) *)
     (* CNOT_at_option (S (⟦Γ⟧)) (position_of v Γ) (⟦Γ⟧) *)
-    CNOT_at (S (⟦Γ⟧)) (S (position_of v Γ)) 0 _ _ _
+    CNOT_at (S (⟦Γ⟧)) (S (position_of v Γ)) 0
   | rb_not b      => (id_circ || (strip_one_l_in (init1 || id_circ))) ;;
-                    (id_circ || (compile b Γ _)) ;;
-                    (CNOT_at (2 + ⟦Γ⟧) 1 0 _ _ _) ;;
-                    (id_circ || (compile b Γ _)) ;;
+                    (id_circ || (compile b Γ)) ;;
+                    (CNOT_at (2 + ⟦Γ⟧) 1 0) ;;
+                    (id_circ || (compile b Γ)) ;;
                     (id_circ || (strip_one_l_out (assert1 || id_circ)))
   | rb_and b1 b2  => (id_circ || (strip_one_l_in (init0 || id_circ))) ;;
-                    (id_circ || compile b1 Γ _) ;;
+                    (id_circ || compile b1 Γ) ;;
                     (id_circ || (id_circ || (strip_one_l_in (init0 || id_circ)))) ;;
-                    (id_circ || (id_circ || compile b2 Γ _)) ;;
-                    (Toffoli_at (3 + ⟦Γ⟧) 1 2 0 _ _ _ _ _ _) ;;
-                    (id_circ || (id_circ || compile b2 Γ _)) ;;
+                    (id_circ || (id_circ || compile b2 Γ)) ;;
+                    (Toffoli_at (3 + ⟦Γ⟧) 1 2 0) ;;
+                    (id_circ || (id_circ || compile b2 Γ)) ;;
                     (id_circ || (id_circ || (strip_one_l_out (assert0 || id_circ)))) ;;
-                    (id_circ || compile b1 Γ _) ;;
+                    (id_circ || compile b1 Γ) ;;
                     (id_circ || (strip_one_l_out (assert0 || id_circ)))                 
   | rb_xor b1 b2  => (id_circ || (strip_one_l_in (init0 || id_circ))) ;;
-                    (id_circ || compile b1 Γ _) ;;
-                    (CNOT_at (2 + ⟦Γ⟧) 1 0 _ _ _) ;;                    
-                    (id_circ || compile b1 Γ _) ;; 
-                    (id_circ || compile b2 Γ _) ;; (* reusing ancilla *)
-                    (CNOT_at (2 + ⟦Γ⟧) 1 0 _ _ _) ;;                    
-                    (id_circ || compile b2 Γ _) ;;
+                    (id_circ || compile b1 Γ) ;;
+                    (CNOT_at (2 + ⟦Γ⟧) 1 0) ;;                    
+                    (id_circ || compile b1 Γ) ;; 
+                    (id_circ || compile b2 Γ) ;; (* reusing ancilla *)
+                    (CNOT_at (2 + ⟦Γ⟧) 1 0) ;;                    
+                    (id_circ || compile b2 Γ) ;;
                     (id_circ || (strip_one_l_out (assert0 || id_circ)))              
   end.
-Next Obligation. 
-  simpl in pf.
-  apply singleton_nth_classical in pf as [W IN].
-  apply position_of_lt in IN.
-  simpl in IN; omega.
-Defined.  
 
 Lemma ntensor_fold : forall n W, W ⊗ (n ⨂ W) = (S n ⨂ W).
 Proof. reflexivity. Qed.
@@ -1065,20 +1005,18 @@ Ltac compile_typing lem :=
   | _ => apply inPar_WT
   | _ => apply id_circ_WT
   | _ => apply boxed_gate_WT
-  | [|- Typed_Box (CNOT_at ?n ?x ?y ?pf1 ?pf2 ?pf3)] => 
-      specialize (CNOT_at_WT n x y pf1 pf2 pf3); simpl; easy
-  | [|- Typed_Box (Toffoli_at ?n ?x ?y ?z ?pf1 ?pf2 ?pf3 ?pf4 ?pf5 ?pf6)] => 
-      specialize (Toffoli_at_WT n x y z pf1 pf2 pf3 pf4 pf5 pf6); simpl; easy
+  | [|- Typed_Box (CNOT_at ?n ?x ?y)] => 
+      specialize (CNOT_at_WT n x y); simpl; easy
+  | [|- Typed_Box (Toffoli_at ?n ?x ?y ?z )] => 
+      specialize (Toffoli_at_WT n x y z); simpl; easy
   | _ => apply share_to_WT'
-  | [|- Typed_Box (CNOT_at_option ?n ?x ?y)] => 
-      specialize (CNOT_at_option_WT n x y); simpl; easy
   | _ => apply R_TRUE_WT
   | _ => apply R_FALSE_WT
   | _ => apply strip_one_l_in_WT
   | _ => apply strip_one_l_out_WT
   | _ => apply strip_one_r_in_WT
   | _ => apply strip_one_r_out_WT
-  | [H : forall (Γ : Ctx) pf, Typed_Box _ |- _]  => apply H
+  | [H : forall (Γ : Ctx), Typed_Box _ |- _]  => apply H
   | _ => apply lem 
   end.
 
@@ -1088,8 +1026,8 @@ Hint Resolve id_circ_WT inPar_WT inSeq_WT CNOT_at_WT share_to_WT' R_TRUE_WT R_FA
 Hint Extern 2 (Typed_Box (share_to' _ _)) => apply share_to_WT' : compile_typing.
 *)
 
-Lemma compile_WT : forall (b : rbexp) (Γ : Ctx) (pf : get_context b ⊂ Γ),  
-    Typed_Box (compile b Γ pf).
+Lemma compile_WT : forall (b : rbexp) (Γ : Ctx),  
+    Typed_Box (compile b Γ).
 Proof.
   induction b; intros; simpl; compile_typing True.
 Qed.
@@ -1396,22 +1334,21 @@ Ltac listify_kron :=
 
 
 (* very similar to share_to_spec *)
-Lemma CNOT_at_spec : forall (b1 b2 : bool) (n x y : nat) pf1 pf2 pf3 li,
+Lemma CNOT_at_spec : forall (b1 b2 : bool) (n x y : nat) (li : list (Matrix 2 2)), 
+  x < n -> y < n -> x <> y ->
   (* shouldn't there be an nth that takes a proof? *)
   nth_error li x = Some (bool_to_matrix b1) ->
   nth_error li y = Some (bool_to_matrix b2) ->
-  ⟦CNOT_at n x y pf1 pf2 pf3⟧ (⨂ li) = ⨂ (update_at li y (bool_to_matrix (b1 ⊕ b2))).
+  ⟦CNOT_at n x y⟧ (⨂ li) = ⨂ (update_at li y (bool_to_matrix (b1 ⊕ b2))).
 Admitted.
 
-Lemma Toffoli_at_spec : forall (b1 b2 b3 : bool) (n x y z : nat) pf1 pf2 pf3 pf4 pf5 pf6 li,
-  (* shouldn't there be an nth that takes a proof? *)
+Lemma Toffoli_at_spec : forall (b1 b2 b3 : bool) (n x y z : nat) (li : list (Matrix 2 2)),
+  x < n -> y < n -> z < n -> x <> y -> y < n -> z < n -> 
   nth_error li x = Some (bool_to_matrix b1) ->
   nth_error li y = Some (bool_to_matrix b2) ->
   nth_error li z = Some (bool_to_matrix b3) ->
-  ⟦Toffoli_at n x y z pf1 pf2 pf3 pf4 pf5 pf6⟧ (⨂ li) = 
-  ⨂ (update_at li z (bool_to_matrix ((b1 && b2) ⊕ b3))).
+ ⟦Toffoli_at n x y z⟧ (⨂ li) = ⨂ (update_at li z (bool_to_matrix ((b1 && b2) ⊕ b3))).
 Admitted.
-
 
 Lemma ctx_lookup_exists : forall v Γ f, get_context (rb_var v) ⊂ Γ -> 
   ctx_to_mat_list Γ f !! position_of v Γ = Some (bool_to_matrix (f v)).  
@@ -1431,9 +1368,9 @@ Proof.
     simpl in H. inversion H. subst. simpl. easy.
 Qed.
 
-Theorem compile_correct : forall (b : rbexp) (Γ : Ctx) (f : Var -> bool) (t : bool) 
-  (pf : get_context b ⊂ Γ), 
-  ⟦compile b Γ pf⟧ ((bool_to_matrix t) ⊗ (ctx_to_matrix Γ f)) = 
+Theorem compile_correct : forall (b : rbexp) (Γ : Ctx) (f : Var -> bool) (t : bool),
+  get_context b ⊂ Γ -> 
+  ⟦compile b Γ⟧ ((bool_to_matrix t) ⊗ (ctx_to_matrix Γ f)) = 
   bool_to_matrix (t ⊕ ⌈b | f⌉) ⊗ ctx_to_matrix Γ f.
 Proof.
   intros b.
@@ -1454,11 +1391,15 @@ Proof.
     apply WF_ctx_to_matrix.
   - simpl. 
     listify_kron.
-    simpl_rewrite (CNOT_at_spec (f v) t (S (⟦Γ⟧)) (S (position_of v Γ)) 0); trivial. 
+    simpl_rewrite (CNOT_at_spec (f v) t (S (⟦Γ⟧)) (S (position_of v Γ)) 0); trivial;
+      try omega.
     simpl.
     rewrite xorb_comm.
     reflexivity.
-    apply ctx_lookup_exists. easy.
+    apply (singleton_nth_classical Γ v) in H as [W H].
+    apply position_of_lt in H.
+    simpl in *; omega.
+    apply ctx_lookup_exists; easy.
   - simpl in *.
     specialize inSeq_correct as IS. simpl in IS.    
     repeat (rewrite IS; compile_typing (compile_WT)).
@@ -1473,7 +1414,7 @@ Proof.
     replace (|1⟩⟨1|) with (bool_to_matrix true) by reflexivity.    
     rewrite (IHb _ _ _ H). rewrite xorb_true_l. (* yay! *)
     listify_kron.
-    simpl_rewrite (CNOT_at_spec (¬ ⌈b | f⌉) t (S (S (⟦Γ⟧))) 1 0); trivial. 
+    simpl_rewrite (CNOT_at_spec (¬ ⌈b | f⌉) t (S (S (⟦Γ⟧))) 1 0); trivial; try omega. 
     simpl.
     rewrite_inPar.
     unfold ctx_to_matrix in *.
@@ -1502,7 +1443,7 @@ Proof.
     rewrite_inPar.    
     repeat simpl_rewrite id_circ_Id.
     simpl_rewrite init0_spec.
-(*  apply subset_classical_merge in H as [S1 S2]. *)
+    apply subset_classical_merge in H as [S1 S2].
     simpl_rewrite (IHb1 Γ f false); trivial.
     replace (if ⌈b1 | f⌉ then true else false) with (⌈b1 | f⌉) by
         (destruct (⌈b1 | f⌉); easy).  
@@ -1518,7 +1459,8 @@ Proof.
     simpl_rewrite IHb2; trivial.
     rewrite xorb_false_l.
     listify_kron.
-    simpl_rewrite (Toffoli_at_spec (⌈b1 | f⌉) (⌈b2 | f⌉) t (3 + ⟦Γ⟧) 1 2 0); trivial. 
+    simpl_rewrite (Toffoli_at_spec (⌈b1 | f⌉) (⌈b2 | f⌉) t (3 + ⟦Γ⟧) 1 2 0); trivial;
+      try omega.
     simpl.
     repeat rewrite_inPar.
     replace (@big_kron (S (S O)) (S (S O)) (ctx_to_mat_list Γ f)) with
@@ -1555,12 +1497,12 @@ Proof.
     rewrite_inPar.    
     repeat simpl_rewrite id_circ_Id.
     simpl_rewrite init0_spec.
-    (* apply subset_classical_merge in H as [S1 S2]. *)
+    apply subset_classical_merge in H as [S1 S2].
     simpl_rewrite (IHb1 Γ f false); trivial.
     replace (if ⌈b1 | f⌉ then true else false) with (⌈b1 | f⌉) by
         (destruct (⌈b1 | f⌉); easy).  
     listify_kron.
-    simpl_rewrite (CNOT_at_spec (⌈b1 | f⌉) t (2 + ⟦Γ⟧) 1 0); trivial. 
+    simpl_rewrite (CNOT_at_spec (⌈b1 | f⌉) t (2 + ⟦Γ⟧) 1 0); trivial; try omega. 
     simpl.
     repeat rewrite_inPar.
     replace (@big_kron (S (S O)) (S (S O)) (ctx_to_mat_list Γ f)) with
@@ -1572,7 +1514,8 @@ Proof.
     repeat simpl_rewrite strip_one_l_out_eq.
     repeat simpl_rewrite id_circ_Id.
     listify_kron.
-    simpl_rewrite (CNOT_at_spec (⌈b2 | f⌉) (⌈b1 | f⌉ ⊕ t) (2 + ⟦Γ⟧) 1 0); trivial. 
+    simpl_rewrite (CNOT_at_spec (⌈b2 | f⌉) (⌈b1 | f⌉ ⊕ t) (2 + ⟦Γ⟧) 1 0); trivial;
+      try omega.
     simpl.
     rewrite_inPar.
     simpl_rewrite id_circ_Id.

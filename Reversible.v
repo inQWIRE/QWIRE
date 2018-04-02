@@ -26,6 +26,9 @@ Qed.
 Definition Square_Box W := Box W W.
 
 (* Temporary - just so Oracles.v compiles until made to work with symmetric *)
+
+(* Dependently typed:
+
 Parameter CNOT_at : forall (n : nat) (i j : Var), i < n -> j < n -> i <> j -> Square_Box (n ⨂ Qubit)%qc.
 
 Parameter CNOT_at_WT :
@@ -40,4 +43,13 @@ forall (n : nat) (i j k : Var) (pf_i : i < n) (pf_j : j < n)
   (pf_k : k < n) (pf_i_j : i <> j) (pf_i_k : i <> k) (pf_j_k : j <> k),
 Typed_Box (Toffoli_at n i j k pf_i pf_j pf_k pf_i_j pf_i_k pf_j_k).
 
+*)
 
+(* Non-dependently typed *)
+Parameter CNOT_at : forall (n : nat) (i j : Var), Square_Box (n ⨂ Qubit)%qc.
+
+Parameter CNOT_at_WT : forall (n : nat) (i j : Var), Typed_Box (CNOT_at n i j).
+
+Parameter Toffoli_at : forall (n : nat) (i j k : Var), Square_Box (n ⨂ Qubit)%qc.
+
+Parameter Toffoli_at_WT : forall (n : nat) (i j k : Var), Typed_Box (Toffoli_at n i j k).
