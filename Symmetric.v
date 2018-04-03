@@ -696,8 +696,6 @@ Proof.
 Admitted.
 
 
-
-
 Lemma assert_init_at_id : forall b m i, i < S m ->
     assert_at b m i · init_at b m i  ≡ id_circ.
 Admitted.

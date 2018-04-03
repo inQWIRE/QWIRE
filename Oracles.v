@@ -972,27 +972,27 @@ Program Fixpoint compile (b : rbexp) (Γ : Ctx) : Square_Box (S (⟦Γ⟧) ⨂ Q
     (* CNOT_at_option (S (⟦Γ⟧)) (position_of v Γ) (⟦Γ⟧) *)
     CNOT_at (S (⟦Γ⟧)) (S (position_of v Γ)) 0
   | rb_not b      => (id_circ || (strip_one_l_in (init1 || id_circ))) ;;
-                    (id_circ || (compile b Γ)) ;;
-                    (CNOT_at (2 + ⟦Γ⟧) 1 0) ;;
-                    (id_circ || (compile b Γ)) ;;
-                    (id_circ || (strip_one_l_out (assert1 || id_circ)))
+                     (id_circ || (compile b Γ)) ;;
+                     (CNOT_at (2 + ⟦Γ⟧) 1 0)    ;;
+                     (id_circ || (compile b Γ)) ;;
+                     (id_circ || (strip_one_l_out (assert1 || id_circ)))
   | rb_and b1 b2  => (id_circ || (strip_one_l_in (init0 || id_circ))) ;;
-                    (id_circ || compile b1 Γ) ;;
-                    (id_circ || (id_circ || (strip_one_l_in (init0 || id_circ)))) ;;
-                    (id_circ || (id_circ || compile b2 Γ)) ;;
-                    (Toffoli_at (3 + ⟦Γ⟧) 1 2 0) ;;
-                    (id_circ || (id_circ || compile b2 Γ)) ;;
-                    (id_circ || (id_circ || (strip_one_l_out (assert0 || id_circ)))) ;;
-                    (id_circ || compile b1 Γ) ;;
-                    (id_circ || (strip_one_l_out (assert0 || id_circ)))                 
+                     (id_circ || compile b1 Γ) ;;
+                     (id_circ || (id_circ || (strip_one_l_in (init0 || id_circ)))) ;;
+                     (id_circ || (id_circ || compile b2 Γ)) ;;
+                     (Toffoli_at (3 + ⟦Γ⟧) 1 2 0)           ;;
+                     (id_circ || (id_circ || compile b2 Γ)) ;;
+                     (id_circ || (id_circ || (strip_one_l_out (assert0 || id_circ)))) ;;
+                     (id_circ || compile b1 Γ) ;;
+                     (id_circ || (strip_one_l_out (assert0 || id_circ)))                 
   | rb_xor b1 b2  => (id_circ || (strip_one_l_in (init0 || id_circ))) ;;
-                    (id_circ || compile b1 Γ) ;;
-                    (CNOT_at (2 + ⟦Γ⟧) 1 0) ;;                    
-                    (id_circ || compile b1 Γ) ;; 
-                    (id_circ || compile b2 Γ) ;; (* reusing ancilla *)
-                    (CNOT_at (2 + ⟦Γ⟧) 1 0) ;;                    
-                    (id_circ || compile b2 Γ) ;;
-                    (id_circ || (strip_one_l_out (assert0 || id_circ)))              
+                     (id_circ || compile b1 Γ) ;;
+                     (CNOT_at (2 + ⟦Γ⟧) 1 0)   ;;                    
+                     (id_circ || compile b1 Γ) ;; 
+                     (id_circ || compile b2 Γ) ;; (* reusing ancilla *)
+                     (CNOT_at (2 + ⟦Γ⟧) 1 0)   ;;                    
+                     (id_circ || compile b2 Γ) ;;
+                     (id_circ || (strip_one_l_out (assert0 || id_circ)))              
   end.
 
 Lemma ntensor_fold : forall n W, W ⊗ (n ⨂ W) = (S n ⨂ W).
