@@ -65,6 +65,13 @@ Notation "'let_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ← c1 ; c2" :=
                        let (p1, p2) := wproj y in
                        let (p3, p4) := wproj z in c2))
                             (at level 12, right associativity) : circ_scope.
+Notation "'let_' ( p1 , ( p2 , ( p3 , ( p4 , ( p5 , p6 ) ) ) ) ) ← c1 ; c2" :=
+    (compose c1 (fun x => let (p1,y) := wproj x in
+                       let (p2,z) := wproj y in
+                       let (p3,a) := wproj z in
+                       let (p4,b) := wproj a in
+                       let (p5,p6) := wproj b in c2))
+                            (at level 12, right associativity) : circ_scope.
 
 
 Notation "'gate_' p2 ← g @ p ; c2" := (gate g p (fun p2 => c2))
@@ -90,6 +97,13 @@ Notation "'gate_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ← g @ p ; c2" :=
     (gate g p (fun x => let (y, z) := wproj x in
                      let (p1, p2) := wproj y in
                      let (p3, p4) := wproj z in c2))
+                            (at level 12, right associativity) : circ_scope.
+Notation "'gate_' ( p1 , ( p2 , ( p3 , ( p4 , ( p5 , p6 ) ) ) ) ) ← g @ p ; c2" :=
+    (gate g p (fun x => let (p1,y) := wproj x in
+                       let (p2,z) := wproj y in
+                       let (p3,a) := wproj z in
+                       let (p4,b) := wproj a in
+                       let (p5,p6) := wproj b in c2))
                             (at level 12, right associativity) : circ_scope.
 
 Notation lift_pat x p c := (lift p (fun x => c)).
@@ -128,6 +142,13 @@ Notation "'discard_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ; c" :=
                                 (fun _ => gate discard p4 
                                             (fun _ => c)))))
          (at level 12, right associativity) : circ_scope.
+Notation "'discard_' ( p1 , ( p2 , ( p3 , ( p4 , ( p5 , p6 ) ) ) ) ) ; c" :=
+    (gate discard p1 (fun _ => gate discard p2 
+                      (fun _ => gate discard p3
+                      (fun _ => gate discard p4
+                      (fun _ => gate discard p5
+                      (fun _ => gate discard p6))))))
+                            (at level 12, right associativity) : circ_scope.
 
 
 (* Automation *)
