@@ -5,6 +5,8 @@ Require Import HOASLib.
 Require Import Denotation.
 Require Import DBCircuits.
 Require Import TypeChecking.
+Require Import Reversible.
+Require Import Ancilla.
 
 Require Import List.
 Set Bullet Behavior "Strict Subproofs".
@@ -90,6 +92,45 @@ Proof.
   apply (strong_induction' P H n). constructor.
 Defined.
 Transparent strong_induction.
+
+
+Lemma le_hprop : forall (a b : nat) (pf1 pf2 : a <= b), pf1 = pf2.
+Proof. 
+  induction a as [ | a]; induction b as [ | b]; intros pf1 pf2.
+  * dependent destruction pf1. dependent destruction pf2.
+    reflexivity.
+  * dependent destruction pf1.
+    dependent destruction pf2.
+    apply f_equal. apply IHb.
+  * dependent destruction pf1.
+  * dependent destruction pf1.
+    + dependent destruction pf2. 
+      ++ reflexivity.
+      ++ omega.
+    + dependent destruction pf2.
+      ++ omega.
+      ++ apply f_equal. apply IHb.
+Qed.
+
+Lemma lt_hprop : forall (a b : nat) (pf1 pf2 : a < b), pf1 = pf2.
+Proof. 
+  intros.
+  apply le_hprop.
+Qed.
+
+Lemma False_hprop : forall (pf1 pf2 : False), pf1 = pf2.
+Proof.
+  destruct pf1.
+Qed.
+
+Lemma nat_neq_hprop : forall (m n : nat) (pf1 pf2 : m <> n), pf1 = pf2.
+Proof.
+  intros m n pf1 pf2.
+  apply functional_extensionality.
+  intros pf_eq.
+  apply False_hprop.
+Qed.
+
     
 (* Precondition: 0 < j < n *)
 Definition CNOT_at_i0 (n j : nat) (pf_j : 0 < j) (pf_n : j < n) 
@@ -138,6 +179,24 @@ Proof.
     clear IHj.
     type_check.
 Qed. 
+
+Lemma CNOT_at_i0_SS : forall n j
+                             (pfj : 0 < S (S j)) (pfj' : 0 < S j)
+                             (pfn : S (S j) < S (S n)) (pfn' : S j < S n),
+      CNOT_at_i0 (S (S n)) (S (S j)) pfj pfn
+    = box_ q ⇒ let_ (q0,(q1,qs)) ← q;
+               let_ (q0,qs) ← CNOT_at_i0 (S n) (S j) pfj' pfn' $ (q0,qs);
+               output (q0,(q1,qs)).
+Proof.
+  intros. simpl. 
+  replace (lt_S_n (S j) (S n) pfn) with pfn'.
+  simpl.
+  replace pfj' with (Nat.lt_0_succ j).
+  reflexivity.
+  * apply lt_hprop.
+  * apply lt_hprop.
+Qed.
+
   
 
 Definition CNOT_at_j0 (n i : nat) (pf_j : 0 < i) (pf_n : i < n) 
@@ -163,6 +222,8 @@ Proof.
        + apply Nat.lt_0_succ.
        + apply lt_S_n. auto.
 Defined.
+
+
 Lemma CNOT_at_j0_WT : forall (n i : nat) (pf_i : 0 < i) (pf_n : i < n),
       Typed_Box (CNOT_at_j0 n i pf_i pf_n).
 Proof.
@@ -186,6 +247,24 @@ Proof.
     clear IHi.
     type_check.
 Qed. 
+
+Lemma CNOT_at_j0_SS : forall n i
+                             (pfi : 0 < S (S i)) (pfi' : 0 < S i)
+                             (pfn : S (S i) < S (S n)) (pfn' : S i < S n),
+      CNOT_at_j0 (S (S n)) (S (S i)) pfi pfn
+    = box_ q ⇒ let_ (q0,(q1,qs)) ← q;
+               let_ (q0,qs) ← CNOT_at_j0 (S n) (S i) pfi' pfn' $(q0,qs);
+                output (q0,(q1,qs)).
+Proof.
+  intros. simpl. 
+  replace (lt_S_n (S i) (S n) pfn) with pfn'.
+  simpl.
+  replace pfi' with (Nat.lt_0_succ i).
+  reflexivity.
+  * apply lt_hprop.
+  * apply lt_hprop.
+Qed.
+
 
 Definition CNOT_at' (n i j : nat) 
                     (pf_i : i < n) (pf_j : j < n) (pf_i_j : i <> j) 
@@ -269,56 +348,67 @@ Proof.
   destruct i as [ | i'], j as [ | j']; compute; reflexivity.
 Qed.
   
-(*
-Lemma CNOT_at_n_0_SS : forall n' j', 
+Lemma CNOT_at_n_0_SS : forall n' j', j' < n' -> 
       CNOT_at (S (S n')) 0 (S (S j'))
     = box_ q ⇒ let_ (q0,(q1,qs)) ← q;
                let_ (q0,qs) ← CNOT_at (S n') 0 (S j') $ (q0,qs);
                output (q0,(q1,qs)).
 Proof.
-  intros. compute. reflexivity.
-
-  induction n'.
-  intros n' j'.
-  unfold CNOT_at at 1. Opaque CNOT_at.
-  unfold eq_rec, eq_rect, eq_rec_r, eq_rect_r. simpl.
-  unfold eq_rec, eq_rect, eq_rec_r, eq_rect_r. simpl.
-  unfold strong_induction, strong_induction'. simpl.
-  apply f_equal, functional_extensionality; intros p.
-  dependent destruction p. dependent destruction p2. simpl.
-  induction n' as [ | n''].
-  { (* n' = 0 *) rewrite CNOT_at_1. simpl. reflexivity. }
-  destruct j' as [ | j''].
-  { (* j' = 0 *) Transparent CNOT_at. compute. reflexivity. }
-  simpl.
-
-  apply f_equal.
-Admitted.
-
-Lemma CNOT_at_n_SS_0 : forall n' i',
+  intros. 
+  unfold CNOT_at.
+  simpl. 
+  destruct (lt_dec (S (S j')) (S (S n'))); [ | omega].
+  destruct (lt_dec (S j') (S n')); [ | omega].
+  erewrite CNOT_at_i0_SS. reflexivity.
+Qed.
+  
+Lemma CNOT_at_n_SS_0 : forall n' i', i' < n' ->
       CNOT_at (S (S n')) (S (S i')) 0 
     = box_ q ⇒ let_ (q0,(q1,qs)) ← q;
                let_ (q0,qs) ← CNOT_at (S n') (S i') 0 $(q0,qs);
                output (q0,(q1,qs)).
-Admitted.
+Proof.
+  intros.
+  unfold CNOT_at.
+  simpl. 
+  destruct (lt_dec (S (S i')) (S (S n'))); [ | omega].
+  destruct (lt_dec (S i') (S n')); [ | omega].
+  erewrite CNOT_at_j0_SS. reflexivity.
+Qed.
+
+
+
+
+Lemma CNOT_at_at' : forall n i j (pfi : i < n) (pfj : j < n) (pf_i_j : i <> j),
+      CNOT_at n i j = CNOT_at' n i j pfi pfj pf_i_j.
+Proof.
+  intros. unfold CNOT_at.
+  destruct (lt_dec i n); [ | omega].
+  destruct (lt_dec j n); [ | omega].
+  destruct (Nat.eq_dec i j); [omega | ].
+  replace l with pfi by apply lt_hprop.
+  replace l0 with pfj by apply lt_hprop.
+  replace n0 with pf_i_j by apply nat_neq_hprop.
+  reflexivity.
+Qed.
   
 Lemma CNOT_at_n_S_S : forall n' i' j',
-      CNOT_at (S (S n')) (S i') (S j')
+                      i' < n' -> j' < n' -> i' <> j' ->
+      CNOT_at (S n') (S i') (S j')
     = box_ q ⇒ let_ (q0,qs) ← q;
-               let_ qs ← CNOT_at (S n') i' j' $ output qs;
+               let_ qs ← CNOT_at n' i' j' $ output qs;
                output (q0,qs).
 Proof.
-  intros n' i' j'.
-  unfold CNOT_at at 1. Opaque CNOT_at.
-  compute. 
-  apply f_equal.
-  apply functional_extensionality.
-  intros p.
-  dependent destruction p. dependent destruction p2.
-  simpl. compute. 
-Admitted.
-*)
-
+  intros n' i' j' pf_i pf_j pf_i_j.
+  erewrite CNOT_at_at'. 
+  simpl.
+  erewrite CNOT_at_at'.
+  reflexivity.
+  Unshelve.
+  * omega.
+  * omega.
+  * omega.
+Qed.
 
 Definition Toffoli_at n (i j k : Var) (pf_i : i < n) (pf_j : j < n) (pf_k : k < n)
                                       (pf_i_j : i <> j) (pf_i_k : i <> k) (pf_j_k : j <> k)
@@ -334,18 +424,126 @@ Admitted.
 
 Definition assert (b : bool) : Gate Qubit One := if b then assert1 else assert0.
 
-Definition assert_at (b : bool) (n : nat) (i : nat) (pf_i : i < S n) : Box (S n ⨂ Qubit) (n ⨂ Qubit).
+Definition assert_at' (b : bool) (n : nat) (i : nat) (pf_i : i < S n) 
+         : Box (S n ⨂ Qubit) (n ⨂ Qubit).
 Proof.
-Admitted.
+  gdep n.
+  induction i as [ | i]; intros n pf_i.
+  * (* i = 0 *)
+    refine (box_ q ⇒ let_ (q,qs) ← q; 
+                     let_ _ ← assert b $q; 
+                     output qs).
+  * (* i = S i' *)
+    destruct n as [ | n].
+    { absurd False; auto. inversion pf_i. subst. inversion H0. }
+    simpl.
+    refine (box_ q ⇒ let_ (q,qs) ← q; 
+                     let_ qs ← IHi n _ $ qs;
+                     output (q,qs)). 
+    apply lt_S_n; auto.
+Defined.
 
-Lemma assert_at_WT : forall b n i (pf : (i < S n)%nat), Typed_Box (assert_at b n i pf).
-Admitted.
+Definition assert_at (b : bool)(n : nat) (i : nat) 
+         : Box (S n ⨂ Qubit) (n ⨂ Qubit).
+Proof.
+  destruct (lt_dec i (S n)) as [ pf_i | pf_i ].
+  * (* i < S n *) exact (assert_at' b n i pf_i).
+  * (* i >= S n *) simpl. 
+     exact (box_ qs' ⇒ let_ (q,qs) ← qs';
+                       let_ _ ← assert b $q;
+                       output qs). (* ERROR *)
+Defined.
 
-Definition init_at (b : bool) (n : nat) (i : nat) (pf_i : i < S n) : Box (n ⨂ Qubit) (S n ⨂ Qubit).
-Admitted.
+Lemma assert_at_S : forall b n i (pf_i : i < S n),
+    assert_at b (S n) (S i) = box_ q ⇒ let_ (q,qs) ← q; 
+                                       let_ qs ← assert_at b n i $ qs;
+                                       output (q,qs).
+Proof.
+  intros.
+  simpl. unfold assert_at. simpl.
+  destruct (lt_dec (S i) (S (S n))); [ | omega].
+  destruct (lt_dec i (S n)); [ | omega].
+  replace (lt_S_n i (S n) l) with l0; auto.
+  apply lt_hprop.
+Qed.
 
-Lemma init_at_WT : forall b n i (pf : (i < S n)%nat), Typed_Box (init_at b n i pf).
-Admitted.
+Lemma assert_at_WT : forall b n i (pf : (i < S n)%nat), 
+                            Typed_Box (assert_at b n i).
+Proof.
+  intros.  
+  gdep n.
+  induction i as [ | i]; intros n pf_i.
+  * (* i = 0 *)
+    type_check.
+  * (* i = S i' *)
+    destruct n as [ | n]; [omega | ].
+    assert (pf_i' : i < S n) by omega.
+    set (IH := IHi n pf_i').
+    rewrite (assert_at_S b _ _ pf_i').
+    type_check.
+Qed.
+
+Definition init_at' (b : bool) (n : nat) (i : nat) (pf_i : i < S n) 
+                  : Box (n ⨂ Qubit) (S n ⨂ Qubit).
+  gdep n.
+  induction i as [ | i]; intros n pf_i.
+  * (* i = 0 *)
+    refine (box_ qs ⇒ let_ q ← init b $();
+                      output (q,qs)).
+  * (* i = S i' *)
+    destruct n as [ | n].
+    { absurd False; auto. inversion pf_i. subst. inversion H0. }
+    simpl.
+    refine (box_ q ⇒ let_ (q,qs) ← q; 
+                     let_ qs ← IHi n _ $ qs;
+                     output (q,qs)). 
+    apply lt_S_n; auto.
+Defined.
+
+Definition init_at (b : bool) (n : nat) (i : nat) : Box (n ⨂ Qubit) (S n ⨂ Qubit).
+Proof.
+  destruct (lt_dec i (S n)) as [pf_i | pf_i].
+  * (* i < S n *) exact (init_at' b n i pf_i).
+  * (* i >= S n *) exact (box_ qs ⇒ let_ q ← init b $();
+                                    output (q,qs)). (* ERROR *)
+Defined.
+
+Lemma init_at'_S : forall b n i (pf_i : i < S n) (pf_i' : S i < S (S n)),
+    init_at' b (S n) (S i) pf_i' = box_ q ⇒ let_ (q,qs) ← q; 
+                                           let_ qs ← init_at' b n i pf_i $ qs;
+                                           output (q,qs).
+Proof.
+  intros.
+  simpl.
+  replace (lt_S_n i (S n) pf_i') with pf_i by apply lt_hprop; auto.
+Qed.
+Lemma init_at_S : forall b n i, i < S n ->
+    init_at b (S n) (S i) = box_ q ⇒ let_ (q,qs) ← q;
+                                     let_ qs ← init_at b n i $qs;
+                                     output (q,qs).
+Proof.
+  intros.
+  unfold init_at. simpl.
+  destruct (lt_dec (S i) (S (S n))); [ | omega].
+  destruct (lt_dec i (S n)); [ | omega].
+  replace (lt_S_n i (S n) l) with l0 by apply lt_hprop.
+  reflexivity.
+Qed.
+
+Lemma init_at_WT : forall b n i (pf : (i < S n)%nat), Typed_Box (init_at b n i).
+Proof.
+  intros.
+  gdep n.
+  induction i as [ | i]; intros n pf_i.
+  * (* i = 0 *)
+    type_check.
+  * (* i = S i' *)
+    destruct n as [ | n]; [omega | ].
+    assert (pf_i' : i < S n) by omega.
+    set (IH := IHi n pf_i').
+    rewrite (init_at_S b _ _ pf_i').
+    type_check.
+Qed.
 
 Definition in_scope (n t i : nat) := i < n+t.
 Definition in_target (n t i : nat) := (n <= i).
@@ -355,132 +553,262 @@ Proof.
   intros. apply lt_le_trans with (m := n); auto. omega. 
 Qed.
 
-Inductive Symmetric_Gate_Target : forall n t, Box ((n+t) ⨂ Qubit) ((n+t) ⨂ Qubit) -> Set :=
-| X_target : forall n t i (pf_i : in_scope n t i )
-                          (pf_target_i : in_target n t i),
-                           Symmetric_Gate_Target n t (X_at (n+t) i pf_i)
-| CNOT_target : forall n t i j
-                       (pf_i : in_scope n t i) (pf_j : in_scope n t j)
-                       (pf_i_j : i <> j)
-                       (pf_target_j : in_target n t j),
-                       Symmetric_Gate_Target n t (CNOT_at (n+t) i j pf_i pf_j pf_i_j)
-| Toffoli_target : forall n t i j k
-                     (pf_i : in_scope n t i) (pf_j : in_scope n t j) (pf_k : in_scope n t k)
-                     (pf_i_j : i <> j) (pf_i_k : i <> k) (pf_j_k : j <> k)
-                     (pf_target_k : in_target n t k),
-                     Symmetric_Gate_Target n t (Toffoli_at _ i j k pf_i pf_j pf_k pf_i_j pf_i_k pf_j_k)
-.
-Inductive Symmetric_Gate_Source : forall n t, Box ((n+t) ⨂ Qubit) ((n+t) ⨂ Qubit) -> Set :=
-| X_source : forall n t i (pf_i : in_scope n t i),
-                           Symmetric_Gate_Source n t (X_at (n+t) i pf_i)
-| CNOT_source : forall n t i j
-                       (pf_i : in_scope n t i) (pf_j : in_scope n t j)
-                       (pf_i_j : i <> j),
-                       Symmetric_Gate_Source n t (CNOT_at (n+t) i j pf_i pf_j pf_i_j)
-| Toffoli_source : forall n t i j k
-                     (pf_i : in_scope n t i) (pf_j : in_scope n t j) (pf_k : in_scope n t k)
-                     (pf_i_j : i <> j) (pf_i_k : i <> k) (pf_j_k : j <> k),
-                     Symmetric_Gate_Source n t (Toffoli_at _ i j k pf_i pf_j pf_k pf_i_j pf_i_k pf_j_k)
+Inductive gate_acts_on {m} k : Box (m ⨂ Qubit) (m ⨂ Qubit) -> Set :=
+| X_on : forall (pf_k : k < m), gate_acts_on k (X_at m k pf_k)
+| CNOT_on {i} : i < m -> k < m -> i <> k ->
+                gate_acts_on k (CNOT_at m i k)
+| Toffoli_on {i j} (pf_i : i < m) (pf_j : j < m) (pf_k : k < m) 
+                   (pf_i_j : i <> j) (pf_i_k : i <> k) (pf_j_k : j <> k)
+     : gate_acts_on k (Toffoli_at m i j k pf_i pf_j pf_k pf_i_j pf_i_k pf_j_k)
 .
 
-Inductive Symmetric_Box : forall n t, Box ((n+t) ⨂ Qubit) ((n+t) ⨂ Qubit) -> Set :=
-| sym_id : forall n t, Symmetric_Box n t id_circ
-| sym_target_l : forall n t g c, 
-                       Symmetric_Gate_Target n t g ->
-                       Symmetric_Box n t c ->
-                       Symmetric_Box n t (g · c)
-| sym_target_r : forall n t g c, 
-                       Symmetric_Gate_Target n t g ->
-                       Symmetric_Box n t c ->
-                       Symmetric_Box n t (c · g)
-| sym_source   : forall n t g c, 
-                       Symmetric_Gate_Source n t g ->
-                       Symmetric_Box n t c ->
-                       Symmetric_Box n t (g · c · g)
-| sym_ancilla  : forall n t c,
-                       Symmetric_Box (S n) t c -> 
-                       forall (b : bool) i (pf : in_source (S n) t i),
-                       Symmetric_Box n t (assert_at b (n+t) i (in_source_in_scope _ _ _ pf) 
-                                      · c · init_at b (n+t) i (in_source_in_scope _ _ _ pf))
-.
-Fixpoint symmetric_reverse  n t c (pf_sym : Symmetric_Box n t c)
+Inductive source_symmetric : forall n t, Box ((n+t) ⨂ Qubit) ((n+t) ⨂ Qubit) -> Set :=
+| sym_id n t : source_symmetric n t id_circ
+| sym_gate n t k c g : gate_acts_on k g ->
+                       source_symmetric n t c ->
+                       source_symmetric n t (g · c · g)
+| target_gate_l n t k c g : gate_acts_on k g ->
+                            source_symmetric n t c ->
+                            n <= k -> (* k is in the target *)
+                            source_symmetric n t (g · c)
+| target_gate_r n t k c g : gate_acts_on k g ->
+                            source_symmetric n t c ->
+                            n <= k -> (* k is in the target *)
+                            source_symmetric n t (c · g)
+| sym_ancilla n t c b i : i < n ->
+              source_symmetric (S n) t c ->
+              source_symmetric n t (assert_at b (n+t) i · c · init_at b (n+t) i).
+
+
+
+Fixpoint symmetric_reverse  n t c (pf_sym : source_symmetric n t c)
                             : Box ((n+t) ⨂ Qubit) ((n+t) ⨂ Qubit) :=
   match pf_sym with
   | sym_id _ _ => id_circ
-  | sym_target_l n t g c pf_g pf_c => let c' := symmetric_reverse n t c pf_c in
-                                      (c' · g)
-  | sym_target_r n t g c pf_g pf_c => let c' := symmetric_reverse n t c pf_c in
-                                      (g · c')
-  | sym_source   n t g c pf_g pf_c => let c' := symmetric_reverse n t c pf_c in
+  | sym_gate n t k c g pf_g pf_c => let c' := symmetric_reverse n t c pf_c in
                                       (g · c' · g)
-  | sym_ancilla  n t c pf_c b i pf_i => let c' := symmetric_reverse (S n) t c pf_c in
-                                        (assert_at b (n+t) i (in_source_in_scope _ _ _ pf_i) 
-                                         · c' · init_at b (n+t) i (in_source_in_scope _ _ _ pf_i))
+  | target_gate_l n t k c g pf_g pf_c pf_k => 
+                                      let c' := symmetric_reverse n t c pf_c in
+                                      (c' · g)
+  | target_gate_r n t k c g pf_g pf_c pf_k => let c' := symmetric_reverse n t c pf_c in
+                                      (g · c')
+  | sym_ancilla n t c b i pf_i pf_c => let c' := symmetric_reverse (S n) t c pf_c in
+                                        (assert_at b (n+t) i · c' · init_at b (n+t) i)
   end.
 
-Lemma symmetric_reverse_symmetric : forall n t c (pf_sym : Symmetric_Box n t c),
-      Symmetric_Box n t (symmetric_reverse n t c pf_sym).
+
+Lemma symmetric_reverse_symmetric : forall n t c (pf_sym : source_symmetric n t c),
+      source_symmetric n t (symmetric_reverse n t c pf_sym).
 Proof.
   induction pf_sym.
   - apply sym_id.
-  - apply sym_target_r; auto.
-  - apply sym_target_l; auto.
-  - apply sym_source; auto.
+  - eapply sym_gate; eauto.
+  - apply target_gate_r with (k := k); auto.
+  - apply target_gate_l with (k := k); auto.
   - apply sym_ancilla; auto.
 Defined.
 
+(* Symmetric gates are well-typed *)
 
-
-Lemma symmetric_gate_target_reversible : forall n t g (pf_g : Symmetric_Gate_Target n t g),
-      g · g ≡ id_circ.
+Lemma gate_acts_on_WT : forall m (g : Box (m ⨂ Qubit) (m ⨂ Qubit)) k, 
+                        gate_acts_on k g -> Typed_Box g.
 Proof.
-  intros n t g pf_g.
+  intros m g k pf_g.
   induction pf_g.
-  - admit.
-  - admit.
-  - admit.
+  * apply unitary_at1_WT.
+  * apply CNOT_at_WT.
+  * apply Toffoli_at_WT.
+Qed.
+
+Lemma source_symmetric_WT : forall n t c,
+      source_symmetric n t c ->
+      Typed_Box c.
+Proof.
+  intros n t c pf_c.
+  induction pf_c.
+  * type_check.
+  *  assert (Typed_Box g)
+       by (eapply gate_acts_on_WT; eauto).
+    repeat apply inSeq_WT; auto.
+  * apply inSeq_WT; auto.
+    eapply gate_acts_on_WT; eauto.
+  * apply inSeq_WT; auto.
+    eapply gate_acts_on_WT; eauto.
+  * repeat apply inSeq_WT; auto.
+    + apply init_at_WT; auto. unfold in_source in *. omega.
+    + apply assert_at_WT; auto. unfold in_source in *. omega.
+Qed.
+
+(* Symmetric gates are no-ops on source wires *)
+
+Definition noop_on (m i : nat) (c : Square_Box (S m ⨂ Qubit)) : Prop :=
+  forall b, valid_ancillae_box' (assert_at b m i · c · init_at b m i).
+
+Definition noop_source (n t : nat) : (Square_Box ((n+t) ⨂ Qubit)) -> Prop :=
+  match n with
+  | 0 => fun _ => True
+  | S n' => fun c => 
+            forall i, i < S n' -> noop_on _ i c
+  end.
+
+Lemma gate_acts_on_noop_at : forall m g k i,
+      @gate_acts_on (S m) k g -> 
+      i <> k -> i < S m ->
+      noop_on m i g.
+Proof.
+  intros m g k i pf_g pf_i_k pf_i.
+  dependent destruction pf_g.
+  * admit.
+  * admit.
+  * admit.
 Admitted.
 
-Lemma symmetric_gate_source_reversible : forall n t g (pf_g : Symmetric_Gate_Source n t g),
+
+Lemma assert_init_at_id : forall b m i, i < S m ->
+    assert_at b m i · init_at b m i  ≡ id_circ.
+Admitted.
+
+Lemma init_assert_at_valid : forall b m i W1 (c : Box W1 (S m ⨂ Qubit)), 
+    i < S m ->
+    valid_ancillae_box' (assert_at b m i · c) ->
+    init_at b m i · assert_at b m i · c ≡ c.
+Admitted.
+
+(* does equivalence talk only about safe equivalence, or equivalence at either semantics? *)
+Lemma valid_ancillae_box'_equiv : forall W1 W2 (b1 b2 : Box W1 W2), b1 ≡ b2 ->
+      valid_ancillae_box' b1 <-> valid_ancillae_box' b2.
+Admitted.
+
+(* IS THIS TRUE?? *)
+Lemma valid_inSeq : forall w1 w2 w3 (c1 : Box w1 w2) (c2 : Box w2 w3),
+      Typed_Box c1 -> Typed_Box c2 ->
+      valid_ancillae_box' c1 -> valid_ancillae_box' c2 ->
+      valid_ancillae_box' (c2 · c1).
+Proof.
+  intros w1 w2 w3 c1 c2 pf_c1 pf_c2 valid1 valid2. unfold valid_ancillae_box.
+  set (H := inSeq_correct _ _ _ c2 c1 pf_c2 pf_c1).
+  simpl in H.
+Admitted.
+
+
+Lemma noop_source_inSeq : forall n t c1 c2,
+    Typed_Box c1 -> Typed_Box c2 ->
+    noop_source n t c1 ->
+    noop_source n t c2 ->
+    noop_source n t (c2 · c1).
+Proof.
+  intros n t c1 c2 typed_c1 typed_c2 H_c1 H_c2.
+  destruct n as [ | n]; simpl in *; auto. fold (n+t) in *.
+  intros x pf_x b.
+  set (INIT := init_at b (n+t) x).
+  set (ASSERT := assert_at b (n+t) x).
+  assert (H' : c1 · INIT ≡ INIT · ASSERT · c1 · INIT).
+  { symmetry. apply init_assert_at_valid.
+    + omega.
+    + apply H_c1; auto.
+  }
+  apply valid_ancillae_box'_equiv 
+    with (b2 := (ASSERT · c2 · INIT) · (ASSERT · c1 · INIT)).
+  { repeat rewrite <- inSeq_assoc.
+    apply HOAS_Equiv_inSeq; [ | reflexivity].
+    apply HOAS_Equiv_inSeq; [ | reflexivity].
+    apply H'.
+  }
+  assert (x < S (n+t)) by omega. 
+  assert (typed_init : Typed_Box INIT) by (apply init_at_WT; auto).
+  assert (typed_assert : Typed_Box ASSERT) by (apply assert_at_WT; auto).
+  apply valid_inSeq.
+    - repeat apply inSeq_WT;  auto. 
+    - repeat apply inSeq_WT;  auto. 
+    - apply H_c1; auto.
+    - apply H_c2; auto.
+Qed.
+
+
+
+
+Lemma denote_box_id_circ : forall b w ρ, WF_Matrix _ _ ρ ->
+      denote_box b (id_circ : Box w w) ρ = ρ.
+Proof.
+  intros b w ρ.
+  simpl. autounfold with den_db. simpl.
+  Search hoas_to_db_pat.
+  rewrite hoas_to_db_pat_fresh_empty.
+  rewrite denote_pat_fresh_id.
+  rewrite pad_nothing.
+  apply super_I.
+Qed.
+
+Lemma valid_id_circ : forall w, valid_ancillae_box' (id_circ : Box w w).
+Proof.
+  intros w ρ Hρ.
+  rewrite denote_box_id_circ.
+  * apply mixed_state_trace_1; auto.
+  * apply WF_Mixed; auto.
+Qed.
+
+Lemma symmetric_gate_noop_source : forall n t k g c,
+    gate_acts_on k g ->
+    noop_source n t c ->
+    noop_source n t (g · c · g).
+Admitted.
+
+(* not sure how to prove this *)
+Lemma symmetric_ancilla_noop_source : forall n t k c b,
+      k < S n ->
+      noop_source (S n) t c ->
+      noop_source n t (assert_at b (n+t) k · c · init_at b (n+t) k).
+Admitted.
+
+
+Lemma source_symmetric_noop : forall n t c,
+      source_symmetric n t c -> noop_source n t c.
+Proof.
+  intros n t c pf_c.
+  induction pf_c.
+  * (* id *) destruct n as [ | n]; simpl; auto; intros x pf_x b. fold plus.
+    rewrite inSeq_id_l.
+    apply valid_ancillae_box'_equiv with (b2 := id_circ).
+    + apply assert_init_at_id. omega.
+    + apply valid_id_circ.
+  * (* sym_source *)
+    assert (Typed_Box g) by (eapply gate_acts_on_WT; eauto).
+    assert (Typed_Box c) by (apply source_symmetric_WT; auto).
+    apply symmetric_gate_noop_source with (k := k); auto.
+  * (* sym_target_l *)
+    apply noop_source_inSeq; auto.
+    + apply source_symmetric_WT; auto.
+    + eapply gate_acts_on_WT; eauto.
+    + destruct n as [ | n]; simpl; auto; intros i pf_i. fold plus.
+      apply gate_acts_on_noop_at with (k := k); auto. 
+      ++ omega.
+      ++ omega.
+  * (* sym_target_r *)
+    apply noop_source_inSeq; auto.
+    + eapply gate_acts_on_WT; eauto.
+    + apply source_symmetric_WT; auto.
+    + destruct n as [ | n]; simpl; auto; intros i pf_i. fold plus.
+      apply gate_acts_on_noop_at with (k := k); auto. 
+      ++ omega.
+      ++ omega.
+  * (* sym_ancilla *)
+    apply symmetric_ancilla_noop_source; auto.
+Qed.
+
+(* The noop property implies actual reversibility *)
+
+Lemma gate_acts_on_reversible : forall m g k (pf_g : @gate_acts_on m k g),
       g · g ≡ id_circ.
 Admitted.
 
 
-Lemma denote_id_circ : forall w ρ, ⟦@id_circ w⟧ ρ = ρ.
-Admitted.
-
-Lemma init_assert : forall b n t i (pf : i < S n), 
-    init_at b (n+t) i (in_source_in_scope (S n) t i pf) 
-  · assert_at b (n+t) i (in_source_in_scope (S n) t i pf) ≡ id_circ.
-Admitted.
-Lemma assert_init : forall b n t i (pf : i < S n), 
-    assert_at b (n+t) i (in_source_in_scope (S n) t i pf) 
-  · init_at b (n+t) i (in_source_in_scope (S n) t i pf) ≡ id_circ.
-Admitted.
 
 
-Lemma symmetric_reversible : forall n t c (pf_sym : Symmetric_Box n t c),
+Lemma symmetric_reversible : forall n t c (pf_sym : source_symmetric n t c),
       symmetric_reverse n t c pf_sym · c ≡ id_circ.
 Proof.
   induction pf_sym; simpl.
-  - (* id *) apply HOAS_Equiv_id_l.
-  - (* target_l *)
-      replace (((symmetric_reverse n t c pf_sym) · g) · g · c)
-         with (symmetric_reverse n t c pf_sym · (g · g) · c)
-         by (repeat rewrite inSeq_assoc; auto).
-      transitivity ((symmetric_reverse n t c pf_sym) · c).
-      { apply HOAS_Equiv_inSeq; [ | reflexivity].
-        rewrite HOAS_Equiv_inSeq; [ | reflexivity | apply symmetric_gate_target_reversible; auto].  
-        apply HOAS_Equiv_id_l.
-      }
-      apply IHpf_sym.
-  - (* target_r *) 
-    transitivity (g · (symmetric_reverse n t c pf_sym · c) · g).
-    { repeat rewrite inSeq_assoc; reflexivity. }
-    transitivity (g · g); [ | apply symmetric_gate_target_reversible; auto ]. 
-    apply HOAS_Equiv_inSeq; [ | reflexivity].
-    rewrite HOAS_Equiv_inSeq; [apply HOAS_Equiv_id_l | reflexivity | ].
-    apply IHpf_sym.
+  - (* id *) rewrite inSeq_id_l. reflexivity.
 
   - (* source *)
     transitivity (g · (symmetric_reverse n t c pf_sym · (g · g) · c) · g).
@@ -489,30 +817,56 @@ Proof.
     { apply HOAS_Equiv_inSeq; [ | reflexivity].
       apply HOAS_Equiv_inSeq; [ reflexivity | ].
       apply HOAS_Equiv_inSeq; [ | reflexivity ].      
-      rewrite HOAS_Equiv_inSeq; [ | reflexivity | apply symmetric_gate_source_reversible; auto].
-      apply HOAS_Equiv_id_l.
+      rewrite HOAS_Equiv_inSeq; [ | reflexivity | eapply gate_acts_on_reversible; eauto].
+      rewrite inSeq_id_l; reflexivity.
     }
-    transitivity (g · g); [ | apply symmetric_gate_source_reversible; auto].
+    transitivity (g · g); [ | eapply gate_acts_on_reversible; eauto].
     apply HOAS_Equiv_inSeq; [ | reflexivity].
     rewrite HOAS_Equiv_inSeq; [ | reflexivity | apply IHpf_sym].
-    apply HOAS_Equiv_id_l.
+    rewrite inSeq_id_l; reflexivity.
+
+
+  - (* target_l *)
+      replace (((symmetric_reverse n t c pf_sym) · g) · g · c)
+         with (symmetric_reverse n t c pf_sym · (g · g) · c)
+         by (repeat rewrite inSeq_assoc; auto).
+      transitivity ((symmetric_reverse n t c pf_sym) · c).
+      { apply HOAS_Equiv_inSeq; [ | reflexivity].
+        rewrite HOAS_Equiv_inSeq; [ | reflexivity |  eapply gate_acts_on_reversible; eauto].  
+        rewrite inSeq_id_l.
+        reflexivity.
+      }
+      apply IHpf_sym.
+  - (* target_r *) 
+    transitivity (g · (symmetric_reverse n t c pf_sym · c) · g).
+    { repeat rewrite inSeq_assoc; reflexivity. }
+    transitivity (g · g); [ |  eapply gate_acts_on_reversible; eauto]. 
+    apply HOAS_Equiv_inSeq; [ | reflexivity].
+    rewrite HOAS_Equiv_inSeq; [ rewrite inSeq_id_l; reflexivity | reflexivity | ].
+    apply IHpf_sym.
+
   - (* ancilla *)
-    set (close := assert_at b (n + t) i (in_source_in_scope (S n) t i pf)).
-    set (open := init_at b (n + t) i (in_source_in_scope (S n) t i pf)).
+    set (close := assert_at b (n + t) i).
+    set (open := init_at b (n + t) i).
     set (c' := symmetric_reverse (S n) t c pf_sym).
-    transitivity (close · (c' · (open · close) · c) · open).
+    transitivity (close · (c' · (open · close · c · open))).
     { repeat (rewrite inSeq_assoc); reflexivity. }
     transitivity (close · (c' · c) · open).
-    { apply HOAS_Equiv_inSeq; [ | reflexivity].
-      apply HOAS_Equiv_inSeq; [ reflexivity | ].
+    { repeat rewrite <- inSeq_assoc. 
       apply HOAS_Equiv_inSeq; [ | reflexivity].
-      rewrite HOAS_Equiv_inSeq; [ apply HOAS_Equiv_id_l | reflexivity | ].
-      apply init_assert.
-    }
-    transitivity (close · open).
-    { apply HOAS_Equiv_inSeq; [ | reflexivity].
-      rewrite HOAS_Equiv_inSeq; [  | reflexivity | apply IHpf_sym ].
-      apply HOAS_Equiv_id_l.
-    }
-    apply assert_init.
+      apply HOAS_Equiv_inSeq; [ | reflexivity ].
+      apply init_assert_at_valid.
+      { omega. }
+      set (H := source_symmetric_noop (S n) t c pf_sym).
+      simpl in H.
+      apply H; auto.
+   }
+   transitivity (close · id_circ · open).
+   { apply HOAS_Equiv_inSeq; [ | reflexivity].
+     apply HOAS_Equiv_inSeq; [ reflexivity | ].
+     apply IHpf_sym.
+   }
+   rewrite inSeq_id_l.
+   apply assert_init_at_id.
+    omega.
 Qed.

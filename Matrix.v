@@ -182,6 +182,7 @@ Notation "n ⨂ A" := (kron_n n A) (at level 30, no associativity) : matrix_scop
 Notation "⨂ A" := (big_kron A) (at level 60): matrix_scope.
 
 Open Scope matrix_scope.
+Delimit Scope matrix_scope with M.
   
 Ltac destruct_m_1 :=
   match goal with

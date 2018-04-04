@@ -150,6 +150,7 @@ Notation "'discard_' ( p1 , ( p2 , ( p3 , ( p4 , ( p5 , p6 ) ) ) ) ) ; c" :=
                       (fun _ => gate discard p6))))))
                             (at level 12, right associativity) : circ_scope.
 
+Delimit Scope circ_scope with qc.
 
 (* Automation *)
 
@@ -175,6 +176,7 @@ Create HintDb typed_db.
 Ltac type_check_once := 
   intros;
   try match goal with 
+  | [|- Typed_Box _ ]           => solve [auto with typed_db] (* extensible *)
   | [|- @Typed_Box  ?W1 ?W2 ?c] => unfold Typed_Box in *; try unfold c
   end;
   intros;

@@ -1,8 +1,7 @@
 Require Import Datatypes.
-Require Import TypeChecking.
+Require Export TypeChecking.
 Import ListNotations.
 Open Scope list_scope.
-
 Open Scope circ_scope.
 
 Definition apply_box {w1 w2} (b : Box w1 w2) (c : Circuit w1) : Circuit w2 :=
@@ -96,5 +95,8 @@ Lemma inParMany_WT : forall n W W' (c : Box W W'), Typed_Box c  ->
 Proof. intros. induction n as [ | n']; type_check. Qed.       
 
 Notation "g # n" := (inParMany n g) (at level 8).
+
+Hint Resolve types_units id_circ_WT boxed_gate_WT init_WT inSeq_WT inPar_WT 
+     initMany_WT inSeqMany_WT inParMany_WT : typed_db.
 
 Close Scope circ_scope.

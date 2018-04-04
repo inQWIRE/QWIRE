@@ -24,15 +24,6 @@ Qed.
 (* Identity circuits *)
 (*********************)
 
-Lemma id_circ_Id : forall W ρ, WF_Matrix (2^⟦W⟧) (2^⟦W⟧) ρ -> 
-    ⟦@id_circ W⟧ ρ = ρ.
-Proof.
-  intros W ρ H.
-  simpl. unfold denote_box. simpl.
-  autorewrite with proof_db.
-  rewrite super_I; auto.
-Qed.
-
 (* Qubit form *) 
 Lemma unitary_transpose_id_qubit : forall (U : Unitary Qubit),
    unitary_transpose U ≡ id_circ.
@@ -173,38 +164,6 @@ Proof.
 Abort.
 *)
 
-
-
-
-Lemma merge_singleton_end : forall Γ w,
-      Valid (Γ ++ [Some w]) = Valid Γ ⋓ singleton (length Γ) w.
-Proof.
-  unlock_merge.
-  induction Γ as [ | [w' | ] Γ]; intros; simpl in *; auto.
-  * rewrite <- IHΓ. reflexivity.
-  * rewrite <- IHΓ. reflexivity.
-Qed.
-
-Lemma fresh_state_decompose : forall w Γ,
-      is_valid Γ ->
-      fresh_state w Γ == Γ ∙ (pat_to_ctx (fresh_pat w Γ)).
-Proof.
-  induction w; intros;
-    (destruct Γ as [ | Γ]; [invalid_contradiction | ]);
-    simpl.
-  - solve_merge. apply merge_singleton_end.
-  - solve_merge. apply merge_singleton_end.
-  - solve_merge.
-  - solve_merge.
-    * repeat apply is_valid_fresh; auto.
-    * destruct (IHw1 Γ); [auto | ].
-      rewrite pf_merge.
-      rewrite pf_merge in pf_valid.
-      destruct (IHw2 (Γ ⋓ pat_to_ctx (fresh_pat w1 (Valid Γ)))); auto.
-      rewrite pf_merge0.
-      monoid.
-Qed.
-
 Close Scope circ_scope.
 Lemma denote_tensor : forall (Γ Γ' : OCtx) {w} (c : Circuit w) 
                              {n1 n2} (ρ1 : Square n1) (ρ2 : Square n2),
@@ -222,66 +181,6 @@ Proof.
   intros. unfold hoas_to_db_pat. simpl.
   reflexivity.
 Qed.
-
-
-
-Theorem inPar_correct : forall W1 W1' W2 W2' (f : Box W1 W1') (g : Box W2 W2') 
-     (ρ1 : Square (2^⟦W1⟧)) (ρ2 : Square (2^⟦W2⟧)),
-     Typed_Box f -> Typed_Box g ->
-     Mixed_State ρ1 -> Mixed_State ρ2 ->
-     denote_box true (inPar f g) (ρ1 ⊗ ρ2)%M = 
-    (denote_box true f ρ1 ⊗ denote_box true g ρ2)%M.
-Proof.  
-  intros W1 W1' W2 W2' f g ρ1 ρ2 types_f types_g mixed_ρ1 mixed_ρ2.
-
-  destruct f as [f]. 
-  destruct g as [g].
-  repeat (autounfold with den_db; simpl).
-
-
-  set (p_1 := fresh_pat W1 ∅).
-  set (Γ_1 := fresh_state W1 ∅).
-  set (p_2 := fresh_pat W2 Γ_1).
-  set (Γ_2 := fresh_state W2 Γ_1).
-  assert (Γ_1 ⊢ p_1 :Pat) by apply fresh_state_pat.
-  assert (Γ_2 ⊢ p_2 :Pat) by admit (* need a vaiant of fresh_pat_typed *).
-
-  replace 0%nat with (⟦∅⟧) by auto.
-  replace (size_wtype W1 + size_wtype W2)%nat with (⟦Γ_2⟧).
-  replace (size_wtype W1) with (⟦Γ_1⟧).
-  replace (size_wtype W2) with (⟦fresh_state W2 ∅⟧).
-
-  specialize denote_compose as DC. unfold denote_circuit in DC. 
-  rewrite DC with (Γ1' := Γ_2) (Γ1 := Γ_2) (Γ := Γ_1). 
-  set (Γ_3 := pat_to_ctx (fresh_pat W1' Γ_2)).
-  rewrite DC with (Γ1' := fresh_state W1' Γ_2) (Γ1 := Γ_3) (Γ := Γ_2). clear DC.
-
-  autounfold with den_db.
-  repeat rewrite merge_nil_l.
-  (*
-  repeat rewrite denote_tensor.
-  Search (⟨ _ | _ ⊩ output _ ⟩).
-  rewrite denote_output.
-  autorewrite with proof_db.*)
-  admit (* stuck *). 
-  * apply types_g; auto.
-  * intros. type_check.
-    unfold Γ_3.
-    Search (pat_to_ctx) fresh_pat.
-    admit (* need a variant of fresh_pat_typed *).
-  * unfold Γ_3.
-    assert (valid_Γ_2 : is_valid Γ_2) by admit.
-    generalize (fresh_state_decompose W1' Γ_2 valid_Γ_2); intros assertion.
-    solve_merge.
-    rewrite pf_merge. monoid.
-  * apply types_f; auto.
-  * intros. type_check. apply types_g. auto.
-  * admit (* this is not true... *).
-  * rewrite size_octx_fresh; auto. validate.
-  * unfold Γ_1. rewrite size_octx_fresh. auto. validate.
-  * unfold Γ_2, Γ_1. repeat rewrite size_octx_fresh. auto.
-    validate. validate.
-Admitted.
 
 Open Scope circ_scope.
 
