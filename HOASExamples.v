@@ -33,7 +33,10 @@ Definition hadamard_measure : Box Qubit Bit :=
 Lemma hadamard_measure_WT : Typed_Box hadamard_measure.
 Proof. type_check. Qed.
 
-(* Variations on deutsch's algorithm *)
+
+(*************************************)
+(* Variations on Deutsch's Algorithm *)
+(*************************************)
 
 Definition U_deutsch (U__f : Unitary (Qubit ⊗ Qubit)) : Box One Bit :=
   box_ () ⇒ 
@@ -50,7 +53,7 @@ Definition U_deutsch (U__f : Unitary (Qubit ⊗ Qubit)) : Box One Bit :=
 Lemma U_deutsch_WT : forall U__f, Typed_Box (U_deutsch U__f).
 Proof. type_check. Qed.
 
-Definition lift_deutsch (U__f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Bit :=
+Definition lift_deutsch (U__f : Square_Box (Qubit ⊗ Qubit)) : Box One Bit :=
   box_ () ⇒
     gate_ x    ← init0 @();
     gate_ x    ← H @x;
@@ -62,11 +65,10 @@ Definition lift_deutsch (U__f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box O
     lift_ _    ← y;
     gate_ x ← meas @x;
     output x.
-Lemma lift_deutsch_WT : forall U__f, Typed_Box U__f ->
-                               Typed_Box (lift_deutsch U__f).
+Lemma lift_deutsch_WT : forall U__f, Typed_Box U__f -> Typed_Box (lift_deutsch U__f).
 Proof. type_check. Qed.
 
-Definition deutsch (U__f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Bit :=
+Definition deutsch (U__f : Square_Box (Qubit ⊗ Qubit)) : Box One Bit :=
   box_ () ⇒ 
     let_ x     ← H · init0 $ ();
     let_ y     ← H · init1 $ ();
@@ -76,7 +78,7 @@ Definition deutsch (U__f : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)) : Box One Bi
 Lemma deutsch_WF : forall U__f, Typed_Box U__f -> Typed_Box (deutsch U__f).
 Proof. type_check. Qed.
 
-Definition Deutsch_Jozsa (n : nat) (U__f : Box (S n ⨂ Qubit) (S n ⨂ Qubit)) : 
+Definition Deutsch_Jozsa (n : nat) (U__f : Square_Box (S n ⨂ Qubit)) : 
   Box One (n ⨂ Bit) := 
   box_ () ⇒
   let_ q      ← H · init1 $ (); 
@@ -98,6 +100,7 @@ Proof.
     all: type_check.
     apply types_units.
 Qed.    
+
 
 (*******************)
 (** Teleportation **)
@@ -193,6 +196,7 @@ Definition teleport_distant : Box Qubit Qubit :=
 Lemma teleport_distant_WT : Typed_Box teleport_distant.
 Proof. type_check. Qed.
 
+
 (*******************************)
 (** Quantum Fourier Transform **)
 (*******************************)
@@ -247,6 +251,7 @@ Proof. induction n as [ | [ | n]]; type_check.
        apply rotations_WT; type_check.
 Qed.
 
+
 (************************)
 (** Coin Flip Circuits **)
 (************************)
@@ -294,6 +299,7 @@ Definition n_coins' (n : nat) : Box One (n ⨂ Bit) :=
   box_ () ⇒ (unbox (inParMany n coin_flip) (units n)).
 Lemma n_coins_WT' : forall n, Typed_Box (n_coins' n).
 Proof. type_check. apply inParMany_WT. apply coin_flip_WT. apply types_units. Qed.
+
 
 (** Unitary Transpose **)
 
@@ -344,128 +350,8 @@ Definition lift_meas : Box Bit Bit :=
 Lemma lift_meas_WT : Typed_Box lift_meas.
 Proof. type_check. Qed.
 
-(*********************)
-(** Classical Gates **)
-(*********************)
-
-(* These can't be used in oracles since they're not reversible. *)
-
-(* NOT already exists *)
-
-(* AND uses a Taffoli gate with one ancilla *)
-Definition AND : Box (Qubit ⊗ Qubit) Qubit :=
-  box_ ab ⇒
-    let_ (a,b)      ← output ab;
-    gate_ z         ← init0 @();
-    gate_ (a,(b,z)) ← CCNOT @(a,(b,z));
-    gate_ a         ← meas @a;
-    gate_ b         ← meas @b;
-    gate_ ()        ← discard @a;   
-    gate_ ()        ← discard @b;   
-    output z.
-Lemma AND_WT : Typed_Box AND.
-Proof. type_check. Qed.
-
-(* XOR just wraps a CNOT *)
-Definition XOR : Box (Qubit ⊗ Qubit) Qubit := 
-  box_ ab ⇒ 
-    let_ (a,b)   ← output ab;
-    gate_ (a, b) ← CNOT @(a,b);
-    gate_ a      ← meas @a;
-    gate_ ()     ← discard @a;
-    output b.
-
-Lemma XOR_WT : Typed_Box XOR.
-Proof. type_check. Qed.
-
-(* OR defined by way of (A ∨ B) = ¬ (¬ A ∧ ¬ B) *)
-Definition OR : Box (Qubit ⊗ Qubit) Qubit :=
-  box_ ab ⇒ 
-    let_ (a,b)       ← output ab;
-    gate_ a'         ← X @a;
-    gate_ b'         ← X @b;
-    let_ z           ← unbox AND (a',b');
-    gate_ z'         ← X @z;
-    output z'.
-Lemma OR_WT : Typed_Box OR.
-Proof. type_check. Qed.
 
 
-(***********************)
-(** Reversible Gates  **)
-(***********************)
-
-(* Apply the f(x,z) = g(x) ⊕ z construction, where g is the classical function 
-   and z is an extra target qubit *)
-
-(* This has a more efficient construction where we simply negate z
-Definition R_TRUE : Box Qubit Qubit :=
-  box_ z ⇒ 
-    gate_ x     ← init1 @();
-    gate_ (x,z) ← CNOT @(x,z);
-    gate_ ()    ← assert1 @x;
-    output z.
-*)
-Definition R_TRUE : Box Qubit Qubit := X.
-Lemma R_TRUE_WT : Typed_Box R_TRUE.
-Proof. type_check. Qed.
-
-(* This has a more efficient construction: the identity
-Definition R_FALSE : Box Qubit Qubit :=
-  box_ z ⇒ 
-    gate_ x     ← init0 @();
-    gate_ (x,z) ← CNOT @(x,z);
-    gate_ ()    ← assert0 @x;
-    output z.
-*)
-Definition R_FALSE : Box Qubit Qubit := id_circ.
-Lemma R_FALSE_WT : Typed_Box R_FALSE.
-Proof. type_check. Qed.
-
-Definition R_NOT : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) :=
-  box_ xz ⇒ 
-    let_ (x,z)      ← output xz;
-    gate_ x         ← X @x;
-    gate_ (x,z)     ← CNOT @(x,z);
-    gate_ x         ← X @x;
-    output (x,z).
-Lemma R_NOT_WT : Typed_Box R_NOT.
-Proof. type_check. Qed.
-
-(* This is with moving onto ancillae - not part of the core R_AND
-Definition R_AND : Box (Qubit ⊗ Qubit ⊗ Qubit) (Qubit ⊗ Qubit ⊗ Qubit) :=
-  box_ xyz ⇒
-    let_ (x,y,z)    ← output xyz;
-    gate_ i         ← init0 @();
-    gate_ j         ← init0 @();
-    gate_ (x,i)     ← CNOT @(x,i);
-    gate_ (y,j)     ← CNOT @(y,j);
-    gate_ (i,(j,z)) ← CCNOT @(i,(j,z));
-    gate_ (y,j)     ← CNOT @(y,j);
-    gate_ (x,i)     ← CNOT @(x,i);
-    gate_ ()        ← assert0 @j;   
-    gate_ ()        ← assert0 @i;   
-    output (x,y,z).
-Lemma R_AND_WT : Typed_Box R_AND.
-Proof. type_check. Qed.
-*)
-
-Definition R_AND : Box (Qubit ⊗ Qubit ⊗ Qubit) (Qubit ⊗ Qubit ⊗ Qubit) :=
-  box_ xyz ⇒
-    let_ (x,y,z)    ← output xyz;
-    gate_ (x,(y,z)) ← CCNOT @(x,(y,z));
-    output (x,y,z).    
-Lemma R_AND_WT : Typed_Box R_AND.
-Proof. type_check. Qed.
-
-Definition R_XOR : Box (Qubit ⊗ Qubit ⊗ Qubit) (Qubit ⊗ Qubit ⊗ Qubit) := 
-  box_ xyz ⇒
-    let_ (x,y,z)    ← output xyz;
-    gate_ (x,z)     ← CNOT @(x,z);
-    gate_ (y,z)     ← CNOT @(y,z);
-    output (x,y,z).
-Lemma R_XOR_WT : Typed_Box R_XOR.
-Proof. type_check. Qed.
 
 (** Invalid Circuits **)
 Definition absurd_circ : Box Qubit (Bit ⊗ Qubit) :=

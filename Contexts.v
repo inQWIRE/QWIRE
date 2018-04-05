@@ -36,6 +36,15 @@ Fixpoint NTensor (n : nat) (W : WType) :=
 
 Infix "⨂" := NTensor (at level 30) : circ_scope.
 
+Lemma size_ntensor : forall n W, size_wtype (n ⨂ W) = (n * size_wtype W)%nat.
+Proof.
+  intros n W.
+  induction n; trivial.
+  simpl.
+  rewrite IHn.
+  reflexivity.
+Qed.
+
 Close Scope circ_scope.
 
 
@@ -59,7 +68,6 @@ Definition size_octx (Γ : OCtx) : nat :=
   | Invalid => 0
   | Valid Γ' => size_ctx Γ'
   end.
-
 
 Lemma ctx_octx : forall Γ Γ', Valid Γ = Valid Γ' <-> Γ = Γ'.
 Proof. intuition; congruence. Defined.
@@ -754,8 +762,6 @@ Proof.
   rewrite IHempty_ctx; auto.
 Qed.
 
-
-
 (* length is the actual length of the underlying list, as opposed to size, which
  * is the number of Some entries in the list 
  *)
@@ -844,7 +850,7 @@ Notation CCNOT := (ctrl (ctrl X)).
 
 Inductive Gate : WType -> WType -> Set := 
   | U : forall {W} (u : Unitary W), Gate W W
-  | NOT     : Gate Bit Bit
+  | BNOT     : Gate Bit Bit
   | init0   : Gate One Qubit
   | init1   : Gate One Qubit
   | new0    : Gate One Bit

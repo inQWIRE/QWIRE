@@ -5,98 +5,41 @@ Require Import HOASExamples.
 Require Import Denotation.
 Require Import DBCircuits.
 Require Import TypeChecking.
+Require Import Symmetric.
+Require Import SemanticLib.
 
 Require Import List.
 Set Bullet Behavior "Strict Subproofs".
 Global Unset Asymmetric Patterns.
 
-(* -----------------------------------------*)
-(*--------- Reversible Circuit Specs -------*)
-(* -----------------------------------------*)
-
-Open Scope matrix_scope.
-
-Notation "¬ b" := (negb b) (at level 10).
-Infix  "⊕" := xorb (at level 20).
-
-Lemma X_spec : forall b, super σx (bool_to_matrix b) = bool_to_matrix (negb b).
-Proof. ket_denote. destruct b; solve_matrix. Qed.
-
-Lemma NOT_spec : forall (b : bool), 
-  ⟦boxed_gate X⟧ (bool_to_matrix b) = bool_to_matrix (negb b).
-Proof. ket_denote. destruct b; unfold bool_to_ket; simpl; Msimpl; reflexivity. Qed.
-
-Lemma CNOT_spec : forall b1 b2, super (control σx) (bool_to_matrix b1 ⊗ bool_to_matrix b2)
-                           = (bool_to_matrix b1 ⊗ bool_to_matrix (xorb b1 b2)).
-Proof. 
-  ket_denote. destruct b1, b2; unfold bool_to_ket; simpl; Msimpl; solve_matrix.
-Qed.
-
-Lemma R_TRUE_spec : forall z, ⟦R_TRUE⟧ (bool_to_matrix z) = bool_to_matrix (true ⊕ z). 
-Proof. 
-  ket_denote. 
-  destruct z; unfold bool_to_ket; simpl; Msimpl; reflexivity. 
-Qed.
-
-Lemma R_FALSE_spec : forall z, 
-    ⟦R_FALSE⟧ (bool_to_matrix z) = bool_to_matrix (false ⊕ z). 
-Proof.
-  ket_denote. 
-  destruct z; unfold bool_to_ket; simpl; Msimpl; reflexivity. 
-Qed.
-
-Lemma R_NOT_spec : forall (x z : bool), 
-  ⟦R_NOT⟧ (bool_to_matrix x ⊗ bool_to_matrix z) = 
-  bool_to_matrix x ⊗ bool_to_matrix ((¬ x) ⊕ z).
-Proof.
-  ket_denote. 
-  destruct x, z; unfold bool_to_ket; simpl; Msimpl; solve_matrix. 
-Qed.
-
-Lemma R_XOR_spec : forall (x y z : bool), 
-    ⟦R_XOR⟧ (bool_to_matrix x ⊗ bool_to_matrix y ⊗ bool_to_matrix z)  = 
-    bool_to_matrix x ⊗ bool_to_matrix y ⊗ bool_to_matrix (x ⊕ y ⊕ z).
-Proof.  
-  ket_denote. Msimpl.
-  destruct x, y, z; unfold bool_to_ket; simpl; Msimpl; solve_matrix. 
-Qed.
-
-Lemma R_AND_spec : forall (x y z : bool), 
-    ⟦R_AND⟧ (bool_to_matrix x ⊗ bool_to_matrix y ⊗ bool_to_matrix z)  = 
-    bool_to_matrix x ⊗ bool_to_matrix y ⊗ bool_to_matrix ((x && y) ⊕ z).
-Proof. 
-  ket_denote. Msimpl.
-  destruct x, y, z; unfold bool_to_ket; simpl; Msimpl; solve_matrix. 
-Qed.
-
-Close Scope matrix_scope.
 
 (* --------------------------------*)
 (* Reversible bexps with variables *)
 (* --------------------------------*)
 
-Delimit Scope rbexp_scope with rbx.
-Open Scope rbexp_scope.
+Delimit Scope bexp_scope with bx.
+Open Scope bexp_scope.
+Open Scope circ_scope.
 
-Inductive rbexp := 
-| rb_t   : rbexp
-| rb_f   : rbexp
-| rb_var : Var -> rbexp
-| rb_not : rbexp -> rbexp
-| rb_and : rbexp -> rbexp -> rbexp 
-| rb_xor : rbexp -> rbexp -> rbexp.
+Inductive bexp := 
+| b_t   : bexp
+| b_f   : bexp
+| b_var : Var -> bexp
+| b_not : bexp -> bexp
+| b_and : bexp -> bexp -> bexp 
+| b_xor : bexp -> bexp -> bexp.
 
 Reserved Notation "⌈ b | f ⌉" (at level 0). 
 
-Fixpoint interpret_rbexp (b : rbexp) (f : Var -> bool) : bool :=
+Fixpoint interpret_bexp (b : bexp) (f : Var -> bool) : bool :=
   match b with
-  | rb_t         => true 
-  | rb_f         => false 
-  | rb_var v     => f v 
-  | rb_not b     => ¬ ⌈ b | f ⌉
-  | rb_and b1 b2 => ⌈ b1 | f⌉ && ⌈ b2 | f⌉
-  | rb_xor b1 b2 => ⌈ b1 | f⌉ ⊕ ⌈ b2 | f⌉
-  end where "⌈ b | f ⌉" := (interpret_rbexp b f).  
+  | b_t         => true 
+  | b_f         => false 
+  | b_var v     => f v 
+  | b_not b     => ¬ ⌈ b | f ⌉
+  | b_and b1 b2 => ⌈ b1 | f⌉ && ⌈ b2 | f⌉
+  | b_xor b1 b2 => ⌈ b1 | f⌉ ⊕ ⌈ b2 | f⌉
+  end where "⌈ b | f ⌉" := (interpret_bexp b f).  
 
 Reserved Notation "Γ1 ∪ Γ2" (at level 30).
 
@@ -109,15 +52,15 @@ Fixpoint classical_merge (Γ1 Γ2 : Ctx) :=
   | Some w :: Γ1', _ :: Γ2' => Some w :: (Γ1' ∪ Γ2') 
   end where "Γ1 ∪ Γ2" := (classical_merge Γ1 Γ2).
 
-(* Gets a context for the variables in an rbexp *)
-Fixpoint get_context (b : rbexp) : Ctx :=
+(* Gets a context for the variables in an bexp *)
+Fixpoint get_context (b : bexp) : Ctx :=
   match b with 
-  | rb_t          => [] 
-  | rb_f          => []
-  | rb_var v      => singleton v Qubit 
-  | rb_not b      => get_context b 
-  | rb_and b1 b2  => get_context b1 ∪ get_context b2 
-  | rb_xor b1 b2  => get_context b1 ∪ get_context b2 
+  | b_t          => [] 
+  | b_f          => []
+  | b_var v      => singleton v Qubit 
+  | b_not b      => get_context b 
+  | b_and b1 b2  => get_context b1 ∪ get_context b2 
+  | b_xor b1 b2  => get_context b1 ∪ get_context b2 
   end.
 
 Reserved Notation "Γ1 ⊂ Γ2" (at level 70).
@@ -660,8 +603,10 @@ Proof.
     replace (@Datatypes.cons Var O (@Datatypes.cons Var n (@Datatypes.nil Var)))
           with ([0; 0 + length l2 + 1])%nat.
     2: subst; rewrite Nat.add_1_r; reflexivity. 
-  
-    specialize (CNOT_spec b t) as CS.
+    assert (CS:
+    super (control σx) (bool_to_matrix b ⊗ bool_to_matrix t)
+                           = (bool_to_matrix b ⊗ bool_to_matrix (xorb b t)))
+    by (ket_denote; destruct b, t; unfold bool_to_ket; simpl; Msimpl; solve_matrix).  
     assert ((0 + length l2 + 0 + 2)%nat = S n)%nat as E. omega.
     specialize (apply_U_spec_2 (S n) O (length l2) O (Id 1) (⨂ l2) (Id 1) 
                              _ _ _ _ _ E CS). simpl; Msimpl.
@@ -822,7 +767,7 @@ Close Scope matrix_scope.
 
 (* old:
 (* Target is the extra qubit *)
-Fixpoint compile (b : rbexp) (Γ : Ctx) : Square_Box (((⟦Γ⟧) ⨂ Qubit) ⊗ Qubit) :=
+Fixpoint compile (b : bexp) (Γ : Ctx) : Square_Box (((⟦Γ⟧) ⨂ Qubit) ⊗ Qubit) :=
   box_ qst ⇒
   let_ (qs,t) ← output qst;
   match b with
@@ -864,8 +809,6 @@ Fixpoint compile (b : rbexp) (Γ : Ctx) : Square_Box (((⟦Γ⟧) ⨂ Qubit) ⊗
 Definition SWAP : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) := 
   box_ p ⇒ let_ (p1,p2) ← p; output (p2,p1).
 Lemma WT_SWAP : Typed_Box SWAP. Proof. type_check. Qed.
-
-Notation "c1 ;; c2" := (inSeq c1 c2) (at level 60, right associativity). 
 
 Definition strip_one_l_in {W W' : WType} (c : Box (One ⊗ W) W') : Box W W' :=
   box (fun p => unbox c ((),p)).
@@ -933,10 +876,6 @@ Proof.
   simpl.
 Admitted.
 
-(* Target is the first qubit *)
-
-Require Import Reversible.
-
 (* Can probably use an existing list function *)
 Fixpoint qubit_at (v : Var) (Γ : Ctx) := 
   match Γ with
@@ -963,20 +902,20 @@ Proof.
 Qed.
 
 Local Obligation Tactic := program_simpl; try omega.
-Program Fixpoint compile (b : rbexp) (Γ : Ctx) : Square_Box (S (⟦Γ⟧) ⨂ Qubit) :=
+Fixpoint compile (b : bexp) (Γ : Ctx) : Square_Box (S (⟦Γ⟧) ⨂ Qubit) :=
   match b with
-  | rb_t          => R_TRUE || id_circ 
-  | rb_f          => R_FALSE || id_circ
-  | rb_var v      => 
+  | b_t          => TRUE || id_circ 
+  | b_f          => FALSE || id_circ
+  | b_var v      => 
     (* share_to' (⟦Γ⟧) (position_of v Γ) *)
     (* CNOT_at_option (S (⟦Γ⟧)) (position_of v Γ) (⟦Γ⟧) *)
     CNOT_at (S (⟦Γ⟧)) (S (position_of v Γ)) 0
-  | rb_not b      => (id_circ || (strip_one_l_in (init1 || id_circ))) ;;
+  | b_not b      =>  (id_circ || (strip_one_l_in (init1 || id_circ))) ;;
                      (id_circ || (compile b Γ)) ;;
                      (CNOT_at (2 + ⟦Γ⟧) 1 0)    ;;
                      (id_circ || (compile b Γ)) ;;
                      (id_circ || (strip_one_l_out (assert1 || id_circ)))
-  | rb_and b1 b2  => (id_circ || (strip_one_l_in (init0 || id_circ))) ;;
+  | b_and b1 b2  => (id_circ || (strip_one_l_in (init0 || id_circ))) ;;
                      (id_circ || compile b1 Γ) ;;
                      (id_circ || (id_circ || (strip_one_l_in (init0 || id_circ)))) ;;
                      (id_circ || (id_circ || compile b2 Γ)) ;;
@@ -984,8 +923,8 @@ Program Fixpoint compile (b : rbexp) (Γ : Ctx) : Square_Box (S (⟦Γ⟧) ⨂ Q
                      (id_circ || (id_circ || compile b2 Γ)) ;;
                      (id_circ || (id_circ || (strip_one_l_out (assert0 || id_circ)))) ;;
                      (id_circ || compile b1 Γ) ;;
-                     (id_circ || (strip_one_l_out (assert0 || id_circ)))                 
-  | rb_xor b1 b2  => (id_circ || (strip_one_l_in (init0 || id_circ))) ;;
+                     (id_circ || (strip_one_l_out (assert0 || id_circ)))                
+  | b_xor b1 b2  => (id_circ || (strip_one_l_in (init0 || id_circ))) ;;
                      (id_circ || compile b1 Γ) ;;
                      (CNOT_at (2 + ⟦Γ⟧) 1 0)   ;;                    
                      (id_circ || compile b1 Γ) ;; 
@@ -1010,8 +949,8 @@ Ltac compile_typing lem :=
   | [|- Typed_Box (Toffoli_at ?n ?x ?y ?z )] => 
       specialize (Toffoli_at_WT n x y z); simpl; easy
   | _ => apply share_to_WT'
-  | _ => apply R_TRUE_WT
-  | _ => apply R_FALSE_WT
+  | _ => apply TRUE_WT
+  | _ => apply FALSE_WT
   | _ => apply strip_one_l_in_WT
   | _ => apply strip_one_l_out_WT
   | _ => apply strip_one_r_in_WT
@@ -1020,77 +959,10 @@ Ltac compile_typing lem :=
   | _ => apply lem 
   end.
 
-(*
-Hint Resolve id_circ_WT inPar_WT inSeq_WT CNOT_at_WT share_to_WT' R_TRUE_WT R_FALSE_WT strip_one_l_in_WT strip_one_r_in_WT strip_one_l_out_WT strip_one_r_out_WT : compile_typing.
-
-Hint Extern 2 (Typed_Box (share_to' _ _)) => apply share_to_WT' : compile_typing.
-*)
-
-Lemma compile_WT : forall (b : rbexp) (Γ : Ctx),  
-    Typed_Box (compile b Γ).
-Proof.
-  induction b; intros; simpl; compile_typing True.
-Qed.
-
-Fixpoint bools_to_matrix (l : list bool) : Square (2^(length l)) := 
-  match l with
-  | [] => 'I_1
-  | b :: bs => ((bool_to_matrix b) ⊗ (bools_to_matrix bs))%M
-  end.
-
-Definition reversible {W1 W2} (c : Box W1 W2) :=
-  exists (f : Superoperator (2^⟦W2⟧) (2^⟦W1⟧)), forall ρ, (f ∘ ⟦c⟧) ρ = ρ /\ (⟦c⟧ ∘ f) ρ = ρ.
-
-(* Equivalent definition: There is some unitary matrix that is equivalent 
-   to this *)
-
-(* Is this equal to the density matrix being pure? *)
-
-Definition self_inverse {W} (c : Box W W) := forall ρ, (⟦c⟧ ∘ ⟦c⟧) ρ = ρ.
-
-Lemma self_inverse_reversible : forall W (c : Box W W), self_inverse c ->
-                                                   reversible c.
-Proof. intros. unfold reversible, self_inverse in *. eauto. Qed.
+Lemma compile_WT : forall (b : bexp) (Γ : Ctx), Typed_Box (compile b Γ).
+Proof. induction b; intros; simpl; compile_typing True. Qed.
 
 Open Scope matrix_scope.
-
-(*
-Lemma xor_fun_self_inverse : forall W (c : Box W W) (f : list bool -> bool),
-  (forall (x : list bool) (z : bool),
-  ⟦c⟧ (bools_to_matrix x ⊗ bool_to_matrix z) = 
-  (bools_to_matrix x) ⊗ bool_to_matrix (xorb z (f x))) -> 
-  self_inverse c.                              
-Proof.  
-  intros W c f H.
-  unfold self_inverse.
-  intros ρ.
-  (* This is equivalent to saying if P holds of the basis states, 
-     it holds of arbitrary states. How to state this general theorem? *)
-  (* This actually isn't true of circuits with measurement. *)
-Abort.
-*)
-  
-(*
-Inductive semi_classical {W} : Circuit W -> Set := 
-| rev_output : forall p, semi_classical (output p)
-| rev_not    : forall p1 c, semi_classical c -> semi_classical (gate_ p2 ←  X @p1; c)
-| rev_cnot   : forall p1 c, semi_classical c -> semi_classical (gate_ p2 ←  CNOT @p1; c)
-| rev_ccnot  : forall p1 c, semi_classical c -> semi_classical (gate_ p2 ← CCNOT @p1; c).
-
-Definition semi_classical_box {W} (c : Box W W) :=
-  match c with 
-  | box c' => forall p, semi_classical (c' p)
-  end.
-
-Lemma semi_classical_reversible : forall W (c : Box W W), 
-    semi_classical_box c -> reversible c.
-Proof.
-  intros W c H.
-  unfold semi_classical_box in H.
-  destruct c.
-  unfold reversible.
-Abort.
-*)
 
 Fixpoint ctx_to_mat_list (Γ : Ctx) (f : Var -> bool) {struct Γ} : list (Matrix 2 2) :=
   match Γ with 
@@ -1223,15 +1095,14 @@ Proof.
   intros W. simpl. rewrite IHn. reflexivity.
 Qed.
 
-Ltac simpl_rewrite lem :=
-  let H := fresh "H" in 
-  specialize lem as H; simpl in H; rewrite H; clear H.
-
 Lemma init0_spec : ⟦boxed_gate init0⟧ (Id (2^0)) = |0⟩⟨0|.
 Proof. matrix_denote. Msimpl. reflexivity. Qed.
 
 Lemma init1_spec : ⟦boxed_gate init1⟧ (Id (2^0)) = |1⟩⟨1|.
 Proof. matrix_denote. Msimpl. reflexivity. Qed.
+
+Lemma init_spec : forall b, ⟦init b⟧ (Id (2^0)) = bool_to_matrix b.
+Proof. destruct b; [apply init1_spec | apply init0_spec]. Qed.
 
 Lemma assert0_spec : ⟦boxed_gate assert0⟧ |0⟩⟨0| = Id 1. 
 Proof.  
@@ -1253,8 +1124,66 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma xorb_nb_b : forall b, ¬ b ⊕ b = true. Proof. destruct b; easy. Qed.
-Lemma xorb_b_nb : forall b, b ⊕ ¬ b = true. Proof. destruct b; easy. Qed.
+Lemma assert_spec : forall b, ⟦assert b⟧ (bool_to_matrix b) = Id 1.
+Proof. destruct b; [apply assert1_spec | apply assert0_spec]. Qed.
+
+(* very similar to share_to_spec *)
+Lemma CNOT_at_spec : forall (b1 b2 : bool) (n x y : nat) (li : list (Matrix 2 2)), 
+  x < n -> y < n -> x <> y ->
+  (* shouldn't there be an nth that takes a proof? *)
+  nth_error li x = Some (bool_to_matrix b1) ->
+  nth_error li y = Some (bool_to_matrix b2) ->
+  ⟦CNOT_at n x y⟧ (⨂ li) = ⨂ (update_at li y (bool_to_matrix (b1 ⊕ b2))).
+Admitted.
+
+Lemma Toffoli_at_spec : forall (b1 b2 b3 : bool) (n x y z : nat) (li : list (Matrix 2 2)),
+  x < n -> y < n -> z < n -> x <> y -> y < n -> z < n -> 
+  nth_error li x = Some (bool_to_matrix b1) ->
+  nth_error li y = Some (bool_to_matrix b2) ->
+  nth_error li z = Some (bool_to_matrix b3) ->
+ ⟦Toffoli_at n x y z⟧ (⨂ li) = ⨂ (update_at li z (bool_to_matrix ((b1 && b2) ⊕ b3))).
+Admitted.
+
+Lemma init_at_spec : forall (b : bool) (n i : nat) (li : list (Matrix 2 2)), 
+  length li = n ->
+  WF_Matrix (2^n) (2^n) (⨂ li) ->
+  i < S n -> 
+  ⟦init_at b n i⟧ (⨂ li) = ⨂ (firstn i li ++ [bool_to_matrix b] ++ skipn i li).
+Proof.
+  intros b n i li H WF Lt.
+  induction i.
+  - simpl.
+    destruct n. 
+    + destruct li; inversion H; subst; clear.
+      unfold init_at. simpl.
+      destruct b. simpl.
+      matrix_denote. Msimpl. reflexivity.
+      matrix_denote. Msimpl. reflexivity.
+    + clear Lt.
+      unfold init_at. simpl.
+      destruct b. simpl.
+      matrix_denote. 
+      rewrite fresh_state_ntensor. simpl.
+      rewrite size_ntensor. simpl. rewrite Nat.mul_1_r.
+      replace ([Some Qubit]) with (repeat (Some Qubit) 1) by reflexivity.
+      rewrite repeat_combine.
+      replace (Some Qubit :: repeat (Some Qubit) (n+1)) with 
+        (repeat (Some Qubit) (S (n + 1))) by reflexivity.
+      rewrite Nat.add_1_r.
+      rewrite ctx_dom_repeat.
+      rewrite seq_shift.
+      unfold get_fresh_var. simpl.
+      rewrite repeat_length.
+      replace (0 :: 1 :: seq 2 n) with (σ_{2+n}) by reflexivity.
+      rewrite subst_var_σ_n by omega. simpl.
+      do 4 (try destruct n); simpl.
+      * destruct li as [|A li]. inversion H.
+        destruct li; [|inversion H].
+        simpl in *. rewrite kron_1_r in WF. Msimpl. 
+        solve_matrix.
+(* this is silly. I can define init_at easily in terms of inPar, as in compile *)
+Admitted.
+
 
 Ltac dim_solve := unify_pows_two; simpl; try rewrite size_ntensor; simpl; omega.
 
@@ -1332,25 +1261,7 @@ Ltac listify_kron :=
            try rewrite size_ntensor, Nat.mul_1_r; easy)
     end.
 
-
-(* very similar to share_to_spec *)
-Lemma CNOT_at_spec : forall (b1 b2 : bool) (n x y : nat) (li : list (Matrix 2 2)), 
-  x < n -> y < n -> x <> y ->
-  (* shouldn't there be an nth that takes a proof? *)
-  nth_error li x = Some (bool_to_matrix b1) ->
-  nth_error li y = Some (bool_to_matrix b2) ->
-  ⟦CNOT_at n x y⟧ (⨂ li) = ⨂ (update_at li y (bool_to_matrix (b1 ⊕ b2))).
-Admitted.
-
-Lemma Toffoli_at_spec : forall (b1 b2 b3 : bool) (n x y z : nat) (li : list (Matrix 2 2)),
-  x < n -> y < n -> z < n -> x <> y -> y < n -> z < n -> 
-  nth_error li x = Some (bool_to_matrix b1) ->
-  nth_error li y = Some (bool_to_matrix b2) ->
-  nth_error li z = Some (bool_to_matrix b3) ->
- ⟦Toffoli_at n x y z⟧ (⨂ li) = ⨂ (update_at li z (bool_to_matrix ((b1 && b2) ⊕ b3))).
-Admitted.
-
-Lemma ctx_lookup_exists : forall v Γ f, get_context (rb_var v) ⊂ Γ -> 
+Lemma ctx_lookup_exists : forall v Γ f, get_context (b_var v) ⊂ Γ -> 
   ctx_to_mat_list Γ f !! position_of v Γ = Some (bool_to_matrix (f v)).  
 Proof.             
   induction v; intros Γ f H.
@@ -1368,7 +1279,7 @@ Proof.
     simpl in H. inversion H. subst. simpl. easy.
 Qed.
 
-Theorem compile_correct : forall (b : rbexp) (Γ : Ctx) (f : Var -> bool) (t : bool),
+Theorem compile_correct : forall (b : bexp) (Γ : Ctx) (f : Var -> bool) (t : bool),
   get_context b ⊂ Γ -> 
   ⟦compile b Γ⟧ ((bool_to_matrix t) ⊗ (ctx_to_matrix Γ f)) = 
   bool_to_matrix (t ⊕ ⌈b | f⌉) ⊗ ctx_to_matrix Γ f.
@@ -1377,14 +1288,14 @@ Proof.
   induction b; intros Γ f t H.
   - simpl. 
     rewrite_inPar.
-    simpl_rewrite R_TRUE_spec.
+    simpl_rewrite TRUE_spec.
     simpl_rewrite id_circ_Id.
     easy.    
     rewrite size_ntensor, Nat.mul_1_r.
     apply WF_ctx_to_matrix.
   - simpl. 
     rewrite_inPar.
-    simpl_rewrite R_FALSE_spec.
+    simpl_rewrite FALSE_spec.
     simpl_rewrite id_circ_Id.
     easy. 
     rewrite size_ntensor, Nat.mul_1_r.

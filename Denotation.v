@@ -77,7 +77,7 @@ Definition denote_gate' (safe : bool) n {w1 w2} (g : Gate w1 w2)
            : Superoperator (2^⟦w1⟧ * 2^n) (2^⟦w2⟧ * 2^n) :=
   match g with 
   | U u     => super (⟦u⟧ ⊗ Id (2^n))
-  | NOT     => super (σx ⊗ Id (2^n))
+  | BNOT     => super (σx ⊗ Id (2^n))
   | init0   => super (|0⟩ ⊗ Id (2^n))
   | init1   => super (|1⟩ ⊗ Id (2^n))
   | new0    => super (|0⟩ ⊗ Id (2^n))
@@ -367,7 +367,7 @@ Definition apply_gate {n w1 w2} (safe : bool) (g : Gate w1 w2) (l : list nat)
             | true => apply_U (denote_unitary u) l
               | false => super_Zero
               end
-  | NOT   => match 1 <=? n with
+  | BNOT   => match 1 <=? n with
               | true => apply_U σx l (m := 1)
               | false => super_Zero
               end
@@ -1592,6 +1592,15 @@ Proof.
 Admitted.
 
 Lemma HOAS_Equiv_inSeq : forall w1 w2 w3 (b1 b1' : Box w1 w2) (b2 b2' : Box w2 w3),
+    Typed_Box b1 -> Typed_Box b1' ->  Typed_Box b2 -> Typed_Box b2' -> 
     b1 ≡ b1' -> b2 ≡ b2' -> (b2 · b1) ≡ (b2' · b1').
-Admitted.
-
+Proof.
+  intros w1 w2 w3 b1 b1' b2 b2' T1 T1' T2 T2' E1 E2.
+  intros ρ Mρ.
+  rewrite 2 inSeq_correct; trivial.
+  unfold compose_super.
+  rewrite E1 by easy.
+  rewrite E2 by (apply denote_box_correct; easy).
+  easy. 
+Qed.
+  
