@@ -28,10 +28,12 @@ Proof. type_check. Qed.
 (* Structural circuits *)
 (***********************)
 
-Definition init (b : bool) : Box One Qubit :=
-  if b then boxed_gate init1 else boxed_gate init0.
-Lemma init_WT : forall b, Typed_Box (init b).
-Proof. destruct b; type_check. Defined.
+Definition init (b : bool) : Box One Qubit := if b then init1 else init0.
+Lemma init_WT : forall b, Typed_Box (init b). Proof. type_check. Defined.
+
+Definition assert (b : bool) : Box Qubit One := if b then assert1 else assert0.
+Lemma assert_WT : forall b, Typed_Box (assert b). Proof. type_check. Qed.
+
 
 Definition inSeq {w1 w2 w3} (c1 : Box w1 w2) (c2 : Box w2 w3): Box w1 w3 :=
   box_ p1 ⇒ 

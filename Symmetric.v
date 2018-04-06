@@ -6,6 +6,7 @@ Require Import Denotation.
 Require Import DBCircuits.
 Require Import TypeChecking.
 Require Import Ancilla.
+Require Import SemanticLib.
 
 Require Import List.
 Set Bullet Behavior "Strict Subproofs".
@@ -442,142 +443,115 @@ Proof.
 Qed.
 
 
-Definition assert (b : bool) : Box Qubit One := if b then assert1 else assert0.
-Lemma assert_WT : forall b, Typed_Box (assert b). Proof. type_check. Qed.
-
-Definition assert_at' (b : bool) (n : nat) (i : nat) (pf_i : i < S n) 
-         : Box (S n ⨂ Qubit) (n ⨂ Qubit).
-Proof.
-  gen n.
-  induction i as [ | i]; intros n pf_i.
-  * (* i = 0 *)
-    refine (box_ q ⇒ let_ (q,qs) ← q; 
-                     let_ _ ← assert b $q; 
-                     output qs).
-  * (* i = S i' *)
-    destruct n as [ | n].
-    { absurd False; auto. inversion pf_i. subst. inversion H0. }
-    simpl.
-    refine (box_ q ⇒ let_ (q,qs) ← q; 
-                     let_ qs ← IHi n _ $ qs;
-                     output (q,qs)). 
-    apply lt_S_n; auto.
-Defined.
-
-Definition assert_at (b : bool)(n : nat) (i : nat) 
-         : Box (S n ⨂ Qubit) (n ⨂ Qubit).
-Proof.
-  destruct (lt_dec i (S n)) as [ pf_i | pf_i ].
-  * (* i < S n *) exact (assert_at' b n i pf_i).
-  * (* i >= S n *) simpl. 
-     exact (box_ qs' ⇒ let_ (q,qs) ← qs';
-                       let_ _ ← assert b $q;
-                       output qs). (* ERROR *)
-Defined.
-
-Lemma assert_at_S : forall b n i (pf_i : i < S n),
-    assert_at b (S n) (S i) = box_ q ⇒ let_ (q,qs) ← q; 
-                                       let_ qs ← assert_at b n i $ qs;
-                                       output (q,qs).
+Definition strip_one_l_in {W W' : WType} (c : Box (One ⊗ W) W') : Box W W' :=
+  box (fun p => unbox c ((),p)).
+Lemma strip_one_l_in_WT : forall W W' (c : Box (One ⊗ W) W'), 
+    Typed_Box c -> Typed_Box (strip_one_l_in c).
+Proof. type_check. Qed.
+Lemma strip_one_l_in_eq : forall W W' (c : Box (One ⊗ W) W') (ρ : Matrix (2^⟦W⟧)%nat (2^⟦W'⟧)%nat),
+  denote_box true (strip_one_l_in c) ρ = denote_box true c ρ.
 Proof.
   intros.
-  simpl. unfold assert_at. simpl.
-  destruct (lt_dec (S i) (S (S n))); [ | omega].
-  destruct (lt_dec i (S n)); [ | omega].
-  replace (lt_S_n i (S n) l) with l0; auto.
-  apply lt_hprop.
-Qed.
-
-(* I don't want this precondition:
-Lemma assert_at_WT : forall b n i (pf : (i < S n)%nat), Typed_Box (assert_at b n i).
-*)
-
-Lemma assert_at_WT : forall b n i, Typed_Box (assert_at b n i).
-Proof.
-  intros.
-  destruct (lt_dec i (S n)).  
-  - gen n.
-    induction i as [ | i]; intros n pf_i.
-    * (* i = 0 *)
-      type_check.
-    * (* i = S i' *)
-      destruct n as [ | n]; [omega | ].
-      assert (pf_i' : i < S n) by omega.
-      set (IH := IHi n pf_i').
-      rewrite (assert_at_S b _ _ pf_i').
-      type_check.
-  - unfold assert_at.
-    destruct (lt_dec i (S n)); [omega|].
-    type_check.
-Qed.
-
-Definition init_at' (b : bool) (n : nat) (i : nat) (pf_i : i < S n) 
-                  : Box (n ⨂ Qubit) (S n ⨂ Qubit).
-  gen n.
-  induction i as [ | i]; intros n pf_i.
-  * (* i = 0 *)
-    refine (box_ qs ⇒ let_ q ← init b $();
-                      output (q,qs)).
-  * (* i = S i' *)
-    destruct n as [ | n].
-    { absurd False; auto. inversion pf_i. subst. inversion H0. }
-    simpl.
-    refine (box_ q ⇒ let_ (q,qs) ← q; 
-                     let_ qs ← IHi n _ $ qs;
-                     output (q,qs)). 
-    apply lt_S_n; auto.
-Defined.
-
-Definition init_at (b : bool) (n : nat) (i : nat) : Box (n ⨂ Qubit) (S n ⨂ Qubit).
-Proof.
-  destruct (lt_dec i (S n)) as [pf_i | pf_i].
-  * (* i < S n *) exact (init_at' b n i pf_i).
-  * (* i >= S n *) exact (box_ qs ⇒ let_ q ← init b $();
-                                    output (q,qs)). (* ERROR *)
-Defined.
-
-Lemma init_at'_S : forall b n i (pf_i : i < S n) (pf_i' : S i < S (S n)),
-    init_at' b (S n) (S i) pf_i' = box_ q ⇒ let_ (q,qs) ← q; 
-                                           let_ qs ← init_at' b n i pf_i $ qs;
-                                           output (q,qs).
-Proof.
-  intros.
+  unfold strip_one_l_in.
+  matrix_denote. 
+  unfold unbox. unfold denote_db_box.
+  destruct c.
   simpl.
-  replace (lt_S_n i (S n) pf_i') with pf_i by apply lt_hprop; auto.
-Qed.
-Lemma init_at_S : forall b n i, i < S n ->
-    init_at b (S n) (S i) = box_ q ⇒ let_ (q,qs) ← q;
-                                     let_ qs ← init_at b n i $qs;
-                                     output (q,qs).
-Proof.
-  intros.
-  unfold init_at. simpl.
-  destruct (lt_dec (S i) (S (S n))) as [l_si_ssn|]; [ | omega].
-  destruct (lt_dec i (S n)) as [l_i_sn|]; [ | omega].
-  replace (lt_S_n i (S n) l_si_ssn) with l_i_sn by apply lt_hprop.
   reflexivity.
 Qed.
 
-(* I don't want this precondition:
-Lemma init_at_WT : forall b n i (pf : (i < S n)%nat), Typed_Box (init_at b n i). *)
+Definition strip_one_l_out {W W' : WType} (c : Box W (One ⊗ W')) : Box W W' :=
+  box_ p ⇒ let_ (_,p') ← unbox c p; output p'.
+Lemma strip_one_l_out_WT : forall W W' (c : Box W (One ⊗ W')), 
+    Typed_Box c -> Typed_Box (strip_one_l_out c).
+Proof. type_check. Qed.
+Lemma strip_one_l_out_eq : forall W W' (c : Box W (One ⊗ W')) (ρ : Matrix (2^⟦W⟧)%nat (2^⟦W'⟧)%nat),
+  denote_box true (strip_one_l_out c) ρ = denote_box true c ρ.
+Proof.
+  intros.
+  unfold strip_one_l_out.
+  matrix_denote. 
+  unfold unbox. unfold denote_db_box.
+  destruct c.
+  simpl.
+Admitted.
+
+Definition strip_one_r_in {W W' : WType} (c : Box (W ⊗ One) W') : Box W W' :=
+  box (fun p => unbox c (p,())).
+Lemma strip_one_r_in_WT : forall W W' (c : Box (W ⊗ One) W'), 
+    Typed_Box c -> Typed_Box (strip_one_r_in c).
+Proof. type_check. Qed.
+Lemma strip_one_r_in_eq : forall W W' (c : Box (W ⊗ One) W') (ρ : Matrix (2^⟦W⟧)%nat (2^⟦W'⟧)%nat),
+  denote_box true (strip_one_r_in c) ρ = denote_box true c ρ.
+Proof.
+  intros.
+  unfold strip_one_r_in.
+  matrix_denote. 
+  unfold unbox. unfold denote_db_box.
+  destruct c.
+  simpl. rewrite Nat.add_0_r.
+  reflexivity.
+Qed.
+
+Definition strip_one_r_out {W W' : WType} (c : Box W (W' ⊗ One)) : Box W W' :=
+  box_ p ⇒ let_ (p',_) ← unbox c p; output p'.
+Lemma strip_one_r_out_WT : forall W W' (c : Box W (W' ⊗ One)), 
+    Typed_Box c -> Typed_Box (strip_one_r_out c).
+Proof. type_check. Qed.
+Lemma strip_one_r_out_eq : forall W W' (c : Box W (W' ⊗ One)) (ρ : Matrix (2^⟦W⟧)%nat (2^⟦W'⟧)%nat),
+  denote_box true (strip_one_r_out c) ρ = denote_box true c ρ.
+Proof.
+  intros.
+  unfold strip_one_r_out.
+  matrix_denote. 
+  unfold unbox. unfold denote_db_box.
+  destruct c.
+  simpl.
+Admitted.
+
+Fixpoint assert_at (b : bool) (n i : nat) {struct i}: Box (S n ⨂ Qubit) (n ⨂ Qubit) :=
+  match i with
+  | 0    => strip_one_l_out (assert b || id_circ) 
+  | S i' => match n with
+           | 0 => strip_one_l_out (assert b || id_circ) (* error *)
+           | S n' => (id_circ || assert_at b n' i')
+           end
+  end.
+
+Lemma assert_at_WT : forall b n i, Typed_Box (assert_at b n i).
+Proof.
+  intros b n i.
+  gen n.
+  induction i.
+  - type_check.
+  - destruct n; simpl. 
+    + type_check.
+    + apply inPar_WT.
+      type_check.
+      apply IHi.
+Qed.
+
+
+Fixpoint init_at (b : bool) (n i : nat) {struct i}: Box (n ⨂ Qubit) (S n ⨂ Qubit) :=
+  match i with 
+  | 0    => strip_one_l_in (init b || id_circ)
+  | S i' => match n with
+           | 0    => strip_one_l_in (init b || id_circ) (* error *)
+           | S n' => (id_circ || init_at b n' i')
+           end
+  end.
 
 Lemma init_at_WT : forall b n i, Typed_Box (init_at b n i).
 Proof.
-  intros.
-  destruct (lt_dec i (S n)).  
-  - gen n.
-    induction i as [ | i]; intros n pf_i.
-    * (* i = 0 *)
+  intros b n i.
+  gen n.
+  induction i.
+  - type_check.
+  - destruct n; simpl. 
+    + type_check.
+    + apply inPar_WT.
       type_check.
-    * (* i = S i' *)
-      destruct n as [ | n]; [omega | ].
-      assert (pf_i' : i < S n) by omega.
-      set (IH := IHi n pf_i').
-      rewrite (init_at_S b _ _ pf_i').
-      type_check.
-  - unfold init_at.
-    destruct (lt_dec i (S n)); [omega|].
-    type_check.
+      apply IHi.
 Qed.
 
 Definition in_scope (n t i : nat) := i < n+t.

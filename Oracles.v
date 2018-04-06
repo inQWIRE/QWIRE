@@ -755,7 +755,7 @@ Proof.
       rewrite size_ntensor. simpl. rewrite Nat.mul_1_r, Nat.add_1_r. simpl.
       apply WF_big_kron in WF2; trivial.
       assert (WF1': WF_Matrix (2 ^ length l1) (2 ^ length l1) (⨂ l1)).
-      apply WF_big_kron. intros j. apply (WF1 (S j)).
+      eapply WF_big_kron. intros j. apply (WF1 (S j)).
       specialize (WF1 O). rename WF1 into WFm. rename WF1' into WF1.
       Msimpl.
       reflexivity.
@@ -809,72 +809,6 @@ Fixpoint compile (b : bexp) (Γ : Ctx) : Square_Box (((⟦Γ⟧) ⨂ Qubit) ⊗ 
 Definition SWAP : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) := 
   box_ p ⇒ let_ (p1,p2) ← p; output (p2,p1).
 Lemma WT_SWAP : Typed_Box SWAP. Proof. type_check. Qed.
-
-Definition strip_one_l_in {W W' : WType} (c : Box (One ⊗ W) W') : Box W W' :=
-  box (fun p => unbox c ((),p)).
-Lemma strip_one_l_in_WT : forall W W' (c : Box (One ⊗ W) W'), 
-    Typed_Box c -> Typed_Box (strip_one_l_in c).
-Proof. type_check. Qed.
-Lemma strip_one_l_in_eq : forall W W' (c : Box (One ⊗ W) W') (ρ : Matrix (2^⟦W⟧)%nat (2^⟦W'⟧)%nat),
-  denote_box true (strip_one_l_in c) ρ = denote_box true c ρ.
-Proof.
-  intros.
-  unfold strip_one_l_in.
-  matrix_denote. 
-  unfold unbox. unfold denote_db_box.
-  destruct c.
-  simpl.
-  reflexivity.
-Qed.
-
-Definition strip_one_l_out {W W' : WType} (c : Box W (One ⊗ W')) : Box W W' :=
-  box_ p ⇒ let_ (_,p') ← unbox c p; output p'.
-Lemma strip_one_l_out_WT : forall W W' (c : Box W (One ⊗ W')), 
-    Typed_Box c -> Typed_Box (strip_one_l_out c).
-Proof. type_check. Qed.
-Lemma strip_one_l_out_eq : forall W W' (c : Box W (One ⊗ W')) (ρ : Matrix (2^⟦W⟧)%nat (2^⟦W'⟧)%nat),
-  denote_box true (strip_one_l_out c) ρ = denote_box true c ρ.
-Proof.
-  intros.
-  unfold strip_one_l_out.
-  matrix_denote. 
-  unfold unbox. unfold denote_db_box.
-  destruct c.
-  simpl.
-Admitted.
-
-Definition strip_one_r_in {W W' : WType} (c : Box (W ⊗ One) W') : Box W W' :=
-  box (fun p => unbox c (p,())).
-Lemma strip_one_r_in_WT : forall W W' (c : Box (W ⊗ One) W'), 
-    Typed_Box c -> Typed_Box (strip_one_r_in c).
-Proof. type_check. Qed.
-Lemma strip_one_r_in_eq : forall W W' (c : Box (W ⊗ One) W') (ρ : Matrix (2^⟦W⟧)%nat (2^⟦W'⟧)%nat),
-  denote_box true (strip_one_r_in c) ρ = denote_box true c ρ.
-Proof.
-  intros.
-  unfold strip_one_r_in.
-  matrix_denote. 
-  unfold unbox. unfold denote_db_box.
-  destruct c.
-  simpl. rewrite Nat.add_0_r.
-  reflexivity.
-Qed.
-
-Definition strip_one_r_out {W W' : WType} (c : Box W (W' ⊗ One)) : Box W W' :=
-  box_ p ⇒ let_ (p',_) ← unbox c p; output p'.
-Lemma strip_one_r_out_WT : forall W W' (c : Box W (W' ⊗ One)), 
-    Typed_Box c -> Typed_Box (strip_one_r_out c).
-Proof. type_check. Qed.
-Lemma strip_one_r_out_eq : forall W W' (c : Box W (W' ⊗ One)) (ρ : Matrix (2^⟦W⟧)%nat (2^⟦W'⟧)%nat),
-  denote_box true (strip_one_r_out c) ρ = denote_box true c ρ.
-Proof.
-  intros.
-  unfold strip_one_r_out.
-  matrix_denote. 
-  unfold unbox. unfold denote_db_box.
-  destruct c.
-  simpl.
-Admitted.
 
 (* Can probably use an existing list function *)
 Fixpoint qubit_at (v : Var) (Γ : Ctx) := 
@@ -1018,15 +952,49 @@ Proof.
   rewrite <- AAA, <- BBB; easy.
 Admitted.
 
-Lemma pure_big_kron : forall (n : nat) (l : list (Square n)),
-(forall i : nat, Pure_State (nth i l (|0⟩⟨0|))) -> Pure_State (⨂ l).
+Lemma pure_big_kron : forall (n : nat) (l : list (Square n)) (A : Square n),
+  (forall i : nat, Pure_State (nth i l A)) -> 
+  Pure_State (⨂ l).
 Proof.
-  induction l;  intros H.
+  induction l;  intros A H.
   - simpl. apply pure_id1.
   - simpl. apply pure_kron. apply (H 0).
-    apply IHl.
+    apply (IHl A).    
     intros i.
     apply (H (S i)).
+Qed.
+
+Lemma mixed_kron : forall m n (A : Square m) (B : Square n),
+    Mixed_State A -> Mixed_State B -> Mixed_State (A ⊗ B).
+Admitted.
+
+Lemma mixed_big_kron : forall (n : nat) (l : list (Square n)) (A : Square n),
+(forall i : nat, Mixed_State (nth i l A)) -> Mixed_State (⨂ l).
+Proof.
+  induction l;  intros A H.
+  - simpl. constructor. apply pure_id1.
+  - simpl. apply mixed_kron. apply (H 0).
+    eapply IHl.
+    intros i.
+    apply (H (S i)).
+Qed.
+
+Lemma big_kron_append : forall m n (l1 l2 : list (Matrix m n)) (A B : Matrix m n), 
+  (forall j, WF_Matrix m n (nth j l1 A)) ->
+  (forall j, WF_Matrix m n (nth j l2 B)) ->
+  ⨂ (l1 ++ l2) = (⨂ l1) ⊗ (⨂ l2). 
+Proof.
+  induction l1.
+  - intros. simpl. rewrite kron_1_l. reflexivity. eapply WF_big_kron.  
+    intros i. apply (H0 i).
+  - intros. simpl. 
+    erewrite IHl1; auto. 
+    rewrite kron_assoc. 
+    show_dimensions.
+    rewrite app_length.
+    rewrite 2 Nat.pow_add_r.
+    reflexivity.
+    intros j. apply (H (S j)).
 Qed.
 
 Lemma pure_ctx_to_matrix : forall Γ f, Pure_State (ctx_to_matrix Γ f).
@@ -1035,7 +1003,7 @@ Proof.
   unfold ctx_to_matrix.
   specialize (pure_big_kron 2) as PBK.
   rewrite <- (ctx_to_mat_list_length Γ f).
-  apply PBK.
+  eapply PBK.
   clear.
   revert f.
   induction Γ.
@@ -1094,96 +1062,6 @@ Proof.
   induction n; trivial. 
   intros W. simpl. rewrite IHn. reflexivity.
 Qed.
-
-Lemma init0_spec : ⟦boxed_gate init0⟧ (Id (2^0)) = |0⟩⟨0|.
-Proof. matrix_denote. Msimpl. reflexivity. Qed.
-
-Lemma init1_spec : ⟦boxed_gate init1⟧ (Id (2^0)) = |1⟩⟨1|.
-Proof. matrix_denote. Msimpl. reflexivity. Qed.
-
-Lemma init_spec : forall b, ⟦init b⟧ (Id (2^0)) = bool_to_matrix b.
-Proof. destruct b; [apply init1_spec | apply init0_spec]. Qed.
-
-Lemma assert0_spec : ⟦boxed_gate assert0⟧ |0⟩⟨0| = Id 1. 
-Proof.  
-  matrix_denote.
-  Msimpl.
-  solve_matrix.
-  bdestruct (S (S x) <? 1). omega.
-  rewrite andb_false_r.
-  reflexivity.
-Qed.
-
-Lemma assert1_spec : ⟦boxed_gate assert1⟧ |1⟩⟨1| = Id 1. 
-Proof.  
-  matrix_denote.
-  Msimpl.
-  solve_matrix.
-  bdestruct (S (S x) <? 1). omega.
-  rewrite andb_false_r.
-  reflexivity.
-Qed.
-
-Lemma assert_spec : forall b, ⟦assert b⟧ (bool_to_matrix b) = Id 1.
-Proof. destruct b; [apply assert1_spec | apply assert0_spec]. Qed.
-
-(* very similar to share_to_spec *)
-Lemma CNOT_at_spec : forall (b1 b2 : bool) (n x y : nat) (li : list (Matrix 2 2)), 
-  x < n -> y < n -> x <> y ->
-  (* shouldn't there be an nth that takes a proof? *)
-  nth_error li x = Some (bool_to_matrix b1) ->
-  nth_error li y = Some (bool_to_matrix b2) ->
-  ⟦CNOT_at n x y⟧ (⨂ li) = ⨂ (update_at li y (bool_to_matrix (b1 ⊕ b2))).
-Admitted.
-
-Lemma Toffoli_at_spec : forall (b1 b2 b3 : bool) (n x y z : nat) (li : list (Matrix 2 2)),
-  x < n -> y < n -> z < n -> x <> y -> y < n -> z < n -> 
-  nth_error li x = Some (bool_to_matrix b1) ->
-  nth_error li y = Some (bool_to_matrix b2) ->
-  nth_error li z = Some (bool_to_matrix b3) ->
- ⟦Toffoli_at n x y z⟧ (⨂ li) = ⨂ (update_at li z (bool_to_matrix ((b1 && b2) ⊕ b3))).
-Admitted.
-
-Lemma init_at_spec : forall (b : bool) (n i : nat) (li : list (Matrix 2 2)), 
-  length li = n ->
-  WF_Matrix (2^n) (2^n) (⨂ li) ->
-  i < S n -> 
-  ⟦init_at b n i⟧ (⨂ li) = ⨂ (firstn i li ++ [bool_to_matrix b] ++ skipn i li).
-Proof.
-  intros b n i li H WF Lt.
-  induction i.
-  - simpl.
-    destruct n. 
-    + destruct li; inversion H; subst; clear.
-      unfold init_at. simpl.
-      destruct b. simpl.
-      matrix_denote. Msimpl. reflexivity.
-      matrix_denote. Msimpl. reflexivity.
-    + clear Lt.
-      unfold init_at. simpl.
-      destruct b. simpl.
-      matrix_denote. 
-      rewrite fresh_state_ntensor. simpl.
-      rewrite size_ntensor. simpl. rewrite Nat.mul_1_r.
-      replace ([Some Qubit]) with (repeat (Some Qubit) 1) by reflexivity.
-      rewrite repeat_combine.
-      replace (Some Qubit :: repeat (Some Qubit) (n+1)) with 
-        (repeat (Some Qubit) (S (n + 1))) by reflexivity.
-      rewrite Nat.add_1_r.
-      rewrite ctx_dom_repeat.
-      rewrite seq_shift.
-      unfold get_fresh_var. simpl.
-      rewrite repeat_length.
-      replace (0 :: 1 :: seq 2 n) with (σ_{2+n}) by reflexivity.
-      rewrite subst_var_σ_n by omega. simpl.
-      do 4 (try destruct n); simpl.
-      * destruct li as [|A li]. inversion H.
-        destruct li; [|inversion H].
-        simpl in *. rewrite kron_1_r in WF. Msimpl. 
-        solve_matrix.
-(* this is silly. I can define init_at easily in terms of inPar, as in compile *)
-Admitted.
-
 
 Ltac dim_solve := unify_pows_two; simpl; try rewrite size_ntensor; simpl; omega.
 
@@ -1278,6 +1156,158 @@ Proof.
     apply IHv.
     simpl in H. inversion H. subst. simpl. easy.
 Qed.
+
+(* Specifications for components of compile *)
+
+(* very similar to share_to_spec *)
+Lemma CNOT_at_spec : forall (b1 b2 : bool) (n x y : nat) (li : list (Matrix 2 2)), 
+  x < n -> y < n -> x <> y ->
+  nth_error li x = Some (bool_to_matrix b1) ->
+  nth_error li y = Some (bool_to_matrix b2) ->
+  ⟦CNOT_at n x y⟧ (⨂ li) = ⨂ (update_at li y (bool_to_matrix (b1 ⊕ b2))).
+Admitted.
+
+Lemma Toffoli_at_spec : forall (b1 b2 b3 : bool) (n x y z : nat) (li : list (Matrix 2 2)),
+  x < n -> y < n -> z < n -> x <> y -> y < n -> z < n -> 
+  nth_error li x = Some (bool_to_matrix b1) ->
+  nth_error li y = Some (bool_to_matrix b2) ->
+  nth_error li z = Some (bool_to_matrix b3) ->
+ ⟦Toffoli_at n x y z⟧ (⨂ li) = ⨂ (update_at li z (bool_to_matrix ((b1 && b2) ⊕ b3))).
+Admitted.
+
+(* Most general form, hard to prove 
+Lemma init_at_spec : forall (b : bool) (i n : nat) (ρ : Square (2^n)),
+  Mixed_State ρ ->
+  i < n -> 
+  ⟦init_at b n i⟧ ρ = super (Id (2^i) ⊗ bool_to_ket b  ⊗ Id (2^(n-i)))%M ρ .
+*)
+
+Lemma init_at_spec : forall (b : bool) (n i : nat) (l1 l2 : list (Square 2)) (A B : Square 2), 
+  length l1 = i ->
+  length l2 = n - i ->
+  (forall j, Mixed_State (nth j l1 A)) ->
+  (forall j, Mixed_State (nth j l2 B)) ->
+  i < S n -> 
+  ⟦init_at b n i⟧ (⨂ (l1 ++ l2)) = ⨂ (l1 ++ [bool_to_matrix b] ++ l2).
+Proof.
+  intros b n i. gen n.
+  induction i.
+  - intros n l1 l2 A B L1 L2 M1 M2 Lt.
+    destruct l1; inversion L1.
+    simpl in *. clear L1 M1 Lt.
+    rewrite strip_one_l_in_eq.
+    rewrite <- (kron_1_l _ _ (⨂ l2)) at 1; auto with wf_db. 
+    rewrite Nat.sub_0_r in L2. rewrite L2 in *.
+    rewrite_inPar.
+    simpl_rewrite id_circ_Id.
+    simpl_rewrite init_spec.
+    easy.
+    subst.
+    rewrite size_ntensor. simpl. rewrite Nat.mul_1_r. 
+    assert(WF2 : forall j, WF_Matrix 2 2 (nth j l2 B)).
+    intros j. apply WF_Mixed. apply M2.
+    apply WF_big_kron in WF2. simpl in WF2.
+    apply WF2.
+    type_check.
+    specialize (mixed_big_kron 2 l2 B M2) as M2'. 
+    rewrite L2 in M2'.
+    apply M2'.
+    eapply WF_big_kron.
+    intros i. apply WF_Mixed. apply (M2 i).
+  - intros n l1 l2 A B L1 L2 M1 M2 Lt.
+    destruct n; [omega|].
+    destruct l1; inversion L1.
+    simpl.
+    show_dimensions.
+    repeat rewrite app_length. simpl. 
+    replace (length l1 + length l2) with n by omega.
+    rewrite H0, L2. simpl.
+    hide_dimensions.
+    rewrite_inPar.
+    simpl_rewrite id_circ_Id.
+    erewrite IHi; trivial.
+    show_dimensions.
+    replace (i + (S (n-i))) with (S n) by omega.
+    unify_pows_two. repeat rewrite Nat.add_1_r.
+    easy.
+    intros j.
+    apply (M1 (S j)).
+    omega.
+    simpl.
+    apply WF_Mixed.
+    apply (M1 0).
+    apply init_at_WT.
+    apply (M1 0).
+    erewrite big_kron_append.
+    specialize (mixed_kron) as M.
+    specialize (M _ _ (@big_kron (S (S O)) (S (S O)) l1) 
+                      (@big_kron (S (S O)) (S (S O)) l2)).
+    Search (_ ^ _ * _ ^ _).     
+    rewrite <- Nat.pow_add_r in M.
+    replace (length l1 + length l2) with n in M by omega.
+    apply M.
+    eapply mixed_big_kron. intros j. apply (M1 (S j)).
+    eapply mixed_big_kron. intros j. apply (M2 j). 
+    intros j. apply WF_Mixed. apply (M1 (S j)). 
+    intros j. apply WF_Mixed. apply (M2 j). 
+Qed.    
+
+
+Lemma share_to_spec : forall (t b : bool) (k n : nat) (l1 l2 : list (Square 2)),
+  (k < n)%nat ->
+  length l1 = k ->
+  length l2 = (n - k - 1)%nat ->
+  (forall i, WF_Matrix 2 2 (nth i l1 (Zero 2%nat 2%nat))) ->
+  (forall i, WF_Matrix 2 2 (nth i l2 (Zero 2%nat 2%nat))) ->
+  ⟦share_to n k⟧  ((⨂ l1)  ⊗ bool_to_matrix b ⊗ (⨂ l2) ⊗ bool_to_matrix t) =  
+ (⨂ l1) ⊗ (bool_to_matrix b) ⊗ (⨂ l2) ⊗ bool_to_matrix (xorb t b).
+
+
+Lemma init_at_spec : forall (b : bool) (i n : nat) (ρ1 : Square (2^i)) (ρ2 : Square (2^(n-i))),
+  i < n -> 
+  Mixed_State ρ1 ->
+  Mixed_State ρ2 ->
+  (⟦init_at b n i⟧ (ρ1 ⊗ ρ2) = ρ1 ⊗ bool_to_matrix b ⊗ ρ2)%M.
+Proof.
+  intros b i n. gen i.
+  induction n; intros i ρ1 ρ2 Lt M1 M2.
+  - destruct i; omega. 
+  - destruct i.
+    + simpl.
+      rewrite strip_one_l_in_eq.
+      simpl in ρ1.
+      apply mixed_dim1 in M1. subst.
+      specialize (inPar_correct _ _ _ _ (init b) 
+        (@id_circ (Tensor Qubit (NTensor n Qubit))) (Id 1) ρ2) as IP.
+      simpl in *. 
+      rewrite size_ntensor in IP.
+      rewrite Nat.mul_1_r in IP.
+      rewrite IP; trivial.
+      simpl_rewrite id_circ_Id.
+      simpl_rewrite init_spec.
+      Msimpl.
+      reflexivity.
+      simpl; rewrite size_ntensor; simpl.
+      rewrite Nat.mul_1_r.
+      apply WF_Mixed.
+      apply M2.
+      type_check.
+      type_check.
+      Search Mixed_State Id.
+      apply Pure_S.
+      apply pure_id1.
+    + simpl.
+      
+      specialize (inPar_correct _ _ _ _ (@id_circ Qubit) (init_at b n i) ρ1 ρ2) as IP.
+      simpl in *. 
+      rewrite size_ntensor in IP.
+      rewrite Nat.mul_1_r in IP.
+      show_dimensions.
+      rewrite IP; trivial.
+      rewrite IP.
+
+
+
 
 Theorem compile_correct : forall (b : bexp) (Γ : Ctx) (f : Var -> bool) (t : bool),
   get_context b ⊂ Γ -> 

@@ -38,19 +38,19 @@ Denotation.vo: Denotation.v Quantum.vo DBCircuits.vo HOASLib.vo
 
 # not yet built by `make`
 
-SemanticLib.vo : SemanticLib.v Denotation.vo HOASLib.vo
-	coqc SemanticLib.v
-
 # Reversible.vo: Reversible.v HOASExamples.vo Denotation.vo
 #	coqc Reversible.v
 
-Ancilla.vo : Ancilla.v Denotation.v TypeChecking.vo
+SemanticLib.vo : SemanticLib.v Denotation.vo HOASLib.vo
+	coqc SemanticLib.v
+
+Ancilla.vo : Ancilla.v Denotation.vo TypeChecking.vo
 	coqc Ancilla.v
 
-Symmetric.vo : Symmetric.v Denotation.vo TypeChecking.vo Ancilla.vo
+Symmetric.vo : Symmetric.v Ancilla.vo SemanticLib.vo
 	coqc Symmetric.v
 
-Oracles.vo: Oracles.v Symmetric.vo HOASExamples.vo SemanticLib.vo
+Oracles.vo: Oracles.v Symmetric.vo HOASExamples.vo 
 	coqc Oracles.v
 
 # not built by `make`

@@ -456,11 +456,11 @@ Lemma WF_outer_product : forall {n} (v : Matrix n 1), WF_Matrix n 1 v ->
                                                  WF_Matrix n n (outer_product v).
 Proof. intros. apply WF_mult; [|apply WF_conj_transpose]; assumption. Qed.
 
-Lemma WF_big_kron : forall n m (l : list (Matrix m n)), 
-                        (forall i, WF_Matrix m n (nth i l (Zero m n))) ->
+Lemma WF_big_kron : forall n m (l : list (Matrix m n)) (A : Matrix m n), 
+                        (forall i, WF_Matrix m n (nth i l A)) ->
                          WF_Matrix (m^(length l)) (n^(length l)) (⨂ l). 
 Proof.                         
-  intros n m l H.
+  intros n m l A H.
   induction l.
   - simpl. apply WF_Id.
   - simpl. apply WF_kron; trivial. apply (H O).
