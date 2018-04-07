@@ -14,6 +14,8 @@ Arguments gate {w w1 w2}.
 Arguments lift {w}.
 Arguments box {w1 w2}.
 
+Definition Square_Box W := Box W W.
+
 Definition unbox {w1 w2} (b : Box w1 w2)  (p : Pat w1) : Circuit w2 := 
   match b with box c => c p end.
 

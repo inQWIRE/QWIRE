@@ -28,16 +28,20 @@ Proof. type_check. Qed.
 (* Structural circuits *)
 (***********************)
 
-Definition init (b : bool) : Box One Qubit :=
-  if b then boxed_gate init1 else boxed_gate init0.
-Lemma init_WT : forall b, Typed_Box (init b).
-Proof. destruct b; type_check. Defined.
+Definition init (b : bool) : Box One Qubit := if b then init1 else init0.
+Lemma init_WT : forall b, Typed_Box (init b). Proof. type_check. Defined.
+
+Definition assert (b : bool) : Box Qubit One := if b then assert1 else assert0.
+Lemma assert_WT : forall b, Typed_Box (assert b). Proof. type_check. Qed.
+
 
 Definition inSeq {w1 w2 w3} (c1 : Box w1 w2) (c2 : Box w2 w3): Box w1 w3 :=
   box_ p1 ⇒ 
     let_ p2 ← unbox c1 p1;
     unbox c2 p2.
-Notation "b' · b" := (inSeq b b') (right associativity, at level 10) : circ_scope.
+Notation "b' · b" := (inSeq b b') (at level 10, right associativity) : circ_scope.
+Notation "c1 ;; c2" := (inSeq c1 c2) (at level 10, right associativity). 
+
 Lemma inSeq_WT : forall W1 W2 W3 (c1 : Box W1 W2) (c2 : Box W2 W3), 
                  Typed_Box c1 -> Typed_Box c2 -> Typed_Box (c2 · c1).
 Proof. type_check. Qed.
@@ -99,4 +103,104 @@ Notation "g # n" := (inParMany n g) (at level 8).
 Hint Resolve types_units id_circ_WT boxed_gate_WT init_WT inSeq_WT inPar_WT 
      initMany_WT inSeqMany_WT inParMany_WT : typed_db.
 
-Close Scope circ_scope.
+(*********************)
+(** Classical Gates **)
+(*********************)
+
+(* These can't be used in oracles since they're not reversible. *)
+
+(* NOT already exists *)
+
+Definition CL_AND : Box (Qubit ⊗ Qubit) Qubit :=
+  box_ ab ⇒
+    let_ (a,b)      ← output ab;
+    gate_ z         ← init0 @();
+    gate_ (a,(b,z)) ← CCNOT @(a,(b,z));
+    gate_ a         ← meas @a;
+    gate_ b         ← meas @b;
+    gate_ ()        ← discard @a;   
+    gate_ ()        ← discard @b;   
+    output z.
+Lemma CL_AND_WT : Typed_Box CL_AND.
+Proof. type_check. Qed.
+
+Definition CL_XOR : Box (Qubit ⊗ Qubit) Qubit := 
+  box_ ab ⇒ 
+    let_ (a,b)   ← output ab;
+    gate_ (a, b) ← CNOT @(a,b);
+    gate_ a      ← meas @a;
+    gate_ ()     ← discard @a;
+    output b.
+Lemma CL_XOR_WT : Typed_Box CL_XOR.
+Proof. type_check. Qed.
+
+Definition CL_OR : Box (Qubit ⊗ Qubit) Qubit :=
+  box_ ab ⇒ 
+    let_ (a,b)       ← output ab;
+    gate_ a'         ← X @a;
+    gate_ b'         ← X @b;
+    let_ z           ← unbox CL_AND (a',b');
+    gate_ z'         ← X @z;
+    output z'.
+Lemma CL_OR_WT : Typed_Box CL_OR.
+Proof. type_check. Qed.
+
+
+(***********************)
+(** Reversible Gates  **)
+(***********************)
+
+(* Apply the f(x,z) = g(x) ⊕ z construction, where g is the classical function 
+   and z is an extra target qubit *)
+
+(* This has a more efficient construction where we simply negate z
+Definition TRUE : Box Qubit Qubit :=
+  box_ z ⇒ 
+    gate_ x     ← init1 @();
+    gate_ (x,z) ← CNOT @(x,z);
+    gate_ ()    ← assert1 @x;
+    output z.
+*)
+Definition TRUE : Box Qubit Qubit := X.
+Lemma TRUE_WT : Typed_Box TRUE.
+Proof. type_check. Qed.
+
+(* This has a more efficient construction: the identity
+Definition FALSE : Box Qubit Qubit :=
+  box_ z ⇒ 
+    gate_ x     ← init0 @();
+    gate_ (x,z) ← CNOT @(x,z);
+    gate_ ()    ← assert0 @x;
+    output z.
+*)
+Definition FALSE : Box Qubit Qubit := id_circ.
+Lemma FALSE_WT : Typed_Box FALSE.
+Proof. type_check. Qed.
+
+Definition NOT : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) :=
+  box_ xz ⇒ 
+    let_ (x,z)      ← output xz;
+    gate_ x         ← X @x;
+    gate_ (x,z)     ← CNOT @(x,z);
+    gate_ x         ← X @x;
+    output (x,z).
+Lemma NOT_WT : Typed_Box NOT.
+Proof. type_check. Qed.
+
+Definition AND : Box (Qubit ⊗ Qubit ⊗ Qubit) (Qubit ⊗ Qubit ⊗ Qubit) :=
+  box_ xyz ⇒
+    let_ (x,y,z)    ← output xyz;
+    gate_ (x,(y,z)) ← CCNOT @(x,(y,z));
+    output (x,y,z).    
+Lemma AND_WT : Typed_Box AND.
+Proof. type_check. Qed.
+
+Definition XOR : Box (Qubit ⊗ Qubit ⊗ Qubit) (Qubit ⊗ Qubit ⊗ Qubit) := 
+  box_ xyz ⇒
+    let_ (x,y,z)    ← output xyz;
+    gate_ (x,z)     ← CNOT @(x,z);
+    gate_ (y,z)     ← CNOT @(y,z);
+    output (x,y,z).
+Lemma XOR_WT : Typed_Box XOR.
+Proof. type_check. Qed.
+

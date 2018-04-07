@@ -14,16 +14,6 @@ Delimit Scope circ_scope with qc.
 
 Open Scope nat_scope.
 
-Lemma size_ntensor : forall n W, size_wtype (n ⨂ W) = (n * size_wtype W)%nat.
-Proof.
-  intros n W.
-  induction n; trivial.
-  simpl.
-  rewrite IHn.
-  reflexivity.
-Qed.
-
-Definition Square_Box W := Box W W.
 
 (* Temporary - just so Oracles.v compiles until made to work with symmetric *)
 

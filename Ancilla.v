@@ -8,7 +8,7 @@ Require Import TypeChecking.
 
 Inductive not_assert : forall {W1 W2} (g : Gate W1 W2), Prop :=  
   | na_U       : forall W u, not_assert (@U W u)
-  | na_NOT     : not_assert NOT
+  | na_NOT     : not_assert BNOT
   | na_init0   : not_assert init0
   | na_init1   : not_assert init1
   | na_new0    : not_assert new0
@@ -155,8 +155,6 @@ Proof.
   unfold valid_ancillae, valid_ancillae'.
   split.
   - intros VA.
-    
-    
   unfold valid_ancillae, valid_ancillae'.
   induction c.
 Admitted.
