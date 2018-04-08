@@ -511,10 +511,10 @@ Admitted.
 
 Fixpoint assert_at (b : bool) (n i : nat) {struct i}: Box (S n ⨂ Qubit) (n ⨂ Qubit) :=
   match i with
-  | 0    => strip_one_l_out (assert b || id_circ) 
+  | 0    => strip_one_l_out (assert b ∥ id_circ) 
   | S i' => match n with
-           | 0 => strip_one_l_out (assert b || id_circ) (* error *)
-           | S n' => (id_circ || assert_at b n' i')
+           | 0 => strip_one_l_out (assert b ∥ id_circ) (* error *)
+           | S n' => (id_circ ∥ assert_at b n' i')
            end
   end.
 
@@ -531,13 +531,12 @@ Proof.
       apply IHi.
 Qed.
 
-
 Fixpoint init_at (b : bool) (n i : nat) {struct i}: Box (n ⨂ Qubit) (S n ⨂ Qubit) :=
   match i with 
-  | 0    => strip_one_l_in (init b || id_circ)
+  | 0    => strip_one_l_in (init b ∥ id_circ)
   | S i' => match n with
-           | 0    => strip_one_l_in (init b || id_circ) (* error *)
-           | S n' => (id_circ || init_at b n' i')
+           | 0    => strip_one_l_in (init b ∥ id_circ) (* error *)
+           | S n' => id_circ ∥ init_at b n' i'
            end
   end.
 

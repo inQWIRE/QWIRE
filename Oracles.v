@@ -260,7 +260,7 @@ Fixpoint share_to (n k : nat) : Square_Box (S n ⨂ Qubit) ⊗ Qubit :=
                      let_ ((q,qs),t) ← output qqst;
                      gate_ (q,t)     ← CNOT @(q,t);
                      output ((q,qs),t)
-           | S k' => (@id_circ Qubit) || (share_to' n' k')
+           | S k' => (@id_circ Qubit) ∥ (share_to' n' k')
            end
   end.
 *)
@@ -835,37 +835,66 @@ Proof.
     simpl. apply IHv.
 Qed.
 
-Local Obligation Tactic := program_simpl; try omega.
+(* Without init_at, assert_at
 Fixpoint compile (b : bexp) (Γ : Ctx) : Square_Box (S (⟦Γ⟧) ⨂ Qubit) :=
   match b with
-  | b_t          => TRUE || id_circ 
-  | b_f          => FALSE || id_circ
+  | b_t          => TRUE ∥ id_circ 
+  | b_f          => FALSE ∥ id_circ
   | b_var v      => 
     (* share_to' (⟦Γ⟧) (position_of v Γ) *)
     (* CNOT_at_option (S (⟦Γ⟧)) (position_of v Γ) (⟦Γ⟧) *)
     CNOT_at (S (⟦Γ⟧)) (S (position_of v Γ)) 0
-  | b_not b      =>  (id_circ || (strip_one_l_in (init1 || id_circ))) ;;
-                     (id_circ || (compile b Γ)) ;;
+  | b_not b      =>  (id_circ ∥ (strip_one_l_in (init1 ∥ id_circ))) ;;
+                     (id_circ ∥ (compile b Γ)) ;;
                      (CNOT_at (2 + ⟦Γ⟧) 1 0)    ;;
-                     (id_circ || (compile b Γ)) ;;
-                     (id_circ || (strip_one_l_out (assert1 || id_circ)))
-  | b_and b1 b2  => (id_circ || (strip_one_l_in (init0 || id_circ))) ;;
-                     (id_circ || compile b1 Γ) ;;
-                     (id_circ || (id_circ || (strip_one_l_in (init0 || id_circ)))) ;;
-                     (id_circ || (id_circ || compile b2 Γ)) ;;
+                     (id_circ ∥ (compile b Γ)) ;;
+                     (id_circ ∥ (strip_one_l_out (assert1 ∥ id_circ)))
+  | b_and b1 b2  => (id_circ ∥ (strip_one_l_in (init0 ∥ id_circ))) ;;
+                     (id_circ ∥ compile b1 Γ) ;;
+                     (id_circ ∥ (id_circ ∥ (strip_one_l_in (init0 ∥ id_circ)))) ;;
+                     (id_circ ∥ (id_circ ∥ compile b2 Γ)) ;;
                      (Toffoli_at (3 + ⟦Γ⟧) 1 2 0)           ;;
-                     (id_circ || (id_circ || compile b2 Γ)) ;;
-                     (id_circ || (id_circ || (strip_one_l_out (assert0 || id_circ)))) ;;
-                     (id_circ || compile b1 Γ) ;;
-                     (id_circ || (strip_one_l_out (assert0 || id_circ)))                
-  | b_xor b1 b2  => (id_circ || (strip_one_l_in (init0 || id_circ))) ;;
-                     (id_circ || compile b1 Γ) ;;
+                     (id_circ ∥ (id_circ ∥ compile b2 Γ)) ;;
+                     (id_circ ∥ (id_circ ∥ (strip_one_l_out (assert0 ∥ id_circ)))) ;;
+                     (id_circ ∥ compile b1 Γ) ;;
+                     (id_circ ∥ (strip_one_l_out (assert0 ∥ id_circ)))                
+  | b_xor b1 b2  => (id_circ ∥ (strip_one_l_in (init0 ∥ id_circ))) ;;
+                     (id_circ ∥ compile b1 Γ) ;;
                      (CNOT_at (2 + ⟦Γ⟧) 1 0)   ;;                    
-                     (id_circ || compile b1 Γ) ;; 
-                     (id_circ || compile b2 Γ) ;; (* reusing ancilla *)
+                     (id_circ ∥ compile b1 Γ) ;; 
+                     (id_circ ∥ compile b2 Γ) ;; (* reusing ancilla *)
                      (CNOT_at (2 + ⟦Γ⟧) 1 0)   ;;                    
-                     (id_circ || compile b2 Γ) ;;
-                     (id_circ || (strip_one_l_out (assert0 || id_circ)))              
+                     (id_circ ∥ compile b2 Γ) ;;
+                     (id_circ ∥ (strip_one_l_out (assert0 ∥ id_circ)))              
+  end. *)
+
+Fixpoint compile (b : bexp) (Γ : Ctx) : Square_Box (S (⟦Γ⟧) ⨂ Qubit) :=
+  match b with
+  | b_t          => TRUE ∥ id_circ 
+  | b_f          => FALSE ∥ id_circ
+  | b_var v      => CNOT_at (1 + ⟦Γ⟧) (1 + position_of v Γ) 0
+  | b_not b      => init_at true (1 + ⟦Γ⟧) 1 ;;
+                   id_circ ∥ (compile b Γ)  ;;
+                   CNOT_at (2 + ⟦Γ⟧) 1 0    ;;
+                   id_circ ∥ (compile b Γ)  ;;
+                   assert_at true (1+⟦Γ⟧) 1 
+  | b_and b1 b2  => init_at false (1 + ⟦Γ⟧) 1        ;;
+                   id_circ ∥ compile b1 Γ           ;;
+                   init_at false (2 + ⟦Γ⟧) 2        ;;
+                   id_circ ∥ id_circ ∥ compile b2 Γ ;;
+                   Toffoli_at (3 + ⟦Γ⟧) 1 2 0       ;;
+                   id_circ ∥ id_circ ∥ compile b2 Γ ;;
+                   assert_at false (2 + ⟦Γ⟧) 2      ;;
+                   id_circ ∥ compile b1 Γ           ;;
+                   assert_at false (1 + ⟦Γ⟧) 1 
+  | b_xor b1 b2  => init_at false (1 + ⟦Γ⟧) 1 ;;
+                   id_circ ∥ compile b1 Γ    ;;
+                   CNOT_at (2 + ⟦Γ⟧) 1 0     ;;                    
+                   id_circ ∥ compile b1 Γ    ;; 
+                   id_circ ∥ compile b2 Γ    ;; (* reusing ancilla *)
+                   CNOT_at (2 + ⟦Γ⟧) 1 0     ;;                    
+                   id_circ ∥ compile b2 Γ    ;;
+                   assert_at false (1 + ⟦Γ⟧) 1
   end.
 
 Lemma ntensor_fold : forall n W, W ⊗ (n ⨂ W) = (S n ⨂ W).
@@ -1168,7 +1197,7 @@ Lemma CNOT_at_spec : forall (b1 b2 : bool) (n x y : nat) (li : list (Matrix 2 2)
 Admitted.
 
 Lemma Toffoli_at_spec : forall (b1 b2 b3 : bool) (n x y z : nat) (li : list (Matrix 2 2)),
-  x < n -> y < n -> z < n -> x <> y -> y < n -> z < n -> 
+  x < n -> y < n -> z < n -> x <> y -> x <> z -> y <> z -> 
   nth_error li x = Some (bool_to_matrix b1) ->
   nth_error li y = Some (bool_to_matrix b2) ->
   nth_error li z = Some (bool_to_matrix b3) ->
@@ -1253,62 +1282,8 @@ Proof.
 Qed.    
 
 
-Lemma share_to_spec : forall (t b : bool) (k n : nat) (l1 l2 : list (Square 2)),
-  (k < n)%nat ->
-  length l1 = k ->
-  length l2 = (n - k - 1)%nat ->
-  (forall i, WF_Matrix 2 2 (nth i l1 (Zero 2%nat 2%nat))) ->
-  (forall i, WF_Matrix 2 2 (nth i l2 (Zero 2%nat 2%nat))) ->
-  ⟦share_to n k⟧  ((⨂ l1)  ⊗ bool_to_matrix b ⊗ (⨂ l2) ⊗ bool_to_matrix t) =  
- (⨂ l1) ⊗ (bool_to_matrix b) ⊗ (⨂ l2) ⊗ bool_to_matrix (xorb t b).
-
-
-Lemma init_at_spec : forall (b : bool) (i n : nat) (ρ1 : Square (2^i)) (ρ2 : Square (2^(n-i))),
-  i < n -> 
-  Mixed_State ρ1 ->
-  Mixed_State ρ2 ->
-  (⟦init_at b n i⟧ (ρ1 ⊗ ρ2) = ρ1 ⊗ bool_to_matrix b ⊗ ρ2)%M.
-Proof.
-  intros b i n. gen i.
-  induction n; intros i ρ1 ρ2 Lt M1 M2.
-  - destruct i; omega. 
-  - destruct i.
-    + simpl.
-      rewrite strip_one_l_in_eq.
-      simpl in ρ1.
-      apply mixed_dim1 in M1. subst.
-      specialize (inPar_correct _ _ _ _ (init b) 
-        (@id_circ (Tensor Qubit (NTensor n Qubit))) (Id 1) ρ2) as IP.
-      simpl in *. 
-      rewrite size_ntensor in IP.
-      rewrite Nat.mul_1_r in IP.
-      rewrite IP; trivial.
-      simpl_rewrite id_circ_Id.
-      simpl_rewrite init_spec.
-      Msimpl.
-      reflexivity.
-      simpl; rewrite size_ntensor; simpl.
-      rewrite Nat.mul_1_r.
-      apply WF_Mixed.
-      apply M2.
-      type_check.
-      type_check.
-      Search Mixed_State Id.
-      apply Pure_S.
-      apply pure_id1.
-    + simpl.
-      
-      specialize (inPar_correct _ _ _ _ (@id_circ Qubit) (init_at b n i) ρ1 ρ2) as IP.
-      simpl in *. 
-      rewrite size_ntensor in IP.
-      rewrite Nat.mul_1_r in IP.
-      show_dimensions.
-      rewrite IP; trivial.
-      rewrite IP.
-
-
-
-
+(* Currently simplifies all init_at and assert_ats. 
+   Proof could be simplified by making these opaque and using lemma *)
 Theorem compile_correct : forall (b : bexp) (Γ : Ctx) (f : Var -> bool) (t : bool),
   get_context b ⊂ Γ -> 
   ⟦compile b Γ⟧ ((bool_to_matrix t) ⊗ (ctx_to_matrix Γ f)) = 

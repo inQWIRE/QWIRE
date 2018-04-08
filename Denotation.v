@@ -1336,7 +1336,7 @@ Definition HOAS_Equiv {W1 W2} (b1 b2 : Box W1 W2) :=
   forall ρ, Mixed_State ρ -> ⟦b1⟧ ρ = ⟦b2⟧ ρ.
 
 Locate "≡".
-Notation "a ≡ b" := (HOAS_Equiv a b) (at level 60) : circ_scope.
+Notation "a ≡ b" := (HOAS_Equiv a b) (at level 70) : circ_scope.
 
 Hint Unfold HOAS_Equiv : den_db.
     
