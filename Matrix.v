@@ -685,6 +685,26 @@ Proof.
   bdestruct (z =? y); bdestruct (z <? n); simpl; try clra; try omega. 
 Qed.
 
+Lemma kron_0_l : forall (m n o p : nat) (A : Matrix o p), 
+  Zero m n ⊗ A = Zero (m * o) (n * p).
+Proof.
+  intros m n o p A.
+  prep_matrix_equality.
+  unfold Zero, kron.
+  rewrite Cmult_0_l.
+  reflexivity.
+Qed.
+
+Lemma kron_0_r : forall (m n o p : nat) (A : Matrix m n), 
+   A ⊗ Zero o p = Zero (m * o) (n * p).
+Proof.
+  intros m n o p A.
+  prep_matrix_equality.
+  unfold Zero, kron.
+  rewrite Cmult_0_r.
+  reflexivity.
+Qed.
+
 Lemma kron_1_r : forall (m n : nat) (A : Matrix m n), A ⊗ Id 1 = A.
 Proof.
   intros m n A.

@@ -297,15 +297,6 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma size_ntensor : forall n W, size_wtype (n ⨂ W) = (n * size_wtype W)%nat.
-Proof.
-  intros n W.
-  induction n; trivial.
-  simpl.
-  rewrite IHn.
-  reflexivity.
-Qed.
-
 Lemma repeat_combine : forall T n1 n2 (t : T), 
   List.repeat t n1 ++ List.repeat t n2 = List.repeat t (n1 + n2).
 Proof.
@@ -313,14 +304,6 @@ Proof.
   intros. simpl. 
   rewrite IHn1.
   reflexivity.
-Qed.
-
-Lemma fresh_state_ntensor : forall n (Γ : Ctx), fresh_state (n ⨂ Qubit) (Valid Γ) = 
-                                           Valid (Γ ++ List.repeat (Some Qubit) n).
-Proof.                            
-  induction n. 
-  - intros. simpl. rewrite app_nil_r; reflexivity.
-  - intros. simpl. rewrite IHn. rewrite <- app_assoc. reflexivity.
 Qed.
 
 Lemma ctx_dom_repeat : forall n, ctx_dom (repeat (Some Qubit) n) = seq 0 n.
