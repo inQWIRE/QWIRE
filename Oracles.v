@@ -1092,7 +1092,23 @@ Proof.
   intros W. simpl. rewrite IHn. reflexivity.
 Qed.
 
-Ltac dim_solve := unify_pows_two; simpl; try rewrite size_ntensor; simpl; omega.
+Ltac dim_solve := unify_pows_two; simpl; try rewrite size_ntensor; 
+                  simpl; try rewrite Nat.mul_1_r; omega.
+
+(* Ltac dim_solve := unify_pows_two; simpl; omega. *)
+
+Ltac unify_dim_solve := 
+  match goal with 
+  | [|- @kron ?m ?n ?o ?p ?A ?B = @kron ?m' ?n' ?o' ?p' ?A' ?B'] =>
+     replace A with A' by unify_dim_solve;
+     replace B with B' by unify_dim_solve;
+     replace m with m' by dim_solve;
+     replace n with n' by dim_solve;
+     replace o with o' by dim_solve;
+     replace p with p' by dim_solve;
+     reflexivity
+  | [|- _ = _] => reflexivity
+  end.
 
 Ltac show_pure := 
   repeat match goal with
@@ -1157,6 +1173,29 @@ Ltac rewrite_inPar :=
     rewrite IP;
     clear IP
   end; compile_typing (compile_WT); show_mixed.
+
+(* Designated successor to rewrite_inPar *)
+Ltac rewrite_inPar' := 
+  fold NTensor; (* This shouldn't be necessary but is? *)
+  simpl in *; 
+  match goal with
+  [|- context[(@denote_box true ?W ?W' (@inPar ?W1 ?W1' ?W2 ?W2' ?f ?g))
+    (@kron ?m ?n ?o ?p ?ρ1 ?ρ2)]] =>
+    let IP := fresh "IP" in 
+    specialize (inPar_correct W1 W1' W2 W2' f g ρ1 ρ2) as IP;
+    simpl in *;
+    match goal with
+    | [H : ?A -> ?B -> ?C -> ?D -> 
+           (@denote_box true ?W ?W' (@inPar ?W1 ?W1' ?W2 ?W2' ?f ?g))
+           (@kron ?m' ?n' ?o' ?p' ?ρ1 ?ρ2) = ?RHS |- _] => 
+      replace m with m'; try dim_solve;
+      replace n with n'; try dim_solve;
+      replace o with o'; try dim_solve;
+      replace p with p'; try dim_solve;
+      try rewrite H
+     end;
+     clear IP
+  end; compile_typing (compile_WT); auto with wf_db; show_mixed.
 
 Ltac listify_kron := 
     unfold ctx_to_matrix;
@@ -1239,7 +1278,7 @@ Proof.
     apply WF2.
     type_check.
     specialize (mixed_big_kron 2 l2 B M2) as M2'. 
-    rewrite L2 in M2'.
+    rewrite L2 in M2'.    
     apply M2'.
     eapply WF_big_kron.
     intros i. apply WF_Mixed. apply (M2 i).
@@ -1255,10 +1294,7 @@ Proof.
     rewrite_inPar.
     simpl_rewrite id_circ_Id.
     erewrite IHi; trivial.
-    show_dimensions.
-    replace (i + (S (n-i))) with (S n) by omega.
-    unify_pows_two. repeat rewrite Nat.add_1_r.
-    easy.
+    unify_dim_solve.
     intros j.
     apply (M1 (S j)).
     omega.
@@ -1271,7 +1307,6 @@ Proof.
     specialize (mixed_kron) as M.
     specialize (M _ _ (@big_kron (S (S O)) (S (S O)) l1) 
                       (@big_kron (S (S O)) (S (S O)) l2)).
-    Search (_ ^ _ * _ ^ _).     
     rewrite <- Nat.pow_add_r in M.
     replace (length l1 + length l2) with n in M by omega.
     apply M.
@@ -1280,7 +1315,6 @@ Proof.
     intros j. apply WF_Mixed. apply (M1 (S j)). 
     intros j. apply WF_Mixed. apply (M2 j). 
 Qed.    
-
 
 (* Currently simplifies all init_at and assert_ats. 
    Proof could be simplified by making these opaque and using lemma *)
@@ -1291,11 +1325,11 @@ Theorem compile_correct : forall (b : bexp) (Γ : Ctx) (f : Var -> bool) (t : bo
 Proof.
   intros b.
   induction b; intros Γ f t H.
-  - simpl. 
-    rewrite_inPar.
+  - simpl.
+    rewrite_inPar.    
     simpl_rewrite TRUE_spec.
     simpl_rewrite id_circ_Id.
-    easy.    
+    easy.
     rewrite size_ntensor, Nat.mul_1_r.
     apply WF_ctx_to_matrix.
   - simpl. 
@@ -1321,14 +1355,14 @@ Proof.
     repeat (rewrite IS; compile_typing (compile_WT)).
     unfold compose_super.
     rewrite_inPar.    
-    rewrite_inPar. (* annoying side condition *)    
+    rewrite_inPar. 
     rewrite strip_one_l_in_eq.
     rewrite <- (kron_1_l _ _ (ctx_to_matrix Γ f)); auto with wf_db.
-    rewrite_inPar.     
+    rewrite_inPar.
     repeat simpl_rewrite id_circ_Id; auto with wf_db.
     simpl_rewrite init1_spec.
     replace (|1⟩⟨1|) with (bool_to_matrix true) by reflexivity.    
-    rewrite (IHb _ _ _ H). rewrite xorb_true_l. (* yay! *)
+    rewrite (IHb Γ f true H). rewrite xorb_true_l. (* yay! *)
     listify_kron.
     simpl_rewrite (CNOT_at_spec (¬ ⌈b | f⌉) t (S (S (⟦Γ⟧))) 1 0); trivial; try omega. 
     simpl.
@@ -1400,8 +1434,6 @@ Proof.
     reflexivity.
 (* cleanup *)    
     all: simpl; try rewrite size_ntensor, Nat.mul_1_r; auto with wf_db.
-    Msimpl.
-    show_mixed.
   - simpl in *.
     specialize inSeq_correct as IS. simpl in IS.    
     repeat (rewrite IS; compile_typing (compile_WT)). clear IS.

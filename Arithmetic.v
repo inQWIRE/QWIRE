@@ -1,8 +1,9 @@
 Require Import HOASExamples.
 Require Import DBCircuits.
 Require Import TypeChecking.
+Require Import SemanticLib.
+Require Import Symmetric.
 Require Import Oracles.
-Require Import Reversible.
 Require Import Matrix.
 Require Import Denotation.
 Require Import Monad.
@@ -12,16 +13,23 @@ Require Import List.
 Import ListNotations.
 
 Open Scope circ_scope.
+Open Scope nat_scope.
+Open Scope bexp_scope.
 
-Open Scope rbexp_scope.
+Infix "⊻" := b_xor (at level 40).
+Infix "∧" := b_and (at level 40).
+
+Definition nat_to_var (n : nat) : Var := n. 
+Coercion b_var : Var >-> bexp. 
+Coercion nat_to_var : nat >-> Var.
+
 (*
 Input : var 1 : y
         var 2 : x
         var 3 : cin
 Output : cout = cin(x ⊕ y) ⊕ xy
 *)
-Definition adder_cout_rbexp : rbexp :=
-  rb_xor (rb_and (rb_var 3%nat) (rb_xor (rb_var 2%nat) (rb_var 1%nat))) (rb_and (rb_var 2%nat) (rb_var 1%nat)).
+Definition adder_cout_bexp : bexp := (3 ∧ (2 ⊻ 1)) ⊻ (2 ∧ 1).
 
 (*
 Input : var 0 : y
@@ -29,108 +37,110 @@ Input : var 0 : y
         var 2 : cin
 Output : z = cin ⊕ (x ⊕ y)
  *)
-Definition adder_z_rbexp : rbexp :=
-  rb_xor (rb_var 2%nat) (rb_xor (rb_var 1%nat) (rb_var 0%nat)).
+Definition adder_z_bexp : bexp := 2 ⊻ (1 ⊻ 0).
 
 (*
 Input : var 0 : x
         var 1 : y
 Output : z = x ⊕ y
 *)
-Definition xor_rbexp : rbexp :=
-  rb_xor (rb_var 0%nat) (rb_var 1%nat).
+Definition xor_bexp : bexp := 0 ⊻ 1.
 
 (*
 Input : var 0 : x
 Output : z = x
 *)
-Definition id_rbexp : rbexp :=
-  rb_var 0%nat.
+Definition id_bexp : bexp := 0.
 
-Definition list_to_function {A} (l : list A) (d : A) := 
-  fun (n : nat) => nth n l d.
+Definition list_to_function {A} (l : list A) (d : A) := fun (n : nat) => nth n l d.
+Definition fun_of_bools (l : list bool) := fun n => nth n l false.
 
-Lemma test_adder_cout_rbexp_000 : 
-⌈ adder_cout_rbexp | list_to_function [false; false; false; false] false ⌉ = false.
-Proof. simpl. reflexivity. Qed.
-Lemma test_adder_cout_rbexp_001 : 
-⌈ adder_cout_rbexp | list_to_function [false; false; false; true] false ⌉ = false.
-Proof. simpl. reflexivity. Qed.
-Lemma test_adder_cout_rbexp_010 : 
-⌈ adder_cout_rbexp | list_to_function [false; false; true; false] false ⌉ = false.
-Proof. simpl. reflexivity. Qed.
-Lemma test_adder_cout_rbexp_011 : 
-⌈ adder_cout_rbexp | list_to_function [false; false; true; true] false ⌉ = true.
-Proof. simpl. reflexivity. Qed.
-Lemma test_adder_cout_rbexp_100 : 
-⌈ adder_cout_rbexp | list_to_function [false; true; false; false] false ⌉ = false.
-Proof. simpl. reflexivity. Qed.
-Lemma test_adder_cout_rbexp_101 : 
-⌈ adder_cout_rbexp | list_to_function [false; true; false; true] false ⌉ = true.
-Proof. simpl. reflexivity. Qed.
-Lemma test_adder_cout_rbexp_110 : 
-⌈ adder_cout_rbexp | list_to_function [false; true; true; false] false ⌉ = true.
-Proof. simpl. reflexivity. Qed.
-Lemma test_adder_cout_rbexp_111 : 
-⌈ adder_cout_rbexp | list_to_function [false; true; true; true] false ⌉ = true.
-Proof. simpl. reflexivity. Qed.
+Definition bools_to_matrix (l : list bool) : Square (2^(length l)) := 
+  big_kron (map bool_to_matrix l).
 
-Lemma test_adder_z_rbexp_000 : 
-⌈ adder_z_rbexp | list_to_function [false; false; false] false ⌉ = false.
-Proof. simpl. reflexivity. Qed.
-Lemma test_adder_z_rbexp_001 : 
-⌈ adder_z_rbexp | list_to_function [false; false; true] false ⌉ = true.
-Proof. simpl. reflexivity. Qed.
-Lemma test_adder_z_rbexp_010 : 
-⌈ adder_z_rbexp | list_to_function [false; true; false] false ⌉ = true.
-Proof. simpl. reflexivity. Qed.
-Lemma test_adder_z_rbexp_011 : 
-⌈ adder_z_rbexp | list_to_function [false; true; true] false ⌉ = false.
-Proof. simpl. reflexivity. Qed.
-Lemma test_adder_z_rbexp_100 : 
-⌈ adder_z_rbexp | list_to_function [true; false; false] false ⌉ = true.
-Proof. simpl. reflexivity. Qed.
-Lemma test_adder_z_rbexp_101 : 
-⌈ adder_z_rbexp | list_to_function [true; false; true] false ⌉ = false.
-Proof. simpl. reflexivity. Qed.
-Lemma test_adder_z_rbexp_110 : 
-⌈ adder_z_rbexp | list_to_function [true; true; false] false ⌉ = false.
-Proof. simpl. reflexivity. Qed.
-Lemma test_adder_z_rbexp_111 : 
-⌈ adder_z_rbexp | list_to_function [true; true; true] false ⌉ = true.
-Proof. simpl. reflexivity. Qed.
-Close Scope rbexp_scope.
-
-
-Fixpoint list_of_Qubits (n : nat) : Ctx :=
-  match n with
-  | 0 => []
-  | S n' => (Some Qubit) :: (list_of_Qubits n')
+(*
+Fixpoint bools_to_matrix (l : list bool) : Square (2^(length l)) := 
+  match l with
+  | []      => Id 1
+  | b :: bs => (bool_to_matrix b ⊗ bools_to_matrix bs)%M
   end.
+*)
+
+Lemma test_adder_cout_bexp_000 : 
+⌈ adder_cout_bexp | fun_of_bools [false; false; false; false]⌉ = false.
+Proof. simpl. reflexivity. Qed.
+Lemma test_adder_cout_bexp_001 : 
+⌈ adder_cout_bexp | fun_of_bools [false; false; false; true] ⌉ = false.
+Proof. simpl. reflexivity. Qed.
+Lemma test_adder_cout_bexp_010 : 
+⌈ adder_cout_bexp | fun_of_bools [false; false; true; false] ⌉ = false.
+Proof. simpl. reflexivity. Qed.
+Lemma test_adder_cout_bexp_011 : 
+⌈ adder_cout_bexp | fun_of_bools [false; false; true; true] ⌉ = true.
+Proof. simpl. reflexivity. Qed.
+Lemma test_adder_cout_bexp_100 : 
+⌈ adder_cout_bexp | fun_of_bools [false; true; false; false] ⌉ = false.
+Proof. simpl. reflexivity. Qed.
+Lemma test_adder_cout_bexp_101 : 
+⌈ adder_cout_bexp | fun_of_bools [false; true; false; true] ⌉ = true.
+Proof. simpl. reflexivity. Qed.
+Lemma test_adder_cout_bexp_110 : 
+⌈ adder_cout_bexp | fun_of_bools [false; true; true; false] ⌉ = true.
+Proof. simpl. reflexivity. Qed.
+Lemma test_adder_cout_bexp_111 : 
+⌈ adder_cout_bexp | fun_of_bools [false; true; true; true] ⌉ = true.
+Proof. simpl. reflexivity. Qed.
+
+Lemma test_adder_z_bexp_000 : 
+⌈ adder_z_bexp | fun_of_bools [false; false; false] ⌉ = false.
+Proof. simpl. reflexivity. Qed.
+Lemma test_adder_z_bexp_001 : 
+⌈ adder_z_bexp | fun_of_bools [false; false; true] ⌉ = true.
+Proof. simpl. reflexivity. Qed.
+Lemma test_adder_z_bexp_010 : 
+⌈ adder_z_bexp | fun_of_bools [false; true; false] ⌉ = true.
+Proof. simpl. reflexivity. Qed.
+Lemma test_adder_z_bexp_011 : 
+⌈ adder_z_bexp | fun_of_bools [false; true; true] ⌉ = false.
+Proof. simpl. reflexivity. Qed.
+Lemma test_adder_z_bexp_100 : 
+⌈ adder_z_bexp | fun_of_bools [true; false; false] ⌉ = true.
+Proof. simpl. reflexivity. Qed.
+Lemma test_adder_z_bexp_101 : 
+⌈ adder_z_bexp | fun_of_bools [true; false; true] ⌉ = false.
+Proof. simpl. reflexivity. Qed.
+Lemma test_adder_z_bexp_110 : 
+⌈ adder_z_bexp | fun_of_bools [true; true; false] ⌉ = false.
+Proof. simpl. reflexivity. Qed.
+Lemma test_adder_z_bexp_111 : 
+⌈ adder_z_bexp | fun_of_bools [true; true; true] ⌉ = true.
+Proof. simpl. reflexivity. Qed.
+
+Close Scope bexp_scope.
+
+
+Definition list_of_Qubits (n : nat) : Ctx := repeat (Some Qubit) n.
 
 Definition adder_cout_circ :=
-  compile adder_cout_rbexp [Some Qubit; Some Qubit; Some Qubit; Some Qubit].
+  compile adder_cout_bexp (list_of_Qubits 4).
 Eval compute in adder_cout_circ.
 
-Definition adder_z_circ :=
-  compile adder_z_rbexp [Some Qubit; Some Qubit; Some Qubit].
+Definition adder_z_circ := compile adder_z_bexp (list_of_Qubits 3).
 
 (* adder_cout circuit with pads, input type is ((4+n) ⨂ Qubit), Box ((5+n) ⨂ Qubit) ((5+n) ⨂ Qubit) *)
 Definition adder_cout_circ_with_pads (n : nat) :=
-  compile adder_cout_rbexp (list_of_Qubits (4+n)).
+  compile adder_cout_bexp (list_of_Qubits (4+n)).
 
 (* adder_z circuit with pads, input type is ((3+n) ⨂ Qubit), Box ((4+n) ⨂ Qubit) ((4+n) ⨂ Qubit) *)
 Definition adder_z_circ_with_pads (n : nat) :=
-  compile adder_z_rbexp (list_of_Qubits (3+n)).
+  compile adder_z_bexp (list_of_Qubits (3+n)).
 
 Definition calc_xor_circ :=
-  compile xor_rbexp (list_of_Qubits 2).
+  compile xor_bexp (list_of_Qubits 2).
 
-Definition calc_id_circ :=
-  compile id_rbexp (list_of_Qubits 1).
+Definition calc_id_circ := compile id_bexp (list_of_Qubits 1).
 
-Definition calc_id_circ_with_pads (n : nat) :=
-  compile id_rbexp (list_of_Qubits (1+n)).
+Definition calc_id_circ_with_pads (n : nat) := compile id_bexp (list_of_Qubits (1+n)).
 
 Lemma adder_cout_circ_WT : Typed_Box adder_cout_circ.
 Proof. apply compile_WT. Qed.
@@ -151,72 +161,58 @@ Lemma calc_id_circ_with_pads_WT : forall n,
 Proof. intros. apply compile_WT. Qed.
 
 Open Scope matrix_scope.
+
 Lemma adder_cout_circ_spec : forall (cout z y x cin : bool),
-⟦adder_cout_circ⟧ ((bool_to_matrix cout) ⊗ (ctx_to_matrix [Some Qubit; Some Qubit; Some Qubit; Some Qubit] (list_to_function [z; y; x; cin] false)))
-= (bool_to_matrix (cout ⊕ ⌈ adder_cout_rbexp | list_to_function [z; y; x; cin] false ⌉)) ⊗ 
-  (ctx_to_matrix [Some Qubit; Some Qubit; Some Qubit; Some Qubit] (list_to_function [z; y; x; cin] false)).
+⟦adder_cout_circ⟧ (bool_to_matrix cout ⊗ bools_to_matrix [z; y; x; cin])
+= bools_to_matrix ((cout ⊕ ⌈ adder_cout_bexp | fun_of_bools [z; y; x; cin] ⌉) :: [z; y; x; cin]).
 Proof.
 intros.
-apply (compile_correct adder_cout_rbexp [Some Qubit; Some Qubit; Some Qubit; Some Qubit] (list_to_function [z; y; x; cin] false) cout).
-apply (sub_some (None) Qubit [Some Qubit; Some Qubit; Some Qubit]).
-apply (sub_some (Some Qubit) Qubit [Some Qubit; Some Qubit]).
-apply (sub_some (Some Qubit) Qubit [Some Qubit]).
-apply (sub_some (Some Qubit) Qubit []).
-apply sub_empty.
+apply (compile_correct adder_cout_bexp (list_of_Qubits 4) 
+  (fun_of_bools [z; y; x; cin]) cout).
+repeat constructor.
 Qed.
 
 Lemma adder_z_circ_spec : forall (z y x cin : bool),
-⟦adder_z_circ⟧ ((bool_to_matrix z) ⊗ (ctx_to_matrix [Some Qubit; Some Qubit; Some Qubit] (list_to_function [y; x; cin] false)))
-= (bool_to_matrix (z ⊕ ⌈ adder_z_rbexp | list_to_function [y; x; cin] false ⌉)) ⊗ 
-  (ctx_to_matrix [Some Qubit; Some Qubit; Some Qubit] (list_to_function [y; x; cin] false)).
+⟦adder_z_circ⟧ (bool_to_matrix z ⊗ bools_to_matrix [y; x; cin])
+= bool_to_matrix (z ⊕ ⌈ adder_z_bexp | fun_of_bools [y; x; cin]⌉) ⊗ 
+  bools_to_matrix [y; x; cin].
 Proof.
 intros.
-apply (compile_correct adder_z_rbexp [Some Qubit; Some Qubit; Some Qubit] (list_to_function [y; x; cin] false) z).
-apply (sub_some (Some Qubit) Qubit [Some Qubit; Some Qubit]).
-apply (sub_some (Some Qubit) Qubit [Some Qubit]).
-apply (sub_some (Some Qubit) Qubit []).
-apply sub_empty.
+apply (compile_correct adder_z_bexp [Some Qubit; Some Qubit; Some Qubit] 
+  (fun_of_bools [y; x; cin]) z).
+repeat constructor.
 Qed.
 
 Lemma adder_cout_circ_with_pads_spec : forall (n : nat) (f : Var -> bool),
 ⟦adder_cout_circ_with_pads n⟧ ((bool_to_matrix (f 0%nat)) ⊗ (ctx_to_matrix (list_of_Qubits (4+n)) (fun x => f (S x))))
-= (bool_to_matrix ((f 0%nat) ⊕ ⌈ adder_cout_rbexp | (fun x => f (S x)) ⌉)) ⊗ 
+= (bool_to_matrix ((f 0%nat) ⊕ ⌈ adder_cout_bexp | (fun x => f (S x)) ⌉)) ⊗ 
   (ctx_to_matrix (list_of_Qubits (4+n)) (fun x => f (S x))).
 Proof.
 intros.
-Check compile_correct.
-apply (compile_correct adder_cout_rbexp (list_of_Qubits (4+n)) (fun x => f (S x)) (f 0%nat)).
-apply (sub_some (None) Qubit [Some Qubit; Some Qubit; Some Qubit]).
-apply (sub_some (Some Qubit) Qubit [Some Qubit; Some Qubit]).
-apply (sub_some (Some Qubit) Qubit [Some Qubit]).
-apply (sub_some (Some Qubit) Qubit []).
-apply sub_empty.
+apply (compile_correct adder_cout_bexp (list_of_Qubits (4+n)) (fun x => f (S x)) (f 0)).
+repeat constructor.
 Qed.
 
 Lemma adder_z_circ_with_pads_spec : forall (n : nat) (f : Var -> bool),
-⟦adder_z_circ_with_pads n⟧ ((bool_to_matrix (f 0%nat)) ⊗ (ctx_to_matrix (list_of_Qubits (3+n)) (fun x => f (S x))))
-= (bool_to_matrix ((f 0%nat) ⊕ ⌈ adder_z_rbexp | (fun x => f (S x)) ⌉)) ⊗ 
+⟦adder_z_circ_with_pads n⟧ ((bool_to_matrix (f 0)) ⊗ (ctx_to_matrix (list_of_Qubits (3+n)) (fun x => f (S x))))
+= (bool_to_matrix ((f 0) ⊕ ⌈ adder_z_bexp | (fun x => f (S x)) ⌉)) ⊗ 
   (ctx_to_matrix (list_of_Qubits (3+n)) (fun x => f (S x))).
 Proof.
 intros.
-apply (compile_correct adder_z_rbexp (list_of_Qubits (3+n)) (fun x => f (S x)) (f 0%nat)).
-apply (sub_some (Some Qubit) Qubit [Some Qubit; Some Qubit]).
-apply (sub_some (Some Qubit) Qubit [Some Qubit]).
-apply (sub_some (Some Qubit) Qubit []).
-apply sub_empty.
+apply (compile_correct adder_z_bexp (list_of_Qubits (3+n)) (fun x => f (S x)) (f 0%nat)).
+repeat constructor.
 Qed.
 
 Lemma calc_xor_circ_spec : forall (x y r : bool),
-⟦calc_xor_circ⟧ ((bool_to_matrix r) ⊗ (ctx_to_matrix [Some Qubit; Some Qubit] (list_to_function [x; y] false)))
-= (bool_to_matrix (r ⊕ ⌈ xor_rbexp | list_to_function [x; y] false ⌉)) ⊗ 
-  (ctx_to_matrix [Some Qubit; Some Qubit] (list_to_function [x; y] false)).
+⟦calc_xor_circ⟧ (bool_to_matrix r ⊗ bools_to_matrix [x; y])
+= bool_to_matrix (r ⊕ ⌈ xor_bexp | fun_of_bools [x; y] ⌉) ⊗ 
+  bools_to_matrix [x; y].
 Proof.
 intros.
-apply (compile_correct xor_rbexp [Some Qubit; Some Qubit] (list_to_function [x; y] false) r).
-apply (sub_some (Some Qubit) Qubit [Some Qubit]).
-apply (sub_some (Some Qubit) Qubit []).
-apply sub_empty.
+apply (compile_correct xor_bexp [Some Qubit; Some Qubit] (fun_of_bools [x; y]) r).
+repeat constructor.
 Qed.
+
 (* Proof of specification using matrix_denote : failed
 Lemma calc_xor_circ_spec_matrix : forall (x y z : bool),
   ⟦xor_circ⟧ ((bool_to_matrix x) ⊗ (bool_to_matrix y) ⊗ (bool_to_matrix z))
@@ -227,25 +223,25 @@ Proof.
 Qed.
 *)
 
+(* Should just be bool_to_matrix x *)
 Lemma calc_id_circ_spec : forall (x r : bool),
-⟦calc_id_circ⟧ ((bool_to_matrix r) ⊗ (ctx_to_matrix [Some Qubit] (list_to_function [x] false)))
-= (bool_to_matrix (r ⊕ ⌈ id_rbexp | list_to_function [x] false ⌉)) ⊗ 
-  (ctx_to_matrix [Some Qubit] (list_to_function [x] false)).
+⟦calc_id_circ⟧ (bool_to_matrix r ⊗ bools_to_matrix [x])
+= (bool_to_matrix (r ⊕ ⌈ id_bexp | fun_of_bools [x] ⌉)) ⊗ 
+  bools_to_matrix [x].
 Proof.
 intros.
-apply (compile_correct id_rbexp [Some Qubit] (list_to_function [x] false) r).
+apply (compile_correct id_bexp [Some Qubit] (fun_of_bools [x]) r).
 apply (sub_some (Some Qubit) Qubit []).
 apply sub_empty.
 Qed.
 
 Lemma calc_id_circ_with_pads_spec : forall (n : nat) (f : Var -> bool),
 ⟦calc_id_circ_with_pads n⟧ ((bool_to_matrix (f 0%nat)) ⊗ (ctx_to_matrix (list_of_Qubits (1+n)) (fun x => f (S x))))
-= ((bool_to_matrix (f 0%nat  ⊕ ⌈ id_rbexp | (fun x => f (S x)) ⌉)) ⊗ (ctx_to_matrix (list_of_Qubits (1+n)) (fun x => f (S x)))).
+= ((bool_to_matrix (f 0%nat  ⊕ ⌈ id_bexp | (fun x => f (S x)) ⌉)) ⊗ (ctx_to_matrix (list_of_Qubits (1+n)) (fun x => f (S x)))).
 Proof.
 intros.
-apply (compile_correct id_rbexp (list_of_Qubits (1+n)) (fun x => f (S x)) (f 0%nat)).
-apply (sub_some (Some Qubit) Qubit []).
-apply sub_empty.
+apply (compile_correct id_bexp (list_of_Qubits (1+n)) (fun x => f (S x)) (f 0%nat)).
+repeat constructor.
 Qed.
 Close Scope matrix_scope.
 
@@ -254,11 +250,11 @@ Input : (cout, (z, (y, (x, (cin, ())))))
 Output : (cout', (z', (y, (x, (cin, ())))))
 *)
 Definition adder_circ_1 : Box (5 ⨂ Qubit) (5 ⨂ Qubit) := 
-  (id_circ || adder_z_circ) ;; adder_cout_circ.
+  (id_circ ∥ adder_z_circ) ;; adder_cout_circ.
 
 Local Obligation Tactic := program_simpl; try omega.
 Program Definition adder_circ_1_with_pads (n : nat) : Box ((5+n) ⨂ Qubit) ((5+n) ⨂ Qubit) := 
-  ((@id_circ Qubit) || (adder_z_circ_with_pads n)) ;; 
+  ((@id_circ Qubit) ∥ (adder_z_circ_with_pads n)) ;; 
   (adder_cout_circ_with_pads n).
 Next Obligation.
   induction n.
@@ -294,11 +290,11 @@ Qed.
 
 Open Scope matrix_scope.
 Lemma adder_circ_1_spec : forall (cin x y z cout : bool),
-  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (list_to_function [cout; z; y; x; cin] false))
+  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (fun_of_bools [cout; z; y; x; cin]))
   = (ctx_to_matrix 
       (list_of_Qubits 5) 
-      (list_to_function [cout ⊕ ⌈ adder_cout_rbexp | list_to_function [z; y; x; cin] false ⌉; 
-                         z ⊕ ⌈ adder_z_rbexp | list_to_function [y; x; cin] false ⌉; y; x; cin] false)).
+      (fun_of_bools [cout ⊕ ⌈ adder_cout_bexp | fun_of_bools [z; y; x; cin] ⌉; 
+                         z ⊕ ⌈ adder_z_bexp | fun_of_bools [y; x; cin] ⌉; y; x; cin])).
 Proof.
   intros.
   unfold adder_circ_1.
@@ -308,24 +304,14 @@ Proof.
     unfold ctx_to_matrix. simpl.
     rewrite_inPar.
     + remember adder_z_circ_spec as H; clear HeqH.
-      unfold ctx_to_matrix in H. simpl in H.
+      unfold bools_to_matrix in H. simpl in H.
       rewrite H. clear H.
       simpl_rewrite id_circ_Id.
       * remember adder_cout_circ_spec as H; clear HeqH.
-        unfold ctx_to_matrix in H. simpl in H.
+      unfold bools_to_matrix in H. simpl in H.
         rewrite H. clear H.
         reflexivity.
       * apply WF_bool_to_matrix.
-    + simpl. apply (CNOT_at_WT 4%nat 3%nat 0%nat).
-    + simpl. apply (CNOT_at_WT 4%nat 3%nat 0%nat).
-    + simpl. apply (CNOT_at_WT 4%nat 2%nat 0%nat).
-    + simpl. apply (CNOT_at_WT 4%nat 2%nat 0%nat).
-    + simpl. apply (CNOT_at_WT 4%nat 1%nat 0%nat).
-    + simpl. apply (CNOT_at_WT 4%nat 1%nat 0%nat).
-    + simpl. apply (CNOT_at_WT 4%nat 2%nat 0%nat).
-    + simpl. apply (CNOT_at_WT 4%nat 2%nat 0%nat).
-    + simpl. apply (CNOT_at_WT 4%nat 1%nat 0%nat).
-    + simpl. apply (CNOT_at_WT 4%nat 1%nat 0%nat).
   - apply adder_cout_circ_WT.
   - apply inPar_WT.
     + apply id_circ_WT.
@@ -334,8 +320,8 @@ Qed.
 
 Lemma adder_circ_1_with_pads_spec : forall (n : nat) (f : Var -> bool),
 ⟦adder_circ_1_with_pads n⟧ (ctx_to_matrix (list_of_Qubits (5+n)) f)
-= (bool_to_matrix ((f 0%nat) ⊕ ⌈ adder_cout_rbexp | (fun x => f (S x)) ⌉)) ⊗
-  ((bool_to_matrix ((f 1%nat) ⊕ ⌈ adder_z_rbexp | (fun x => f (S (S x))) ⌉)) ⊗
+= (bool_to_matrix ((f 0) ⊕ ⌈ adder_cout_bexp | (fun x => f (S x)) ⌉)) ⊗
+  ((bool_to_matrix ((f 1) ⊕ ⌈ adder_z_bexp | (fun x => f (S (S x))) ⌉)) ⊗
   (ctx_to_matrix (list_of_Qubits (3+n)) (fun x => f (S (S x))))).
 Proof.
   intros.
@@ -347,16 +333,17 @@ Proof.
     unfold ctx_to_matrix. simpl.
     rewrite_inPar.
     + 
-      assert (H1 : forall n f, length (ctx_to_mat_list (list_of_Qubits n) f) = size_ctx (list_of_Qubits n)).
+      assert (H1 : forall n f, length (ctx_to_mat_list (list_of_Qubits n) f) = 
+                          size_ctx (list_of_Qubits n)).
       { induction n0.
-        - reflexivity.
-        - intros. simpl. rewrite IHn0. reflexivity. }
+        - easy.
+        - intros. simpl. rewrite IHn0. easy. }
       remember adder_z_circ_with_pads_spec as H; clear HeqH.
       specialize (H n%nat (fun (x : Var) => f (S x))).
       unfold ctx_to_matrix in H.
       simpl in *. unfold kron at 5.
       unfold kron in H at 4.
-      rewrite (H1 n (fun v : Var => f (S (S (S (S (S v))))))) in H.
+      rewrite H1 in H. unfold list_of_Qubits in H.
       rewrite H.
       clear H1 H.
       simpl_rewrite id_circ_Id.
@@ -373,21 +360,9 @@ Proof.
         unfold ctx_to_matrix in H. simpl in H.
         simpl in *. unfold kron at 5.
         unfold kron in H at 5.
-        rewrite (H1 n (fun v : Var => f (S (S (S (S (S v))))))) in H.
-        rewrite H.
-        clear H1 H.
-        reflexivity.
+        rewrite H1 in H. unfold list_of_Qubits in H.
+        apply H.
       * apply WF_bool_to_matrix.
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 3%nat 0%nat).
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 3%nat 0%nat).
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 2%nat 0%nat).
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 2%nat 0%nat).
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 1%nat 0%nat).
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 1%nat 0%nat).
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 2%nat 0%nat).
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 2%nat 0%nat).
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 1%nat 0%nat).
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 1%nat 0%nat).
   - apply adder_cout_circ_with_pads_WT.
   - apply inPar_WT.
     + apply id_circ_WT.
@@ -396,36 +371,36 @@ Qed.
 Close Scope matrix_scope.
 
 Lemma adder_circ_1_test_000 :
-  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (list_to_function [false; false; false; false; false] false))
-  = (ctx_to_matrix (list_of_Qubits 5) (list_to_function [false; false ; false; false; false] false)).
+  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (fun_of_bools [false; false; false; false; false]))
+  = (ctx_to_matrix (list_of_Qubits 5) (fun_of_bools [false; false ; false; false; false])).
 Proof. apply adder_circ_1_spec. Qed.
 Lemma adder_circ_1_test_001 :
-  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (list_to_function [false; false; false; false; true] false))
-  = (ctx_to_matrix (list_of_Qubits 5) (list_to_function [false; true ; false; false; true] false)).
+  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (fun_of_bools [false; false; false; false; true]))
+  = (ctx_to_matrix (list_of_Qubits 5) (fun_of_bools [false; true ; false; false; true])).
 Proof. apply adder_circ_1_spec. Qed.
 Lemma adder_circ_1_test_010 :
-  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (list_to_function [false; false; false; true; false] false))
-  = (ctx_to_matrix (list_of_Qubits 5) (list_to_function [false; true ; false; true; false] false)).
+  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (fun_of_bools [false; false; false; true; false]))
+  = (ctx_to_matrix (list_of_Qubits 5) (fun_of_bools [false; true ; false; true; false] )).
 Proof. apply adder_circ_1_spec. Qed.
 Lemma adder_circ_1_test_011 :
-  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (list_to_function [false; false; false; true; true] false))
-  = (ctx_to_matrix (list_of_Qubits 5) (list_to_function [true; false ; false; true; true] false)).
+  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (fun_of_bools [false; false; false; true; true]))
+  = (ctx_to_matrix (list_of_Qubits 5) (fun_of_bools [true; false ; false; true; true] )).
 Proof. apply adder_circ_1_spec. Qed.
 Lemma adder_circ_1_test_100 :
-  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (list_to_function [false; false; true; false; false] false))
-  = (ctx_to_matrix (list_of_Qubits 5) (list_to_function [false; true ; true; false; false] false)).
+  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (fun_of_bools [false; false; true; false; false]))
+  = (ctx_to_matrix (list_of_Qubits 5) (fun_of_bools [false; true ; true; false; false] )).
 Proof. apply adder_circ_1_spec. Qed.
 Lemma adder_circ_1_test_101 :
-  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (list_to_function [false; false; true; false; true] false))
-  = (ctx_to_matrix (list_of_Qubits 5) (list_to_function [true; false ; true; false; true] false)).
+  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (fun_of_bools [false; false; true; false; true]))
+  = (ctx_to_matrix (list_of_Qubits 5) (fun_of_bools [true; false ; true; false; true] )).
 Proof. apply adder_circ_1_spec. Qed.
 Lemma adder_circ_1_test_110 :
-  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (list_to_function [false; false; true; true; false] false))
-  = (ctx_to_matrix (list_of_Qubits 5) (list_to_function [true; false ; true; true; false] false)).
+  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (fun_of_bools [false; false; true; true; false]))
+  = (ctx_to_matrix (list_of_Qubits 5) (fun_of_bools [true; false ; true; true; false] )).
 Proof. apply adder_circ_1_spec. Qed.
 Lemma adder_circ_1_test_111 :
-  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (list_to_function [false; false; true; true; true] false))
-  = (ctx_to_matrix (list_of_Qubits 5) (list_to_function [true; true ; true; true; true] false)).
+  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (fun_of_bools [false; false; true; true; true] ))
+  = (ctx_to_matrix (list_of_Qubits 5) (fun_of_bools [true; true ; true; true; true] )).
 Proof. apply adder_circ_1_spec. Qed.
 
 (*
@@ -433,13 +408,14 @@ Input : (cout, (z1, (y1, (x1, (z2, (y2, (x2, ... , (zn, (yn, (xn, (cin, ()))))))
 Output : (cout', (z1', (y1, (x1, (z2', (y2, (x2, ... , (zn', (yn, (xn, (cin, ())))))))))))
 *)
 
+(* This can be refactored using init_at *)
 Program Fixpoint adder_circ_n (n : nat) : Box ((2+n+n+n) ⨂ Qubit) ((2+n+n+n) ⨂ Qubit) := 
   match n with
   | O => calc_id_circ
-  | S n' => ((@id_circ Qubit) || ((@id_circ Qubit) || ((@id_circ Qubit) || ((@id_circ Qubit) || (strip_one_l_in (init0 || (inParMany (1+n'+n'+n') (@id_circ Qubit)))))))) ;; 
-            ((@id_circ Qubit) || ((@id_circ Qubit) || ((@id_circ Qubit) || ((@id_circ Qubit) || ((adder_circ_n n')))))) ;; 
+  | S n' => ((@id_circ Qubit) ∥ ((@id_circ Qubit) ∥ ((@id_circ Qubit) ∥ ((@id_circ Qubit) ∥ (strip_one_l_in (init0 ∥ (inParMany (1+n'+n'+n') (@id_circ Qubit)))))))) ;; 
+            ((@id_circ Qubit) ∥ ((@id_circ Qubit) ∥ ((@id_circ Qubit) ∥ ((@id_circ Qubit) ∥ ((adder_circ_n n')))))) ;; 
             (adder_circ_1_with_pads (1+n'+n'+n')) ;;
-            ((@id_circ Qubit) || ((@id_circ Qubit) || ((@id_circ Qubit) || ((@id_circ Qubit) || (strip_one_l_out (assert0 || (inParMany (1+n'+n'+n') (@id_circ Qubit))))))))
+            ((@id_circ Qubit) ∥ ((@id_circ Qubit) ∥ ((@id_circ Qubit) ∥ ((@id_circ Qubit) ∥ (strip_one_l_out (assert0 ∥ (inParMany (1+n'+n'+n') (@id_circ Qubit))))))))
   end.
 Next Obligation.
   replace (n' + S n' + S n')%nat with (2 + n' + n' + n')%nat by omega.
@@ -468,152 +444,93 @@ Proof.
 Qed.
 
 (* For n-adder specification *)
-Fixpoint n_adder_cout_rbexp (n m : nat) : rbexp :=
+Fixpoint n_adder_cout_bexp (n m : nat) : bexp :=
   match m with
-  | O => rb_var (n+n+n+1)%nat (* cin = rb_var (n+n+n+1)%nat *)
+  | O => b_var (n+n+n+1)%nat (* cin = b_var (n+n+n+1)%nat *)
   | S m' => let i := (n-m)%nat in
-            rb_xor (rb_and (n_adder_cout_rbexp n m') (rb_xor (rb_var (i+i+i+3)%nat) (rb_var (i+i+i+2)%nat))) (rb_and (rb_var (i+i+i+3)%nat) (rb_var (i+i+i+2)%nat))
-             (* cin = n_adder_cout_rbexp n m'
-                x = rb_var (i+i+i+3)%nat
-                y = rb_var (i+i+i+2)%nat *)
+            b_xor (b_and (n_adder_cout_bexp n m') (b_xor (b_var (i+i+i+3)%nat) (b_var (i+i+i+2)%nat))) (b_and (b_var (i+i+i+3)%nat) (b_var (i+i+i+2)%nat))
+             (* cin = n_adder_cout_bexp n m'
+                x = b_var (i+i+i+3)%nat
+                y = b_var (i+i+i+2)%nat *)
   end.
 
-Eval simpl in n_adder_cout_rbexp 3 3.
-Eval simpl in n_adder_cout_rbexp 3 2.
-Eval simpl in n_adder_cout_rbexp 3 1.
-Eval simpl in n_adder_cout_rbexp 3 0.
+Eval simpl in n_adder_cout_bexp 3 3.
+Eval simpl in n_adder_cout_bexp 3 2.
+Eval simpl in n_adder_cout_bexp 3 1.
+Eval simpl in n_adder_cout_bexp 3 0.
 
-Definition n_adder_z_rbexp (n m : nat) : rbexp :=
+Definition n_adder_z_bexp (n m : nat) : bexp :=
   match m with
-  | O => rb_var (n+n+n+1)%nat (* cin = rb_var (n+n+n+1)%nat *)
+  | O => b_var (n+n+n+1)%nat (* cin = b_var (n+n+n+1)%nat *)
   | S m' => let i := (n-m)%nat in
-            rb_xor (n_adder_cout_rbexp n m') (rb_xor (rb_var (i+i+i+3)%nat) (rb_var (i+i+i+2)%nat))
-             (* cin = n_adder_cout_rbexp n m'
-                x = rb_var (i+i+i+3)%nat
-                y = rb_var (i+i+i+2)%nat *)
+            b_xor (n_adder_cout_bexp n m') (b_xor (b_var (i+i+i+3)%nat) (b_var (i+i+i+2)%nat))
+             (* cin = n_adder_cout_bexp n m'
+                x = b_var (i+i+i+3)%nat
+                y = b_var (i+i+i+2)%nat *)
   end.
 
-Eval simpl in n_adder_z_rbexp 3 3.
-Eval simpl in n_adder_z_rbexp 3 2.
-Eval simpl in n_adder_z_rbexp 3 1.
-Eval simpl in n_adder_z_rbexp 3 0.
+Eval simpl in n_adder_z_bexp 3 3.
+Eval simpl in n_adder_z_bexp 3 2.
+Eval simpl in n_adder_z_bexp 3 1.
+Eval simpl in n_adder_z_bexp 3 0.
 
 Fixpoint n_adder_z_compute (n m : nat) (f : Var -> bool) : (Var -> bool) :=
   match m with
   | O => f
   | S m' => let i := (n-m)%nat in
             (fun f' => (fun x => if x =? (i+i+i+1)%nat then
-                                  (f' x) ⊕ ⌈ n_adder_z_rbexp n m | f ⌉
+                                  (f' x) ⊕ ⌈ n_adder_z_bexp n m | f ⌉
                                  else
                                   f' x)) (n_adder_z_compute n m' f)
   end.
 
 Definition n_adder_cout_compute (n : nat) (f : Var -> bool) : (Var -> bool) :=
   fun x => match x with
-           | O => (f 0%nat) ⊕ ⌈ n_adder_cout_rbexp n n | f ⌉
+           | O => (f 0%nat) ⊕ ⌈ n_adder_cout_bexp n n | f ⌉
            | S x' => f (S x')
            end.
 
-Eval compute in (n_adder_z_compute 2 2 (list_to_function [false; false ; true; true; false; true; true; false] false)) 1%nat.
-Eval compute in (n_adder_z_compute 3 3 (list_to_function [false; false ; true; true; false; true; true; false; true; true; true] false)).
-Eval compute in (n_adder_cout_compute 3 (list_to_function [false; false ; true; true; false; true; true; false; true; true; true] false)).
-Eval compute in (n_adder_cout_compute 3 (n_adder_z_compute 3 3 (list_to_function [false; false ; true; true; false; true; true; false; true; true; true] false))).
+Eval compute in (n_adder_z_compute 2 2 (fun_of_bools [false; false ; true; true; false; true; true; false])) 1%nat.
+Eval compute in (n_adder_z_compute 3 3 (fun_of_bools [false; false ; true; true; false; true; true; false; true; true; true])).
+Eval compute in (n_adder_cout_compute 3 (fun_of_bools [false; false ; true; true; false; true; true; false; true; true; true])).
+Eval compute in (n_adder_cout_compute 3 (n_adder_z_compute 3 3 (fun_of_bools [false; false ; true; true; false; true; true; false; true; true; true]))).
 
-Program Fixpoint adder_circ_n' (n : nat) : Box ((2+n) ⨂ Qubit) ((2+n) ⨂ Qubit) := 
+(* Simplified, but I can't see this doing what we want *)
+Fixpoint adder_circ_n' (n : nat) : Box ((2+n) ⨂ Qubit) ((2+n) ⨂ Qubit) := 
   match n with
   | O => calc_id_circ
-  | S n' => ((@id_circ Qubit) || (strip_one_l_in (init0 || (inParMany (2+n') (@id_circ Qubit))))) ;; 
-            ((@id_circ Qubit) || (strip_one_l_out (assert0 || (inParMany (2+n') (@id_circ Qubit)))))
+  | S n' => ((@id_circ Qubit) ∥ (strip_one_l_in (init0 ∥ id_circ))) ;; 
+            ((@id_circ Qubit) ∥ (strip_one_l_out (assert0 ∥ id_circ)))
   end.
+
 Open Scope matrix_scope.
 Lemma adder_circ_n'_spec : forall (n : nat) (f : Var -> bool),
 ⟦adder_circ_n' n⟧ (ctx_to_matrix (list_of_Qubits (2+n)) f)
 = (ctx_to_matrix (list_of_Qubits (2+n)) (n_adder_cout_compute n (n_adder_z_compute n n f))).
 Proof.
   induction n.
-  - intros.
-    remember (calc_id_circ_spec (f 1%nat) (f 0%nat)).
-    simpl in *. unfold ctx_to_matrix in *.
-    unfold big_kron in *. simpl in *. apply e.
-  - intros.
-    Opaque denote. simpl_eq. Transparent denote.
-    rewrite inSeq_correct. unfold compose_super.
-    unfold ctx_to_matrix.
-    replace ((n + S n + S n)%nat) with ((2 + n + n + n)%nat) by omega.
-    simpl. remember inPar_correct. simpl in e.
-    Set Printing All. Msimpl.
-    Set Printing All. clear e Heqe IHn.
-    Set Printing All.
-    assert (H2 : forall n f, @length (Matrix (S (S O)) (S (S O)))
-    (ctx_to_mat_list (list_of_Qubits n) f) = n).
-    { induction n0.
-      - reflexivity.
-      - intros. simpl. rewrite IHn0. reflexivity. }
-    rewrite H2.
-    rewrite_inPar.
-    Set Printing All.
-    assert (H1 : forall n, (size_ctx (list_of_Qubits n )) = n).
-    { induction n0.
-      - reflexivity.
-      - simpl. rewrite IHn0. reflexivity. }
-    rewrite H1.
-    Set Printing All.
-    show_dimensions.
-    rewrite plus_0_r.
-    replace (2 ^ n + 2 ^ n)%nat with (2 ^ (1+n))%nat.
-    Check big_kron.
-    assert (H3 : (kron' 2 2 (2 ^ (1 + n)) (2 ^ (1 + n)) (bool_to_matrix (f 1%nat))
-           (kron' 2 2 (2 ^ n) (2 ^ n) (bool_to_matrix (f 2%nat))
-              (⨂ ctx_to_mat_list (list_of_Qubits n)
-                   (fun v : Var => f (S (S (S v))))))) = ((Id 1) ⊗ (kron' 2 2 (2 ^ (1 + n)) (2 ^ (1 + n)) (bool_to_matrix (f 1%nat))
-           (kron' 2 2 (2 ^ n) (2 ^ n) (bool_to_matrix (f 2%nat))
-              (⨂ ctx_to_mat_list (list_of_Qubits n)
-                   (fun v : Var => f (S (S (S v))))))))).
-    { rewrite kron_1_l. reflexivity. admit. }
-    rewrite H3. clear H3.
-    rewrite strip_one_l_in_eq.
-    show_dimensions.
-    Check (denote_box true (init0 || (id_circ || (id_circ || id_circ # n)))).
-    simpl. remember inPar_correct.
-    rewrite plus_0_r.
-    replace (2 ^ n + 2 ^ n)%nat with (2 ^ (1+n))%nat.
-    rewrite plus_0_r. 
-    replace (2 ^ (1 + n) + 2 ^ (1 + n))%nat with (2 * 2 * 2 ^ n)%nat.
-    Set Printing All. hide_dimensions. simpl in e.
-    rewrite e.
-    rewrite (e One Qubit (NTensor n Qubit) (NTensor n Qubit)).
-show_dimensions.
-    hide_dimensions.
-    rewrite inPar_correct.
-    rewrite <- (kron_1_l (2^(4+n)) (2^(4+n))).
-    rewrite <- (kron_1_l (2^(3+n)) (2^(3+n))).
-    Check kron.
-    listify_kron.
-    matrix_denote.
-    solve_matrix.
-    denote_matrix.
-unfold denote_box.
-    program_simpl.
-    rewrite <- (kron_1_l (2^(4+n)) (2^(4+n))).
-    remember (bool_to_matrix (f 1%nat)
-        ⊗ (bool_to_matrix (f 2%nat)
-           ⊗ (⨂ ctx_to_mat_list (list_of_Qubits n)
-                  (fun v : Var => f (S (S (S v))))))).
-    unfold ctx_to_mat_list.
-    unfold list_of_Qubits. simpl.
-    Msimpl.
-    rewrite <- kron_1_l.
-    rewrite <- kron_1_l.
-    rewrite <- kron_1_l.
-    assert (H : denote_box true (strip_one_l_out)
-    rewrite (e Qubit Qubit (NTensor (2+n)%nat Qubit) (NTensor (3+n)%nat Qubit)).
-    rewrite_inPar.
-    unfold list_of_Qubits. fold list_of_Qubits.
-    specialize inSeq_correct as IS. simpl in IS.
-    simpl. repeat (rewrite IS; compile_typing (compile_WT)).
+  - intros f. apply calc_id_circ_spec.
+  - intros f.
+    simpl.
+    simpl_rewrite inSeq_correct.
     unfold compose_super.
-    Set Printing All.
-    apply inPar_correct 
+    unfold list_of_Qubits in *.
+    simpl. 
+    unfold ctx_to_matrix in *. simpl in *.
+    rewrite Nat.sub_diag in *. simpl in *.
+    rewrite_inPar'.
+    rewrite strip_one_l_in_eq.
+    rewrite <- (kron_1_l _ _ (bool_to_matrix (f 1) ⊗ _)). 
+    repeat rewrite_inPar'.
+    repeat simpl_rewrite id_circ_Id.    
+    simpl_rewrite init0_spec.
+    rewrite strip_one_l_out_eq.
+    rewrite_inPar'.
+    simpl_rewrite id_circ_Id.    
+    simpl_rewrite assert0_spec.
+    rewrite kron_1_l.
+(* this is an identity, so that's as far as you get *)
+Abort.
 
 Open Scope matrix_scope.
 Lemma adder_circ_n_spec : forall (n : nat) (f : Var -> bool),
@@ -631,6 +548,9 @@ Proof.
     simpl. repeat (rewrite IS; compile_typing (compile_WT)).
     unfold compose_super.
     Set Printing All.
+
+(* ??? *)
+
     apply inPar_correct 
 
 (Tensor Qubit
@@ -720,10 +640,10 @@ fold inParMany (n + n + n + 1)%nat (@id_circ Qubit).
       rewrite_inPar.
       Set Printing All.
       apply inSeq_correct.
-      Check (denote_box true (init0 || id_circ # (n + n + n + 1))).
+      Check (denote_box true (init0 ∥ id_circ # (n + n + n + 1))).
       Set Printing All. simpl.
       Set Printing All.
-      Check (init0 || id_circ # (n + n + n + 1)).
+      Check (init0 ∥ id_circ # (n + n + n + 1)).
       Check (ctx_to_mat_list (list_of_Qubits (n + n + n + 1))).
       replace ((n + n + n + 1)%nat) with ((1 + n + n + n)%nat).
       rewrite_inPar.
@@ -765,13 +685,13 @@ rewrite H2. rewrite inPar_correct.
     Opaque denote. unfold adder_circ_n. simpl_eq. Transparent denote.
     Opaque denote. simpl. simpl_eq. Transparent denote.
     rewrite inSeq_correct. unfold compose_super.
-    + rewrite_inPar. remember ((⟦ id_circ || (id_circ || (id_circ || (id_circ || adder_circ_n n)));;
+    + rewrite_inPar. remember ((⟦ id_circ ∥ (id_circ ∥ (id_circ ∥ (id_circ ∥ adder_circ_n n)));;
    adder_circ_1_with_pads (n + n + n + 1);;
    id_circ
-   || (id_circ
-       || (id_circ
-           || (id_circ
-               || strip_one_l_out (assert0 || id_circ # (n + n + n + 1))))) ⟧)).
+   ∥ (id_circ
+       ∥ (id_circ
+           ∥ (id_circ
+               ∥ strip_one_l_out (assert0 ∥ id_circ # (n + n + n + 1))))) ⟧)).
 unfold denote at 2. rewrite inPar_correct. Check inPar_correct. rewrite_inPar.
 rewrite inSeq_correct. unfold compose_super.
       * rewrite inSeq_correct. unfold compose_super.
@@ -792,9 +712,9 @@ Output : (0, (1, (1, (0, (1, (0, (1, (0, ()))))))))
 *)
 Lemma adder_circ_n_unit_test_0 :
   ⟦adder_circ_n 2⟧ (ctx_to_matrix (list_of_Qubits 8) 
-    (list_to_function [false; false; true; false; false; false; true; false] false))
+    (fun_of_bools [false; false; true; false; false; false; true; false] false))
   = (ctx_to_matrix (list_of_Qubits 5) 
-    (list_to_function [false; true ; true; false; true; false; true; false] false)).
+    (fun_of_bools [false; true ; true; false; true; false; true; false] false)).
 Proof.
   simpl.
   rewrite_inPar.
@@ -836,11 +756,11 @@ Lemma DBCircuit_equiv : forall {W1 W2} (Γ : Ctx) (b : Box W1 W2) (p : Pat W1),
 
 Open Scope matrix_scope.
 Lemma adder_circ_1_spec : forall (cin x y z cout : bool),
-  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (list_to_function [cout; z; y; x; cin] false))
+  ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (fun_of_bools [cout; z; y; x; cin] false))
   = (ctx_to_matrix 
       (list_of_Qubits 5) 
-      (list_to_function [cout ⊕ ⌈ adder_cout_rbexp | list_to_function [y; x; cin] false ⌉; 
-                         z ⊕ ⌈ adder_z_rbexp | list_to_function [y; x; cin] false ⌉; y; x; cin] false)).
+      (fun_of_bools [cout ⊕ ⌈ adder_cout_bexp | fun_of_bools [y; x; cin] false ⌉; 
+                         z ⊕ ⌈ adder_z_bexp | fun_of_bools [y; x; cin] false ⌉; y; x; cin] false)).
 Proof.
 intros.
 rewrite denote_db_unbox.
@@ -897,9 +817,9 @@ simpl. Transparent Types_Pat.
    ⊩ unbox adder_z_circ
        (qubit 1%nat, (qubit 2%nat, (qubit 3%nat, (qubit 4%nat, ())))) ⟩)
   (ctx_to_matrix [Some Qubit; Some Qubit; Some Qubit; Some Qubit; Some Qubit]
-     (list_to_function [cout; z; y; x; cin] false)) 
-    = (bool_to_matrix (z ⊕ ⌈ adder_z_rbexp | list_to_function [y; x; cin] false ⌉)) ⊗ 
-  (ctx_to_matrix [Some Qubit; Some Qubit; Some Qubit] (list_to_function [y; x; cin] false))).
+     (fun_of_bools [cout; z; y; x; cin] false)) 
+    = (bool_to_matrix (z ⊕ ⌈ adder_z_bexp | fun_of_bools [y; x; cin] false ⌉)) ⊗ 
+  (ctx_to_matrix [Some Qubit; Some Qubit; Some Qubit] (fun_of_bools [y; x; cin] false))).
 unfold compose_super.
   Check denote_circuit.
   Locate "⋓".
@@ -960,7 +880,7 @@ unfold wproj at 1.
 unfold letpair at 1.
 rewrite denote_compose with (Γ:=Valid [Some Qubit; Some Qubit; Some Qubit; Some Qubit]) (Γ1:=Valid []).
 unfold db_
-apply (compile_correct xor_rbexp [Some Qubit; Some Qubit] (list_to_function [x; y] false) r).
+apply (compile_correct xor_bexp [Some Qubit; Some Qubit] (fun_of_bool [x; y] false) r).
 apply (sub_some Qubit [Some Qubit]).
 Qed.
 Close Scope matrix_scope.
