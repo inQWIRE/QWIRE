@@ -280,7 +280,6 @@ Proof.
       + apply Nat.succ_inj_wd_neg. apply pf_i_j.
 Defined.
 
-
 Opaque CNOT_at_i0.
 Opaque CNOT_at_j0.
 
@@ -511,10 +510,10 @@ Admitted.
 
 Fixpoint assert_at (b : bool) (n i : nat) {struct i}: Box (S n ⨂ Qubit) (n ⨂ Qubit) :=
   match i with
-  | 0    => strip_one_l_out (assert b || id_circ) 
+  | 0    => strip_one_l_out (assert b ∥ id_circ) 
   | S i' => match n with
-           | 0 => strip_one_l_out (assert b || id_circ) (* error *)
-           | S n' => (id_circ || assert_at b n' i')
+           | 0 => strip_one_l_out (assert b ∥ id_circ) (* error *)
+           | S n' => (id_circ ∥ assert_at b n' i')
            end
   end.
 
@@ -531,13 +530,12 @@ Proof.
       apply IHi.
 Qed.
 
-
 Fixpoint init_at (b : bool) (n i : nat) {struct i}: Box (n ⨂ Qubit) (S n ⨂ Qubit) :=
   match i with 
-  | 0    => strip_one_l_in (init b || id_circ)
+  | 0    => strip_one_l_in (init b ∥ id_circ)
   | S i' => match n with
-           | 0    => strip_one_l_in (init b || id_circ) (* error *)
-           | S n' => (id_circ || init_at b n' i')
+           | 0    => strip_one_l_in (init b ∥ id_circ) (* error *)
+           | S n' => id_circ ∥ init_at b n' i'
            end
   end.
 
@@ -670,10 +668,84 @@ Proof.
   * admit.
 Admitted.
 
+(* Move to DBCircuits *)
+Lemma fresh_state_ntensor : forall n (Γ : Ctx), fresh_state (n ⨂ Qubit) (Valid Γ) = 
+                                           Valid (Γ ++ List.repeat (Some Qubit) n).
+Proof.                            
+  induction n. 
+  - intros. simpl. rewrite app_nil_r; reflexivity.
+  - intros. simpl. rewrite IHn. rewrite <- app_assoc. reflexivity.
+Qed.
+
+(* Strong sematics for init and assert *)
+Open Scope matrix_scope.
+Lemma init_at_spec_strong : forall b n i (ρ : Square (2^n)), i <= n ->
+  ⟦init_at b n i⟧ ρ = ('I_ (2^i) ⊗ bool_to_ket b ⊗ 'I_ (2^ (n-i))) × ρ × 
+                     ('I_ (2^i) ⊗ (bool_to_ket b)† ⊗ 'I_ (2^ (n-i))).
+Admitted.
+
+(* Safe semantics *)
+Lemma assert_at_spec_strong : forall b n i (ρ : Square (2^n)), i <= n ->
+  ⟦assert_at b n i⟧ ρ = 
+  ('I_ (2^i) ⊗ ⟨0| ⊗ 'I_ (2^ (n-i))) × ρ × ('I_ (2^i) ⊗ |0⟩ ⊗ 'I_ (2^ (n-i))) .+ 
+  ('I_ (2^i) ⊗ ⟨1| ⊗ 'I_ (2^ (n-i))) × ρ × ('I_ (2^i) ⊗ |1⟩ ⊗ 'I_ (2^ (n-i))).
+Admitted.
 
 Lemma assert_init_at_id : forall b m i, i < S m ->
-    assert_at b m i · init_at b m i  ≡ id_circ.
-Admitted.
+    (assert_at b m i · init_at b m i  ≡ id_circ)%qc.
+Proof. 
+  intros b m i Lt ρ M. simpl.
+  simpl_rewrite id_circ_Id; auto with wf_db.
+  simpl_rewrite inSeq_correct; [ | apply assert_at_WT | apply init_at_WT].
+  unfold compose_super.
+  simpl_rewrite (init_at_spec_strong b m i); [|omega].
+  simpl_rewrite (assert_at_spec_strong b m i); [|omega].
+  gen ρ. rewrite size_ntensor. simpl. rewrite Nat.mul_1_r.
+  intros ρ M.
+  repeat rewrite Mmult_assoc.
+  Msimpl.  
+  match goal with
+  | [|- @Mmult ?a ?b ?c ?A (@Mmult ?d ?e ?f ?B ?C) .+ _ = _] => 
+    setoid_rewrite <- (Mmult_assoc _ _ _ _ A B C)                                    
+  end.
+  Msimpl.
+  destruct b; simpl.
+  - replace (⟨0| × |1⟩) with (Zero 1 1) by crunch_matrix.
+    rewrite kron_0_r, kron_0_l. 
+    rewrite Mmult_0_l, Mplus_0_l. (* add to dbs *)
+    replace (⟨1| × |1⟩) with ('I_1).
+    2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
+    Msimpl.
+    setoid_rewrite (id_kron (2^i) (2^(m-i))).
+    rewrite Nat.mul_1_r.
+    replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
+    Msimpl.
+    rewrite <- Mmult_assoc.
+    setoid_rewrite kron_mixed_product.
+    Msimpl.
+    setoid_rewrite kron_mixed_product.
+    Msimpl.
+    replace (⟨1| × |1⟩) with ('I_1).
+    2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
+    rewrite id_kron.
+    rewrite Nat.mul_1_r.
+    rewrite id_kron.
+    unify_pows_two.
+    replace (i + (m - i)) with m by omega.    
+    rewrite Mmult_1_l by (auto with wf_db).
+    reflexivity.
+  - replace (⟨0| × |1⟩) with (Zero 1 1) by crunch_matrix.
+    rewrite kron_0_r, kron_0_l. 
+    repeat rewrite Mmult_0_r. rewrite Mplus_0_r.
+    replace (⟨0| × |0⟩) with ('I_1).
+    2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
+    Msimpl.
+    setoid_rewrite (id_kron (2^i) (2^(m-i))).
+    rewrite Nat.mul_1_r.
+    replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
+    Msimpl.
+    reflexivity.
+Qed.
 
 Lemma init_assert_at_valid : forall b m i W1 (c : Box W1 (S m ⨂ Qubit)), 
     i < S m ->
@@ -686,7 +758,7 @@ Lemma valid_ancillae_box'_equiv : forall W1 W2 (b1 b2 : Box W1 W2), b1 ≡ b2 ->
       valid_ancillae_box' b1 <-> valid_ancillae_box' b2.
 Admitted.
 
-(* IS THIS TRUE?? *)
+(* Follows from uniformity of trace *)
 Lemma valid_inSeq : forall w1 w2 w3 (c1 : Box w1 w2) (c2 : Box w2 w3),
       Typed_Box c1 -> Typed_Box c2 ->
       valid_ancillae_box' c1 -> valid_ancillae_box' c2 ->
@@ -695,6 +767,10 @@ Proof.
   intros w1 w2 w3 c1 c2 pf_c1 pf_c2 valid1 valid2. unfold valid_ancillae_box.
   set (H := inSeq_correct _ _ _ c2 c1 pf_c2 pf_c1).
   simpl in H.
+  unfold valid_ancillae_box' in *.
+  intros ρ M.
+  unfold inSeq.
+  unfold denote_box.  
 Admitted.
 
 (* Similar to "compile_typing" in Oracles.v, move elsewhere *)

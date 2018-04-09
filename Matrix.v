@@ -172,14 +172,14 @@ Infix ".+" := Mplus (at level 50, left associativity) : matrix_scope.
 Infix ".*" := scale (at level 40, left associativity) : matrix_scope.
 Infix "×" := Mmult (at level 40, left associativity) : matrix_scope.
 Infix "⊗" := kron (at level 40, left associativity) : matrix_scope.
-Infix "≡" := mat_equiv (at level 60) : matrix_scope.
+Infix "≡" := mat_equiv (at level 70) : matrix_scope.
 Notation "A ⊤" := (transpose A) (at level 0) : matrix_scope. 
 Notation "A †" := (conj_transpose A) (at level 0) : matrix_scope. 
-Notation "Σ^ n f" := (Csum f n) (at level 90) : matrix_scope.
-Hint Unfold Zero Id trace dot Mplus scale Mmult kron mat_equiv transpose 
-            conj_transpose : M_db.
+Notation "Σ^ n f" := (Csum f n) (at level 60) : matrix_scope.
 Notation "n ⨂ A" := (kron_n n A) (at level 30, no associativity) : matrix_scope.
 Notation "⨂ A" := (big_kron A) (at level 60): matrix_scope.
+Hint Unfold Zero Id trace dot Mplus scale Mmult kron mat_equiv transpose 
+            conj_transpose : M_db.
 
 Open Scope matrix_scope.
 Delimit Scope matrix_scope with M.
@@ -683,6 +683,26 @@ Proof.
   assumption.
   apply functional_extensionality. intros z. 
   bdestruct (z =? y); bdestruct (z <? n); simpl; try clra; try omega. 
+Qed.
+
+Lemma kron_0_l : forall (m n o p : nat) (A : Matrix o p), 
+  Zero m n ⊗ A = Zero (m * o) (n * p).
+Proof.
+  intros m n o p A.
+  prep_matrix_equality.
+  unfold Zero, kron.
+  rewrite Cmult_0_l.
+  reflexivity.
+Qed.
+
+Lemma kron_0_r : forall (m n o p : nat) (A : Matrix m n), 
+   A ⊗ Zero o p = Zero (m * o) (n * p).
+Proof.
+  intros m n o p A.
+  prep_matrix_equality.
+  unfold Zero, kron.
+  rewrite Cmult_0_r.
+  reflexivity.
 Qed.
 
 Lemma kron_1_r : forall (m n : nat) (A : Matrix m n), A ⊗ Id 1 = A.

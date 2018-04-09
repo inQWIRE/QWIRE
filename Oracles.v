@@ -260,7 +260,7 @@ Fixpoint share_to (n k : nat) : Square_Box (S n ⨂ Qubit) ⊗ Qubit :=
                      let_ ((q,qs),t) ← output qqst;
                      gate_ (q,t)     ← CNOT @(q,t);
                      output ((q,qs),t)
-           | S k' => (@id_circ Qubit) || (share_to' n' k')
+           | S k' => (@id_circ Qubit) ∥ (share_to' n' k')
            end
   end.
 *)
@@ -297,15 +297,6 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma size_ntensor : forall n W, size_wtype (n ⨂ W) = (n * size_wtype W)%nat.
-Proof.
-  intros n W.
-  induction n; trivial.
-  simpl.
-  rewrite IHn.
-  reflexivity.
-Qed.
-
 Lemma repeat_combine : forall T n1 n2 (t : T), 
   List.repeat t n1 ++ List.repeat t n2 = List.repeat t (n1 + n2).
 Proof.
@@ -313,14 +304,6 @@ Proof.
   intros. simpl. 
   rewrite IHn1.
   reflexivity.
-Qed.
-
-Lemma fresh_state_ntensor : forall n (Γ : Ctx), fresh_state (n ⨂ Qubit) (Valid Γ) = 
-                                           Valid (Γ ++ List.repeat (Some Qubit) n).
-Proof.                            
-  induction n. 
-  - intros. simpl. rewrite app_nil_r; reflexivity.
-  - intros. simpl. rewrite IHn. rewrite <- app_assoc. reflexivity.
 Qed.
 
 Lemma ctx_dom_repeat : forall n, ctx_dom (repeat (Some Qubit) n) = seq 0 n.
@@ -835,37 +818,66 @@ Proof.
     simpl. apply IHv.
 Qed.
 
-Local Obligation Tactic := program_simpl; try omega.
+(* Without init_at, assert_at
 Fixpoint compile (b : bexp) (Γ : Ctx) : Square_Box (S (⟦Γ⟧) ⨂ Qubit) :=
   match b with
-  | b_t          => TRUE || id_circ 
-  | b_f          => FALSE || id_circ
+  | b_t          => TRUE ∥ id_circ 
+  | b_f          => FALSE ∥ id_circ
   | b_var v      => 
     (* share_to' (⟦Γ⟧) (position_of v Γ) *)
     (* CNOT_at_option (S (⟦Γ⟧)) (position_of v Γ) (⟦Γ⟧) *)
     CNOT_at (S (⟦Γ⟧)) (S (position_of v Γ)) 0
-  | b_not b      =>  (id_circ || (strip_one_l_in (init1 || id_circ))) ;;
-                     (id_circ || (compile b Γ)) ;;
+  | b_not b      =>  (id_circ ∥ (strip_one_l_in (init1 ∥ id_circ))) ;;
+                     (id_circ ∥ (compile b Γ)) ;;
                      (CNOT_at (2 + ⟦Γ⟧) 1 0)    ;;
-                     (id_circ || (compile b Γ)) ;;
-                     (id_circ || (strip_one_l_out (assert1 || id_circ)))
-  | b_and b1 b2  => (id_circ || (strip_one_l_in (init0 || id_circ))) ;;
-                     (id_circ || compile b1 Γ) ;;
-                     (id_circ || (id_circ || (strip_one_l_in (init0 || id_circ)))) ;;
-                     (id_circ || (id_circ || compile b2 Γ)) ;;
+                     (id_circ ∥ (compile b Γ)) ;;
+                     (id_circ ∥ (strip_one_l_out (assert1 ∥ id_circ)))
+  | b_and b1 b2  => (id_circ ∥ (strip_one_l_in (init0 ∥ id_circ))) ;;
+                     (id_circ ∥ compile b1 Γ) ;;
+                     (id_circ ∥ (id_circ ∥ (strip_one_l_in (init0 ∥ id_circ)))) ;;
+                     (id_circ ∥ (id_circ ∥ compile b2 Γ)) ;;
                      (Toffoli_at (3 + ⟦Γ⟧) 1 2 0)           ;;
-                     (id_circ || (id_circ || compile b2 Γ)) ;;
-                     (id_circ || (id_circ || (strip_one_l_out (assert0 || id_circ)))) ;;
-                     (id_circ || compile b1 Γ) ;;
-                     (id_circ || (strip_one_l_out (assert0 || id_circ)))                
-  | b_xor b1 b2  => (id_circ || (strip_one_l_in (init0 || id_circ))) ;;
-                     (id_circ || compile b1 Γ) ;;
+                     (id_circ ∥ (id_circ ∥ compile b2 Γ)) ;;
+                     (id_circ ∥ (id_circ ∥ (strip_one_l_out (assert0 ∥ id_circ)))) ;;
+                     (id_circ ∥ compile b1 Γ) ;;
+                     (id_circ ∥ (strip_one_l_out (assert0 ∥ id_circ)))                
+  | b_xor b1 b2  => (id_circ ∥ (strip_one_l_in (init0 ∥ id_circ))) ;;
+                     (id_circ ∥ compile b1 Γ) ;;
                      (CNOT_at (2 + ⟦Γ⟧) 1 0)   ;;                    
-                     (id_circ || compile b1 Γ) ;; 
-                     (id_circ || compile b2 Γ) ;; (* reusing ancilla *)
+                     (id_circ ∥ compile b1 Γ) ;; 
+                     (id_circ ∥ compile b2 Γ) ;; (* reusing ancilla *)
                      (CNOT_at (2 + ⟦Γ⟧) 1 0)   ;;                    
-                     (id_circ || compile b2 Γ) ;;
-                     (id_circ || (strip_one_l_out (assert0 || id_circ)))              
+                     (id_circ ∥ compile b2 Γ) ;;
+                     (id_circ ∥ (strip_one_l_out (assert0 ∥ id_circ)))              
+  end. *)
+
+Fixpoint compile (b : bexp) (Γ : Ctx) : Square_Box (S (⟦Γ⟧) ⨂ Qubit) :=
+  match b with
+  | b_t          => TRUE ∥ id_circ 
+  | b_f          => FALSE ∥ id_circ
+  | b_var v      => CNOT_at (1 + ⟦Γ⟧) (1 + position_of v Γ) 0
+  | b_not b      => init_at true (1 + ⟦Γ⟧) 1 ;;
+                   id_circ ∥ (compile b Γ)  ;;
+                   CNOT_at (2 + ⟦Γ⟧) 1 0    ;;
+                   id_circ ∥ (compile b Γ)  ;;
+                   assert_at true (1+⟦Γ⟧) 1 
+  | b_and b1 b2  => init_at false (1 + ⟦Γ⟧) 1        ;;
+                   id_circ ∥ compile b1 Γ           ;;
+                   init_at false (2 + ⟦Γ⟧) 2        ;;
+                   id_circ ∥ id_circ ∥ compile b2 Γ ;;
+                   Toffoli_at (3 + ⟦Γ⟧) 1 2 0       ;;
+                   id_circ ∥ id_circ ∥ compile b2 Γ ;;
+                   assert_at false (2 + ⟦Γ⟧) 2      ;;
+                   id_circ ∥ compile b1 Γ           ;;
+                   assert_at false (1 + ⟦Γ⟧) 1 
+  | b_xor b1 b2  => init_at false (1 + ⟦Γ⟧) 1 ;;
+                   id_circ ∥ compile b1 Γ    ;;
+                   CNOT_at (2 + ⟦Γ⟧) 1 0     ;;                    
+                   id_circ ∥ compile b1 Γ    ;; 
+                   id_circ ∥ compile b2 Γ    ;; (* reusing ancilla *)
+                   CNOT_at (2 + ⟦Γ⟧) 1 0     ;;                    
+                   id_circ ∥ compile b2 Γ    ;;
+                   assert_at false (1 + ⟦Γ⟧) 1
   end.
 
 Lemma ntensor_fold : forall n W, W ⊗ (n ⨂ W) = (S n ⨂ W).
@@ -1063,7 +1075,23 @@ Proof.
   intros W. simpl. rewrite IHn. reflexivity.
 Qed.
 
-Ltac dim_solve := unify_pows_two; simpl; try rewrite size_ntensor; simpl; omega.
+Ltac dim_solve := unify_pows_two; simpl; try rewrite size_ntensor; 
+                  simpl; try rewrite Nat.mul_1_r; omega.
+
+(* Ltac dim_solve := unify_pows_two; simpl; omega. *)
+
+Ltac unify_dim_solve := 
+  match goal with 
+  | [|- @kron ?m ?n ?o ?p ?A ?B = @kron ?m' ?n' ?o' ?p' ?A' ?B'] =>
+     replace A with A' by unify_dim_solve;
+     replace B with B' by unify_dim_solve;
+     replace m with m' by dim_solve;
+     replace n with n' by dim_solve;
+     replace o with o' by dim_solve;
+     replace p with p' by dim_solve;
+     reflexivity
+  | [|- _ = _] => reflexivity
+  end.
 
 Ltac show_pure := 
   repeat match goal with
@@ -1129,6 +1157,29 @@ Ltac rewrite_inPar :=
     clear IP
   end; compile_typing (compile_WT); show_mixed.
 
+(* Designated successor to rewrite_inPar *)
+Ltac rewrite_inPar' := 
+  fold NTensor; (* This shouldn't be necessary but is? *)
+  simpl in *; 
+  match goal with
+  [|- context[(@denote_box true ?W ?W' (@inPar ?W1 ?W1' ?W2 ?W2' ?f ?g))
+    (@kron ?m ?n ?o ?p ?ρ1 ?ρ2)]] =>
+    let IP := fresh "IP" in 
+    specialize (inPar_correct W1 W1' W2 W2' f g ρ1 ρ2) as IP;
+    simpl in *;
+    match goal with
+    | [H : ?A -> ?B -> ?C -> ?D -> 
+           (@denote_box true ?W ?W' (@inPar ?W1 ?W1' ?W2 ?W2' ?f ?g))
+           (@kron ?m' ?n' ?o' ?p' ?ρ1 ?ρ2) = ?RHS |- _] => 
+      replace m with m'; try dim_solve;
+      replace n with n'; try dim_solve;
+      replace o with o'; try dim_solve;
+      replace p with p'; try dim_solve;
+      try rewrite H
+     end;
+     clear IP
+  end; compile_typing (compile_WT); auto with wf_db; show_mixed.
+
 Ltac listify_kron := 
     unfold ctx_to_matrix;
     repeat match goal with
@@ -1168,7 +1219,7 @@ Lemma CNOT_at_spec : forall (b1 b2 : bool) (n x y : nat) (li : list (Matrix 2 2)
 Admitted.
 
 Lemma Toffoli_at_spec : forall (b1 b2 b3 : bool) (n x y z : nat) (li : list (Matrix 2 2)),
-  x < n -> y < n -> z < n -> x <> y -> y < n -> z < n -> 
+  x < n -> y < n -> z < n -> x <> y -> x <> z -> y <> z -> 
   nth_error li x = Some (bool_to_matrix b1) ->
   nth_error li y = Some (bool_to_matrix b2) ->
   nth_error li z = Some (bool_to_matrix b3) ->
@@ -1210,7 +1261,7 @@ Proof.
     apply WF2.
     type_check.
     specialize (mixed_big_kron 2 l2 B M2) as M2'. 
-    rewrite L2 in M2'.
+    rewrite L2 in M2'.    
     apply M2'.
     eapply WF_big_kron.
     intros i. apply WF_Mixed. apply (M2 i).
@@ -1226,10 +1277,7 @@ Proof.
     rewrite_inPar.
     simpl_rewrite id_circ_Id.
     erewrite IHi; trivial.
-    show_dimensions.
-    replace (i + (S (n-i))) with (S n) by omega.
-    unify_pows_two. repeat rewrite Nat.add_1_r.
-    easy.
+    unify_dim_solve.
     intros j.
     apply (M1 (S j)).
     omega.
@@ -1242,7 +1290,6 @@ Proof.
     specialize (mixed_kron) as M.
     specialize (M _ _ (@big_kron (S (S O)) (S (S O)) l1) 
                       (@big_kron (S (S O)) (S (S O)) l2)).
-    Search (_ ^ _ * _ ^ _).     
     rewrite <- Nat.pow_add_r in M.
     replace (length l1 + length l2) with n in M by omega.
     apply M.
@@ -1252,63 +1299,8 @@ Proof.
     intros j. apply WF_Mixed. apply (M2 j). 
 Qed.    
 
-
-Lemma share_to_spec : forall (t b : bool) (k n : nat) (l1 l2 : list (Square 2)),
-  (k < n)%nat ->
-  length l1 = k ->
-  length l2 = (n - k - 1)%nat ->
-  (forall i, WF_Matrix 2 2 (nth i l1 (Zero 2%nat 2%nat))) ->
-  (forall i, WF_Matrix 2 2 (nth i l2 (Zero 2%nat 2%nat))) ->
-  ⟦share_to n k⟧  ((⨂ l1)  ⊗ bool_to_matrix b ⊗ (⨂ l2) ⊗ bool_to_matrix t) =  
- (⨂ l1) ⊗ (bool_to_matrix b) ⊗ (⨂ l2) ⊗ bool_to_matrix (xorb t b).
-
-
-Lemma init_at_spec : forall (b : bool) (i n : nat) (ρ1 : Square (2^i)) (ρ2 : Square (2^(n-i))),
-  i < n -> 
-  Mixed_State ρ1 ->
-  Mixed_State ρ2 ->
-  (⟦init_at b n i⟧ (ρ1 ⊗ ρ2) = ρ1 ⊗ bool_to_matrix b ⊗ ρ2)%M.
-Proof.
-  intros b i n. gen i.
-  induction n; intros i ρ1 ρ2 Lt M1 M2.
-  - destruct i; omega. 
-  - destruct i.
-    + simpl.
-      rewrite strip_one_l_in_eq.
-      simpl in ρ1.
-      apply mixed_dim1 in M1. subst.
-      specialize (inPar_correct _ _ _ _ (init b) 
-        (@id_circ (Tensor Qubit (NTensor n Qubit))) (Id 1) ρ2) as IP.
-      simpl in *. 
-      rewrite size_ntensor in IP.
-      rewrite Nat.mul_1_r in IP.
-      rewrite IP; trivial.
-      simpl_rewrite id_circ_Id.
-      simpl_rewrite init_spec.
-      Msimpl.
-      reflexivity.
-      simpl; rewrite size_ntensor; simpl.
-      rewrite Nat.mul_1_r.
-      apply WF_Mixed.
-      apply M2.
-      type_check.
-      type_check.
-      Search Mixed_State Id.
-      apply Pure_S.
-      apply pure_id1.
-    + simpl.
-      
-      specialize (inPar_correct _ _ _ _ (@id_circ Qubit) (init_at b n i) ρ1 ρ2) as IP.
-      simpl in *. 
-      rewrite size_ntensor in IP.
-      rewrite Nat.mul_1_r in IP.
-      show_dimensions.
-      rewrite IP; trivial.
-      rewrite IP.
-
-
-
-
+(* Currently simplifies all init_at and assert_ats. 
+   Proof could be simplified by making these opaque and using lemma *)
 Theorem compile_correct : forall (b : bexp) (Γ : Ctx) (f : Var -> bool) (t : bool),
   get_context b ⊂ Γ -> 
   ⟦compile b Γ⟧ ((bool_to_matrix t) ⊗ (ctx_to_matrix Γ f)) = 
@@ -1316,11 +1308,11 @@ Theorem compile_correct : forall (b : bexp) (Γ : Ctx) (f : Var -> bool) (t : bo
 Proof.
   intros b.
   induction b; intros Γ f t H.
-  - simpl. 
-    rewrite_inPar.
+  - simpl.
+    rewrite_inPar.    
     simpl_rewrite TRUE_spec.
     simpl_rewrite id_circ_Id.
-    easy.    
+    easy.
     rewrite size_ntensor, Nat.mul_1_r.
     apply WF_ctx_to_matrix.
   - simpl. 
@@ -1346,14 +1338,14 @@ Proof.
     repeat (rewrite IS; compile_typing (compile_WT)).
     unfold compose_super.
     rewrite_inPar.    
-    rewrite_inPar. (* annoying side condition *)    
+    rewrite_inPar. 
     rewrite strip_one_l_in_eq.
     rewrite <- (kron_1_l _ _ (ctx_to_matrix Γ f)); auto with wf_db.
-    rewrite_inPar.     
+    rewrite_inPar.
     repeat simpl_rewrite id_circ_Id; auto with wf_db.
     simpl_rewrite init1_spec.
     replace (|1⟩⟨1|) with (bool_to_matrix true) by reflexivity.    
-    rewrite (IHb _ _ _ H). rewrite xorb_true_l. (* yay! *)
+    rewrite (IHb Γ f true H). rewrite xorb_true_l. (* yay! *)
     listify_kron.
     simpl_rewrite (CNOT_at_spec (¬ ⌈b | f⌉) t (S (S (⟦Γ⟧))) 1 0); trivial; try omega. 
     simpl.
@@ -1425,8 +1417,6 @@ Proof.
     reflexivity.
 (* cleanup *)    
     all: simpl; try rewrite size_ntensor, Nat.mul_1_r; auto with wf_db.
-    Msimpl.
-    show_mixed.
   - simpl in *.
     specialize inSeq_correct as IS. simpl in IS.    
     repeat (rewrite IS; compile_typing (compile_WT)). clear IS.
