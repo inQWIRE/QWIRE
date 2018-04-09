@@ -1,7 +1,10 @@
 Require Import HOASExamples.
 Require Import DBCircuits.
 Require Import TypeChecking.
+Require Import HOASLib.
 Require Import Oracles.
+Require Import SemanticLib.
+Require Import Symmetric.
 Require Import Reversible.
 Require Import Matrix.
 Require Import Denotation.
@@ -13,15 +16,14 @@ Import ListNotations.
 
 Open Scope circ_scope.
 
-Open Scope rbexp_scope.
 (*
 Input : var 1 : y
         var 2 : x
         var 3 : cin
 Output : cout = cin(x ⊕ y) ⊕ xy
 *)
-Definition adder_cout_rbexp : rbexp :=
-  rb_xor (rb_and (rb_var 3%nat) (rb_xor (rb_var 2%nat) (rb_var 1%nat))) (rb_and (rb_var 2%nat) (rb_var 1%nat)).
+Definition adder_cout_bexp : bexp :=
+  b_xor (b_and (b_var 3%nat) (b_xor (b_var 2%nat) (b_var 1%nat))) (b_and (b_var 2%nat) (b_var 1%nat)).
 
 (*
 Input : var 0 : y
@@ -29,77 +31,76 @@ Input : var 0 : y
         var 2 : cin
 Output : z = cin ⊕ (x ⊕ y)
  *)
-Definition adder_z_rbexp : rbexp :=
-  rb_xor (rb_var 2%nat) (rb_xor (rb_var 1%nat) (rb_var 0%nat)).
+Definition adder_z_bexp : bexp :=
+  b_xor (b_var 2%nat) (b_xor (b_var 1%nat) (b_var 0%nat)).
 
 (*
 Input : var 0 : x
         var 1 : y
 Output : z = x ⊕ y
 *)
-Definition xor_rbexp : rbexp :=
-  rb_xor (rb_var 0%nat) (rb_var 1%nat).
+Definition xor_bexp : bexp :=
+  b_xor (b_var 0%nat) (b_var 1%nat).
 
 (*
 Input : var 0 : x
 Output : z = x
 *)
-Definition id_rbexp : rbexp :=
-  rb_var 0%nat.
+Definition id_bexp : bexp :=
+  b_var 0%nat.
 
 Definition list_to_function {A} (l : list A) (d : A) := 
   fun (n : nat) => nth n l d.
 
-Lemma test_adder_cout_rbexp_000 : 
-⌈ adder_cout_rbexp | list_to_function [false; false; false; false] false ⌉ = false.
+Lemma test_adder_cout_bexp_000 : 
+⌈ adder_cout_bexp | list_to_function [false; false; false; false] false ⌉ = false.
 Proof. simpl. reflexivity. Qed.
-Lemma test_adder_cout_rbexp_001 : 
-⌈ adder_cout_rbexp | list_to_function [false; false; false; true] false ⌉ = false.
+Lemma test_adder_cout_bexp_001 : 
+⌈ adder_cout_bexp | list_to_function [false; false; false; true] false ⌉ = false.
 Proof. simpl. reflexivity. Qed.
-Lemma test_adder_cout_rbexp_010 : 
-⌈ adder_cout_rbexp | list_to_function [false; false; true; false] false ⌉ = false.
+Lemma test_adder_cout_bexp_010 : 
+⌈ adder_cout_bexp | list_to_function [false; false; true; false] false ⌉ = false.
 Proof. simpl. reflexivity. Qed.
-Lemma test_adder_cout_rbexp_011 : 
-⌈ adder_cout_rbexp | list_to_function [false; false; true; true] false ⌉ = true.
+Lemma test_adder_cout_bexp_011 : 
+⌈ adder_cout_bexp | list_to_function [false; false; true; true] false ⌉ = true.
 Proof. simpl. reflexivity. Qed.
-Lemma test_adder_cout_rbexp_100 : 
-⌈ adder_cout_rbexp | list_to_function [false; true; false; false] false ⌉ = false.
+Lemma test_adder_cout_bexp_100 : 
+⌈ adder_cout_bexp | list_to_function [false; true; false; false] false ⌉ = false.
 Proof. simpl. reflexivity. Qed.
-Lemma test_adder_cout_rbexp_101 : 
-⌈ adder_cout_rbexp | list_to_function [false; true; false; true] false ⌉ = true.
+Lemma test_adder_cout_bexp_101 : 
+⌈ adder_cout_bexp | list_to_function [false; true; false; true] false ⌉ = true.
 Proof. simpl. reflexivity. Qed.
-Lemma test_adder_cout_rbexp_110 : 
-⌈ adder_cout_rbexp | list_to_function [false; true; true; false] false ⌉ = true.
+Lemma test_adder_cout_bexp_110 : 
+⌈ adder_cout_bexp | list_to_function [false; true; true; false] false ⌉ = true.
 Proof. simpl. reflexivity. Qed.
-Lemma test_adder_cout_rbexp_111 : 
-⌈ adder_cout_rbexp | list_to_function [false; true; true; true] false ⌉ = true.
+Lemma test_adder_cout_bexp_111 : 
+⌈ adder_cout_bexp | list_to_function [false; true; true; true] false ⌉ = true.
 Proof. simpl. reflexivity. Qed.
 
-Lemma test_adder_z_rbexp_000 : 
-⌈ adder_z_rbexp | list_to_function [false; false; false] false ⌉ = false.
+Lemma test_adder_z_bexp_000 : 
+⌈ adder_z_bexp | list_to_function [false; false; false] false ⌉ = false.
 Proof. simpl. reflexivity. Qed.
-Lemma test_adder_z_rbexp_001 : 
-⌈ adder_z_rbexp | list_to_function [false; false; true] false ⌉ = true.
+Lemma test_adder_z_bexp_001 : 
+⌈ adder_z_bexp | list_to_function [false; false; true] false ⌉ = true.
 Proof. simpl. reflexivity. Qed.
-Lemma test_adder_z_rbexp_010 : 
-⌈ adder_z_rbexp | list_to_function [false; true; false] false ⌉ = true.
+Lemma test_adder_z_bexp_010 : 
+⌈ adder_z_bexp | list_to_function [false; true; false] false ⌉ = true.
 Proof. simpl. reflexivity. Qed.
-Lemma test_adder_z_rbexp_011 : 
-⌈ adder_z_rbexp | list_to_function [false; true; true] false ⌉ = false.
+Lemma test_adder_z_bexp_011 : 
+⌈ adder_z_bexp | list_to_function [false; true; true] false ⌉ = false.
 Proof. simpl. reflexivity. Qed.
-Lemma test_adder_z_rbexp_100 : 
-⌈ adder_z_rbexp | list_to_function [true; false; false] false ⌉ = true.
+Lemma test_adder_z_bexp_100 : 
+⌈ adder_z_bexp | list_to_function [true; false; false] false ⌉ = true.
 Proof. simpl. reflexivity. Qed.
-Lemma test_adder_z_rbexp_101 : 
-⌈ adder_z_rbexp | list_to_function [true; false; true] false ⌉ = false.
+Lemma test_adder_z_bexp_101 : 
+⌈ adder_z_bexp | list_to_function [true; false; true] false ⌉ = false.
 Proof. simpl. reflexivity. Qed.
-Lemma test_adder_z_rbexp_110 : 
-⌈ adder_z_rbexp | list_to_function [true; true; false] false ⌉ = false.
+Lemma test_adder_z_bexp_110 : 
+⌈ adder_z_bexp | list_to_function [true; true; false] false ⌉ = false.
 Proof. simpl. reflexivity. Qed.
-Lemma test_adder_z_rbexp_111 : 
-⌈ adder_z_rbexp | list_to_function [true; true; true] false ⌉ = true.
+Lemma test_adder_z_bexp_111 : 
+⌈ adder_z_bexp | list_to_function [true; true; true] false ⌉ = true.
 Proof. simpl. reflexivity. Qed.
-Close Scope rbexp_scope.
 
 
 Fixpoint list_of_Qubits (n : nat) : Ctx :=
@@ -109,28 +110,28 @@ Fixpoint list_of_Qubits (n : nat) : Ctx :=
   end.
 
 Definition adder_cout_circ :=
-  compile adder_cout_rbexp [Some Qubit; Some Qubit; Some Qubit; Some Qubit].
+  compile adder_cout_bexp [Some Qubit; Some Qubit; Some Qubit; Some Qubit].
 Eval compute in adder_cout_circ.
 
 Definition adder_z_circ :=
-  compile adder_z_rbexp [Some Qubit; Some Qubit; Some Qubit].
+  compile adder_z_bexp [Some Qubit; Some Qubit; Some Qubit].
 
 (* adder_cout circuit with pads, input type is ((4+n) ⨂ Qubit), Box ((5+n) ⨂ Qubit) ((5+n) ⨂ Qubit) *)
 Definition adder_cout_circ_with_pads (n : nat) :=
-  compile adder_cout_rbexp (list_of_Qubits (4+n)).
+  compile adder_cout_bexp (list_of_Qubits (4+n)).
 
 (* adder_z circuit with pads, input type is ((3+n) ⨂ Qubit), Box ((4+n) ⨂ Qubit) ((4+n) ⨂ Qubit) *)
 Definition adder_z_circ_with_pads (n : nat) :=
-  compile adder_z_rbexp (list_of_Qubits (3+n)).
+  compile adder_z_bexp (list_of_Qubits (3+n)).
 
 Definition calc_xor_circ :=
-  compile xor_rbexp (list_of_Qubits 2).
+  compile xor_bexp (list_of_Qubits 2).
 
 Definition calc_id_circ :=
-  compile id_rbexp (list_of_Qubits 1).
+  compile id_bexp (list_of_Qubits 1).
 
 Definition calc_id_circ_with_pads (n : nat) :=
-  compile id_rbexp (list_of_Qubits (1+n)).
+  compile id_bexp (list_of_Qubits (1+n)).
 
 Lemma adder_cout_circ_WT : Typed_Box adder_cout_circ.
 Proof. apply compile_WT. Qed.
@@ -153,11 +154,11 @@ Proof. intros. apply compile_WT. Qed.
 Open Scope matrix_scope.
 Lemma adder_cout_circ_spec : forall (cout z y x cin : bool),
 ⟦adder_cout_circ⟧ ((bool_to_matrix cout) ⊗ (ctx_to_matrix [Some Qubit; Some Qubit; Some Qubit; Some Qubit] (list_to_function [z; y; x; cin] false)))
-= (bool_to_matrix (cout ⊕ ⌈ adder_cout_rbexp | list_to_function [z; y; x; cin] false ⌉)) ⊗ 
+= (bool_to_matrix (cout ⊕ ⌈ adder_cout_bexp | list_to_function [z; y; x; cin] false ⌉)) ⊗ 
   (ctx_to_matrix [Some Qubit; Some Qubit; Some Qubit; Some Qubit] (list_to_function [z; y; x; cin] false)).
 Proof.
 intros.
-apply (compile_correct adder_cout_rbexp [Some Qubit; Some Qubit; Some Qubit; Some Qubit] (list_to_function [z; y; x; cin] false) cout).
+apply (compile_correct adder_cout_bexp [Some Qubit; Some Qubit; Some Qubit; Some Qubit] (list_to_function [z; y; x; cin] false) cout).
 apply (sub_some (None) Qubit [Some Qubit; Some Qubit; Some Qubit]).
 apply (sub_some (Some Qubit) Qubit [Some Qubit; Some Qubit]).
 apply (sub_some (Some Qubit) Qubit [Some Qubit]).
@@ -167,11 +168,11 @@ Qed.
 
 Lemma adder_z_circ_spec : forall (z y x cin : bool),
 ⟦adder_z_circ⟧ ((bool_to_matrix z) ⊗ (ctx_to_matrix [Some Qubit; Some Qubit; Some Qubit] (list_to_function [y; x; cin] false)))
-= (bool_to_matrix (z ⊕ ⌈ adder_z_rbexp | list_to_function [y; x; cin] false ⌉)) ⊗ 
+= (bool_to_matrix (z ⊕ ⌈ adder_z_bexp | list_to_function [y; x; cin] false ⌉)) ⊗ 
   (ctx_to_matrix [Some Qubit; Some Qubit; Some Qubit] (list_to_function [y; x; cin] false)).
 Proof.
 intros.
-apply (compile_correct adder_z_rbexp [Some Qubit; Some Qubit; Some Qubit] (list_to_function [y; x; cin] false) z).
+apply (compile_correct adder_z_bexp [Some Qubit; Some Qubit; Some Qubit] (list_to_function [y; x; cin] false) z).
 apply (sub_some (Some Qubit) Qubit [Some Qubit; Some Qubit]).
 apply (sub_some (Some Qubit) Qubit [Some Qubit]).
 apply (sub_some (Some Qubit) Qubit []).
@@ -180,12 +181,12 @@ Qed.
 
 Lemma adder_cout_circ_with_pads_spec : forall (n : nat) (f : Var -> bool),
 ⟦adder_cout_circ_with_pads n⟧ ((bool_to_matrix (f 0%nat)) ⊗ (ctx_to_matrix (list_of_Qubits (4+n)) (fun x => f (S x))))
-= (bool_to_matrix ((f 0%nat) ⊕ ⌈ adder_cout_rbexp | (fun x => f (S x)) ⌉)) ⊗ 
+= (bool_to_matrix ((f 0%nat) ⊕ ⌈ adder_cout_bexp | (fun x => f (S x)) ⌉)) ⊗ 
   (ctx_to_matrix (list_of_Qubits (4+n)) (fun x => f (S x))).
 Proof.
 intros.
 Check compile_correct.
-apply (compile_correct adder_cout_rbexp (list_of_Qubits (4+n)) (fun x => f (S x)) (f 0%nat)).
+apply (compile_correct adder_cout_bexp (list_of_Qubits (4+n)) (fun x => f (S x)) (f 0%nat)).
 apply (sub_some (None) Qubit [Some Qubit; Some Qubit; Some Qubit]).
 apply (sub_some (Some Qubit) Qubit [Some Qubit; Some Qubit]).
 apply (sub_some (Some Qubit) Qubit [Some Qubit]).
@@ -195,11 +196,11 @@ Qed.
 
 Lemma adder_z_circ_with_pads_spec : forall (n : nat) (f : Var -> bool),
 ⟦adder_z_circ_with_pads n⟧ ((bool_to_matrix (f 0%nat)) ⊗ (ctx_to_matrix (list_of_Qubits (3+n)) (fun x => f (S x))))
-= (bool_to_matrix ((f 0%nat) ⊕ ⌈ adder_z_rbexp | (fun x => f (S x)) ⌉)) ⊗ 
+= (bool_to_matrix ((f 0%nat) ⊕ ⌈ adder_z_bexp | (fun x => f (S x)) ⌉)) ⊗ 
   (ctx_to_matrix (list_of_Qubits (3+n)) (fun x => f (S x))).
 Proof.
 intros.
-apply (compile_correct adder_z_rbexp (list_of_Qubits (3+n)) (fun x => f (S x)) (f 0%nat)).
+apply (compile_correct adder_z_bexp (list_of_Qubits (3+n)) (fun x => f (S x)) (f 0%nat)).
 apply (sub_some (Some Qubit) Qubit [Some Qubit; Some Qubit]).
 apply (sub_some (Some Qubit) Qubit [Some Qubit]).
 apply (sub_some (Some Qubit) Qubit []).
@@ -208,11 +209,11 @@ Qed.
 
 Lemma calc_xor_circ_spec : forall (x y r : bool),
 ⟦calc_xor_circ⟧ ((bool_to_matrix r) ⊗ (ctx_to_matrix [Some Qubit; Some Qubit] (list_to_function [x; y] false)))
-= (bool_to_matrix (r ⊕ ⌈ xor_rbexp | list_to_function [x; y] false ⌉)) ⊗ 
+= (bool_to_matrix (r ⊕ ⌈ xor_bexp | list_to_function [x; y] false ⌉)) ⊗ 
   (ctx_to_matrix [Some Qubit; Some Qubit] (list_to_function [x; y] false)).
 Proof.
 intros.
-apply (compile_correct xor_rbexp [Some Qubit; Some Qubit] (list_to_function [x; y] false) r).
+apply (compile_correct xor_bexp [Some Qubit; Some Qubit] (list_to_function [x; y] false) r).
 apply (sub_some (Some Qubit) Qubit [Some Qubit]).
 apply (sub_some (Some Qubit) Qubit []).
 apply sub_empty.
@@ -229,21 +230,21 @@ Qed.
 
 Lemma calc_id_circ_spec : forall (x r : bool),
 ⟦calc_id_circ⟧ ((bool_to_matrix r) ⊗ (ctx_to_matrix [Some Qubit] (list_to_function [x] false)))
-= (bool_to_matrix (r ⊕ ⌈ id_rbexp | list_to_function [x] false ⌉)) ⊗ 
+= (bool_to_matrix (r ⊕ ⌈ id_bexp | list_to_function [x] false ⌉)) ⊗ 
   (ctx_to_matrix [Some Qubit] (list_to_function [x] false)).
 Proof.
 intros.
-apply (compile_correct id_rbexp [Some Qubit] (list_to_function [x] false) r).
+apply (compile_correct id_bexp [Some Qubit] (list_to_function [x] false) r).
 apply (sub_some (Some Qubit) Qubit []).
 apply sub_empty.
 Qed.
 
 Lemma calc_id_circ_with_pads_spec : forall (n : nat) (f : Var -> bool),
 ⟦calc_id_circ_with_pads n⟧ ((bool_to_matrix (f 0%nat)) ⊗ (ctx_to_matrix (list_of_Qubits (1+n)) (fun x => f (S x))))
-= ((bool_to_matrix (f 0%nat  ⊕ ⌈ id_rbexp | (fun x => f (S x)) ⌉)) ⊗ (ctx_to_matrix (list_of_Qubits (1+n)) (fun x => f (S x)))).
+= ((bool_to_matrix (f 0%nat  ⊕ ⌈ id_bexp | (fun x => f (S x)) ⌉)) ⊗ (ctx_to_matrix (list_of_Qubits (1+n)) (fun x => f (S x)))).
 Proof.
 intros.
-apply (compile_correct id_rbexp (list_of_Qubits (1+n)) (fun x => f (S x)) (f 0%nat)).
+apply (compile_correct id_bexp (list_of_Qubits (1+n)) (fun x => f (S x)) (f 0%nat)).
 apply (sub_some (Some Qubit) Qubit []).
 apply sub_empty.
 Qed.
@@ -297,8 +298,8 @@ Lemma adder_circ_1_spec : forall (cin x y z cout : bool),
   ⟦adder_circ_1⟧ (ctx_to_matrix (list_of_Qubits 5) (list_to_function [cout; z; y; x; cin] false))
   = (ctx_to_matrix 
       (list_of_Qubits 5) 
-      (list_to_function [cout ⊕ ⌈ adder_cout_rbexp | list_to_function [z; y; x; cin] false ⌉; 
-                         z ⊕ ⌈ adder_z_rbexp | list_to_function [y; x; cin] false ⌉; y; x; cin] false)).
+      (list_to_function [cout ⊕ ⌈ adder_cout_bexp | list_to_function [z; y; x; cin] false ⌉; 
+                         z ⊕ ⌈ adder_z_bexp | list_to_function [y; x; cin] false ⌉; y; x; cin] false)).
 Proof.
   intros.
   unfold adder_circ_1.
@@ -316,16 +317,6 @@ Proof.
         rewrite H. clear H.
         reflexivity.
       * apply WF_bool_to_matrix.
-    + simpl. apply (CNOT_at_WT 4%nat 3%nat 0%nat).
-    + simpl. apply (CNOT_at_WT 4%nat 3%nat 0%nat).
-    + simpl. apply (CNOT_at_WT 4%nat 2%nat 0%nat).
-    + simpl. apply (CNOT_at_WT 4%nat 2%nat 0%nat).
-    + simpl. apply (CNOT_at_WT 4%nat 1%nat 0%nat).
-    + simpl. apply (CNOT_at_WT 4%nat 1%nat 0%nat).
-    + simpl. apply (CNOT_at_WT 4%nat 2%nat 0%nat).
-    + simpl. apply (CNOT_at_WT 4%nat 2%nat 0%nat).
-    + simpl. apply (CNOT_at_WT 4%nat 1%nat 0%nat).
-    + simpl. apply (CNOT_at_WT 4%nat 1%nat 0%nat).
   - apply adder_cout_circ_WT.
   - apply inPar_WT.
     + apply id_circ_WT.
@@ -334,8 +325,8 @@ Qed.
 
 Lemma adder_circ_1_with_pads_spec : forall (n : nat) (f : Var -> bool),
 ⟦adder_circ_1_with_pads n⟧ (ctx_to_matrix (list_of_Qubits (5+n)) f)
-= (bool_to_matrix ((f 0%nat) ⊕ ⌈ adder_cout_rbexp | (fun x => f (S x)) ⌉)) ⊗
-  ((bool_to_matrix ((f 1%nat) ⊕ ⌈ adder_z_rbexp | (fun x => f (S (S x))) ⌉)) ⊗
+= (bool_to_matrix ((f 0%nat) ⊕ ⌈ adder_cout_bexp | (fun x => f (S x)) ⌉)) ⊗
+  ((bool_to_matrix ((f 1%nat) ⊕ ⌈ adder_z_bexp | (fun x => f (S (S x))) ⌉)) ⊗
   (ctx_to_matrix (list_of_Qubits (3+n)) (fun x => f (S (S x))))).
 Proof.
   intros.
@@ -378,16 +369,6 @@ Proof.
         clear H1 H.
         reflexivity.
       * apply WF_bool_to_matrix.
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 3%nat 0%nat).
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 3%nat 0%nat).
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 2%nat 0%nat).
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 2%nat 0%nat).
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 1%nat 0%nat).
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 1%nat 0%nat).
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 2%nat 0%nat).
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 2%nat 0%nat).
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 1%nat 0%nat).
-    + simpl. apply (CNOT_at_WT (S (S (S (S (size_ctx (list_of_Qubits n)))))) 1%nat 0%nat).
   - apply adder_cout_circ_with_pads_WT.
   - apply inPar_WT.
     + apply id_circ_WT.
@@ -439,7 +420,7 @@ Program Fixpoint adder_circ_n (n : nat) : Box ((2+n+n+n) ⨂ Qubit) ((2+n+n+n) �
   | S n' => ((@id_circ Qubit) || ((@id_circ Qubit) || ((@id_circ Qubit) || ((@id_circ Qubit) || (strip_one_l_in (init0 || (inParMany (1+n'+n'+n') (@id_circ Qubit)))))))) ;; 
             ((@id_circ Qubit) || ((@id_circ Qubit) || ((@id_circ Qubit) || ((@id_circ Qubit) || ((adder_circ_n n')))))) ;; 
             (adder_circ_1_with_pads (1+n'+n'+n')) ;;
-            ((@id_circ Qubit) || ((@id_circ Qubit) || ((@id_circ Qubit) || ((@id_circ Qubit) || (strip_one_l_out (assert0 || (inParMany (1+n'+n'+n') (@id_circ Qubit))))))))
+            ((@id_circ Qubit) || ((@id_circ Qubit) || ((@id_circ Qubit) || ((@id_circ Qubit) || (strip_one_l_out ((meas ;; discard) || (inParMany (1+n'+n'+n') (@id_circ Qubit))))))))
   end.
 Next Obligation.
   replace (n' + S n' + S n')%nat with (2 + n' + n' + n')%nat by omega.
@@ -455,7 +436,7 @@ Lemma adder_circ_n_WT : forall (n : nat),
 Proof.
   intros. induction n.
   - unfold adder_circ_n. unfold calc_id_circ.
-    simpl. apply (CNOT_at_WT 2%nat 1%nat 0%nat).
+    simpl. apply (Symmetric.CNOT_at_WT 2 1 0).
   - unfold adder_circ_n. simpl_eq.
     apply inSeq_WT.
     + compile_typing True. apply inParMany_WT. apply id_circ_WT.
@@ -463,54 +444,110 @@ Proof.
       * compile_typing True. unfold adder_circ_n in IHn.
         program_simpl.
       * apply inSeq_WT.
-        { apply (adder_circ_1_with_pads_WT (S (n + n + n)%nat)). }
+        { apply (adder_circ_1_with_pads_WT (S (n + n + n))). }
         { compile_typing True. apply inParMany_WT. apply id_circ_WT. }
 Qed.
 
 (* For n-adder specification *)
-Fixpoint n_adder_cout_rbexp (n m : nat) : rbexp :=
+Fixpoint n_adder_cout_bexp (n m : nat) : bexp :=
   match m with
-  | O => rb_var (n+n+n+1)%nat (* cin = rb_var (n+n+n+1)%nat *)
+  | O => b_var (1+n+n+n)%nat (* cin = b_var (1+n+n+n)%nat *)
   | S m' => let i := (n-m)%nat in
-            rb_xor (rb_and (n_adder_cout_rbexp n m') (rb_xor (rb_var (i+i+i+3)%nat) (rb_var (i+i+i+2)%nat))) (rb_and (rb_var (i+i+i+3)%nat) (rb_var (i+i+i+2)%nat))
-             (* cin = n_adder_cout_rbexp n m'
-                x = rb_var (i+i+i+3)%nat
-                y = rb_var (i+i+i+2)%nat *)
+            b_xor (b_and (n_adder_cout_bexp n m') (b_xor (b_var (3+i+i+i)%nat) (b_var (2+i+i+i)%nat))) (b_and (b_var (3+i+i+i)%nat) (b_var (2+i+i+i)%nat))
+             (* cin = n_adder_cout_bexp n m'
+                x = b_var (3+i+i+i)%nat
+                y = b_var (2+i+i+i)%nat *)
   end.
 
-Eval simpl in n_adder_cout_rbexp 3 3.
-Eval simpl in n_adder_cout_rbexp 3 2.
-Eval simpl in n_adder_cout_rbexp 3 1.
-Eval simpl in n_adder_cout_rbexp 3 0.
+Eval simpl in n_adder_cout_bexp 3 3.
+Eval simpl in n_adder_cout_bexp 3 2.
+Eval simpl in n_adder_cout_bexp 3 1.
+Eval simpl in n_adder_cout_bexp 3 0.
 
-Definition n_adder_z_rbexp (n m : nat) : rbexp :=
+Definition n_adder_z_bexp (n m : nat) : bexp :=
   match m with
-  | O => rb_var (n+n+n+1)%nat (* cin = rb_var (n+n+n+1)%nat *)
+  | O => b_var (1+n+n+n)%nat (* cin = b_var (1+n+n+n)%nat *)
   | S m' => let i := (n-m)%nat in
-            rb_xor (n_adder_cout_rbexp n m') (rb_xor (rb_var (i+i+i+3)%nat) (rb_var (i+i+i+2)%nat))
-             (* cin = n_adder_cout_rbexp n m'
-                x = rb_var (i+i+i+3)%nat
-                y = rb_var (i+i+i+2)%nat *)
+            b_xor (n_adder_cout_bexp n m') (b_xor (b_var (3+i+i+i)%nat) (b_var (2+i+i+i)%nat))
+             (* cin = n_adder_cout_bexp n m'
+                x = b_var (3+i+i+i)%nat
+                y = b_var (2+i+i+i)%nat *)
   end.
 
-Eval simpl in n_adder_z_rbexp 3 3.
-Eval simpl in n_adder_z_rbexp 3 2.
-Eval simpl in n_adder_z_rbexp 3 1.
-Eval simpl in n_adder_z_rbexp 3 0.
+Eval simpl in n_adder_z_bexp 3 3.
+Eval simpl in n_adder_z_bexp 3 2.
+Eval simpl in n_adder_z_bexp 3 1.
+Eval simpl in n_adder_z_bexp 3 0.
+
+Fixpoint increase_vars_by (k : nat) (b : bexp) : bexp :=
+  match b with
+  | b_t   => b_t
+  | b_f   => b_f
+  | b_var x => b_var (k + x)%nat
+  | b_not b' => b_not (increase_vars_by k b')
+  | b_and b1 b2 => b_and (increase_vars_by k b1) (increase_vars_by k b2)
+  | b_xor b1 b2 => b_xor (increase_vars_by k b1) (increase_vars_by k b2)
+  end.
+
+Lemma bexp_interpret_equiv_1 : forall (k : nat) (b : bexp) (f : Var -> bool),
+    ⌈ b | fun x : Var => f (k + x)%nat ⌉
+    = ⌈ increase_vars_by k b | f ⌉.
+Proof.
+  induction b.
+  - intros. simpl. reflexivity.
+  - intros. simpl. reflexivity.
+  - intros. simpl. reflexivity.
+  - intros. simpl. rewrite IHb. reflexivity.
+  - intros. simpl. rewrite IHb1. rewrite IHb2. reflexivity.
+  - intros. simpl. rewrite IHb1. rewrite IHb2. reflexivity.
+Qed.
+
+Lemma n_adder_cout_bexp_equiv_1 : forall (n m : nat),
+    (m <= n)%nat ->
+    increase_vars_by 3%nat (n_adder_cout_bexp n m) = n_adder_cout_bexp (S n) m.
+Proof.
+  intros. generalize dependent n.
+  induction m.
+  - intros. simpl. replace (n + S n + S n)%nat with (2 + n + n + n)%nat by omega.
+    reflexivity.
+  - intros. simpl. rewrite IHm.
+    remember (n - S m)%nat as i.
+    replace (n - m)%nat with (1 + i)%nat by omega. simpl.
+    replace (i + S i + S i)%nat with (2 + i + i + i)%nat by omega. simpl.
+    reflexivity.
+    omega.
+Qed.
+
+Lemma n_adder_z_bexp_equiv_1 : forall (n m : nat),
+    (m <= n)%nat ->
+    increase_vars_by 3%nat (n_adder_z_bexp n m) = n_adder_z_bexp (S n) m.
+Proof.
+  intros. generalize dependent n.
+  induction m.
+  - intros. simpl. replace (n + S n + S n)%nat with (2 + n + n + n)%nat by omega.
+    reflexivity.
+  - intros. simpl. rewrite n_adder_cout_bexp_equiv_1.
+    remember (n - S m)%nat as i.
+    replace (n - m)%nat with (1 + i)%nat by omega. simpl.
+    replace (i + S i + S i)%nat with (2 + i + i + i)%nat by omega. simpl.
+    reflexivity.
+    omega.
+Qed.
 
 Fixpoint n_adder_z_compute (n m : nat) (f : Var -> bool) : (Var -> bool) :=
   match m with
   | O => f
   | S m' => let i := (n-m)%nat in
-            (fun f' => (fun x => if x =? (i+i+i+1)%nat then
-                                  (f' x) ⊕ ⌈ n_adder_z_rbexp n m | f ⌉
-                                 else
-                                  f' x)) (n_adder_z_compute n m' f)
+            fun x => (if x =? (1+i+i+i)%nat then
+                        ((n_adder_z_compute n m' f) x)
+                        ⊕ ⌈ n_adder_z_bexp n m | (n_adder_z_compute n m' f) ⌉
+                     else
+                       ((n_adder_z_compute n m' f) x))
   end.
 
 Definition n_adder_cout_compute (n : nat) (f : Var -> bool) : (Var -> bool) :=
   fun x => match x with
-           | O => (f 0%nat) ⊕ ⌈ n_adder_cout_rbexp n n | f ⌉
+           | O => (f 0%nat) ⊕ ⌈ n_adder_cout_bexp n n | f ⌉
            | S x' => f (S x')
            end.
 
@@ -519,12 +556,482 @@ Eval compute in (n_adder_z_compute 3 3 (list_to_function [false; false ; true; t
 Eval compute in (n_adder_cout_compute 3 (list_to_function [false; false ; true; true; false; true; true; false; true; true; true] false)).
 Eval compute in (n_adder_cout_compute 3 (n_adder_z_compute 3 3 (list_to_function [false; false ; true; true; false; true; true; false; true; true; true] false))).
 
+Open Scope matrix_scope.
+Open Scope nat_scope.
+
+Lemma mixed_state_big_kron_ctx_to_mat_list : forall n f,  Mixed_State (⨂ ctx_to_mat_list (list_of_Qubits n) f).
+Proof.
+  induction n.
+  - intros. simpl. show_mixed.
+  - intros. simpl.
+    specialize (mixed_kron 2) as H. apply H.
+    + show_mixed.
+    + apply IHn.
+Qed.
+Lemma dim_eq_lemma_1 : forall n, (size_ctx (list_of_Qubits n )) = n.
+Proof.
+  induction n.
+  - reflexivity.
+  - simpl. rewrite IHn. reflexivity.
+Qed.
+Lemma dim_eq_lemma_2 : forall n f,
+    @length (Square 2) (ctx_to_mat_list (list_of_Qubits n) f) = n.
+Proof.
+  induction n.
+  - reflexivity.
+  - intros. simpl. rewrite IHn. reflexivity.
+Qed.
+Lemma dim_eq_lemma_3 : forall n, size_wtype (NTensor n Qubit) = n.
+Proof.
+  induction n.
+  - reflexivity.
+  - simpl. rewrite IHn. reflexivity.
+Qed.
+Lemma kron_eq_1 : forall {m n o p} m11 m12 m21 m22,
+                 m11 = m21 -> m12 = m22 -> @kron m n o p m11 m12 = @kron m n o p m21 m22.
+  intros. rewrite H. rewrite H0. reflexivity.
+Qed.
+Lemma big_kron_eq_1 : forall n f1 f2,
+    (forall x, f1 x = f2 x) ->
+    ⨂ ctx_to_mat_list (list_of_Qubits n) f1 = ⨂ ctx_to_mat_list (list_of_Qubits n) f2.
+Proof.
+  induction n.
+  - intros. simpl. reflexivity.
+  - intros. simpl. rewrite (IHn (fun v : Var => f1 (S v)) (fun v : Var => f2 (S v))).
+    rewrite H. show_dimensions. rewrite dim_eq_lemma_2. rewrite dim_eq_lemma_2. reflexivity.
+    intros. rewrite H. reflexivity.
+Qed.
+Lemma ctx_to_matrix_eq_1 : forall n f1 f2,
+    (forall x, f1 x = f2 x) ->
+    ctx_to_matrix (list_of_Qubits n) f1 = ctx_to_matrix (list_of_Qubits n) f2.
+Proof.
+  induction n.
+  - intros. matrix_denote. solve_matrix.
+  - intros.
+    specialize (IHn (fun v : Var => f1 (S v)) (fun v : Var => f2 (S v))).
+    unfold ctx_to_matrix in *.
+    unfold big_kron in *. simpl in *.
+    show_dimensions.
+    rewrite dim_eq_lemma_2.
+    rewrite dim_eq_lemma_2.
+    apply kron_eq_1.
+    + rewrite H. reflexivity.
+    + apply IHn. intros. apply H.
+Qed.
+Lemma mod_3_0 : forall n, (n + n + n) mod 3 = 0.
+Proof.
+  induction n.
+  - reflexivity.
+  - assert (forall n x, snd (Nat.divmod (n+n+n) 2 x 2) = snd (Nat.divmod (n+n+n) 2 (S x) 2)).
+    { induction n0.
+      - intros. simpl. reflexivity.
+      - intros. replace (S n0 + S n0 + S n0) with (3 + n0 + n0 + n0) by omega.
+        simpl. apply IHn0. }
+    replace (S n + S n + S n) with (3 + n + n + n) by omega.
+    simpl. rewrite <- H. apply IHn.
+Qed.
+Lemma mod_3_1 : forall n, (n + n + n + 1) mod 3 = 1.
+Proof.
+  induction n.
+  - intros. simpl. reflexivity.
+  - simpl. simpl. replace (n + S n + S n + 1) with (2 + n + n + n + 1) by omega.
+    assert (forall n x, snd (Nat.divmod (n+n+n+1) 2 x 2) = snd (Nat.divmod (n+n+n+1) 2 (S x) 2)).
+    { induction n0.
+      - intros. simpl. reflexivity.
+      - intros. replace (S n0 + S n0 + S n0) with (3 + n0 + n0 + n0) by omega.
+        simpl. apply IHn0. }
+    simpl. rewrite <- H. apply IHn.
+Qed.
+Lemma mod_3_2 : forall n, (n + n + n + 2) mod 3 = 2.
+Proof.
+  induction n.
+  - intros. simpl. reflexivity.
+  - simpl. simpl. replace (n + S n + S n + 2) with (2 + n + n + n + 2) by omega.
+    assert (forall n x, snd (Nat.divmod (n+n+n+2) 2 x 2) = snd (Nat.divmod (n+n+n+2) 2 (S x) 2)).
+    { induction n0.
+      - intros. simpl. reflexivity.
+      - intros. replace (S n0 + S n0 + S n0) with (3 + n0 + n0 + n0) by omega.
+        simpl. apply IHn0. }
+    simpl. rewrite <- H. apply IHn.
+Qed.
+Lemma n_adder_z_compute_preserve : forall (n m : nat) (f : Var -> bool),
+    m <= n -> forall x, (x mod 3) <> 1 -> (n_adder_z_compute n m f x) = (f x).
+Proof.
+  intros n m. generalize dependent n. induction m.
+  - intros. simpl. reflexivity.
+  - intros. simpl. remember (n - S m) as i.
+    destruct (x =? S (i + i + i)) eqn:Hb.
+    + apply beq_nat_true in Hb. rewrite Hb in *.
+      replace (S (i + i + i)) with (i + i + i + 1) in H0 by omega.
+      rewrite mod_3_1 in H0. exfalso. apply H0. reflexivity.
+    + apply IHm. apply le_Sn_le. apply H. apply H0.
+Qed.
+Lemma n_adder_cout_interpret_equiv_1 : forall n m f1 f2,
+    (forall x, x > 0 -> f1 x = f2 x) ->
+    ⌈ n_adder_cout_bexp n m | f1 ⌉ = ⌈ n_adder_cout_bexp n m | f2 ⌉.
+Proof.
+  intros n m. generalize dependent n. induction m.
+  - intros. simpl. apply H. apply gt_Sn_O.
+  - intros. simpl. remember (n - S m) as i. destruct i.
+    + simpl. rewrite IHm with (f1:=f1) (f2:=f2).
+      replace (f2 2) with (f1 2) by (apply H; apply gt_Sn_O).
+      replace (f2 3) with (f1 3) by (apply H; apply gt_Sn_O).
+      reflexivity. apply H.
+    + simpl. rewrite IHm with (f1:=f1) (f2:=f2).
+      replace (f2 (S (S (S (S (i + S i + S i)))))) with
+          (f1 (S (S (S (S (i + S i + S i)))))) by (apply H; apply gt_Sn_O).
+      replace (f2 (S (S (S (i + S i + S i))))) with
+          (f1 (S (S (S (i + S i + S i))))) by (apply H; apply gt_Sn_O).
+      reflexivity. apply H.
+Qed.
+Lemma n_adder_z_compute_equiv_1 : forall (n m : nat) (f : Var -> bool),
+    m <= n ->
+    n_adder_z_compute n m (fun x => f (3+x))
+    = (fun x => (n_adder_z_compute (S n) m f) (3+x)).
+Proof.
+  intros n m. generalize dependent n. induction m.
+  - intros. simpl. reflexivity.
+  - intros. simpl. repeat rewrite IHm.
+    rewrite <- n_adder_cout_bexp_equiv_1.
+    rewrite <- bexp_interpret_equiv_1.
+    remember (n - S m) as i.
+    replace (n - m) with (S i). simpl.
+    replace (i + S i + S i) with (2 + i + i + i) by omega. simpl. reflexivity.
+    omega. omega. omega.
+Qed.
+Lemma n_adder_z_compute_equiv_2 : forall (n m : nat) (f1 f2 : Var -> bool),
+    m <= n -> f1 = (fun x => f2 (3+x)) ->
+    (n_adder_z_compute n m f1)
+    = (fun x => ((n_adder_z_compute (S n) m f2) (3+x))).
+Proof.
+  intros n m. generalize dependent n. induction m.
+  - intros. simpl. rewrite H0. reflexivity.
+  - intros. simpl. remember (n - S m) as i.
+    replace (n - m) with (1 + i) by omega. simpl.
+    replace (i + S i + S i) with (2 + i + i + i) by omega. simpl.
+    repeat rewrite IHm with (f1:=f1) (f2:=f2). simpl.
+    rewrite <- n_adder_cout_bexp_equiv_1.
+    rewrite <- bexp_interpret_equiv_1. reflexivity.
+    omega. omega. apply H0.
+Qed.
+Lemma n_adder_z_compute_equiv_3 : forall n m f1 f2,
+    m <= n ->
+    (forall x, x > 0 -> f1 x = f2 (3 + x)) ->
+    forall x, x > 0 -> n_adder_z_compute n m f1 x =
+                       n_adder_z_compute n m (fun x0 : nat => f2 (3 + x0)) x.
+Proof.
+  induction m.
+  - intros. simpl. rewrite H0. reflexivity. apply H1.
+  - intros. simpl. remember (n - S m) as i.
+    rewrite (IHm f1 f2).
+    rewrite n_adder_cout_interpret_equiv_1 with (f1:=n_adder_z_compute n m f1)
+                    (f2:=n_adder_z_compute n m (fun x0 : nat => f2 (3+x0))).
+    rewrite (n_adder_z_compute_preserve n m f1). simpl.
+    rewrite (n_adder_z_compute_preserve n m f1). simpl.
+    destruct (x =? S (i + i + i)) eqn:Heqx.
+    + remember (n_adder_z_compute n m (fun x0 : nat => f2 (S (S (S x0)))) x).
+      rewrite (n_adder_z_compute_preserve n m (fun x0 : nat => f2 (3+x0))).
+      rewrite (n_adder_z_compute_preserve n m (fun x0 : nat => f2 (3+x0))).
+      rewrite H0. rewrite H0. simpl. reflexivity.
+      all: try replace (S (S (i + i + i))) with (i + i + i + 2) by omega;
+        try replace (S (S (S (i + i + i)))) with (S i + S i + S i) by omega;
+        try replace (S (i + i + i + 2)) with (S i + S i + S i) by omega;
+        try rewrite mod_3_2; try rewrite mod_3_3; try rewrite mod_3_0; try omega.
+    + reflexivity.
+    + omega.
+    + replace (S (S (i + i + i))) with (i + i + i + 2) by omega.
+      rewrite mod_3_2. omega.
+    + omega.
+    + replace (S (S (S (i + i + i)))) with (S i + S i + S i) by omega.
+      rewrite mod_3_0. omega.
+    + intros. rewrite (IHm f1 f2). reflexivity. omega. apply H0. omega.
+    + omega.
+    + apply H0.
+    + omega.
+Qed.
+
+Lemma adder_circ_n_spec : forall (n : nat) (f : Var -> bool),
+⟦adder_circ_n n⟧ (ctx_to_matrix (list_of_Qubits (2+n+n+n)) f)
+= (ctx_to_matrix (list_of_Qubits (2+n+n+n)) (n_adder_cout_compute n (n_adder_z_compute n n f))).
+Proof.
+  induction n.
+  - intros.
+    remember (calc_id_circ_spec (f 1%nat) (f 0%nat)).
+    simpl in *. unfold ctx_to_matrix in *.
+    unfold big_kron in *. simpl in *. apply e.
+  - intros.
+    Opaque denote. simpl_eq. Transparent denote.
+    specialize inSeq_correct as IS. simpl in IS.
+    simpl. repeat (rewrite IS; compile_typing (compile_WT)). clear IS.
+    unfold compose_super.
+    replace (n + S n + S n)%nat with (2 + n + n + n)%nat by omega.
+    unfold ctx_to_matrix at 1. simpl.
+    Set Printing Implicit.
+    show_dimensions.
+    rewrite dim_eq_lemma_2. (* simplify dimension of matrices *)
+    specialize (inPar_correct Qubit Qubit (NTensor (4+n+n+n) Qubit) (NTensor (5+n+n+n) Qubit)) as IP.
+    rewrite dim_eq_lemma_3 in IP. (* simplify dimension of boxes *)
+    rewrite IP. clear IP.
+    specialize (inPar_correct Qubit Qubit (NTensor (3+n+n+n) Qubit) (NTensor (4+n+n+n) Qubit)) as IP.
+    rewrite dim_eq_lemma_3 in IP. (* simplify dimension of boxes *)
+    rewrite IP. clear IP.
+    specialize (inPar_correct Qubit Qubit (NTensor (2+n+n+n) Qubit) (NTensor (3+n+n+n) Qubit)) as IP.
+    rewrite dim_eq_lemma_3 in IP. (* simplify dimension of boxes *)
+    rewrite IP. clear IP.
+    specialize (inPar_correct Qubit Qubit (NTensor (1+n+n+n) Qubit) (NTensor (2+n+n+n) Qubit)) as IP.
+    rewrite dim_eq_lemma_3 in IP. (* simplify dimension of boxes *)
+    rewrite IP. clear IP.
+    rewrite strip_one_l_in_eq.
+    assert (Hkron1 : kron' 2 2 (2 ^ (n+n+n)) (2 ^ (n+n+n)) (bool_to_matrix (f 4))
+                           (⨂ ctx_to_mat_list (list_of_Qubits (n+n+n))
+                              (fun v : Var => f (S (S (S (S (S v))))))) =
+                     (Id 1) ⊗ (kron' 2 2 (2 ^ (n+n+n)) (2 ^ (n+n+n)) (bool_to_matrix (f 4))
+                                     (⨂ ctx_to_mat_list (list_of_Qubits (n+n+n))
+                                        (fun v : Var => f (S (S (S (S (S v))))))))).
+    { rewrite kron_1_l.
+      - reflexivity.
+      - apply WF_kron; try reflexivity.
+        + apply WF_bool_to_matrix.
+        + specialize (WF_ctx_to_matrix (list_of_Qubits (n+n+n)) (fun v : Var => f (S (S (S (S (S v))))))) as HWF.
+          unfold ctx_to_matrix in HWF. rewrite dim_eq_lemma_1 in HWF. apply HWF. }
+    rewrite Hkron1. clear Hkron1.
+    specialize (inPar_correct One Qubit (NTensor (1+n+n+n) Qubit) (NTensor (1+n+n+n) Qubit)) as IP.
+    rewrite dim_eq_lemma_3 in IP. (* simplify dimension of boxes *)
+    rewrite IP. clear IP.
+    specialize (inPar_correct Qubit Qubit (NTensor (n+n+n) Qubit) (NTensor (n+n+n) Qubit)) as IP.
+    rewrite dim_eq_lemma_3 in IP. (* simplify dimension of boxes *)
+    rewrite IP. clear IP.
+    remember id_circ_Id. simpl in e. repeat rewrite e. clear e Heqe.
+    remember init0_spec. simpl in e. rewrite e. clear e Heqe.
+    assert (inParMany_correct : forall n f, denote_box true (inParMany n (@id_circ Qubit)) (⨂ ctx_to_mat_list (list_of_Qubits (n)) f)%M = (⨂ ctx_to_mat_list (list_of_Qubits (n)) f)%M).
+    { induction n0.
+      - intros. simpl. remember id_circ_Id. simpl in e. rewrite e. reflexivity.
+        apply WF_I1.
+      - intros. simpl. show_dimensions. rewrite dim_eq_lemma_2.
+        specialize (inPar_correct Qubit Qubit (NTensor n0 Qubit) (NTensor n0 Qubit)) as IP.
+        rewrite dim_eq_lemma_3 in IP. simpl in IP. rewrite IP.
+        rewrite IHn0. remember id_circ_Id. simpl in e. rewrite e. reflexivity.
+        + simpl. apply WF_bool_to_matrix.
+        + apply id_circ_WT.
+        + apply inParMany_WT. apply id_circ_WT.
+        + show_mixed.
+        + specialize (mixed_state_big_kron_ctx_to_mat_list n0 (fun v : Var => f0 (S v)))
+            as Hmixed. rewrite dim_eq_lemma_2 in Hmixed. apply Hmixed. }
+    rewrite inParMany_correct.
+    
+    show_dimensions. simpl. rewrite dim_eq_lemma_3.
+    specialize (inPar_correct Qubit Qubit (NTensor (5+n+n+n) Qubit) (NTensor (5+n+n+n) Qubit)) as IP.
+    rewrite dim_eq_lemma_3 in IP. (* simplify dimension of boxes *)
+    rewrite IP. clear IP.
+    specialize (inPar_correct Qubit Qubit (NTensor (4+n+n+n) Qubit) (NTensor (4+n+n+n) Qubit)) as IP.
+    rewrite dim_eq_lemma_3 in IP. (* simplify dimension of boxes *)
+    rewrite IP. clear IP.
+    specialize (inPar_correct Qubit Qubit (NTensor (3+n+n+n) Qubit) (NTensor (3+n+n+n) Qubit)) as IP.
+    rewrite dim_eq_lemma_3 in IP. (* simplify dimension of boxes *)
+    rewrite IP. clear IP.
+    specialize (inPar_correct Qubit Qubit (NTensor (2+n+n+n) Qubit) (NTensor (2+n+n+n) Qubit)) as IP.
+    rewrite dim_eq_lemma_3 in IP. (* simplify dimension of boxes *)
+    rewrite IP. clear IP.
+    remember id_circ_Id. simpl in e. repeat rewrite e. clear e Heqe.
+    unfold ctx_to_matrix in IHn. simpl in IHn.
+    specialize (IHn (fun x => match x with
+                              | 0 => false
+                              | x => (f (3+x))
+                              end)).
+    show_dimensions. rewrite dim_eq_lemma_2 in IHn. (* simplify dimension of matrices *)
+    simpl in *. replace (Mmult' 2 1 2 |0⟩ ⟨0|) with (|0⟩⟨0|). rewrite IHn.
+    hide_dimensions. clear IHn.
+    specialize (adder_circ_1_with_pads_spec (S (n + n + n))
+                                            (fun x => match x with
+                                                      | 0 => f 0
+                                                      | 1 => f 1
+                                                      | 2 => f 2
+                                                      | 3 => f 3
+                                                      | 4 => (n_adder_z_compute n n
+                                                             (fun x : Var =>
+                                                                match x with
+                                                                | 0 => false
+                                                                | x => f (3+x)
+                                                                end) 0
+                                                             ⊕ ⌈ n_adder_cout_bexp n n
+                                                             | n_adder_z_compute n n
+                                                               (fun x : Var =>
+                                                                  match x with
+                                                                  | 0 => false
+                                                                  | _ => f (3+x)
+                                                                  end) ⌉)
+                                                      | x => (n_adder_z_compute n n
+                                                             (fun x : Var =>
+                                                                match x with
+                                                                | 0 => false
+                                                                | S _ => f (3+x)
+                                                                end) (x-4))
+                                                      end)) as I1.
+    unfold ctx_to_matrix in I1. simpl in *.
+    show_dimensions. rewrite dim_eq_lemma_2 in *. (* simplify dimension of matrices *)
+    rewrite I1. hide_dimensions. clear I1.
+
+    show_dimensions. rewrite dim_eq_lemma_1. hide_dimensions.
+    specialize (inPar_correct Qubit Qubit (NTensor (5+n+n+n) Qubit) (NTensor (4+n+n+n) Qubit)) as IP. 
+    rewrite dim_eq_lemma_3 in IP. (* simplify dimension of boxes *)
+    rewrite IP. clear IP.
+    specialize (inPar_correct Qubit Qubit (NTensor (4+n+n+n) Qubit) (NTensor (3+n+n+n) Qubit)) as IP. 
+    rewrite dim_eq_lemma_3 in IP. (* simplify dimension of boxes *)
+    rewrite IP. clear IP.
+    specialize (inPar_correct Qubit Qubit (NTensor (3+n+n+n) Qubit) (NTensor (2+n+n+n) Qubit)) as IP. 
+    rewrite dim_eq_lemma_3 in IP. (* simplify dimension of boxes *)
+    rewrite IP. clear IP.
+    specialize (inPar_correct Qubit Qubit (NTensor (2+n+n+n) Qubit) (NTensor (1+n+n+n) Qubit)) as IP. 
+    rewrite dim_eq_lemma_3 in IP. (* simplify dimension of boxes *)
+    rewrite IP. clear IP.
+    rewrite strip_one_l_out_eq.
+    specialize (inPar_correct Qubit One (NTensor (1+n+n+n) Qubit) (NTensor (1+n+n+n) Qubit)) as IP. 
+    rewrite dim_eq_lemma_3 in IP. (* simplify dimension of boxes *)
+    rewrite IP. clear IP.
+    specialize (inPar_correct Qubit Qubit (NTensor (n+n+n) Qubit) (NTensor (n+n+n) Qubit)) as IP. 
+    rewrite dim_eq_lemma_3 in IP. (* simplify dimension of boxes *)
+    rewrite IP. clear IP.
+    remember id_circ_Id. simpl in e. repeat rewrite e. clear e Heqe.
+    remember inSeq_correct. simpl in e. rewrite e. unfold compose_super. clear e Heqe.
+    rewrite inParMany_correct. clear inParMany_correct.
+    assert (meas_spec : forall b, ⟦boxed_gate meas⟧ (bool_to_matrix b) = bool_to_matrix b).
+    { destruct b; matrix_denote; Msimpl; solve_matrix. }
+    simpl in meas_spec. rewrite meas_spec. clear meas_spec.
+    assert (discard_spec : forall b, ⟦boxed_gate discard⟧ (bool_to_matrix b) = Id 1).
+    { destruct b; matrix_denote; Msimpl; solve_matrix;
+        rewrite Nat.ltb_compare; simpl; rewrite andb_false_r; reflexivity. }
+    simpl in discard_spec. rewrite discard_spec. clear discard_spec.
+
+    all: repeat (try apply inParMany_WT; try apply inSeq_WT; try apply inPar_WT;
+                 try apply boxed_gate_WT; try apply id_circ_WT;
+                 try apply strip_one_l_out_WT; try apply strip_one_l_in_WT).
+    all: repeat (try apply adder_circ_n_WT).
+    all: repeat try apply (adder_circ_1_with_pads_WT (S (n + n + n))).
+    all: repeat (try apply WF_bool_to_matrix).
+    all: remember (fun x : Var => match x with
+                                  | 0 => false
+                                  | S _ => f (S (S (S x)))
+                                  end) as f'.
+    all: repeat (try apply (mixed_kron 2); try apply mixed_big_kron; try show_mixed).
+    all: specialize (mixed_state_big_kron_ctx_to_mat_list
+                  (n+n+n) (fun v : Var => f (S (S (S (S (S v))))))) as Hmixed1.
+    all: specialize (mixed_state_big_kron_ctx_to_mat_list
+                  (n+n+n) (fun v : Var => n_adder_z_compute n n f' (S (S v)))) as Hmixed2.
+    all: rewrite dim_eq_lemma_2 in Hmixed1; rewrite dim_eq_lemma_2 in Hmixed2.
+    all: repeat (try apply Hmixed1; try apply Hmixed2).
+    all: clear Hmixed1 Hmixed2.
+    all: hide_dimensions; try reflexivity.
+
+    + unfold ctx_to_matrix. simpl.
+      replace (n - n) with (0) by omega. simpl.
+      assert (L1 : forall n m f, n_adder_z_compute n m f 0 = f 0).
+      { intros. induction m.
+        - simpl. reflexivity.
+        - simpl. remember (n0 - S m + (n0 - S m) + (n0 - S m)). apply IHm. }
+      assert (L2 : forall n m f, n_adder_z_compute n m f 2 = f 2).
+      { intros. induction m.
+        - simpl. reflexivity.
+        - simpl. remember (n0 - S m) as n1. destruct n1.
+          + simpl. rewrite IHm. destruct (f0 2); reflexivity.
+          + simpl. replace (n1 + S n1 + S n1 + 1) with (3 + n1 + n1 + n1) by omega.
+            simpl. rewrite IHm. replace (n1 + S n1 + S n1) with (2 + n1 + n1 + n1) by omega.
+            destruct (f0 2); reflexivity. }
+      assert (L3 : forall n m f, n_adder_z_compute n m f 3 = f 3).
+      { intros. induction m.
+        - simpl. reflexivity.
+        - simpl. remember (n0 - S m) as n1. destruct n1.
+          + simpl. rewrite IHm. destruct (f0 3); reflexivity.
+          + simpl. replace (n1 + S n1 + S n1 + 1) with (3 + n1 + n1 + n1) by omega.
+            simpl. rewrite IHm. replace (n1 + S n1 + S n1) with (2 + n1 + n1 + n1) by omega.
+            destruct (f0 2); reflexivity. }
+      rewrite L1. rewrite L2. rewrite L3. rewrite L1.
+      show_dimensions. rewrite dim_eq_lemma_2. rewrite dim_eq_lemma_3.
+      assert (Hb : forall (b : bool), (if b then true else false) = b).
+      { destruct b; reflexivity. }
+      repeat (apply kron_eq_1). repeat rewrite Hb.
+      * replace (f' 0) with false by (rewrite Heqf'; reflexivity). rewrite xorb_false_l.
+        rewrite <- n_adder_cout_bexp_equiv_1.
+        rewrite <- bexp_interpret_equiv_1.
+        simpl. rewrite <- n_adder_z_compute_equiv_2 with (f1:=(fun x => f (3+x))) (f2:=f).
+        replace (⌈ n_adder_cout_bexp n n | n_adder_z_compute n n (fun x : nat => f (3 + x)) ⌉)
+          with (⌈ n_adder_cout_bexp n n | n_adder_z_compute n n f' ⌉). reflexivity.
+        apply n_adder_cout_interpret_equiv_1. intros.
+        apply n_adder_z_compute_equiv_3.
+        omega. destruct x0. intro H0; inversion H0. rewrite Heqf'. reflexivity.
+        omega. omega. reflexivity. omega.
+      * replace (f' 0) with false by (rewrite Heqf'; reflexivity). rewrite xorb_false_l.
+        rewrite <- n_adder_cout_bexp_equiv_1.
+        rewrite <- bexp_interpret_equiv_1.
+        rewrite n_adder_cout_interpret_equiv_1 with (f1:=n_adder_z_compute n n f')
+                        (f2:=fun x : Var => n_adder_z_compute (S n) n f (3 + x)).
+        replace (n_adder_z_compute (S n) n f 1) with (f 1).
+        reflexivity.
+        {  assert (forall n m, m < n -> n_adder_z_compute n m f 1 = f 1).
+           { intros n0 m. generalize dependent n0. induction m.
+             - intros. simpl. reflexivity.
+             - intros. simpl. apply lt_minus_O_lt in H. remember (n0 - S m) as i.
+               destruct i eqn:Hi. inversion H.
+               simpl. apply IHm.
+               simpl in Heqi. omega. }
+           rewrite H. reflexivity. omega. }
+        { intros.
+          rewrite n_adder_z_compute_equiv_3 with (f1:=f') (f2:=f).
+          rewrite n_adder_z_compute_equiv_1. reflexivity.
+          omega. omega. destruct x0. intro H0; inversion H0. rewrite Heqf'. reflexivity.
+          omega. }
+        omega.
+      * reflexivity.
+      * reflexivity.
+      * rewrite kron_1_l.
+        { apply kron_eq_1.
+          { rewrite n_adder_z_compute_equiv_3 with (f1:=f') (f2:=f).
+            rewrite n_adder_z_compute_equiv_1. reflexivity.
+            omega. omega. destruct x. intro H; inversion H. rewrite Heqf'. reflexivity.
+            omega. }
+          { apply big_kron_eq_1.
+            intros.
+            remember (S (S x)) as x'.
+            rewrite n_adder_z_compute_equiv_3 with (f1:=f') (f2:=f).
+            rewrite n_adder_z_compute_equiv_1. reflexivity.
+            omega. omega. destruct x0. intro H0; inversion H0. rewrite Heqf'. reflexivity.
+            omega. }
+        }
+        apply WF_kron; try omega.
+        { apply WF_bool_to_matrix. }
+        { specialize (WF_ctx_to_matrix (list_of_Qubits (n+n+n))) as HWF.
+          unfold ctx_to_matrix in HWF. rewrite dim_eq_lemma_1 in HWF. apply HWF. }
+Qed.
+
+Close Scope matrix_scope.
+Close Scope nat_scope.
+
+(* Unit test : 10100(2) + 11000(2) + 1(2) = 101101(2) *)
+Lemma adder_circ_n_test_10100_11000_1 :
+  ⟦adder_circ_n 5⟧ (ctx_to_matrix (list_of_Qubits 17) (list_to_function [false; false; true; true; false; false; true; false; true; false; false; false; false; false; false; false; true] false))
+  = (ctx_to_matrix (list_of_Qubits 17) (list_to_function [true; false; true; true; true; false; true; true; true; false; false; false; false; true; false; false; true] false)).
+Proof.
+  rewrite (adder_circ_n_spec 5).
+  apply ctx_to_matrix_eq_1.
+  repeat (try destruct x; try reflexivity).
+Qed.
+(* Unit test : 10100(2) + 11000(2) + 0(2) = 101100(2) *)
+Lemma adder_circ_n_test_10100_11000_0 :
+  ⟦adder_circ_n 5⟧ (ctx_to_matrix (list_of_Qubits 17) (list_to_function [false; false; true; true; false; false; true; false; true; false; false; false; false; false; false; false; false] false))
+  = (ctx_to_matrix (list_of_Qubits 17) (list_to_function [true; false; true; true; true; false; true; true; true; false; false; false; false; false; false; false; false] false)).
+Proof.
+  rewrite (adder_circ_n_spec 5).
+  apply ctx_to_matrix_eq_1.
+  repeat (try destruct x; try reflexivity).
+Qed.
+
+(*
 Program Fixpoint adder_circ_n' (n : nat) : Box ((2+n) ⨂ Qubit) ((2+n) ⨂ Qubit) := 
   match n with
   | O => calc_id_circ
   | S n' => ((@id_circ Qubit) || (strip_one_l_in (init0 || (inParMany (2+n') (@id_circ Qubit))))) ;; 
-            ((@id_circ Qubit) || (strip_one_l_out (assert0 || (inParMany (2+n') (@id_circ Qubit)))))
+            ((@id_circ Qubit) || (strip_one_l_out ((meas;;discard) || (inParMany (2+n') (@id_circ Qubit)))))
   end.
+
 Open Scope matrix_scope.
 Lemma adder_circ_n'_spec : forall (n : nat) (f : Var -> bool),
 ⟦adder_circ_n' n⟧ (ctx_to_matrix (list_of_Qubits (2+n)) f)
@@ -1522,3 +2029,4 @@ Eval simpl in (n_adder_circ 1).
 Eval simpl in (n_adder_circ 2).
 Eval simpl in (n_adder_circ 3).
  *)
+*)
