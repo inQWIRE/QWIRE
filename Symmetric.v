@@ -746,7 +746,7 @@ Proof.
     Msimpl.
     reflexivity.
 Qed.
-
+Open Scope circ_scope.
 Lemma init_assert_at_valid : forall b m i W1 (c : Box W1 (S m ⨂ Qubit)), 
     i < S m ->
     valid_ancillae_box' (assert_at b m i · c) ->
@@ -973,3 +973,4 @@ Proof.
    apply assert_init_at_id.
    omega.
 Qed.
+Close Scope circ_scope.
