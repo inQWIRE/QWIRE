@@ -19,10 +19,14 @@ Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Box W1 W2 :=
   box_ p ⇒   
     gate_ p2 ← g @p;
     output p2.
-Coercion boxed_gate : Gate >-> Box.
-
 Lemma boxed_gate_WT {W1 W2} (g : Gate W1 W2) : Typed_Box (boxed_gate g).
 Proof. type_check. Qed.
+Coercion boxed_gate : Gate >-> Box.
+
+Definition SWAP : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) := 
+  box_ p ⇒ let_ (p1,p2) ← p; output (p2,p1).
+Lemma WT_SWAP : Typed_Box SWAP. Proof. type_check. Qed.
+
 
 (***********************)
 (* Structural circuits *)

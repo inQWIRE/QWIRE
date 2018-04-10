@@ -677,15 +677,20 @@ Proof.
   - intros. simpl. rewrite IHn. rewrite <- app_assoc. reflexivity.
 Qed.
 
+(* Currently working on these in Oracles.v *)
 (* Strong sematics for init and assert *)
 Open Scope matrix_scope.
-Lemma init_at_spec_strong : forall b n i (ρ : Square (2^n)), i <= n ->
+
+Lemma init_at_spec_strong : forall b n i (ρ : Square (2^n)), 
+  i <= n ->
   ⟦init_at b n i⟧ ρ = ('I_ (2^i) ⊗ bool_to_ket b ⊗ 'I_ (2^ (n-i))) × ρ × 
                      ('I_ (2^i) ⊗ (bool_to_ket b)† ⊗ 'I_ (2^ (n-i))).
+Proof. 
 Admitted.
 
 (* Safe semantics *)
-Lemma assert_at_spec_strong : forall b n i (ρ : Square (2^n)), i <= n ->
+Lemma assert_at_spec_strong : forall b n i (ρ : Square (2^n)), 
+  i <= n ->
   ⟦assert_at b n i⟧ ρ = 
   ('I_ (2^i) ⊗ ⟨0| ⊗ 'I_ (2^ (n-i))) × ρ × ('I_ (2^i) ⊗ |0⟩ ⊗ 'I_ (2^ (n-i))) .+ 
   ('I_ (2^i) ⊗ ⟨1| ⊗ 'I_ (2^ (n-i))) × ρ × ('I_ (2^i) ⊗ |1⟩ ⊗ 'I_ (2^ (n-i))).
@@ -698,7 +703,8 @@ Proof.
   simpl_rewrite id_circ_Id; auto with wf_db.
   simpl_rewrite inSeq_correct; [ | apply assert_at_WT | apply init_at_WT].
   unfold compose_super.
-  simpl_rewrite (init_at_spec_strong b m i); [|omega].
+  rewrite size_ntensor, Nat.mul_1_r in M.
+  simpl_rewrite (init_at_spec_strong b m i); [|omega]. 
   simpl_rewrite (assert_at_spec_strong b m i); [|omega].
   gen ρ. rewrite size_ntensor. simpl. rewrite Nat.mul_1_r.
   intros ρ M.
@@ -746,7 +752,10 @@ Proof.
     Msimpl.
     reflexivity.
 Qed.
+
+Close Scope matrix_scope.
 Open Scope circ_scope.
+
 Lemma init_assert_at_valid : forall b m i W1 (c : Box W1 (S m ⨂ Qubit)), 
     i < S m ->
     valid_ancillae_box' (assert_at b m i · c) ->
@@ -758,7 +767,7 @@ Lemma valid_ancillae_box'_equiv : forall W1 W2 (b1 b2 : Box W1 W2), b1 ≡ b2 ->
       valid_ancillae_box' b1 <-> valid_ancillae_box' b2.
 Admitted.
 
-(* Follows from uniformity of trace *)
+(* Follows from uniformly decreasing trace *)
 Lemma valid_inSeq : forall w1 w2 w3 (c1 : Box w1 w2) (c2 : Box w2 w3),
       Typed_Box c1 -> Typed_Box c2 ->
       valid_ancillae_box' c1 -> valid_ancillae_box' c2 ->
@@ -847,13 +856,15 @@ Proof.
   * apply WF_Mixed; auto.
 Qed.
 
+(* unsure how to prove - may need a stronger notion of noop *)
 Lemma symmetric_gate_noop_source : forall n t k g c,
     gate_acts_on k g ->
     noop_source n t c ->
     noop_source n t (g · c · g).
 Admitted.
 
-(* not sure how to prove this *)
+(* must generalize source_symmetric_noop IH to account for 
+   multiple valid ancilla at a time *)
 Lemma symmetric_ancilla_noop_source : forall n t k c b,
       k < S n ->
       noop_source (S n) t c ->
@@ -894,6 +905,41 @@ Proof.
   * (* sym_ancilla *)
     apply symmetric_ancilla_noop_source; auto.
 Qed.
+
+Theorem source_symmetric_valid : forall (n t : nat) (c : Square_Box ((n + t) ⨂ Qubit)),
+  source_symmetric n t c -> 
+  valid_ancillae_box c.
+Proof.
+  intros n t c H.
+  induction H.
+  - apply ancilla_free_box_valid.
+    constructor.     
+    constructor.
+  - inversion g0.
+    unfold valid_ancillae_box.
+    apply functional_extensionality. intros ρ.
+    simpl_rewrite inSeq_correct.
+    (* just need version of this for denote_box false TODO *)
+    (* then just rewrite innermost denote_true to denote_false *)
+    admit.
+    apply unitary_at1_WT.
+    apply inSeq_WT. 
+    apply unitary_at1_WT.
+    apply source_symmetric_WT; easy.
+    admit.
+    admit.
+  - (* simpler version of above *)
+    admit.
+  - admit.
+  - specialize (source_symmetric_noop (S n) t c) as SSN.
+    unfold noop_source in SSN.
+    fold plus in SSN.
+    unfold noop_on in SSN.
+    apply valid_ancillae_box_equal.
+    apply SSN; trivial.
+    omega.
+Admitted.
+
 
 (* The noop property implies actual reversibility *)
 

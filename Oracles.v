@@ -745,8 +745,69 @@ Proof.
 Qed.
 
 
-Close Scope matrix_scope.
+(* Strong sematics for init and assert
+Open Scope matrix_scope.
 
+Lemma init_at_spec_strong : forall b n i (ρ : Square (2^n)), 
+  i <= n ->
+  WF_Matrix (2^n) (2^n) ρ ->
+  ⟦init_at b n i⟧ ρ = ('I_ (2^i) ⊗ bool_to_ket b ⊗ 'I_ (2^ (n-i))) × ρ × 
+                     ('I_ (2^i) ⊗ (bool_to_ket b)† ⊗ 'I_ (2^ (n-i))).
+Proof. 
+  intros b n.
+  induction n.
+  - intros i ρ L WF.
+    replace i with 0 by omega.
+    simpl.    
+    rewrite strip_one_l_in_eq.
+    unfold inPar.
+    unfold denote_box. simpl.
+    unfold unbox, init. simpl.
+    destruct b; simpl.
+    + matrix_denote. Msimpl. reflexivity.
+    + matrix_denote. Msimpl. reflexivity.
+  - intros i ρ L WF. simpl. clear L.
+    destruct i; simpl.
+    + rewrite strip_one_l_in_eq.
+      unfold inPar. simpl.
+      unfold denote_box. simpl.
+      rewrite size_ntensor, Nat.mul_1_r.
+      rewrite fresh_state_ntensor. simpl.    
+      unfold unbox, init.
+      destruct b.
+      * simpl.
+        unfold compose_super.
+        unfold add_fresh_state. simpl.
+        unfold denote_pat.
+        simpl.
+        rewrite size_ntensor, Nat.mul_1_r.
+        rewrite (repeat_combine (option WType) n 1).
+        setoid_rewrite (repeat_combine (option WType) 1 n).
+        rewrite ctx_dom_repeat.
+        rewrite seq_shift. (* why do this & fmap_S_seq exist? *)
+        replace (0 :: seq 1 (n+1)) with (seq 0 (n+2))
+          by (repeat (rewrite Nat.add_comm; simpl); easy).
+        unfold get_fresh_var. simpl.
+        rewrite repeat_length.
+        rewrite subst_var_σ_n by omega. 
+        rewrite pad_nothing.
+        Search subst_pat.
+        simpl_rewrite (ntensor_pat_to_list_shifted 1 n (n+2)); [|omega].
+        rewrite (Nat.add_comm n 2). unfold subst_var. simpl.
+        (* this becomes easy if we initialize qubits at 0 *)
+        unfold apply_new1.
+        unfold super at 2.
+        admit.
+      * admit.
+    + unfold inPar; simpl.
+      unfold denote_box; simpl.
+      rewrite size_ntensor, Nat.mul_1_r.
+      rewrite fresh_state_ntensor. simpl.
+      setoid_rewrite (repeat_combine (option WType) 1 n).      
+Admitted.
+
+Close Scope matrix_scope.
+*)
 
 (* old:
 (* Target is the extra qubit *)
@@ -788,10 +849,6 @@ Fixpoint compile (b : bexp) (Γ : Ctx) : Square_Box (((⟦Γ⟧) ⨂ Qubit) ⊗ 
                     output (qs,t)
   end.
 *)
-
-Definition SWAP : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) := 
-  box_ p ⇒ let_ (p1,p2) ← p; output (p2,p1).
-Lemma WT_SWAP : Typed_Box SWAP. Proof. type_check. Qed.
 
 (* Can probably use an existing list function *)
 Fixpoint qubit_at (v : Var) (Γ : Ctx) := 
