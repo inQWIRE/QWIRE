@@ -752,7 +752,9 @@ Proof.
     Msimpl.
     reflexivity.
 Qed.
+
 Close Scope matrix_scope.
+Open Scope circ_scope.
 
 Lemma init_assert_at_valid : forall b m i W1 (c : Box W1 (S m ⨂ Qubit)), 
     i < S m ->
@@ -1017,3 +1019,4 @@ Proof.
    apply assert_init_at_id.
    omega.
 Qed.
+Close Scope circ_scope.
