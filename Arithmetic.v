@@ -142,6 +142,31 @@ Definition calc_xor_circ :=
 
 Definition calc_id_circ := compile id_bexp (list_of_Qubits 1).
 
+Notation "'let_' ( p1 , p2 ) ← 'output' p3 ; c" := (letpair p1 p2 p3 c) (at level 12, right associativity) : circ_scope.
+Notation "'let_' p ← c1 ; c2" := (comp p c1 c2)
+                            (at level 12, right associativity) : circ_scope.
+
+Ltac compute_compile :=
+  repeat (try unfold compile; simpl;
+          try unfold inPar; try unfold inSeq;
+          try unfold id_circ; try unfold init_at; try unfold assert_at;
+          try unfold Symmetric.CNOT_at).
+
+(*
+Require Coq.derive.Derive.
+Derive p SuchThat (calc_id_circ = p) As h.
+Proof.
+  unfold calc_id_circ; unfold id_bexp.
+  compute_compile.
+ *)
+(*
+Derive p SuchThat (adder_z_circ = p) As h.
+Proof.
+  unfold adder_z_circ; unfold adder_z_bexp.
+  compute_compile. Set Printing Implicit.
+*)
+
+
 Definition calc_id_circ_with_pads (n : nat) := compile id_bexp (list_of_Qubits (1+n)).
 
 Lemma adder_cout_circ_WT : Typed_Box adder_cout_circ.
@@ -253,6 +278,19 @@ Output : (cout', (z', (y, (x, (cin, ())))))
 *)
 Definition adder_circ_1 : Box (5 ⨂ Qubit) (5 ⨂ Qubit) := 
   (id_circ ∥ adder_z_circ) ;; adder_cout_circ.
+
+(*
+Require Coq.derive.Derive.
+Derive p SuchThat (adder_circ_1 = p) As h.
+Proof.
+  unfold adder_circ_1.
+  unfold inPar; unfold inSeq.
+  unfold id_circ; unfold adder_z_circ; unfold adder_cout_circ.
+  unfold id_bexp; unfold adder_z_bexp; unfold adder_cout_bexp.
+  unfold compile. simpl.
+  unfold Symmetric.CNOT_at. simpl.
+*)
+
 
 Local Obligation Tactic := program_simpl; try omega.
 Program Definition adder_circ_1_with_pads (n : nat) : Box ((5+n) ⨂ Qubit) ((5+n) ⨂ Qubit) := 
@@ -748,7 +786,7 @@ Proof.
     + omega.
 Qed.
 
-Lemma adder_circ_n_spec : forall (n : nat) (f : Var -> bool),
+Lemma adder_circ_n_spec_1 : forall (n : nat) (f : Var -> bool),
     let li := list_of_Qubits (2 + 3 * n) in
     ⟦adder_circ_n n⟧ (ctx_to_matrix li f)
     = (ctx_to_matrix li (n_adder_cout_compute n (n_adder_z_compute n n f))).
@@ -1006,6 +1044,10 @@ Proof.
         { specialize (WF_ctx_to_matrix (list_of_Qubits (n+n+n))) as HWF.
           unfold ctx_to_matrix in HWF. rewrite dim_eq_lemma_1 in HWF. apply HWF. }
 Qed.
+
+Lemma adder_circ_n_spec_2 : forall (n : nat) (arg : list bool),
+    ⟦adder_circ_n n⟧ (matrix_of_bools arg)
+    = (matrix_of_bools (n_adder_cout_compute n (n_adder_z_compute n n arg))).
 
 Close Scope matrix_scope.
 Close Scope nat_scope.
