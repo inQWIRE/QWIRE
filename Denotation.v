@@ -325,18 +325,45 @@ Lemma swap_list_spec_2 : forall n i j k
     (A1 ⊗ ρ1 ⊗ A2 ⊗ ρ2 ⊗ A3) = A1 ⊗ ρ1' ⊗ A2 ⊗ ρ2' ⊗ A3.
 Admitted.
 
+(*
+Lemma swap_list_shift : forall n (ρ : Square (2^1)%nat) (A : Square (2^n)),
+  super (swap_list (S n) (seq 1 n ++ [O])) (ρ ⊗ A) = A ⊗ ρ.
+Admitted.
+
+Lemma swap_list_shift' : forall (n : nat) (ρ : Square 2) (A : Square (2^n)%nat),
+  super (swap_list (S n) (n :: seq 0 n)) (A ⊗ ρ) = ρ ⊗ A.
+Admitted.
+*)
+
 Definition apply_U {m n} (U : Square (2^m)) (l : list nat) 
            : Superoperator (2^n) (2^n) :=
   let S := swap_list n l in 
   let SU := S × (pad n U) × S† in  
   super SU.
 
-(* Moving new qubits to the end *)
+(* Initializing qubits in the 0 position
+Definition apply_new0 {n} : Superoperator (2^n) (2^(n+1)) :=
+  super (|0⟩ ⊗ Id (2^n)).
+
+Definition apply_new1 {n} : Superoperator (2^n) (2^(n+1)) :=
+  super (|1⟩ ⊗ Id (2^n)).
+*)
+
+(* Initializing qubits in the n position *)
 Definition apply_new0 {n} : Superoperator (2^n) (2^(n+1)) :=
   super (Id (2^n) ⊗ |0⟩).
 
 Definition apply_new1 {n} : Superoperator (2^n) (2^(n+1)) :=
   super (Id (2^n) ⊗ |1⟩).
+
+
+(* Moving new qubits to the end
+Definition apply_new0 {n} : Superoperator (2^n) (2^(n+1)) :=
+  super (Id (2^n) ⊗ |0⟩).
+
+Definition apply_new1 {n} : Superoperator (2^n) (2^(n+1)) :=
+  super (Id (2^n) ⊗ |1⟩).
+*)
 
 (* In-place measurement and discarding *)
 
@@ -360,37 +387,24 @@ Definition apply_meas {n} (k : nat) : Superoperator (2^n) (2^n) :=
 Definition super_Zero {m n} : Superoperator m n  :=
   fun _ => Zero _ _.
 
+Definition apply_to_first {m n} (f : nat -> Superoperator m n) (l : list nat) :
+  Superoperator m n :=
+  match l with
+  | x :: _ => f x 
+  | []     => super_Zero
+  end.
+
 Definition apply_gate {n w1 w2} (safe : bool) (g : Gate w1 w2) (l : list nat) 
            : Superoperator (2^n) (2^(n+⟦w2⟧-⟦w1⟧)) :=
   match g with 
-  | U u   => match ⟦w1⟧ <=? n with
-            | true => apply_U (denote_unitary u) l
-              | false => super_Zero
-              end
-  | BNOT   => match 1 <=? n with
-              | true => apply_U σx l (m := 1)
-              | false => super_Zero
-              end
-  | init0   => apply_new0 
-  | init1   => apply_new1
-  | new0    => apply_new0
-  | new1    => apply_new1
-  | meas    => match l with 
-              | x :: _ => apply_meas x
-              | _      => super_Zero
-              end                               
-  | discard => match l with 
-              | x :: _ => apply_discard x
-              | _      => super_Zero
-              end
-  | assert0 => match l with 
-              | x :: _ => if safe then apply_discard x else apply_assert0 x 
-              | _      => super_Zero
-              end
-  | assert1 => match l with 
-              | x :: _ => if safe then apply_discard x else apply_assert1 x
-              | _      => super_Zero
-              end
+  | U u          => if ⟦w1⟧ <=? n then apply_U (denote_unitary u) l else super_Zero
+  | BNOT         => if 1 <=? n then apply_U σx l (m := 1) else super_Zero
+  | init0 | new0 => apply_new0 
+  | init1 | new1 => apply_new1 
+  | meas         => apply_to_first apply_meas l       
+  | discard      => apply_to_first apply_discard l
+  | assert0      => apply_to_first (if safe then apply_discard else apply_assert0) l
+  | assert1      => apply_to_first (if safe then apply_discard else apply_assert1) l
   end.
 
 (* Can also use map_id and map_ext *)
