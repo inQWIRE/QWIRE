@@ -681,76 +681,131 @@ Qed.
 (* Strong sematics for init and assert *)
 Open Scope matrix_scope.
 
-Lemma init_at_spec_strong : forall b n i (ρ : Square (2^n)), 
+Lemma init_at_spec_strong : forall b n i (ρ : Square (2^n)) (safe : bool), 
   i <= n ->
-  ⟦init_at b n i⟧ ρ = ('I_ (2^i) ⊗ bool_to_ket b ⊗ 'I_ (2^ (n-i))) × ρ × 
-                     ('I_ (2^i) ⊗ (bool_to_ket b)† ⊗ 'I_ (2^ (n-i))).
+  denote_box safe (init_at b n i) ρ = 
+  ('I_ (2^i) ⊗ bool_to_ket b ⊗ 'I_ (2^ (n-i))) × ρ × 
+  ('I_ (2^i) ⊗ (bool_to_ket b)† ⊗ 'I_ (2^ (n-i))).
 Proof. 
 Admitted.
 
 (* Safe semantics *)
-Lemma assert_at_spec_strong : forall b n i (ρ : Square (2^n)), 
+Lemma assert_at_spec_safe : forall b n i (ρ : Square (2^n)), 
   i <= n ->
-  ⟦assert_at b n i⟧ ρ = 
+  denote_box true (assert_at b n i) ρ = 
   ('I_ (2^i) ⊗ ⟨0| ⊗ 'I_ (2^ (n-i))) × ρ × ('I_ (2^i) ⊗ |0⟩ ⊗ 'I_ (2^ (n-i))) .+ 
   ('I_ (2^i) ⊗ ⟨1| ⊗ 'I_ (2^ (n-i))) × ρ × ('I_ (2^i) ⊗ |1⟩ ⊗ 'I_ (2^ (n-i))).
 Admitted.
 
+(* unsafe semantics *)
+Lemma assert_at_spec_unsafe : forall b n i (ρ : Square (2^n)), 
+  i <= n ->
+  denote_box false (assert_at b n i) ρ = 
+  ('I_ (2^i) ⊗ (bool_to_ket b)† ⊗ 'I_ (2^ (n-i))) × ρ × ('I_ (2^i) ⊗ bool_to_ket b ⊗ 'I_ (2^ (n-i))).
+Admitted.
+
+
+(* Jumping the gun:
+   A ∥ B ;; C ∥ D = (A ;; C) ∥ (B ;; D) would make this trivial *)
+(*
+Lemma valid_init_assert : forall b n i, 
+    valid_ancillae_box (assert_at b n i · init_at b n i).
+Proof.
+  intros b. 
+  induction n.
+  - intros.
+    unfold valid_ancillae_box.
+    matrix_denote.
+    unfold unbox, init_at, assert_at.
+    simpl.
+*)    
+
+
 Lemma assert_init_at_id : forall b m i, i < S m ->
     (assert_at b m i · init_at b m i  ≡ id_circ)%qc.
 Proof. 
-  intros b m i Lt ρ M. simpl.
-  simpl_rewrite id_circ_Id; auto with wf_db.
+  intros b m i Lt ρ safe M. simpl.
+  simpl_rewrite id_circ_spec; auto with wf_db.
   simpl_rewrite inSeq_correct; [ | apply assert_at_WT | apply init_at_WT].
   unfold compose_super.
   rewrite size_ntensor, Nat.mul_1_r in M.
   simpl_rewrite (init_at_spec_strong b m i); [|omega]. 
-  simpl_rewrite (assert_at_spec_strong b m i); [|omega].
-  gen ρ. rewrite size_ntensor. simpl. rewrite Nat.mul_1_r.
-  intros ρ M.
-  repeat rewrite Mmult_assoc.
-  Msimpl.  
-  match goal with
-  | [|- @Mmult ?a ?b ?c ?A (@Mmult ?d ?e ?f ?B ?C) .+ _ = _] => 
-    setoid_rewrite <- (Mmult_assoc _ _ _ _ A B C)                                    
-  end.
-  Msimpl.
-  destruct b; simpl.
-  - replace (⟨0| × |1⟩) with (Zero 1 1) by crunch_matrix.
-    rewrite kron_0_r, kron_0_l. 
-    rewrite Mmult_0_l, Mplus_0_l. (* add to dbs *)
-    replace (⟨1| × |1⟩) with ('I_1).
-    2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
+  destruct safe.
+  - (* safe case *)
+    simpl_rewrite (assert_at_spec_safe b m i); [|omega].
+    gen ρ. rewrite size_ntensor. simpl. rewrite Nat.mul_1_r.
+    intros ρ M.
+    repeat rewrite Mmult_assoc.
+    Msimpl.  
+    match goal with
+    | [|- @Mmult ?a ?b ?c ?A (@Mmult ?d ?e ?f ?B ?C) .+ _ = _] => 
+      setoid_rewrite <- (Mmult_assoc _ _ _ _ A B C)                                    
+    end.
     Msimpl.
-    setoid_rewrite (id_kron (2^i) (2^(m-i))).
-    rewrite Nat.mul_1_r.
-    replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
+    destruct b; simpl.
+    + replace (⟨0| × |1⟩) with (Zero 1 1) by crunch_matrix.
+      rewrite kron_0_r, kron_0_l. 
+      rewrite Mmult_0_l, Mplus_0_l. (* add to dbs *)
+      replace (⟨1| × |1⟩) with ('I_1).
+      2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
+      Msimpl.
+      setoid_rewrite (id_kron (2^i) (2^(m-i))).
+      rewrite Nat.mul_1_r.
+      replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
+      Msimpl.
+      rewrite <- Mmult_assoc.
+      setoid_rewrite kron_mixed_product.
+      Msimpl.
+      setoid_rewrite kron_mixed_product.
+      Msimpl.
+      replace (⟨1| × |1⟩) with ('I_1).
+      2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
+      rewrite id_kron.
+      rewrite Nat.mul_1_r.
+      rewrite id_kron.
+      unify_pows_two.
+      replace (i + (m - i)) with m by omega.    
+      rewrite Mmult_1_l by (auto with wf_db).
+      reflexivity.
+    + replace (⟨0| × |1⟩) with (Zero 1 1) by crunch_matrix.
+      rewrite kron_0_r, kron_0_l. 
+      repeat rewrite Mmult_0_r. rewrite Mplus_0_r.
+      replace (⟨0| × |0⟩) with ('I_1).
+      2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
+      Msimpl.
+      setoid_rewrite (id_kron (2^i) (2^(m-i))).
+      rewrite Nat.mul_1_r.
+      replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
+      Msimpl.
+      reflexivity.
+  - (* unsafe (easy) case *)
+    simpl_rewrite (assert_at_spec_unsafe b m i); [|omega].
+    gen ρ. rewrite size_ntensor. simpl. rewrite Nat.mul_1_r.
+    intros ρ M.
+    repeat rewrite Mmult_assoc.
+    Msimpl.  
+    match goal with
+    | [|- @Mmult ?a ?b ?c ?A (@Mmult ?d ?e ?f ?B ?C) = _] => 
+      setoid_rewrite <- (Mmult_assoc _ _ _ _ A B C)                                    
+    end.
     Msimpl.
-    rewrite <- Mmult_assoc.
-    setoid_rewrite kron_mixed_product.
-    Msimpl.
-    setoid_rewrite kron_mixed_product.
-    Msimpl.
-    replace (⟨1| × |1⟩) with ('I_1).
-    2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
-    rewrite id_kron.
-    rewrite Nat.mul_1_r.
-    rewrite id_kron.
-    unify_pows_two.
-    replace (i + (m - i)) with m by omega.    
-    rewrite Mmult_1_l by (auto with wf_db).
-    reflexivity.
-  - replace (⟨0| × |1⟩) with (Zero 1 1) by crunch_matrix.
-    rewrite kron_0_r, kron_0_l. 
-    repeat rewrite Mmult_0_r. rewrite Mplus_0_r.
-    replace (⟨0| × |0⟩) with ('I_1).
-    2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
-    Msimpl.
-    setoid_rewrite (id_kron (2^i) (2^(m-i))).
-    rewrite Nat.mul_1_r.
-    replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
-    Msimpl.
-    reflexivity.
+    destruct b; simpl.
+    + replace (⟨1| × |1⟩) with ('I_1).
+      2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
+      Msimpl.
+      setoid_rewrite (id_kron (2^i) (2^(m-i))).
+      rewrite Nat.mul_1_r.
+      replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
+      Msimpl.
+      reflexivity.
+    + replace (⟨0| × |0⟩) with ('I_1).
+      2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
+      Msimpl.
+      setoid_rewrite (id_kron (2^i) (2^(m-i))).
+      rewrite Nat.mul_1_r.
+      replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
+      Msimpl.
+      reflexivity.
 Qed.
 
 Close Scope matrix_scope.
@@ -774,12 +829,13 @@ Lemma valid_inSeq : forall w1 w2 w3 (c1 : Box w1 w2) (c2 : Box w2 w3),
       valid_ancillae_box' (c2 · c1).
 Proof.
   intros w1 w2 w3 c1 c2 pf_c1 pf_c2 valid1 valid2. unfold valid_ancillae_box.
+(*
   set (H := inSeq_correct _ _ _ c2 c1 pf_c2 pf_c1).
   simpl in H.
   unfold valid_ancillae_box' in *.
   intros ρ M.
   unfold inSeq.
-  unfold denote_box.  
+  unfold denote_box.  *)
 Admitted.
 
 (* Similar to "compile_typing" in Oracles.v, move elsewhere *)
@@ -906,6 +962,23 @@ Proof.
     apply symmetric_ancilla_noop_source; auto.
 Qed.
 
+(* trivial lemmas *)
+Lemma  ancilla_free_X_at : forall n k pf_k, ancilla_free_box (X_at n k pf_k).
+Admitted.
+
+Lemma  ancilla_free_CNOT_at : forall n a b, ancilla_free_box (CNOT_at n a b).
+Admitted.
+
+Lemma ancilla_free_Toffoli_at : forall n a b c, ancilla_free_box (Toffoli_at n a b c).
+Admitted.
+
+Lemma ancilla_free_seq : forall W W' W'' (c1 : Box W W') (c2 : Box W' W''), 
+  ancilla_free_box c1 ->
+  ancilla_free_box c2 ->
+  ancilla_free_box (c1 ;; c2).
+Admitted.
+
+
 Theorem source_symmetric_valid : forall (n t : nat) (c : Square_Box ((n + t) ⨂ Qubit)),
   source_symmetric n t c -> 
   valid_ancillae_box c.
@@ -916,30 +989,89 @@ Proof.
     constructor.     
     constructor.
   - inversion g0.
-    unfold valid_ancillae_box.
-    apply functional_extensionality. intros ρ.
-    simpl_rewrite inSeq_correct.
-    (* just need version of this for denote_box false TODO *)
-    (* then just rewrite innermost denote_true to denote_false *)
-    admit.
-    apply unitary_at1_WT.
-    apply inSeq_WT. 
-    apply unitary_at1_WT.
-    apply source_symmetric_WT; easy.
-    admit.
-    admit.
-  - (* simpler version of above *)
-    admit.
-  - admit.
-  - specialize (source_symmetric_noop (S n) t c) as SSN.
+    + unfold valid_ancillae_box.
+      apply functional_extensionality. intros ρ.
+      repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; 
+        try apply unitary_at1_WT; try apply source_symmetric_WT; trivial.
+      unfold compose_super.
+      rewrite IHsource_symmetric.
+      rewrite ancilla_free_box_valid; [|apply ancilla_free_X_at]. 
+      reflexivity.
+    + unfold valid_ancillae_box.
+      apply functional_extensionality. intros ρ.
+      repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; try apply CNOT_at_WT;
+        try apply source_symmetric_WT; trivial.
+      unfold compose_super.
+      rewrite IHsource_symmetric.
+      rewrite ancilla_free_box_valid; [|apply ancilla_free_CNOT_at]. 
+      reflexivity.
+    + unfold valid_ancillae_box.
+      apply functional_extensionality. intros ρ.
+      repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; 
+        try apply Toffoli_at_WT; try apply source_symmetric_WT; trivial.
+      unfold compose_super.
+      rewrite IHsource_symmetric.
+      rewrite ancilla_free_box_valid; [|apply ancilla_free_Toffoli_at]. 
+      reflexivity.
+  - inversion g0.
+    + unfold valid_ancillae_box.
+      apply functional_extensionality. intros ρ.
+      repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; 
+        try apply unitary_at1_WT; try apply source_symmetric_WT; trivial.
+      unfold compose_super.
+      rewrite IHsource_symmetric.
+      rewrite ancilla_free_box_valid; [|apply ancilla_free_X_at]. 
+      reflexivity.
+    + unfold valid_ancillae_box.
+      apply functional_extensionality. intros ρ.
+      repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; try apply CNOT_at_WT;
+        try apply source_symmetric_WT; trivial.
+      unfold compose_super.
+      rewrite IHsource_symmetric.
+      rewrite ancilla_free_box_valid; [|apply ancilla_free_CNOT_at]. 
+      reflexivity.
+    + unfold valid_ancillae_box.
+      apply functional_extensionality. intros ρ.
+      repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; 
+        try apply Toffoli_at_WT; try apply source_symmetric_WT; trivial.
+      unfold compose_super.
+      rewrite IHsource_symmetric.
+      rewrite ancilla_free_box_valid; [|apply ancilla_free_Toffoli_at]. 
+      reflexivity.
+  - inversion g0.
+    + unfold valid_ancillae_box.
+      apply functional_extensionality. intros ρ.
+      repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; 
+        try apply unitary_at1_WT; try apply source_symmetric_WT; trivial.
+      unfold compose_super.
+      rewrite IHsource_symmetric.
+      rewrite ancilla_free_box_valid; [|apply ancilla_free_X_at]. 
+      reflexivity.
+    + unfold valid_ancillae_box.
+      apply functional_extensionality. intros ρ.
+      repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; try apply CNOT_at_WT;
+        try apply source_symmetric_WT; trivial.
+      unfold compose_super.
+      rewrite IHsource_symmetric.
+      rewrite ancilla_free_box_valid; [|apply ancilla_free_CNOT_at]. 
+      reflexivity.
+    + unfold valid_ancillae_box.
+      apply functional_extensionality. intros ρ.
+      repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; 
+        try apply Toffoli_at_WT; try apply source_symmetric_WT; trivial.
+      unfold compose_super.
+      rewrite IHsource_symmetric.
+      rewrite ancilla_free_box_valid; [|apply ancilla_free_Toffoli_at]. 
+      reflexivity.
+  - (* only interesting case *)
+    specialize (source_symmetric_noop (S n) t c) as SSN.
     unfold noop_source in SSN.
     fold plus in SSN.
     unfold noop_on in SSN.
     apply valid_ancillae_box_equal.
     apply SSN; trivial.
     omega.
-Admitted.
-
+Qed.
 
 (* The noop property implies actual reversibility *)
 

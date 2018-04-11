@@ -41,11 +41,11 @@ Denotation.vo: Denotation.v Quantum.vo DBCircuits.vo HOASLib.vo
 # Reversible.vo: Reversible.v HOASExamples.vo Denotation.vo
 #	coqc Reversible.v
 
-SemanticLib.vo : SemanticLib.v Denotation.vo HOASLib.vo
-	coqc SemanticLib.v
-
 Ancilla.vo : Ancilla.v Denotation.vo TypeChecking.vo
 	coqc Ancilla.v
+
+SemanticLib.vo : SemanticLib.v Ancilla.vo 
+	coqc SemanticLib.v
 
 Symmetric.vo : Symmetric.v Ancilla.vo SemanticLib.vo
 	coqc Symmetric.v

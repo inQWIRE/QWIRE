@@ -1228,13 +1228,23 @@ Proof.
   reflexivity.
 Qed.
 
+(* True for unsafe denote as well? *)
+(*
 Lemma denote_compose : forall w (c : Circuit w) Γ, Γ ⊢ c :Circ ->
      forall w' (f : Pat w -> Circuit w') (Γ0 Γ1 Γ1' : OCtx),
   Γ1 ⊢ f :Fun ->
   Γ1' == Γ1 ∙ Γ ->
       ⟨ Γ0 | Γ1' ⊩ compose c f ⟩ 
     = compose_super (⟨Γ0 | fresh_state w Γ1 ⊩ f (fresh_pat w Γ1)⟩)
-                    (⟨Γ0 ⋓ Γ1 | Γ ⊩ c⟩).
+                    (⟨Γ0 ⋓ Γ1 | Γ ⊩ c⟩). 
+*)
+Lemma denote_compose : forall safe w (c : Circuit w) Γ, Γ ⊢ c :Circ ->
+     forall w' (f : Pat w -> Circuit w') (Γ0 Γ1 Γ1' : OCtx),
+  Γ1 ⊢ f :Fun ->
+  Γ1' == Γ1 ∙ Γ ->
+      denote_circuit safe (compose c f) Γ0 Γ1'
+    = compose_super (denote_circuit safe (f (fresh_pat w Γ1)) Γ0 (fresh_state w Γ1)) 
+                    (denote_circuit safe c (Γ0 ⋓ Γ1) Γ). 
 Proof.
   induction 1; intros w' h Γ0 Γ3 Γ3' wf_f pf_merge.
   * simpl; fold_denote.
@@ -1268,7 +1278,7 @@ Proof.
   * admit.
 Admitted.
 
-
+(* This is only true for the safe semantics *)
 Lemma denote_box_correct : forall {W1} {W2} (c : Box W1 W2), 
                             Typed_Box c -> 
                             WF_Superoperator (denote_box true c).
@@ -1346,8 +1356,9 @@ Admitted.
 (* Equivalence of circuits according to their denotation *)
 (*********************************************************)
 
-Definition HOAS_Equiv {W1 W2} (b1 b2 : Box W1 W2) :=
-  forall ρ, Mixed_State ρ -> ⟦b1⟧ ρ = ⟦b2⟧ ρ.
+(* Now for both version of the semantics *)
+Definition HOAS_Equiv {W1 W2} (c1 c2 : Box W1 W2) :=
+  forall ρ b, Mixed_State ρ -> denote_box b c1 ρ = denote_box b c2 ρ .
 
 Locate "≡".
 Notation "a ≡ b" := (HOAS_Equiv a b) (at level 70) : circ_scope.
@@ -1357,10 +1368,10 @@ Hint Unfold HOAS_Equiv : den_db.
 Open Scope circ_scope.
 
 
-Lemma inSeq_id_l : forall w1 w2 (b : Box w1 w2),
-    id_circ · b = b.
+Lemma inSeq_id_l : forall w1 w2 (c : Box w1 w2),
+    id_circ · c = c.
 Proof.
-  destruct b. unfold inSeq. simpl.
+  destruct c. unfold inSeq. simpl.
   apply f_equal.
   apply functional_extensionality; intros p.
   remember (c p) as c0. clear c p Heqc0.
@@ -1372,30 +1383,29 @@ Proof.
 Qed.
 
 
-Lemma inSeq_id_r : forall w1 w2 (b : Box w1 w2),
-    b · id_circ = b.
+Lemma inSeq_id_r : forall w1 w2 (c : Box w1 w2),
+    c · id_circ = c.
 Proof.
-  destruct b.
+  destruct c.
   unfold inSeq.
   simpl.
   reflexivity.
 Qed.
 
-Lemma HOAS_Equiv_refl : forall w1 w2 (b : Box w1 w2), b ≡ b.
-Proof. intros w b ρ H. auto.
+Lemma HOAS_Equiv_refl : forall w1 w2 (c : Box w1 w2), c ≡ c.
+Proof. intros w1 w2 c ρ b. auto.
 Qed.
-Lemma HOAS_Equiv_sym : forall w1 w2 (b1 b2: Box w1 w2), (b1 ≡ b2) -> b2 ≡ b1.
+Lemma HOAS_Equiv_sym : forall w1 w2 (c1 c2: Box w1 w2), (c1 ≡ c2) -> c2 ≡ c1.
 Proof.
-  intros. intros ρ H'. rewrite H; auto.
+  intros. intros ρ b H'. rewrite H; auto.
 Qed.
-Lemma HOAS_Equiv_trans : forall w1 w2 (b1 b2 b3 : Box w1 w2), (b1 ≡ b2) -> (b2 ≡ b3) -> b1 ≡ b3.
+Lemma HOAS_Equiv_trans : forall w1 w2 (c1 c2 c3 : Box w1 w2), 
+  (c1 ≡ c2) -> (c2 ≡ c3) -> c1 ≡ c3.
 Proof.
-  intros. intros ρ Hρ. rewrite H; auto.
+  intros. intros ρ b Hρ. rewrite H; auto.
 Qed.
 
-
-Lemma inSeq_assoc : forall {w1 w2 w3 w4} (b1 : Box w1 w2) (b2 : Box w2 w3) (b3 : Box w3 w4),
-      b3 · (b2 · b1) = (b3 · b2) · b1.
+Lemma inSeq_assoc : forall {w1 w2 w3 w4} (c1 : Box w1 w2) (c2 : Box w2 w3) (c3 : Box w3 w4), c3 · (c2 · c1) = (c3 · c2) · c1.
 Proof.
   intros w1 w2 w3 w4 [c1] [c2] [c3]. unfold inSeq. simpl.
   apply f_equal; apply functional_extensionality; intros p1.
@@ -1422,16 +1432,17 @@ Add Parametric Relation W1 W2 : (Box W1 W2) (@HOAS_Equiv W1 W2)
 
 
 
-
 (************************)
 (* Hints for automation *)
 (************************)
 
-Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard compose_super 
-     super Splus swap_list swap_two pad denote_box denote_pat : den_db.
+Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard apply_assert0
+     apply_assert1 compose_super Splus swap_list swap_two pad denote_box denote_pat 
+     super : den_db.
 
-Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard compose_super 
-     Splus swap_list swap_two pad denote_box denote_pat : ket_den_db.
+Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard apply_assert0
+     apply_assert1 compose_super Splus swap_list swap_two pad denote_box denote_pat 
+  : ket_den_db.
 
 Ltac ket_denote :=
   intros; 
@@ -1495,20 +1506,12 @@ Proof.
       monoid.
 Qed.
 
-Lemma id_circ_Id : forall W ρ, WF_Matrix (2^⟦W⟧) (2^⟦W⟧) ρ -> 
-    ⟦@id_circ W⟧ ρ = ρ.
-Proof.
-  intros W ρ H.
-  simpl. unfold denote_box. simpl.
-  autorewrite with proof_db.
-  rewrite super_I; auto.
-Qed.
-
-Theorem inSeq_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2),
+Theorem inSeq_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2) (safe : bool),
       Typed_Box g -> Typed_Box f ->
-     ⟦inSeq f g⟧ = compose_super (⟦g⟧) (⟦f⟧).
+      denote_box safe (inSeq f g) = 
+      compose_super (denote_box safe g) (denote_box safe f).
 Proof.
-  intros W1 W2 W3 g f types_g types_f.
+  intros W1 W2 W3 g f safe types_g types_f.
   autounfold with den_db; simpl. 
 
   destruct f as [f]. 
@@ -1539,15 +1542,15 @@ Proof.
     apply is_valid_fresh. validate.
 Qed.
 
-Theorem inPar_correct : forall W1 W1' W2 W2' (f : Box W1 W1') (g : Box W2 W2') 
+Theorem inPar_correct : forall W1 W1' W2 W2' (f : Box W1 W1') (g : Box W2 W2') (safe : bool)
      (ρ1 : Square (2^⟦W1⟧)) (ρ2 : Square (2^⟦W2⟧)),
      Typed_Box f -> Typed_Box g ->
-     Mixed_State ρ1 -> Mixed_State ρ2 ->
-     denote_box true (inPar f g) (ρ1 ⊗ ρ2)%M = 
-    (denote_box true f ρ1 ⊗ denote_box true g ρ2)%M.
+     WF_Matrix (2^⟦W1⟧) (2^⟦W1⟧) ρ1 -> 
+     WF_Matrix (2^⟦W2⟧) (2^⟦W2⟧) ρ2 ->
+     denote_box safe (inPar f g) (ρ1 ⊗ ρ2)%M = 
+    (denote_box safe f ρ1 ⊗ denote_box true g ρ2)%M.
 Proof.  
-  intros W1 W1' W2 W2' f g ρ1 ρ2 types_f types_g mixed_ρ1 mixed_ρ2.
-
+  intros W1 W1' W2 W2' f g safe ρ1 ρ2 types_f types_g mixed_ρ1 mixed_ρ2.
   destruct f as [f]. 
   destruct g as [g].
   repeat (autounfold with den_db; simpl).
@@ -1605,16 +1608,17 @@ Proof.
     validate. validate.
 Admitted.
 
-Lemma HOAS_Equiv_inSeq : forall w1 w2 w3 (b1 b1' : Box w1 w2) (b2 b2' : Box w2 w3),
-    Typed_Box b1 -> Typed_Box b1' ->  Typed_Box b2 -> Typed_Box b2' -> 
-    b1 ≡ b1' -> b2 ≡ b2' -> (b2 · b1) ≡ (b2' · b1').
+Lemma HOAS_Equiv_inSeq : forall w1 w2 w3 (c1 c1' : Box w1 w2) (c2 c2' : Box w2 w3),
+    Typed_Box c1 -> Typed_Box c1' ->  Typed_Box c2 -> Typed_Box c2' -> 
+    c1 ≡ c1' -> c2 ≡ c2' -> (c2 · c1) ≡ (c2' · c1').
 Proof.
-  intros w1 w2 w3 b1 b1' b2 b2' T1 T1' T2 T2' E1 E2.
-  intros ρ Mρ.
-  rewrite 2 inSeq_correct; trivial.
+  intros w1 w2 w3 c1 c1' c2 c2' T1 T1' T2 T2' E1 E2.
+  intros ρ b Mρ.
+  simpl_rewrite inSeq_correct; trivial.
+  simpl_rewrite inSeq_correct; trivial.
   unfold compose_super.
   rewrite E1 by easy.
-  rewrite E2 by (apply denote_box_correct; easy).
+  rewrite E2. (* unsafe case? *)
   easy. 
-Qed.
-  
+  admit. 
+Admitted.  
