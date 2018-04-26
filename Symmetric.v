@@ -753,6 +753,10 @@ Lemma symmetric_gate_noop_source : forall n t k g c,
     noop_source n t (g · c · g).
 Admitted.
 
+Lemma init_at_noop : forall b m i j,
+    valid_ancillae_box' (assert_at b (S m) i · init_at b (S m) j · init_at b m i).
+Admitted.  
+
 (* not sure how to prove this *)
 Lemma symmetric_ancilla_noop_source : forall n t k c b,
       k < S n ->

@@ -7,7 +7,7 @@ Open Scope circ_scope.
 Definition apply_box {w1 w2} (b : Box w1 w2) (c : Circuit w1) : Circuit w2 :=
   let_ x ← c;
   unbox b x.
-Notation "b $ c" := (apply_box b c)  (left associativity, at level 11).
+Notation "b $ c" := (apply_box b c)  (right associativity, at level 10) : circ_scope.
 Coercion output : Pat >-> Circuit.
  
 Definition id_circ {W} : Box W W :=
@@ -16,8 +16,8 @@ Lemma id_circ_WT : forall W, Typed_Box (@id_circ W).
 Proof. type_check. Qed.
 
 Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Box W1 W2 := 
-  box_ p ⇒   
-    gate_ p2 ← g @p;
+  box_ p ⇒ 
+    gate_ p2 ← g @ p;
     output p2.
 Coercion boxed_gate : Gate >-> Box.
 
@@ -29,7 +29,7 @@ Proof. type_check. Qed.
 (***********************)
 
 Definition init (b : bool) : Box One Qubit :=
-  if b then boxed_gate init1 else boxed_gate init0.
+  if b then init1 else init0.
 Lemma init_WT : forall b, Typed_Box (init b).
 Proof. destruct b; type_check. Defined.
 
@@ -37,7 +37,8 @@ Definition inSeq {w1 w2 w3} (c1 : Box w1 w2) (c2 : Box w2 w3): Box w1 w3 :=
   box_ p1 ⇒ 
     let_ p2 ← unbox c1 p1;
     unbox c2 p2.
-Notation "b' · b" := (inSeq b b') (right associativity, at level 10) : circ_scope.
+Notation "b ;; b'" := (inSeq b b') (right associativity, at level 9) : circ_scope.
+Notation "b' · b" := (inSeq b b') (right associativity, at level 9) : circ_scope.
 Lemma inSeq_WT : forall W1 W2 W3 (c1 : Box W1 W2) (c2 : Box W2 W3), 
                  Typed_Box c1 -> Typed_Box c2 -> Typed_Box (c2 · c1).
 Proof. type_check. Qed.

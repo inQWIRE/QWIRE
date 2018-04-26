@@ -17,6 +17,20 @@ Global Opaque merge.
 Global Opaque Ctx.
 Global Opaque is_valid.
 
+Print Circuit.
+Fixpoint pair_circ' {W1 W2} (p : Pat W1) (c2 : Circuit W2) : Circuit (W1 ⊗ W2) :=
+  match c2 with
+  | output p2   => output (pair p p2)
+  | gate g p1 f => gate g p1 (fun p2 => pair_circ' p (f p2))
+  | lift p1 f   => lift p1 (fun x => pair_circ' p (f x))
+  end.
+Fixpoint pair_circ {W1 W2} (c1 : Circuit W1) (c2 : Circuit W2) : Circuit (W1 ⊗ W2) :=
+  match c1 with
+  | output p1   => pair_circ' p1 c2
+  | gate g p1 f => gate g p1 (fun p2 => pair_circ (f p2) c2)
+  | lift p f    => lift p (fun b => pair_circ (f b) c2)
+  end.
+Notation "( x , y , .. , z )" := (pair_circ .. (pair_circ x y) .. z) (at level 0) : circ_scope.
 
 
 (*** Notations ***)
@@ -28,9 +42,26 @@ Set Printing Coercions.
 
 Notation letpair p1 p2 p c := (let (p1,p2) := wproj p in c).
 
-Notation "'box_' p ⇒ C" := (box (fun p => C)) (at level 8).
-Notation "'box_' () ⇒ C" := (box (fun _ => C)) (at level 8).
-(*Notation "( x , y ) ⇒ C" := (box (fun _ z => letpair x y z C)) (at level 8).*)
+Notation "'box_' p ⇒ C" := (box (fun p => C)) 
+    (at level 11) : circ_scope.
+Notation "'box_' () ⇒ C" := (box (fun _ => C)) 
+    (at level 11) : circ_scope.
+Notation "'box_' ( p1 , p2 ) ⇒ C" := (box (fun p => letpair p1 p2 p C)) 
+    (at level 11) : circ_scope.
+Notation "'box_' ( p1 , p2 , p3 ) ⇒ C" := (box (fun p =>
+    let (y,p3) := wproj p in
+    let (p1,p2) := wproj y in C)) 
+    (at level 11) : circ_scope.
+Notation "'box_' ( p1 , ( p2 , p3 ) ) ⇒ C" := (box (fun x =>
+    let (p1,y) := wproj x in
+    let (p2,p3) := wproj y in C)) 
+    (at level 11) : circ_scope.
+Notation "'box_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ⇒ C" := (box (fun x =>
+    let (y,z) := wproj x in
+    let (p1,p2) := wproj y in
+    let (p3,p4) := wproj z in
+    C)) 
+    (at level 11) : circ_scope.
 
 
 (* Notations for patterns *)

@@ -822,7 +822,8 @@ Inductive Types_Pat : OCtx -> forall {W : WType}, Pat W -> Set :=
       -> Γ = Γ1 ⋓ Γ2
       -> Types_Pat Γ1 p1
       -> Types_Pat Γ2 p2
-      -> Types_Pat Γ (pair p1 p2).
+      -> Types_Pat Γ (pair p1 p2)
+where "Γ ⊢ p ':Pat'" := (@Types_Pat Γ _ p).
 
 Lemma pat_ctx_valid : forall Γ W (p : Pat W), Types_Pat Γ p -> is_valid Γ.
 Proof. intros Γ W p TP. unfold is_valid. inversion TP; eauto. Qed.
