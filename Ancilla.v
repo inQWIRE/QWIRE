@@ -8,7 +8,7 @@ Require Import TypeChecking.
 
 Inductive not_assert : forall {W1 W2} (g : Gate W1 W2), Prop :=  
   | na_U       : forall W u, not_assert (@U W u)
-  | na_NOT     : not_assert NOT
+  | na_NOT     : not_assert BNOT
   | na_init0   : not_assert init0
   | na_init1   : not_assert init1
   | na_new0    : not_assert new0
@@ -155,8 +155,6 @@ Proof.
   unfold valid_ancillae, valid_ancillae'.
   split.
   - intros VA.
-    
-    
   unfold valid_ancillae, valid_ancillae'.
   induction c.
 Admitted.
@@ -166,6 +164,34 @@ Lemma valid_ancillae_box_equal : forall W1 W2 (c : Box W1 W2),
 Proof.
   intros.
   destruct c.
+Admitted.
+
+(* This relationship should be easy to prove. 
+   Alternatively, we could just define one in terms of the other *)
+Lemma valid_ancillae_unbox : forall W W' (c : Pat W -> Circuit W'),
+  (forall p, valid_ancillae (c p)) <-> valid_ancillae_box (box (fun p => c p)).
+Proof.
+  intros.
+  unfold valid_ancillae, valid_ancillae_box.
+  unfold denote_box. unfold denote_circuit.
+  unfold denote_db_box.
+  split.
+Admitted.
+
+Lemma valid_ancillae_unbox' : forall W W' (c : Box W W') (p : Pat W),
+  valid_ancillae (unbox c p) <-> valid_ancillae_box c.
+Proof.
+  intros W W' c p.
+  unfold valid_ancillae, valid_ancillae_box.
+  unfold denote_box.
+  unfold denote_db_box.
+  destruct c.
+  simpl.
+  unfold denote_circuit.
+  simpl.
+  split.
+  - intros H.    
+    admit.
 Admitted.
 
 Lemma id_correct : forall W p, valid_ancillae (@output W p).
@@ -433,6 +459,18 @@ Proof.
       apply singleton_equiv in s. subst.
       eapply remove_bit_pred.
       apply pf.
+Qed.
+
+Lemma ancilla_free_box_valid : forall W W' (c : Box W W'), 
+    ancilla_free_box c -> 
+    valid_ancillae_box c.
+Proof.
+  intros.
+  destruct H.
+  apply valid_ancillae_unbox.
+  intros p. 
+  apply ancilla_free_valid.
+  apply H.
 Qed.
 
 (* *)

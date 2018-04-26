@@ -77,7 +77,7 @@ Definition denote_gate' (safe : bool) n {w1 w2} (g : Gate w1 w2)
            : Superoperator (2^⟦w1⟧ * 2^n) (2^⟦w2⟧ * 2^n) :=
   match g with 
   | U u     => super (⟦u⟧ ⊗ Id (2^n))
-  | NOT     => super (σx ⊗ Id (2^n))
+  | BNOT     => super (σx ⊗ Id (2^n))
   | init0   => super (|0⟩ ⊗ Id (2^n))
   | init1   => super (|1⟩ ⊗ Id (2^n))
   | new0    => super (|0⟩ ⊗ Id (2^n))
@@ -325,18 +325,45 @@ Lemma swap_list_spec_2 : forall n i j k
     (A1 ⊗ ρ1 ⊗ A2 ⊗ ρ2 ⊗ A3) = A1 ⊗ ρ1' ⊗ A2 ⊗ ρ2' ⊗ A3.
 Admitted.
 
+(*
+Lemma swap_list_shift : forall n (ρ : Square (2^1)%nat) (A : Square (2^n)),
+  super (swap_list (S n) (seq 1 n ++ [O])) (ρ ⊗ A) = A ⊗ ρ.
+Admitted.
+
+Lemma swap_list_shift' : forall (n : nat) (ρ : Square 2) (A : Square (2^n)%nat),
+  super (swap_list (S n) (n :: seq 0 n)) (A ⊗ ρ) = ρ ⊗ A.
+Admitted.
+*)
+
 Definition apply_U {m n} (U : Square (2^m)) (l : list nat) 
            : Superoperator (2^n) (2^n) :=
   let S := swap_list n l in 
   let SU := S × (pad n U) × S† in  
   super SU.
 
-(* Moving new qubits to the end *)
+(* Initializing qubits in the 0 position
+Definition apply_new0 {n} : Superoperator (2^n) (2^(n+1)) :=
+  super (|0⟩ ⊗ Id (2^n)).
+
+Definition apply_new1 {n} : Superoperator (2^n) (2^(n+1)) :=
+  super (|1⟩ ⊗ Id (2^n)).
+*)
+
+(* Initializing qubits in the n position *)
 Definition apply_new0 {n} : Superoperator (2^n) (2^(n+1)) :=
   super (Id (2^n) ⊗ |0⟩).
 
 Definition apply_new1 {n} : Superoperator (2^n) (2^(n+1)) :=
   super (Id (2^n) ⊗ |1⟩).
+
+
+(* Moving new qubits to the end
+Definition apply_new0 {n} : Superoperator (2^n) (2^(n+1)) :=
+  super (Id (2^n) ⊗ |0⟩).
+
+Definition apply_new1 {n} : Superoperator (2^n) (2^(n+1)) :=
+  super (Id (2^n) ⊗ |1⟩).
+*)
 
 (* In-place measurement and discarding *)
 
@@ -360,37 +387,24 @@ Definition apply_meas {n} (k : nat) : Superoperator (2^n) (2^n) :=
 Definition super_Zero {m n} : Superoperator m n  :=
   fun _ => Zero _ _.
 
+Definition apply_to_first {m n} (f : nat -> Superoperator m n) (l : list nat) :
+  Superoperator m n :=
+  match l with
+  | x :: _ => f x 
+  | []     => super_Zero
+  end.
+
 Definition apply_gate {n w1 w2} (safe : bool) (g : Gate w1 w2) (l : list nat) 
            : Superoperator (2^n) (2^(n+⟦w2⟧-⟦w1⟧)) :=
   match g with 
-  | U u   => match ⟦w1⟧ <=? n with
-            | true => apply_U (denote_unitary u) l
-              | false => super_Zero
-              end
-  | NOT   => match 1 <=? n with
-              | true => apply_U σx l (m := 1)
-              | false => super_Zero
-              end
-  | init0   => apply_new0 
-  | init1   => apply_new1
-  | new0    => apply_new0
-  | new1    => apply_new1
-  | meas    => match l with 
-              | x :: _ => apply_meas x
-              | _      => super_Zero
-              end                               
-  | discard => match l with 
-              | x :: _ => apply_discard x
-              | _      => super_Zero
-              end
-  | assert0 => match l with 
-              | x :: _ => if safe then apply_discard x else apply_assert0 x 
-              | _      => super_Zero
-              end
-  | assert1 => match l with 
-              | x :: _ => if safe then apply_discard x else apply_assert1 x
-              | _      => super_Zero
-              end
+  | U u          => if ⟦w1⟧ <=? n then apply_U (denote_unitary u) l else super_Zero
+  | BNOT         => if 1 <=? n then apply_U σx l (m := 1) else super_Zero
+  | init0 | new0 => apply_new0 
+  | init1 | new1 => apply_new1 
+  | meas         => apply_to_first apply_meas l       
+  | discard      => apply_to_first apply_discard l
+  | assert0      => apply_to_first (if safe then apply_discard else apply_assert0) l
+  | assert1      => apply_to_first (if safe then apply_discard else apply_assert1) l
   end.
 
 (* Can also use map_id and map_ext *)
@@ -1214,13 +1228,23 @@ Proof.
   reflexivity.
 Qed.
 
+(* True for unsafe denote as well? *)
+(*
 Lemma denote_compose : forall w (c : Circuit w) Γ, Γ ⊢ c :Circ ->
      forall w' (f : Pat w -> Circuit w') (Γ0 Γ1 Γ1' : OCtx),
   Γ1 ⊢ f :Fun ->
   Γ1' == Γ1 ∙ Γ ->
       ⟨ Γ0 | Γ1' ⊩ compose c f ⟩ 
     = compose_super (⟨Γ0 | fresh_state w Γ1 ⊩ f (fresh_pat w Γ1)⟩)
-                    (⟨Γ0 ⋓ Γ1 | Γ ⊩ c⟩).
+                    (⟨Γ0 ⋓ Γ1 | Γ ⊩ c⟩). 
+*)
+Lemma denote_compose : forall safe w (c : Circuit w) Γ, Γ ⊢ c :Circ ->
+     forall w' (f : Pat w -> Circuit w') (Γ0 Γ1 Γ1' : OCtx),
+  Γ1 ⊢ f :Fun ->
+  Γ1' == Γ1 ∙ Γ ->
+      denote_circuit safe (compose c f) Γ0 Γ1'
+    = compose_super (denote_circuit safe (f (fresh_pat w Γ1)) Γ0 (fresh_state w Γ1)) 
+                    (denote_circuit safe c (Γ0 ⋓ Γ1) Γ). 
 Proof.
   induction 1; intros w' h Γ0 Γ3 Γ3' wf_f pf_merge.
   * simpl; fold_denote.
@@ -1254,7 +1278,7 @@ Proof.
   * admit.
 Admitted.
 
-
+(* This is only true for the safe semantics *)
 Lemma denote_box_correct : forall {W1} {W2} (c : Box W1 W2), 
                             Typed_Box c -> 
                             WF_Superoperator (denote_box true c).
@@ -1332,21 +1356,22 @@ Admitted.
 (* Equivalence of circuits according to their denotation *)
 (*********************************************************)
 
-Definition HOAS_Equiv {W1 W2} (b1 b2 : Box W1 W2) :=
-  forall ρ, Mixed_State ρ -> ⟦b1⟧ ρ = ⟦b2⟧ ρ.
+(* Now for both version of the semantics *)
+Definition HOAS_Equiv {W1 W2} (c1 c2 : Box W1 W2) :=
+  forall ρ b, Mixed_State ρ -> denote_box b c1 ρ = denote_box b c2 ρ .
 
 Locate "≡".
-Notation "a ≡ b" := (HOAS_Equiv a b) (at level 60) : circ_scope.
+Notation "a ≡ b" := (HOAS_Equiv a b) (at level 70) : circ_scope.
 
 Hint Unfold HOAS_Equiv : den_db.
     
 Open Scope circ_scope.
 
 
-Lemma inSeq_id_l : forall w1 w2 (b : Box w1 w2),
-    id_circ · b = b.
+Lemma inSeq_id_l : forall w1 w2 (c : Box w1 w2),
+    id_circ · c = c.
 Proof.
-  destruct b. unfold inSeq. simpl.
+  destruct c. unfold inSeq. simpl.
   apply f_equal.
   apply functional_extensionality; intros p.
   remember (c p) as c0. clear c p Heqc0.
@@ -1358,30 +1383,29 @@ Proof.
 Qed.
 
 
-Lemma inSeq_id_r : forall w1 w2 (b : Box w1 w2),
-    b · id_circ = b.
+Lemma inSeq_id_r : forall w1 w2 (c : Box w1 w2),
+    c · id_circ = c.
 Proof.
-  destruct b.
+  destruct c.
   unfold inSeq.
   simpl.
   reflexivity.
 Qed.
 
-Lemma HOAS_Equiv_refl : forall w1 w2 (b : Box w1 w2), b ≡ b.
-Proof. intros w b ρ H. auto.
+Lemma HOAS_Equiv_refl : forall w1 w2 (c : Box w1 w2), c ≡ c.
+Proof. intros w1 w2 c ρ b. auto.
 Qed.
-Lemma HOAS_Equiv_sym : forall w1 w2 (b1 b2: Box w1 w2), (b1 ≡ b2) -> b2 ≡ b1.
+Lemma HOAS_Equiv_sym : forall w1 w2 (c1 c2: Box w1 w2), (c1 ≡ c2) -> c2 ≡ c1.
 Proof.
-  intros. intros ρ H'. rewrite H; auto.
+  intros. intros ρ b H'. rewrite H; auto.
 Qed.
-Lemma HOAS_Equiv_trans : forall w1 w2 (b1 b2 b3 : Box w1 w2), (b1 ≡ b2) -> (b2 ≡ b3) -> b1 ≡ b3.
+Lemma HOAS_Equiv_trans : forall w1 w2 (c1 c2 c3 : Box w1 w2), 
+  (c1 ≡ c2) -> (c2 ≡ c3) -> c1 ≡ c3.
 Proof.
-  intros. intros ρ Hρ. rewrite H; auto.
+  intros. intros ρ b Hρ. rewrite H; auto.
 Qed.
 
-
-Lemma inSeq_assoc : forall {w1 w2 w3 w4} (b1 : Box w1 w2) (b2 : Box w2 w3) (b3 : Box w3 w4),
-      b3 · (b2 · b1) = (b3 · b2) · b1.
+Lemma inSeq_assoc : forall {w1 w2 w3 w4} (c1 : Box w1 w2) (c2 : Box w2 w3) (c3 : Box w3 w4), c3 · (c2 · c1) = (c3 · c2) · c1.
 Proof.
   intros w1 w2 w3 w4 [c1] [c2] [c3]. unfold inSeq. simpl.
   apply f_equal; apply functional_extensionality; intros p1.
@@ -1408,16 +1432,17 @@ Add Parametric Relation W1 W2 : (Box W1 W2) (@HOAS_Equiv W1 W2)
 
 
 
-
 (************************)
 (* Hints for automation *)
 (************************)
 
-Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard compose_super 
-     super Splus swap_list swap_two pad denote_box denote_pat : den_db.
+Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard apply_assert0
+     apply_assert1 compose_super Splus swap_list swap_two pad denote_box denote_pat 
+     super : den_db.
 
-Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard compose_super 
-     Splus swap_list swap_two pad denote_box denote_pat : ket_den_db.
+Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard apply_assert0
+     apply_assert1 compose_super Splus swap_list swap_two pad denote_box denote_pat 
+  : ket_den_db.
 
 Ltac ket_denote :=
   intros; 
@@ -1481,20 +1506,12 @@ Proof.
       monoid.
 Qed.
 
-Lemma id_circ_Id : forall W ρ, WF_Matrix (2^⟦W⟧) (2^⟦W⟧) ρ -> 
-    ⟦@id_circ W⟧ ρ = ρ.
-Proof.
-  intros W ρ H.
-  simpl. unfold denote_box. simpl.
-  autorewrite with proof_db.
-  rewrite super_I; auto.
-Qed.
-
-Theorem inSeq_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2),
+Theorem inSeq_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2) (safe : bool),
       Typed_Box g -> Typed_Box f ->
-     ⟦inSeq f g⟧ = compose_super (⟦g⟧) (⟦f⟧).
+      denote_box safe (inSeq f g) = 
+      compose_super (denote_box safe g) (denote_box safe f).
 Proof.
-  intros W1 W2 W3 g f types_g types_f.
+  intros W1 W2 W3 g f safe types_g types_f.
   autounfold with den_db; simpl. 
 
   destruct f as [f]. 
@@ -1525,15 +1542,15 @@ Proof.
     apply is_valid_fresh. validate.
 Qed.
 
-Theorem inPar_correct : forall W1 W1' W2 W2' (f : Box W1 W1') (g : Box W2 W2') 
+Theorem inPar_correct : forall W1 W1' W2 W2' (f : Box W1 W1') (g : Box W2 W2') (safe : bool)
      (ρ1 : Square (2^⟦W1⟧)) (ρ2 : Square (2^⟦W2⟧)),
      Typed_Box f -> Typed_Box g ->
-     Mixed_State ρ1 -> Mixed_State ρ2 ->
-     denote_box true (inPar f g) (ρ1 ⊗ ρ2)%M = 
-    (denote_box true f ρ1 ⊗ denote_box true g ρ2)%M.
+     WF_Matrix (2^⟦W1⟧) (2^⟦W1⟧) ρ1 -> 
+     WF_Matrix (2^⟦W2⟧) (2^⟦W2⟧) ρ2 ->
+     denote_box safe (inPar f g) (ρ1 ⊗ ρ2)%M = 
+    (denote_box safe f ρ1 ⊗ denote_box true g ρ2)%M.
 Proof.  
-  intros W1 W1' W2 W2' f g ρ1 ρ2 types_f types_g mixed_ρ1 mixed_ρ2.
-
+  intros W1 W1' W2 W2' f g safe ρ1 ρ2 types_f types_g mixed_ρ1 mixed_ρ2.
   destruct f as [f]. 
   destruct g as [g].
   repeat (autounfold with den_db; simpl).
@@ -1591,7 +1608,17 @@ Proof.
     validate. validate.
 Admitted.
 
-Lemma HOAS_Equiv_inSeq : forall w1 w2 w3 (b1 b1' : Box w1 w2) (b2 b2' : Box w2 w3),
-    b1 ≡ b1' -> b2 ≡ b2' -> (b2 · b1) ≡ (b2' · b1').
-Admitted.
-
+Lemma HOAS_Equiv_inSeq : forall w1 w2 w3 (c1 c1' : Box w1 w2) (c2 c2' : Box w2 w3),
+    Typed_Box c1 -> Typed_Box c1' ->  Typed_Box c2 -> Typed_Box c2' -> 
+    c1 ≡ c1' -> c2 ≡ c2' -> (c2 · c1) ≡ (c2' · c1').
+Proof.
+  intros w1 w2 w3 c1 c1' c2 c2' T1 T1' T2 T2' E1 E2.
+  intros ρ b Mρ.
+  simpl_rewrite inSeq_correct; trivial.
+  simpl_rewrite inSeq_correct; trivial.
+  unfold compose_super.
+  rewrite E1 by easy.
+  rewrite E2. (* unsafe case? *)
+  easy. 
+  admit. 
+Admitted.  

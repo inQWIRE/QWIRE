@@ -73,7 +73,7 @@ Definition remove_octx {A} `{Gate_State A} (Γ : OCtx) (a : A) : A :=
 Definition process_gate_pat {A w1 w2} `{Gate_State A} (g : Gate w1 w2) 
          : Pat w1 -> A -> Pat w2 :=
   match g with 
-  | U _ | NOT     => fun p _ => p
+  | U _ | BNOT     => fun p _ => p
   | init0 | init1 => fun _ a => qubit (get_fresh_var Qubit a)
   | new0 | new1   => fun _ a => bit (get_fresh_var Bit a)
   | meas          => fun p _ => match p with
@@ -91,7 +91,7 @@ Definition process_gate_pat {A w1 w2} `{Gate_State A} (g : Gate w1 w2)
 *)
 Definition process_gate_state {A w1 w2} `{Gate_State A} (g : Gate w1 w2) : Pat w1 -> A -> A :=
   match g with 
-  | U _  | NOT    => fun _ a => a
+  | U _  | BNOT    => fun _ a => a
   | init0 | init1 => fun _ a => add_fresh_state Qubit a
   | new0 | new1   => fun _ a => add_fresh_state Bit a
   | meas          => fun p a => match p with
@@ -1426,9 +1426,9 @@ Proof.
 Admitted.
 *)
 
+(*
 Require Import HOASCircuits. 
 
-(*
 Lemma hoas_to_db_compose_correct : forall {w w'}
                                           (c : Circuit w) (f : Pat w -> Circuit w')
     Γ1 Γ Γ1' Γ',

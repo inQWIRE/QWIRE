@@ -10,6 +10,14 @@ Require Import Monad.
 
 Export ListNotations.
 
+(* Boolean notations, lemmas *)
+
+Notation "¬ b" := (negb b) (at level 10).
+Infix  "⊕" := xorb (at level 20).
+
+Lemma xorb_nb_b : forall b, ¬ b ⊕ b = true. Proof. destruct b; easy. Qed.
+Lemma xorb_b_nb : forall b, b ⊕ ¬ b = true. Proof. destruct b; easy. Qed.
+
 
 (* A bit of useful reflection from Software Foundations Vol 3 *)
 
@@ -224,6 +232,27 @@ Proof.
   rewrite IHls.
   reflexivity.
 Qed.
+
+(************************************)
+(* Helpful, general purpose tactics *)
+(************************************)
+
+Ltac simpl_rewrite lem :=
+  let H := fresh "H" in 
+  specialize lem as H; simpl in H; rewrite H; clear H.
+
+(* From SF *)
+Tactic Notation "gen" ident(X1) :=
+  generalize dependent X1.
+Tactic Notation "gen" ident(X1) ident(X2) :=
+  gen X2; gen X1.
+Tactic Notation "gen" ident(X1) ident(X2) ident(X3) :=
+  gen X3; gen X2; gen X1.
+Tactic Notation "gen" ident(X1) ident(X2) ident(X3) ident(X4) :=
+  gen X4; gen X3; gen X2; gen X1.
+Tactic Notation "gen" ident(X1) ident(X2) ident(X3) ident(X4) ident(X5) :=
+  gen X5; gen X4; gen X3; gen X2; gen X1.
+
 
 (***************)
 (* Powers of 2 *)

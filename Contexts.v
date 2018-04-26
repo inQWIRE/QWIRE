@@ -36,6 +36,15 @@ Fixpoint NTensor (n : nat) (W : WType) :=
 
 Infix "⨂" := NTensor (at level 30) : circ_scope.
 
+Lemma size_ntensor : forall n W, size_wtype (n ⨂ W) = (n * size_wtype W)%nat.
+Proof.
+  intros n W.
+  induction n; trivial.
+  simpl.
+  rewrite IHn.
+  reflexivity.
+Qed.
+
 Close Scope circ_scope.
 
 
@@ -59,7 +68,6 @@ Definition size_octx (Γ : OCtx) : nat :=
   | Invalid => 0
   | Valid Γ' => size_ctx Γ'
   end.
-
 
 Lemma ctx_octx : forall Γ Γ', Valid Γ = Valid Γ' <-> Γ = Γ'.
 Proof. intuition; congruence. Defined.
@@ -754,8 +762,6 @@ Proof.
   rewrite IHempty_ctx; auto.
 Qed.
 
-
-
 (* length is the actual length of the underlying list, as opposed to size, which
  * is the number of Some entries in the list 
  *)
@@ -812,20 +818,22 @@ Fixpoint pat_map {w} (f : Var -> Var) (p : Pat w) : Pat w :=
   | pair p1 p2 => pair (pat_map f p1) (pat_map f p2)
   end.
 
-(* Not sure if this is the right approach. See below. *)
+
+Reserved Notation "Γ ⊢ p ':Pat'" (at level 30).
+
 Inductive Types_Pat : OCtx -> forall {W : WType}, Pat W -> Set :=
-| types_unit : Types_Pat ∅ unit
-| types_qubit : forall x Γ, SingletonCtx x Qubit Γ -> Types_Pat Γ (qubit x)
-| types_bit : forall x Γ, SingletonCtx x Bit Γ -> Types_Pat Γ (bit x)
+| types_unit : ∅ ⊢ unit :Pat
+| types_qubit : forall x Γ, SingletonCtx x Qubit Γ ->  Γ ⊢ qubit x :Pat
+| types_bit : forall x Γ, SingletonCtx x Bit Γ -> Γ ⊢ bit x :Pat
 | types_pair : forall Γ1 Γ2 Γ w1 w2 (p1 : Pat w1) (p2 : Pat w2),
         is_valid Γ 
       -> Γ = Γ1 ⋓ Γ2
-      -> Types_Pat Γ1 p1
-      -> Types_Pat Γ2 p2
-      -> Types_Pat Γ (pair p1 p2)
+      -> Γ1 ⊢ p1 :Pat
+      -> Γ2 ⊢ p2 :Pat
+      -> Γ  ⊢ pair p1 p2 :Pat
 where "Γ ⊢ p ':Pat'" := (@Types_Pat Γ _ p).
 
-Lemma pat_ctx_valid : forall Γ W (p : Pat W), Types_Pat Γ p -> is_valid Γ.
+Lemma pat_ctx_valid : forall Γ W (p : Pat W), Γ ⊢ p :Pat -> is_valid Γ.
 Proof. intros Γ W p TP. unfold is_valid. inversion TP; eauto. Qed.
 
 Open Scope circ_scope.
@@ -845,7 +853,7 @@ Notation CCNOT := (ctrl (ctrl X)).
 
 Inductive Gate : WType -> WType -> Set := 
   | U : forall {W} (u : Unitary W), Gate W W
-  | NOT     : Gate Bit Bit
+  | BNOT     : Gate Bit Bit
   | init0   : Gate One Qubit
   | init1   : Gate One Qubit
   | new0    : Gate One Bit

@@ -28,7 +28,7 @@ Qed.
 Lemma unitary_transpose_id_qubit : forall (U : Unitary Qubit),
    unitary_transpose U ≡ id_circ.
 Proof.
-  intros U ρ pf_ρ.
+  intros U ρ safe pf_ρ.
   assert (unitary_U : is_unitary (denote_unitary U)) by apply unitary_gate_unitary.
   destruct unitary_U as [WF inv].
   repeat (autounfold with den_db; simpl in *).
