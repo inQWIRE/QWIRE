@@ -32,8 +32,12 @@ Lemma WT_SWAP : Typed_Box SWAP. Proof. type_check. Qed.
 (* Structural circuits *)
 (***********************)
 
-Definition init (b : bool) : Box One Qubit :=
-  if b then init1 else init0.
+Definition new (b : bool) : Box One Bit := if b then new1 else new0.
+Lemma new_WT : forall b, Typed_Box (new b).
+Proof. destruct b; type_check. Defined.
+
+
+Definition init (b : bool) : Box One Qubit := if b then init1 else init0.
 Lemma init_WT : forall b, Typed_Box (init b).
 Proof. destruct b; type_check. Defined.
 

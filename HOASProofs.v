@@ -43,7 +43,7 @@ Qed.
 Lemma unitary_transpose_id : forall W (U : Unitary W),
   unitary_transpose U ≡ id_circ.
 Proof.
-  intros W U ρ wfρ. 
+  intros W U ρ wfρ Mρ.  
   specialize (unitary_gate_unitary U); intros [WFU UU].
   simpl. autounfold with den_db. simpl.
   assert (wf_U : WF_Matrix (2^⟦W⟧) (2^⟦W⟧) (⟦U⟧)) by show_wf.
@@ -217,7 +217,7 @@ Proof.
        rewrite merge_nil_r.
        unfold compose_super.
        unfold denote_circuit in IHn.
-       rewrite IHn.
+       setoid_rewrite IHn.
 
     (* Continue reducing *)
     repeat (autounfold with den_db; simpl).
@@ -642,10 +642,9 @@ Qed.
 
 Definition teleport_distant_eq : teleport_distant ≡ id_circ.
 Proof. 
-  repeat (autounfold with den_db; simpl).
-  intros ρ H.
-  unfold Splus.
-  specialize (WF_Mixed _ H). intros WFρ.
+  matrix_denote.
+  intros ρ H M.
+  specialize (WF_Mixed _ M). intros WFρ.
   Msimpl.
   assoc_least.
   solve_matrix.

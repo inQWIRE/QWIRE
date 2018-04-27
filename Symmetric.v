@@ -50,6 +50,8 @@ Proof.
     type_check.
 Qed.
 Definition X_at n i (pf : i < n) := unitary_at1 n X i pf.
+Lemma X_at_WT : forall n i pf, Typed_Box (X_at n i pf). 
+Proof. intros; apply unitary_at1_WT. Qed.
 
 Lemma lt_leS_le : forall i j k,
     i < j -> j <= S k -> i <= k.
@@ -585,7 +587,6 @@ Inductive source_symmetric : forall n t, Box ((n+t) ⨂ Qubit) ((n+t) ⨂ Qubit)
               source_symmetric (S n) t c ->
               source_symmetric n t (assert_at b (n+t) i · c · init_at b (n+t) i).
 
-
 Fixpoint symmetric_reverse  n t c (pf_sym : source_symmetric n t c)
                             : Box ((n+t) ⨂ Qubit) ((n+t) ⨂ Qubit) :=
   match pf_sym with
@@ -615,34 +616,24 @@ Defined.
 
 (* Symmetric gates are well-typed *)
 
+Hint Resolve unitary_at1_WT X_at_WT CNOT_at_WT Toffoli_at_WT init_at_WT assert_at_WT : typed_db.
+
 Lemma gate_acts_on_WT : forall m (g : Box (m ⨂ Qubit) (m ⨂ Qubit)) k, 
                         gate_acts_on k g -> Typed_Box g.
 Proof.
   intros m g k pf_g.
-  induction pf_g.
-  * apply unitary_at1_WT.
-  * apply CNOT_at_WT.
-  * apply Toffoli_at_WT.
+  destruct pf_g; type_check.
 Qed.
 
-Lemma source_symmetric_WT : forall n t c,
-      source_symmetric n t c ->
-      Typed_Box c.
+Lemma source_symmetric_WT : forall n t c, source_symmetric n t c -> Typed_Box c.
 Proof.
-  intros n t c pf_c.
-  induction pf_c.
-  * type_check.
-  *  assert (Typed_Box g)
-       by (eapply gate_acts_on_WT; eauto).
-    repeat apply inSeq_WT; auto.
-  * apply inSeq_WT; auto.
-    eapply gate_acts_on_WT; eauto.
-  * apply inSeq_WT; auto.
-    eapply gate_acts_on_WT; eauto.
-  * repeat apply inSeq_WT; auto.
-    + apply init_at_WT; auto. 
-    + apply assert_at_WT; auto. 
+  intros n t c H.
+  induction H; try solve [type_check].
+  - inversion g0; type_check.
+  - inversion g0; type_check.
+  - inversion g0; type_check.
 Qed.
+
 
 (* Symmetric gates are no-ops on source wires *)
 
@@ -904,9 +895,9 @@ Proof.
   apply super_I.
 Qed.
 
-Lemma valid_id_circ : forall w, valid_ancillae_box' (id_circ : Box w w).
+Lemma valid_id_circ : forall w, valid_ancillae_box' (@id_circ w).
 Proof.
-  intros w ρ Hρ.
+  intros w ρ T Hρ.
   rewrite denote_box_id_circ.
   * apply mixed_state_trace_1; auto.
   * apply WF_Mixed; auto.
@@ -995,79 +986,88 @@ Proof.
     constructor.     
     constructor.
   - inversion g0.
-    + unfold valid_ancillae_box.
+    + unfold valid_ancillae_box. intros TB.
       apply functional_extensionality. intros ρ.
       repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; 
         try apply unitary_at1_WT; try apply source_symmetric_WT; trivial.
       unfold compose_super.
-      rewrite IHsource_symmetric.
-      rewrite ancilla_free_box_valid; [|apply ancilla_free_X_at]. 
+      apply source_symmetric_WT in H.
+      rewrite IHsource_symmetric; trivial.
+      rewrite ancilla_free_box_valid; [|apply ancilla_free_X_at | type_check  ]. 
       reflexivity.
-    + unfold valid_ancillae_box.
+    + unfold valid_ancillae_box. intros TB.
       apply functional_extensionality. intros ρ.
       repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; try apply CNOT_at_WT;
         try apply source_symmetric_WT; trivial.
       unfold compose_super.
-      rewrite IHsource_symmetric.
-      rewrite ancilla_free_box_valid; [|apply ancilla_free_CNOT_at]. 
+      apply source_symmetric_WT in H.
+      rewrite IHsource_symmetric; trivial.
+      rewrite ancilla_free_box_valid; [|apply ancilla_free_CNOT_at | type_check]. 
       reflexivity.
-    + unfold valid_ancillae_box.
+    + unfold valid_ancillae_box. intros TB.
       apply functional_extensionality. intros ρ.
       repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; 
         try apply Toffoli_at_WT; try apply source_symmetric_WT; trivial.
       unfold compose_super.
-      rewrite IHsource_symmetric.
-      rewrite ancilla_free_box_valid; [|apply ancilla_free_Toffoli_at]. 
+      apply source_symmetric_WT in H.
+      rewrite IHsource_symmetric; trivial.
+      rewrite ancilla_free_box_valid; [|apply ancilla_free_Toffoli_at | type_check]. 
       reflexivity.
   - inversion g0.
-    + unfold valid_ancillae_box.
+    + unfold valid_ancillae_box. intros TB.
       apply functional_extensionality. intros ρ.
       repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; 
         try apply unitary_at1_WT; try apply source_symmetric_WT; trivial.
       unfold compose_super.
-      rewrite IHsource_symmetric.
-      rewrite ancilla_free_box_valid; [|apply ancilla_free_X_at]. 
+      apply source_symmetric_WT in H.
+      rewrite IHsource_symmetric; trivial.
+      rewrite ancilla_free_box_valid; [|apply ancilla_free_X_at | type_check  ]. 
       reflexivity.
-    + unfold valid_ancillae_box.
+    + unfold valid_ancillae_box. intros TB.
       apply functional_extensionality. intros ρ.
       repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; try apply CNOT_at_WT;
         try apply source_symmetric_WT; trivial.
       unfold compose_super.
-      rewrite IHsource_symmetric.
-      rewrite ancilla_free_box_valid; [|apply ancilla_free_CNOT_at]. 
+      apply source_symmetric_WT in H.
+      rewrite IHsource_symmetric; trivial.
+      rewrite ancilla_free_box_valid; [|apply ancilla_free_CNOT_at | type_check]. 
       reflexivity.
-    + unfold valid_ancillae_box.
+    + unfold valid_ancillae_box. intros TB.
       apply functional_extensionality. intros ρ.
       repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; 
         try apply Toffoli_at_WT; try apply source_symmetric_WT; trivial.
       unfold compose_super.
-      rewrite IHsource_symmetric.
-      rewrite ancilla_free_box_valid; [|apply ancilla_free_Toffoli_at]. 
+      apply source_symmetric_WT in H.
+      rewrite IHsource_symmetric; trivial.
+      rewrite ancilla_free_box_valid; [|apply ancilla_free_Toffoli_at | type_check]. 
       reflexivity.
   - inversion g0.
-    + unfold valid_ancillae_box.
+    + unfold valid_ancillae_box. intros TB.
       apply functional_extensionality. intros ρ.
       repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; 
         try apply unitary_at1_WT; try apply source_symmetric_WT; trivial.
       unfold compose_super.
-      rewrite IHsource_symmetric.
-      rewrite ancilla_free_box_valid; [|apply ancilla_free_X_at]. 
+      apply source_symmetric_WT in H.
+      rewrite IHsource_symmetric; trivial.
+      rewrite ancilla_free_box_valid; [|apply ancilla_free_X_at | type_check  ]. 
       reflexivity.
-    + unfold valid_ancillae_box.
+    + unfold valid_ancillae_box. intros TB.
       apply functional_extensionality. intros ρ.
       repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; try apply CNOT_at_WT;
         try apply source_symmetric_WT; trivial.
       unfold compose_super.
-      rewrite IHsource_symmetric.
-      rewrite ancilla_free_box_valid; [|apply ancilla_free_CNOT_at]. 
+      apply source_symmetric_WT in H.
+      rewrite IHsource_symmetric; trivial.
+      rewrite ancilla_free_box_valid; [|apply ancilla_free_CNOT_at | type_check]. 
       reflexivity.
-    + unfold valid_ancillae_box.
+    + unfold valid_ancillae_box. intros TB.
       apply functional_extensionality. intros ρ.
       repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; 
         try apply Toffoli_at_WT; try apply source_symmetric_WT; trivial.
       unfold compose_super.
-      rewrite IHsource_symmetric.
-      rewrite ancilla_free_box_valid; [|apply ancilla_free_Toffoli_at]. 
+      apply source_symmetric_WT in H.
+      rewrite IHsource_symmetric; trivial.
+      rewrite ancilla_free_box_valid; [|apply ancilla_free_Toffoli_at | type_check]. 
       reflexivity.
   - (* only interesting case *)
     specialize (source_symmetric_noop (S n) t c) as SSN.

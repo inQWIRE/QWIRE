@@ -13,32 +13,32 @@ Open Scope matrix_scope.
 Lemma valid_denote_true : forall W W' (c : Box W W') 
   (ρ : Square (2^(⟦W⟧))) (ρ' : Square (2^(⟦W⟧))) (safe : bool), 
   (* typically ancilla_free_box c, but we'll make it general *)
+  Typed_Box c ->
   valid_ancillae_box c ->
   denote_box true c ρ = ρ' ->
   denote_box safe c ρ = ρ'. 
 Proof.
-  intros W W' c ρ ρ' safe H H0.
+  intros W W' c ρ ρ' safe T H D.
   destruct safe; trivial.
-  rewrite <- H.
-  assumption.
+  rewrite <- H; assumption.
 Qed.  
 
 Lemma valid_denote_false : forall W W' (c : Box W W') 
   (ρ : Square (2^(⟦W⟧))) (ρ' : Square (2^(⟦W⟧))) (safe : bool), 
+  Typed_Box c ->
   valid_ancillae_box c ->
   denote_box false c ρ = ρ' ->
   denote_box safe c ρ = ρ'. 
 Proof.
-  intros W W' c ρ ρ' safe H H0.
+  intros W W' c ρ ρ' safe T H D.
   destruct safe; trivial.
-  rewrite H.
-  assumption.
+  rewrite H; assumption.
 Qed.  
 
 Ltac case_safe := apply valid_denote_true; 
-                  try solve [apply ancilla_free_box_valid; repeat constructor].
-Ltac case_unsafe := apply valid_denote_false; 
-                    try solve [apply ancilla_free_box_valid; repeat constructor].
+                  try solve [type_check; apply ancilla_free_box_valid; repeat constructor].
+Ltac case_unsafe := apply valid_denote_false;
+                    try solve [type_check; apply ancilla_free_box_valid; repeat constructor].
 
 (* ---------------------------------------*)
 (*--------- Boxed Circuit Specs ----------*)
