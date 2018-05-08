@@ -1,20 +1,16 @@
 Require Import HOASCircuits.
 Require Import Prelim.
 Require Import Denotation.
-Require Import HOASExamples.
-(*Require Import HOASProofs.*)
-
+Require Import TypeChecking.
+Require Import HOASLib.
+Require Import SemanticLib.
 Set Bullet Behavior "Strict Subproofs".
 Global Unset Asymmetric Patterns.
-
-Require Import TypeChecking.
 
 (* Note: All of these circuits should in principle end with an arbitrary circuit -
          here I'm just outputting the mentioned (qu)bits *)
 
-Definition new (b : bool) : Box One Bit :=
-  if b then new1 else new0.
-  
+Open Scope circ_scope.  
 
 (** Equality 1: X; meas = meas; NOT **)
 
@@ -34,7 +30,8 @@ Proof. type_check. Qed.
 
 Lemma NOT_meas_comm : X_meas ≡ meas_NOT.
 Proof.
-  repeat (autounfold with den_db; intros; simpl).
+  matrix_denote.
+  intros ρ b M.
   Msimpl.
   rewrite Mmult_plus_distr_l.
   rewrite Mmult_plus_distr_r.

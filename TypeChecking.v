@@ -206,7 +206,7 @@ Create HintDb typed_db.
 Ltac type_check_once := 
   intros;
   try match goal with 
-  | [|- Typed_Box _ ]           => solve [auto with typed_db] (* extensible *)
+  | [|- Typed_Box _ ]           => solve [eauto with typed_db] (* extensible *)
   | [|- @Typed_Box  ?W1 ?W2 ?c] => unfold Typed_Box in *; try unfold c
   end;
   intros;
