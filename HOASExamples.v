@@ -27,6 +27,7 @@ Lemma hadamard_measure_WT : Typed_Box hadamard_measure.
 Proof. type_check. Qed.
 
 
+
 (*************************************)
 (* Variations on Deutsch's Algorithm *)
 (*************************************)

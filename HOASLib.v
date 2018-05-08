@@ -9,7 +9,27 @@ Definition apply_box {w1 w2} (b : Box w1 w2) (c : Circuit w1) : Circuit w2 :=
   unbox b x.
 Notation "b $ c" := (apply_box b c)  (right associativity, at level 10) : circ_scope.
 Coercion output : Pat >-> Circuit.
+
+Lemma apply_box_WT : forall σ τ (b : Box σ τ) (c : Circuit σ) Δ,
+      is_valid Δ ->
+      Typed_Box b -> Δ ⊢ c :Circ -> Δ ⊢ b $ c :Circ.
+Proof.
+  intros σ τ b c Δ pf_Δ pf_b pf_c.
+  eapply compose_typing.
+  - eauto.
+  - type_check. apply pf_b. type_check.
+  - type_check.
+Qed.
  
+
+
+Theorem box_WT : forall σ₁ σ₂ (f : Pat σ₁ -> Circuit σ₂),
+                 Typed_Box (box f) ->
+                 forall Δ (p : Pat σ₁), 
+                 Δ ⊢ p :Pat -> Δ ⊢ f p :Circ.
+Proof.
+
+
 Definition id_circ {W} : Box W W :=
   box_ p ⇒ (output p).
 Lemma id_circ_WT : forall W, Typed_Box (@id_circ W).

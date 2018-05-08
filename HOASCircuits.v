@@ -54,6 +54,10 @@ where "Γ ⊢ c :Circ" := (Types_Circuit Γ c)
 and "Γ ⊢ f :Fun" := (forall Γ0 Γ0' p0, Γ0' == Γ0 ∙ Γ ->
                                             Γ0 ⊢ p0 :Pat ->
                                             Γ0' ⊢ f p0 :Circ ).
+
+Notation "Γ ⊢_Q c : w" := (@Types_Circuit Γ w c) (at level 30).
+Notation "Γ ⇒_Q p : w" := (@Types_Pat Γ w p) (at level 30).
+
 (*
 | types_lift_qubit : forall {Γ1 Γ2 p Γ w f} {v : is_valid Γ} {m : Γ = Γ1 ⋓ Γ2},     
                      Types_Pat Γ1 p Qubit -> 
