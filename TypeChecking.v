@@ -17,7 +17,6 @@ Global Opaque merge.
 Global Opaque Ctx.
 Global Opaque is_valid.
 
-Print Circuit.
 Fixpoint pair_circ' {W1 W2} (p : Pat W1) (c2 : Circuit W2) : Circuit (W1 ⊗ W2) :=
   match c2 with
   | output p2   => output (pair p p2)
@@ -63,7 +62,6 @@ Notation "'box_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ⇒ C" := (box (fun x =>
     C)) 
     (at level 11) : circ_scope.
 
-
 (* Notations for patterns *)
 Notation "()" := unit : circ_scope.
 (*Notation "( x , y , .. , z )" := (pair .. (pair x y) .. z) (at level 0) : circ_scope.*)
@@ -104,7 +102,6 @@ Notation "'let_' ( p1 , ( p2 , ( p3 , ( p4 , ( p5 , p6 ) ) ) ) ) ← c1 ; c2" :=
                        let (p5,p6) := wproj b in c2))
                             (at level 12, right associativity) : circ_scope.
 
-
 Notation "'gate_' p2 ← g @ p ; c2" := (gate g p (fun p2 => c2))
          (at level 12, right associativity).
 Notation "'gate_' () ← g @ p ; c2" := (gate g p (fun _ => c2))
@@ -136,14 +133,6 @@ Notation "'gate_' ( p1 , ( p2 , ( p3 , ( p4 , ( p5 , p6 ) ) ) ) ) ← g @ p ; c2
                        let (p4,b) := wproj a in
                        let (p5,p6) := wproj b in c2))
                             (at level 12, right associativity) : circ_scope.
-
-Notation lift_circ x c0 c := (compose c0 (fun p => lift p (fun x => c))).
-Notation "'lift_' x ← c0 ; c" := (lift_circ x c0 c) 
-         (at level 12, right associativity) : circ_scope.
-
-Notation "'lift_' ( x , y ) ← c0 ; c" := (compose c0 (fun p => 
-            letpair p1 p2 p (lift_circ x p1 (lift_circ y p2 c))))
-         (at level 12, right associativity) : circ_scope.
 
 Notation "'discard_' p ; c" := (gate discard p (fun _ => c))
          (at level 12, right associativity) : circ_scope.
