@@ -172,8 +172,8 @@ Lemma size_fresh_state : forall W (Γ : Ctx),
   size_ctx (fresh_state W Γ) = (size_ctx Γ + size_wtype W)%nat.
 Proof.
   induction W; trivial.
-  - intros. simpl. rewrite size_ctx_app. reflexivity.
-  - intros. simpl. rewrite size_ctx_app. reflexivity.
+  - intros. simpl. unfold add_fresh_state. simpl. rewrite size_ctx_app. reflexivity.
+  - intros. simpl. unfold add_fresh_state. simpl. rewrite size_ctx_app. reflexivity.
   - intros. simpl. rewrite IHW2, IHW1. omega.
 Qed.
 
@@ -407,17 +407,19 @@ Proof.
     dependent destruction WT.
     erewrite denote_gate_circuit; [|apply pf1|apply t]. 
     erewrite denote_gate_circuit_unsafe; [|apply pf1|apply t].
+    destruct Γ1' as [|Γ1']. invalid_contradiction.
     destruct g.
     - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
     - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
-    - simpl. erewrite VA. reflexivity.      
-      eapply t0. 
+    - simpl. erewrite VA. reflexivity.
+      eapply t0.
       2: constructor; apply singleton_singleton.
       dependent destruction p.
       dependent destruction t.
       destruct pf1.
       rewrite merge_nil_l in pf_merge. subst.
-      apply add_fresh_merge.
+      unfold process_gate_state. simpl.
+      apply (add_fresh_merge Γ1').
       assumption.
     - simpl. erewrite VA. reflexivity.      
       eapply t0. 
@@ -426,7 +428,7 @@ Proof.
       dependent destruction t.
       destruct pf1.
       rewrite merge_nil_l in pf_merge. subst.
-      apply add_fresh_merge.
+      apply (add_fresh_merge Γ1').
       assumption.
     - simpl. erewrite VA. reflexivity.      
       eapply t0. 
@@ -435,7 +437,7 @@ Proof.
       dependent destruction t.
       destruct pf1.
       rewrite merge_nil_l in pf_merge. subst.
-      apply add_fresh_merge.
+      apply (add_fresh_merge Γ1').
       assumption.
     - simpl. erewrite VA. reflexivity.
       eapply t0. 
@@ -444,13 +446,12 @@ Proof.
       dependent destruction t.
       destruct pf1.
       rewrite merge_nil_l in pf_merge. subst.
-      apply add_fresh_merge.
+      apply (add_fresh_merge Γ1').
       assumption.
     - dependent destruction p.
       dependent destruction t.
       simpl. erewrite VA. reflexivity.
       eapply t0.      
-      destruct Γ1'. destruct pf1. apply not_valid in pf_valid. contradiction.      
       2: constructor; apply singleton_singleton.
       apply singleton_equiv in s; subst.
       destruct Γ.        

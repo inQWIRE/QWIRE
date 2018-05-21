@@ -804,15 +804,19 @@ Proof.
   induction 1; auto.
 Qed.
 
+(* This doesn't seem to be true in the case where Γ is invalid and w1 is One. *)
+(* Discuss with Jennifer *)
 Lemma process_gate_ctx_size : forall w1 w2 (g : Gate w1 w2) p (Γ : OCtx),
       (⟦w1⟧ <= ⟦Γ⟧)%nat ->
       ⟦process_gate_state g p Γ⟧ = (⟦Γ⟧ + ⟦w2⟧ - ⟦w1⟧)%nat.
 Proof.
-  destruct g; intros p Γ H; 
-    try (simpl; omega);
-    try (simpl; rewrite Nat.sub_add; auto; fail);
+  destruct g; intros p Γ H;
+    try (simpl; rewrite Nat.add_sub; auto; fail);
     try (simpl; rewrite ctx_size_app; simpl; omega).
+(*
+  * simpl. rewrite Nat.sub_0_r. destruct Γ. simpl in *. omega. simpl. auto.
 
+  * simpl. rewrite Nat.add_sub. auto.
   * dependent destruction p. 
     simpl. admit (* need slightly updated lemmas *).
 (*
@@ -829,6 +833,7 @@ Proof.
     unfold remove_pat. simpl.
     apply denote_empty_Ctx.
     eapply remove_at_singleton; eauto. *)
+*)
 Admitted.
   
 
@@ -842,6 +847,8 @@ Proof.
     dependent destruction types_p.
     rewrite merge_nil_l.
     unfold process_gate_state at 2.
+    unfold process_gate_state. simpl.
+    destruct Γ2; simpl. auto.
     admit (* not true! *).
   * admit.
   * admit.
@@ -1203,8 +1210,12 @@ Proof.
   intros.
   unfold denote_circuit.
   simpl; fold_denote.
+  replace (process_gate g p1 Γ) with 
+      (process_gate_pat g p1 Γ, process_gate_state g p1 Γ) by 
+      (symmetry; apply surjective_pairing).
+  simpl; fold_denote.
   set (p1' := hoas_to_db_pat Γ p1).
-  set (p2 := process_gate_pat g p1 Γ).
+  set (p2 := process_gate_pat g p1 Γ).    
   rewrite (process_gate_nat _ p1' p1).
   rewrite (process_gate_denote _ _ Γ Γ1 Γ2) by assumption.   
   reflexivity.
@@ -1221,8 +1232,12 @@ Proof.
   intros.
   unfold denote_circuit.
   simpl; fold_denote.
+  replace (process_gate g p1 Γ) with 
+      (process_gate_pat g p1 Γ, process_gate_state g p1 Γ) by 
+      (symmetry; apply surjective_pairing).
+  simpl; fold_denote.
   set (p1' := hoas_to_db_pat Γ p1).
-  set (p2 := process_gate_pat g p1 Γ).
+  set (p2 := process_gate_pat g p1 Γ).    
   rewrite (process_gate_nat _ p1' p1).
   rewrite (process_gate_denote _ _ Γ Γ1 Γ2) by assumption.   
   reflexivity.
@@ -1327,9 +1342,8 @@ Lemma decr_pat_once_qubit : forall n Γ,
     decr_pat_once (fresh_pat (NTensor n Qubit) (Valid (Some Qubit :: Γ)))
     = fresh_pat (NTensor n Qubit) (Valid Γ).
 Proof.
-  induction n; intros.
-  - simpl. reflexivity.
-  - simpl. rewrite IHn. rewrite Nat.sub_0_r. reflexivity.
+  induction n; intros; trivial.
+  simpl. unfold add_fresh_state. simpl. rewrite IHn. rewrite Nat.sub_0_r. easy.
 Qed.
 
 Lemma decr_circuit_pat : forall W1 W2 (c : Box W1 W2) (p : Pat W1), 
@@ -1493,10 +1507,12 @@ Proof.
   induction w; intros;
     (destruct Γ as [ | Γ]; [invalid_contradiction | ]);
     simpl.
-  - solve_merge. apply merge_singleton_end.
-  - solve_merge. apply merge_singleton_end.
+  - solve_merge. unfold add_fresh_state. simpl. validate. 
+    simpl. apply merge_singleton_end.
+  - solve_merge. unfold add_fresh_state. simpl. validate. 
+    simpl. apply merge_singleton_end.
   - solve_merge.
-  - solve_merge.
+  - solve_merge. 
     * repeat apply is_valid_fresh; auto.
     * destruct (IHw1 Γ); [auto | ].
       rewrite pf_merge.
