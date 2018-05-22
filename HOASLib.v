@@ -4,6 +4,14 @@ Import ListNotations.
 Open Scope list_scope.
 Open Scope circ_scope.
  
+(** Projecting out elements of tensors **)
+
+Open Scope circ_scope.
+Definition wproj {W1 W2} (p : Pat (W1 ⊗ W2)) : Pat W1 * Pat W2 :=
+  match p with
+  | pair p1 p2 => (p1, p2)  
+  end.
+
 Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Box W1 W2 := 
   box_ p ⇒ 
     gate_ p2 ← g @ p;
@@ -17,20 +25,6 @@ Definition apply_box {w1 w2} (b : Box w1 w2) (c : Circuit w1) : Circuit w2 :=
   unbox b x.
 Notation "b $ c" := (apply_box b c)  (right associativity, at level 10) : circ_scope.
 Coercion output : Pat >-> Circuit.
-
-(* Should move other notations in Typechecking *)
-
-(* 
-Program Fixpoint lift_circ {W W' : WType} (c0 : Circuit W) (c : interpret W -> Circuit W') {struct W} : Circuit W' :=
-  match W with 
-  | Bit   => compose c0 (fun p => lift p c)
-  | Qubit => compose (meas $ c0) (fun p => lift p c)
-  | One   => compose c0 (fun _ => c tt) 
-  | Tensor W1 W2 => let c' := (curry c) in 
-                   compose c0 (fun p => letpair p1 p2 p 
-                     (lift_circ W1 W' p1 (fun x1 => lift_circ W2 W' p2 (c' x1))))
-  end.
-*)
 
 Fixpoint lift_circ {W W' : WType} (c0 : Circuit W) (c : interpret W -> Circuit W') {struct W} : Circuit W'. 
   induction W.
@@ -52,6 +46,141 @@ Program Definition lift_wire {W W' : WType} (c0 : Circuit W) (c : bool -> Circui
   | One   => c true (* invalid case *)
   | Tensor W1 W2 => c true  (* invalid case *)
   end.
+
+(*** Notations ***)
+
+Set Printing Coercions.
+
+Notation letpair p1 p2 p c := (let (p1,p2) := wproj p in c).
+
+Notation "'box_' p ⇒ C" := (box (fun p => C)) 
+    (at level 11) : circ_scope.
+Notation "'box_' () ⇒ C" := (box (fun _ => C)) 
+    (at level 11) : circ_scope.
+Notation "'box_' ( p1 , p2 ) ⇒ C" := (box (fun p => letpair p1 p2 p C)) 
+    (at level 11) : circ_scope.
+Notation "'box_' ( p1 , p2 , p3 ) ⇒ C" := (box (fun p =>
+    let (y,p3) := wproj p in
+    let (p1,p2) := wproj y in C)) 
+    (at level 11) : circ_scope.
+Notation "'box_' ( p1 , ( p2 , p3 ) ) ⇒ C" := (box (fun x =>
+    let (p1,y) := wproj x in
+    let (p2,p3) := wproj y in C)) 
+    (at level 11) : circ_scope.
+Notation "'box_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ⇒ C" := (box (fun x =>
+    let (y,z) := wproj x in
+    let (p1,p2) := wproj y in
+    let (p3,p4) := wproj z in
+    C)) 
+    (at level 11) : circ_scope.
+
+(* Notations for patterns *)
+Notation "()" := unit : circ_scope.
+(*Notation "( x , y , .. , z )" := (pair .. (pair x y) .. z) (at level 0) : circ_scope.*)
+
+
+(* Notations for circuits *)
+Notation comp p c1 c2 := (compose c1 (fun p => c2)).
+Notation "'let_' p ← c1 ; c2" := (comp p c1 c2)
+                            (at level 12, right associativity) : circ_scope.
+Notation "'let_' () ← c1 ; c2" := 
+    (compose c1 (fun _ => c2)) 
+                            (at level 12, right associativity) : circ_scope.
+Notation "'let_' ( p1 , p2 ) ← c1 ; c2" := 
+    (compose c1 (fun x => letpair p1 p2 x c2)) 
+                            (at level 12, right associativity) : circ_scope.
+Notation "'let_' ( p1 , p2 , p3 ) ← c1 ; c2" :=
+    (compose c1 (fun x => let (y,p3) := wproj x in
+                       let (p1,p2) := wproj y in c2))
+                            (at level 12, right associativity) : circ_scope.
+Notation "'let_' ( ( p1 , p2 ) , p3 ) ← c1 ; c2" := 
+    (compose c1 (fun x => let (y,p3) := wproj x in
+                       let (p1,p2) := wproj y in c2))
+                            (at level 12, right associativity) : circ_scope.
+Notation "'let_' ( p1 , ( p2 , p3 ) ) ← c1 ; c2" :=
+    (compose c1 (fun x => let (p1,y) := wproj x in
+                       let (p2,p3) := wproj y in c2))
+                            (at level 12, right associativity) : circ_scope.
+Notation "'let_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ← c1 ; c2" :=
+    (compose c1 (fun x => let (y,z) := wproj x in
+                       let (p1, p2) := wproj y in
+                       let (p3, p4) := wproj z in c2))
+                            (at level 12, right associativity) : circ_scope.
+Notation "'let_' ( p1 , ( p2 , ( p3 , ( p4 , ( p5 , p6 ) ) ) ) ) ← c1 ; c2" :=
+    (compose c1 (fun x => let (p1,y) := wproj x in
+                       let (p2,z) := wproj y in
+                       let (p3,a) := wproj z in
+                       let (p4,b) := wproj a in
+                       let (p5,p6) := wproj b in c2))
+                            (at level 12, right associativity) : circ_scope.
+
+Notation "'gate_' p2 ← g @ p ; c2" := (gate g p (fun p2 => c2))
+         (at level 12, right associativity).
+Notation "'gate_' () ← g @ p ; c2" := (gate g p (fun _ => c2))
+         (at level 12, right associativity).
+Notation "'gate_' ( p1 , p2 ) ← g @ p ; c2" := 
+    (gate g p (fun x => letpair p1 p2 x c2))
+                            (at level 12, right associativity) : circ_scope.
+Notation "'gate_' ( p1 , p2 , p3 ) ← g @ p ; c2" :=
+    (gate g p (fun x => let (y, p3) := wproj x in
+                     let (p1, p2) := wproj y in c2))
+                           (at level 12, right associativity) : circ_scope.
+Notation "'gate_' ( ( p1 , p2 ) , p3 ) ← g @ p ; c2" := 
+    (gate g p (fun x => let (y, p3) := wproj x in
+                     let (p1, p2) := wproj y in c2))
+                            (at level 12, right associativity) : circ_scope.
+Notation "'gate_' ( p1 , ( p2 , p3 ) ) ← g @ p ; c2" :=
+    (gate g p (fun x => let (p1, y) := wproj x in
+                     let (p2, p3) := wproj y in c2))
+                            (at level 12, right associativity) : circ_scope.
+Notation "'gate_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ← g @ p ; c2" :=
+    (gate g p (fun x => let (y, z) := wproj x in
+                     let (p1, p2) := wproj y in
+                     let (p3, p4) := wproj z in c2))
+                            (at level 12, right associativity) : circ_scope.
+Notation "'gate_' ( p1 , ( p2 , ( p3 , ( p4 , ( p5 , p6 ) ) ) ) ) ← g @ p ; c2" :=
+    (gate g p (fun x => let (p1,y) := wproj x in
+                       let (p2,z) := wproj y in
+                       let (p3,a) := wproj z in
+                       let (p4,b) := wproj a in
+                       let (p5,p6) := wproj b in c2))
+                            (at level 12, right associativity) : circ_scope.
+
+Notation "'discard_' p ; c" := (gate discard p (fun _ => c))
+         (at level 12, right associativity) : circ_scope.
+Notation "'discard_' ( p1 , p2 ) ; c" := (gate discard p1 (fun _ => gate discard p2 
+                                                                      (fun _ => c)))
+         (at level 12, right associativity) : circ_scope.
+Notation "'discard_' ( p1 , p2 , p3 ) ; c" := (gate discard p1 
+                                                 (fun _ => gate discard p2 
+                                                   (fun _ => gate discard p3 
+                                                     (fun _ => c))))
+         (at level 12, right associativity) : circ_scope.
+Notation "'discard_' ( ( p1 , p2 ) , p3 ) ; c" := (gate discard p1 
+                                                 (fun _ => gate discard p2 
+                                                   (fun _ => gate discard p3 
+                                                     (fun _ => c))))
+         (at level 12, right associativity) : circ_scope.
+Notation "'discard_' ( p1 , ( p2 , p3 ) ) ; c" := (gate discard p1 
+                                                 (fun _ => gate discard p2 
+                                                   (fun _ => gate discard p3 
+                                                     (fun _ => c))))
+         (at level 12, right associativity) : circ_scope.
+Notation "'discard_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ; c" :=
+  (gate discard p1 
+        (fun _ => gate discard p2 
+                    (fun _ => gate discard p3 
+                                (fun _ => gate discard p4 
+                                            (fun _ => c)))))
+         (at level 12, right associativity) : circ_scope.
+Notation "'discard_' ( p1 , ( p2 , ( p3 , ( p4 , ( p5 , p6 ) ) ) ) ) ; c" :=
+    (gate discard p1 (fun _ => gate discard p2 
+                      (fun _ => gate discard p3
+                      (fun _ => gate discard p4
+                      (fun _ => gate discard p5
+                      (fun _ => gate discard p6))))))
+                            (at level 12, right associativity) : circ_scope.
+
 
 Notation "'lift_' x ← c0 ; c" := (lift_wire c0 (fun x => c))
          (at level 12, right associativity) : circ_scope.
