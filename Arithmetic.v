@@ -1304,11 +1304,10 @@ Definition compute_adder_n_inp_1 := (fun (x : Var) =>
                      end).
 Eval compute in compute_adder_n 1 compute_adder_n_inp_1.
 
-Lemma adder_circ_n_spec_1 : forall (n : nat) (f : Var -> bool),
-    let l1 := list_of_Qubits (2 + 3 * n) in
-    let l2 := list_of_Qubits (2 + 3 * n) in
-    ⟦adder_circ_n n⟧ (ctx_to_matrix l1 f)
-    = (ctx_to_matrix l2 (compute_adder_n n f)).
+Lemma adder_circ_n_spec : forall (n : nat) (f : Var -> bool),
+    let li := list_of_Qubits (2 + 3 * n) in
+    ⟦adder_circ_n n⟧ (ctx_to_matrix li f)
+    = (ctx_to_matrix li (compute_adder_n n f)).
 Proof.
 (*
   Set Printing Implicit.
@@ -1452,7 +1451,7 @@ Proof.
                                 simpl. apply IHn.
                             + simpl. reflexivity.
                             + simpl. reflexivity.
-                            + clear l1 l2.
+                            + clear li.
                               specialize (adder_circ_n_spec_right_1 n f) as H.
                               simpl in H. unfold ctx_to_matrix in H. simpl in H.
                               rewrite dim_eq_lemma_2 in H. rewrite H. clear H.
@@ -1592,7 +1591,7 @@ Lemma adder_circ_n_test_10100_11000_1 :
   ⟦adder_circ_n 5⟧ (ctx_to_matrix (list_of_Qubits 17) (list_to_function [false; false; true; true; false; false; true; false; true; false; false; false; false; false; false; false; true] false))
   = (ctx_to_matrix (list_of_Qubits 17) (list_to_function [true; false; true; true; true; false; true; true; true; false; false; false; false; true; false; false; true] false)).
 Proof.
-  rewrite (adder_circ_n_spec_1 5).
+  rewrite (adder_circ_n_spec 5).
   apply ctx_to_matrix_eq_1.
   repeat (try destruct x; try reflexivity).
 Qed.
@@ -1601,7 +1600,7 @@ Lemma adder_circ_n_test_10100_11000_0 :
   ⟦adder_circ_n 5⟧ (ctx_to_matrix (list_of_Qubits 17) (list_to_function [false; false; true; true; false; false; true; false; true; false; false; false; false; false; false; false; false] false))
   = (ctx_to_matrix (list_of_Qubits 17) (list_to_function [true; false; true; true; true; false; true; true; true; false; false; false; false; false; false; false; false] false)).
 Proof.
-  rewrite (adder_circ_n_spec_1 5).
+  rewrite (adder_circ_n_spec 5).
   apply ctx_to_matrix_eq_1.
   repeat (try destruct x; try reflexivity).
 Qed.
@@ -1610,7 +1609,7 @@ Lemma adder_circ_n_test_1010010100_1100011000_0 :
   ⟦adder_circ_n 10⟧ (ctx_to_matrix (list_of_Qubits 32) (list_to_function [false; false; true; true; false; false; true; false; true; false; false; false; false; false; false; false; false; true; true; false; false; true; false; true; false; false; false; false; false; false; false; false] false))
   = (ctx_to_matrix (list_of_Qubits 32) (list_to_function [true; false; true; true; true; false; true; true; true; false; false; false; false; true; false; false; false; true; true; true; false; true; true; true; false; false; false; false; false; false; false; false] false)).
 Proof.
-  rewrite (adder_circ_n_spec_1 10).
+  rewrite (adder_circ_n_spec 10).
   apply ctx_to_matrix_eq_1.
   repeat (try destruct x; try reflexivity).
 Qed.
@@ -1620,7 +1619,7 @@ Lemma adder_circ_n_test_10100101001010010100_11000110001100011000_0 :
   ⟦adder_circ_n 20⟧ (ctx_to_matrix (list_of_Qubits 62) (list_to_function [false; false; true; true; false; false; true; false; true; false; false; false; false; false; false; false; false; true; true; false; false; true; false; true; false; false; false; false; false; false; false; false; true; true; false; false; true; false; true; false; false; false; false; false; false; false; false; true; true; false; false; true; false; true; false; false; false; false; false; false; false; false] false))
   = (ctx_to_matrix (list_of_Qubits 62) (list_to_function [true; false; true; true; true; false; true; true; true; false; false; false; false; true; false; false; false; true; true; true; false; true; true; true; false; false; false; false; true; false; false; false; true; true; true; false; true; true; true; false; false; false; false; true; false; false; false; true; true; true; false; true; true; true; false; false; false; false; false; false; false; false] false)).
 Proof.
-  rewrite (adder_circ_n_spec_1 20).
+  rewrite (adder_circ_n_spec 20).
   apply ctx_to_matrix_eq_1.
   repeat (try destruct x; try reflexivity).
 Qed.
@@ -1662,7 +1661,7 @@ Lemma adder_circ_n_test_13_80_false_9 :
   = (ctx_to_matrix (list_of_Qubits (2+3*len)) (prepare_n_adder_output sum x y cin len)).
 Proof.
   intros.
-  rewrite (adder_circ_n_spec_1 len (prepare_n_adder_input x y cin len)).
+  rewrite (adder_circ_n_spec len (prepare_n_adder_input x y cin len)).
   apply ctx_to_matrix_eq_1.
   repeat (try destruct x0; try reflexivity).
 Qed.
@@ -1675,7 +1674,7 @@ Lemma adder_circ_n_test_1310293_8123900_false_9 :
   = (ctx_to_matrix (list_of_Qubits (2+3*len)) (prepare_n_adder_output sum x y cin len)).
 Proof.
   intros.
-  rewrite (adder_circ_n_spec_1 len (prepare_n_adder_input x y cin len)).
+  rewrite (adder_circ_n_spec len (prepare_n_adder_input x y cin len)).
   apply ctx_to_matrix_eq_1.
   repeat (try destruct x0; try reflexivity).
   Abort.
@@ -1687,7 +1686,7 @@ Lemma adder_circ_n_test_1310293_8123900_false_32 :
   = (ctx_to_matrix (list_of_Qubits (2+3*len)) (prepare_n_adder_output sum x y cin len)).
 Proof.
   intros.
-  rewrite (adder_circ_n_spec_1 len (prepare_n_adder_input x y cin len)).
+  rewrite (adder_circ_n_spec len (prepare_n_adder_input x y cin len)).
   apply ctx_to_matrix_eq_1.
   repeat (try destruct x0; try reflexivity).
 Qed.
@@ -1699,7 +1698,7 @@ Lemma adder_circ_n_test_1310293123487_8112873462390_false_64 :
   = (ctx_to_matrix (list_of_Qubits (2+3*len)) (prepare_n_adder_output sum x y cin len)).
 Proof.
   intros.
-  rewrite (adder_circ_n_spec_1 len (prepare_n_adder_input x y cin len)).
+  rewrite (adder_circ_n_spec len (prepare_n_adder_input x y cin len)).
   apply ctx_to_matrix_eq_1.
   repeat (try destruct x0; try reflexivity).
 Qed.
