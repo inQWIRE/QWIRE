@@ -907,7 +907,7 @@ Fixpoint compile (b : bexp) (Γ : Ctx) : Square_Box (S (⟦Γ⟧) ⨂ Qubit) :=
                      (id_circ ∥ compile b2 Γ) ;;
                      (id_circ ∥ (strip_one_l_out (assert0 ∥ id_circ)))              
   end. *)
-
+Open Scope circ_scope.
 Fixpoint compile (b : bexp) (Γ : Ctx) : Square_Box (S (⟦Γ⟧) ⨂ Qubit) :=
   match b with
   | b_t          => TRUE ∥ id_circ 
