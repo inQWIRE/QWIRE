@@ -135,6 +135,7 @@ Definition valid_ancillae {W} (c : Circuit W) : Prop := forall Γ Γ0,
   ⟨ Γ0 | Γ ⊩ c ⟩ = ⟨! Γ0 | Γ ⊩ c !⟩.
 
 Definition valid_ancillae_box {W1 W2} (c : Box W1 W2) := 
+  Typed_Box c -> 
   denote_box true c = denote_box false c.
 
 Definition valid_ancillae' {W} (c : Circuit W) := forall Γ Γ0 ρ, 
@@ -143,6 +144,7 @@ Definition valid_ancillae' {W} (c : Circuit W) := forall Γ Γ0 ρ,
   trace (⟨! Γ0 | Γ ⊩ c !⟩ ρ) = 1.
 
 Definition valid_ancillae_box' {W1 W2} (c : Box W1 W2) : Prop := forall ρ, 
+  Typed_Box c -> 
   Mixed_State ρ ->
   trace (denote_box false c ρ) = 1.
 
@@ -166,6 +168,28 @@ Proof.
   destruct c.
 Admitted.
 
+Lemma size_fresh_state : forall W (Γ : Ctx), 
+  size_ctx (fresh_state W Γ) = (size_ctx Γ + size_wtype W)%nat.
+Proof.
+  induction W; trivial.
+  - intros. simpl. unfold add_fresh_state. simpl. rewrite size_ctx_app. reflexivity.
+  - intros. simpl. unfold add_fresh_state. simpl. rewrite size_ctx_app. reflexivity.
+  - intros. simpl. rewrite IHW2, IHW1. omega.
+Qed.
+
+Lemma size_fresh_state_o : forall W (Γ : OCtx), 
+  is_valid Γ ->
+  size_octx (fresh_state W Γ) = (size_octx Γ + size_wtype W)%nat.
+Proof.
+  induction W; trivial.
+  - intros. simpl. destruct Γ. invalid_contradiction. simpl. 
+    rewrite size_ctx_app. reflexivity.
+  - intros. simpl. destruct Γ. invalid_contradiction. simpl. 
+    rewrite size_ctx_app. reflexivity.
+  - intros. simpl. rewrite IHW2, IHW1; trivial. omega.
+    apply is_valid_fresh; easy.
+Qed.
+
 (* This relationship should be easy to prove. 
    Alternatively, we could just define one in terms of the other *)
 Lemma valid_ancillae_unbox : forall W W' (c : Pat W -> Circuit W'),
@@ -175,7 +199,25 @@ Proof.
   unfold valid_ancillae, valid_ancillae_box.
   unfold denote_box. unfold denote_circuit.
   unfold denote_db_box.
+  unfold hoas_to_db_box.  
   split.
+  - intros H T.
+    specialize (H (fresh_pat W ∅) (fresh_state W ∅) ∅).
+    simpl in *.
+    rewrite size_fresh_state_o in H; [| apply valid_empty].
+    simpl in H. rewrite H. easy.
+    unfold Typed_Box in T. simpl in T. apply T.
+    apply fresh_state_pat.
+  - intros H p Γ Γ0 T.
+    simpl in *.
+    Search fresh_state fresh_pat.
+
+    Search fresh_state.
+
+    specialize (is_valid_fresh ∅ W valid_empty) as V.
+    destruct (fresh_state W ∅). invalid_contradiction. 
+    simpl in H.
+
 Admitted.
 
 Lemma valid_ancillae_unbox' : forall W W' (c : Box W W') (p : Pat W),
@@ -365,17 +407,19 @@ Proof.
     dependent destruction WT.
     erewrite denote_gate_circuit; [|apply pf1|apply t]. 
     erewrite denote_gate_circuit_unsafe; [|apply pf1|apply t].
+    destruct Γ1' as [|Γ1']. invalid_contradiction.
     destruct g.
     - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
     - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
-    - simpl. erewrite VA. reflexivity.      
-      eapply t0. 
+    - simpl. erewrite VA. reflexivity.
+      eapply t0.
       2: constructor; apply singleton_singleton.
       dependent destruction p.
       dependent destruction t.
       destruct pf1.
       rewrite merge_nil_l in pf_merge. subst.
-      apply add_fresh_merge.
+      unfold process_gate_state. simpl.
+      apply (add_fresh_merge Γ1').
       assumption.
     - simpl. erewrite VA. reflexivity.      
       eapply t0. 
@@ -384,7 +428,7 @@ Proof.
       dependent destruction t.
       destruct pf1.
       rewrite merge_nil_l in pf_merge. subst.
-      apply add_fresh_merge.
+      apply (add_fresh_merge Γ1').
       assumption.
     - simpl. erewrite VA. reflexivity.      
       eapply t0. 
@@ -393,7 +437,7 @@ Proof.
       dependent destruction t.
       destruct pf1.
       rewrite merge_nil_l in pf_merge. subst.
-      apply add_fresh_merge.
+      apply (add_fresh_merge Γ1').
       assumption.
     - simpl. erewrite VA. reflexivity.
       eapply t0. 
@@ -402,13 +446,12 @@ Proof.
       dependent destruction t.
       destruct pf1.
       rewrite merge_nil_l in pf_merge. subst.
-      apply add_fresh_merge.
+      apply (add_fresh_merge Γ1').
       assumption.
     - dependent destruction p.
       dependent destruction t.
       simpl. erewrite VA. reflexivity.
       eapply t0.      
-      destruct Γ1'. destruct pf1. apply not_valid in pf_valid. contradiction.      
       2: constructor; apply singleton_singleton.
       apply singleton_equiv in s; subst.
       destruct Γ.        

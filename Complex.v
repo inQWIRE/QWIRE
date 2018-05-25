@@ -589,7 +589,6 @@ Proof.
   unfold Cconj.
   unfold Cmult.
   simpl.
-  Search (_ * - _)%R.
   rewrite <- Ropp_mult_distr_r.
   rewrite Rmult_comm.
   rewrite Rplus_opp_l.

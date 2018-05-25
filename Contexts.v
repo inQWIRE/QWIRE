@@ -818,19 +818,22 @@ Fixpoint pat_map {w} (f : Var -> Var) (p : Pat w) : Pat w :=
   | pair p1 p2 => pair (pat_map f p1) (pat_map f p2)
   end.
 
-(* Not sure if this is the right approach. See below. *)
+
+Reserved Notation "Γ ⊢ p ':Pat'" (at level 30).
+
 Inductive Types_Pat : OCtx -> forall {W : WType}, Pat W -> Set :=
-| types_unit : Types_Pat ∅ unit
-| types_qubit : forall x Γ, SingletonCtx x Qubit Γ -> Types_Pat Γ (qubit x)
-| types_bit : forall x Γ, SingletonCtx x Bit Γ -> Types_Pat Γ (bit x)
+| types_unit : ∅ ⊢ unit :Pat
+| types_qubit : forall x Γ, SingletonCtx x Qubit Γ ->  Γ ⊢ qubit x :Pat
+| types_bit : forall x Γ, SingletonCtx x Bit Γ -> Γ ⊢ bit x :Pat
 | types_pair : forall Γ1 Γ2 Γ w1 w2 (p1 : Pat w1) (p2 : Pat w2),
         is_valid Γ 
       -> Γ = Γ1 ⋓ Γ2
-      -> Types_Pat Γ1 p1
-      -> Types_Pat Γ2 p2
-      -> Types_Pat Γ (pair p1 p2).
+      -> Γ1 ⊢ p1 :Pat
+      -> Γ2 ⊢ p2 :Pat
+      -> Γ  ⊢ pair p1 p2 :Pat
+where "Γ ⊢ p ':Pat'" := (@Types_Pat Γ _ p).
 
-Lemma pat_ctx_valid : forall Γ W (p : Pat W), Types_Pat Γ p -> is_valid Γ.
+Lemma pat_ctx_valid : forall Γ W (p : Pat W), Γ ⊢ p :Pat -> is_valid Γ.
 Proof. intros Γ W p TP. unfold is_valid. inversion TP; eauto. Qed.
 
 Open Scope circ_scope.

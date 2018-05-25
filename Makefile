@@ -1,4 +1,4 @@
-all: Denotation.vo HOASExamples.vo
+all: HOASExamples.vo SemanticLib.vo
 
 Monad.vo: Monad.v
 	coqc Monad.v
@@ -30,22 +30,22 @@ TypeChecking.vo: TypeChecking.v HOASCircuits.vo
 HOASLib.vo: HOASLib.v TypeChecking.vo
 	coqc HOASLib.v
 
-HOASExamples.vo: HOASExamples.v HOASLib.vo
-	coqc HOASExamples.v
-
 Denotation.vo: Denotation.v Quantum.vo DBCircuits.vo HOASLib.vo
 	coqc Denotation.v
+
+Ancilla.vo : Ancilla.v Denotation.vo TypeChecking.vo
+	coqc Ancilla.v
+
+SemanticLib.vo : SemanticLib.v Ancilla.vo 
+	coqc SemanticLib.v
+
+HOASExamples.vo: HOASExamples.v HOASLib.vo
+	coqc HOASExamples.v
 
 # not yet built by `make`
 
 # Reversible.vo: Reversible.v HOASExamples.vo Denotation.vo
 #	coqc Reversible.v
-
-SemanticLib.vo : SemanticLib.v Denotation.vo HOASLib.vo
-	coqc SemanticLib.v
-
-Ancilla.vo : Ancilla.v Denotation.vo TypeChecking.vo
-	coqc Ancilla.v
 
 Symmetric.vo : Symmetric.v Ancilla.vo SemanticLib.vo
 	coqc Symmetric.v
@@ -58,10 +58,10 @@ Oracles.vo: Oracles.v Symmetric.vo HOASExamples.vo
 FlatCircuits.vo: FlatCircuits.v HOASCircuits.vo Monad.vo
 	coqc FlatCircuits.v
 
-HOASProofs.vo: HOASProofs.v HOASExamples.vo Denotation.vo
+HOASProofs.vo: HOASProofs.v HOASExamples.vo SemanticLib.vo
 	coqc HOASProofs.v
 
-Equations.vo: Equations.v TypeChecking.vo Denotation.vo
+Equations.vo: Equations.v SemanticLib.vo
 	coqc Equations.v
 
 

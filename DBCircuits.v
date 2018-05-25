@@ -67,6 +67,7 @@ Definition remove_ctx {A} `{Gate_State A} (Γ : Ctx) (a : A) : A :=
 Definition remove_octx {A} `{Gate_State A} (Γ : OCtx) (a : A) : A :=
   fold_left (fun a x => remove_var x a) (octx_dom Γ) a.
 
+(*
 (* process_gate_pat g p a returns the pattern that is obtained from running the
    gate g with input pattern p and state a 
 *)
@@ -84,11 +85,7 @@ Definition process_gate_pat {A w1 w2} `{Gate_State A} (g : Gate w1 w2)
   end. 
 
 (* process_gate_state g p a returns the state that is obtained from running the
-   gate g with input pattern p and state a. The two functions process_gate_pat
-   and process_gate_state could be combined into one operation in a state monad,
-   but the result requires a lot of bulky infrastructure for dealing with
-   monads, unfortunately. It may be easier just to take two passes over the gate.
-*)
+   gate g with input pattern p and state a. *)
 Definition process_gate_state {A w1 w2} `{Gate_State A} (g : Gate w1 w2) : Pat w1 -> A -> A :=
   match g with 
   | U _  | BNOT    => fun _ a => a
@@ -99,27 +96,41 @@ Definition process_gate_state {A w1 w2} `{Gate_State A} (g : Gate w1 w2) : Pat w
                                 end
   | discard | assert0 | assert1       => fun p a => remove_pat p a
   end.
+*)
+
+(* Unified definition *)
+
+Definition process_gate {A w1 w2} `{Gate_State A} (g : Gate w1 w2) 
+         : Pat w1 -> A -> Pat w2 * A :=
+  match g with 
+  | U _ | BNOT    => fun p st => (p,st)
+  | init0 | init1 => fun p st => let (v,st') := get_fresh Qubit st in (qubit v, st')
+  | new0 | new1   => fun p st => let (v,st') := get_fresh Bit st in (bit v, st')
+  | meas          => fun p st => match p with qubit v => (bit v, change_type v Bit st) end
+  | discard | assert0 | assert1  => fun p st => (unit, remove_pat p st)
+  end. 
+
+Definition process_gate_pat {A w1 w2} `{Gate_State A} (g : Gate w1 w2) 
+         : Pat w1 -> A -> Pat w2 := fun p st => fst (process_gate g p st).
+
+Definition process_gate_state {A w1 w2} `{Gate_State A} (g : Gate w1 w2) 
+         : Pat w1 -> A -> A := fun p st => snd (process_gate g p st).
 
 Fixpoint fresh_state {A} `{Gate_State A} (w : WType) (st : A) : A :=
   match w with
   | One     => st
-  | Qubit   => snd (get_fresh Qubit st)
-  | Bit     => snd (get_fresh Bit st)
+  | Qubit   => add_fresh_state Qubit st
+  | Bit     => add_fresh_state Bit st
   | w1 ⊗ w2 => fresh_state w2 (fresh_state w1 st)
   end.
 
 Fixpoint fresh_pat {A} `{Gate_State A} (w : WType) (st : A) : Pat w :=
   match w with
   | One     => unit 
-  | Qubit   => let x := fst (get_fresh Qubit st) in
-               qubit x
-  | Bit     => let x := fst (get_fresh Bit st) in
-               bit x
+  | Qubit   => qubit (get_fresh_var Qubit st)
+  | Bit     => bit (get_fresh_var Bit st)
   | w1 ⊗ w2 => pair (fresh_pat w1 st) (fresh_pat w2 (fresh_state w1 st))
   end.
-
-
-
 
 (**********************)  
 (* De Bruijn Contexts *)
@@ -276,11 +287,11 @@ Section substitution.
     match c with
     | db_output p    => db_output (subst_pat σ p)
     | db_gate g p c' => let p' := subst_pat σ p in
-                        let σ' := process_gate_state g p σ in
+                       let σ' := process_gate_state g p σ in
                         db_gate g p' (subst_db σ' c')
     | db_lift p f    => let p' := subst_pat σ p in
-                        let σ' := remove_pat p σ in
-                        db_lift p' (fun b => subst_db σ' (f b))
+                       let σ' := remove_pat p σ in
+                       db_lift p' (fun b => subst_db σ' (f b))
     end.
 End substitution.
 
@@ -1030,14 +1041,21 @@ Admitted.
 Lemma is_valid_fresh : forall Γ w,
       is_valid Γ ->
       is_valid (fresh_state w Γ).
-Admitted.
+Proof.
+  intros.
+  gen Γ.
+  induction w; intros; simpl.
+  - destruct Γ; [invalid_contradiction | unfold add_fresh_state; simpl; validate]. 
+  - destruct Γ; [invalid_contradiction | unfold add_fresh_state; simpl; validate]. 
+  - destruct Γ; [invalid_contradiction|]. unfold add_fresh_state. simpl. validate. 
+  - apply IHw2. apply IHw1. easy.
+Qed.
 
 Lemma get_fresh_var_OCtx : forall Γ w,
       get_fresh_var w Γ = octx_length Γ.
 Proof.
   destruct Γ as [ | Γ]; auto.
 Qed.
-
 
 Lemma length_fresh_state : forall w Γ,
       is_valid Γ ->
@@ -1056,7 +1074,7 @@ Qed.
 Lemma length_fresh_state' : forall w (σ : substitution),
       length (fresh_state w σ) = (length σ + size_wtype w)%nat.
 Proof.
-  induction w; intros; simpl; auto.
+  induction w; intros; simpl; unfold add_fresh_state; simpl; auto.
   * rewrite app_length; auto.
   * rewrite app_length; auto.
   * rewrite IHw2. 
@@ -1064,9 +1082,6 @@ Proof.
     simpl; omega.
 Qed.
 
-
-
-Require Import List.
 Lemma swap_fresh_seq : forall w (σ : substitution),
     pat_to_list (fresh_pat w σ) = seq (get_fresh_var w σ) (size_wtype w).
 Proof.
@@ -1079,7 +1094,6 @@ Proof.
   rewrite length_fresh_state'.
   auto.
 Qed.
-
 
 
 Existing Instance listF.
@@ -1181,37 +1195,187 @@ Qed.
 Lemma SingletonCtx_flatten : forall x w Γ,
       SingletonCtx x w Γ ->
       flatten_ctx Γ = [Some w].
+Proof. induction 1; auto. Qed.
+
+Lemma subst_singleton : forall x, subst_var [x] x = 0.
+Proof. induction 0; auto. Qed.
+
+Lemma subst_pat_superset : forall Γ Γ' Γ0 W (p : Pat W), 
+  Γ ⊢ p :Pat -> 
+  Γ' == Γ ∙ Γ0 ->
+  subst_pat (octx_dom Γ) p = subst_pat (octx_dom Γ') p.
 Proof.
-  induction 1; auto.
+  intros Γ Γ' Γ0 W p.
+  gen Γ Γ' Γ0.
+  induction p; intros.
+  - reflexivity.
+  - simpl.
+    admit.
+  (*
+    induction v; intros.
+    + destruct Γ as [|Γ]. invalid_contradiction.
+    destruct Γ. inversion H. inversion H3.
+    apply merge_fun_ind in H0.
+    inversion H0; subst.
+    reflexivity.
+    inversion H3; subst.
+    inversion H. inversion H4.
+    reflexivity.
+    inversion H. inversion H4.
+    + 
+   *)
+  - admit.
+  - simpl.
+    dependent destruction H.
+    specialize (IHp1 Γ1).
+    specialize (IHp2 Γ2).
+    erewrite <- (IHp1 (Γ1 ⋓ Γ2) Γ2); [| |split]; trivial. 
+    erewrite <- (IHp2 (Γ1 ⋓ Γ2) Γ1); [| |split; [|rewrite merge_comm]]; trivial.
+    destruct H1.
+    erewrite <- (IHp1 Γ' (Γ2 ⋓ Γ0)); trivial.
+    erewrite <- (IHp2 Γ' (Γ1 ⋓ Γ0)); trivial.
+    split; trivial. rewrite pf_merge. monoid.
+    split; trivial. rewrite pf_merge. monoid.
+Admitted.
+
+(* assumes idxs is sorted *)
+Fixpoint remove_indices (Γ : Ctx) (idxs : list nat) : Ctx :=
+  match Γ with
+  | [] => []
+  | o :: Γ' => match idxs with
+              | []           => Γ
+              | 0 :: idxs'   => remove_indices Γ' (map pred idxs')
+              | S i :: idxs' => o :: remove_indices Γ' (map pred idxs)
+              end
+  end.
+
+Fixpoint get_nones (Γ : Ctx) : list nat := 
+  match Γ with
+  | [] => [] 
+  | None :: Γ' => 0 :: (map S (get_nones Γ'))
+  | Some w :: Γ' => map S (get_nones Γ')
+  end.
+
+Lemma remove_indices_empty : forall Γ, remove_indices Γ [] = Γ.
+Proof. induction Γ; auto. Qed.
+
+Lemma remove_indices_merge : forall (Γ Γ1 Γ2 : Ctx) idxs, 
+  Γ == Γ1 ∙ Γ2 ->
+  remove_indices Γ idxs == (remove_indices Γ1 idxs) ∙ (remove_indices Γ2 idxs).
+Proof.
+  intros.
+  gen idxs.
+  apply merge_fun_ind in H.
+  dependent induction H; intros.
+  - split. validate.
+    rewrite merge_nil_l.
+    easy.
+  - split. validate.
+    rewrite merge_nil_r.
+    easy.
+  - simpl.
+    destruct idxs; [|destruct n].
+    + apply merge_ind_fun.
+      constructor; easy.
+    + apply IHmerge_ind; easy.
+    + simpl.
+      apply merge_ind_fun.
+      constructor.
+      easy.
+      apply merge_fun_ind.
+      apply IHmerge_ind; easy.
 Qed.
 
+Lemma map_unmap : forall l, map pred (map S l) = l.
+Proof.  induction l; intros; auto. simpl. rewrite IHl. easy. Qed.
+
+Lemma remove_flatten : forall Γ, remove_indices Γ (get_nones Γ) = flatten_ctx Γ.
+Proof.
+  induction Γ; trivial.
+  simpl.
+  destruct a.
+  - destruct (get_nones Γ) eqn:E.
+    + simpl.
+      rewrite <- IHΓ.
+      rewrite remove_indices_empty.
+      easy.
+    + simpl.
+      rewrite <- IHΓ.
+      rewrite map_unmap.
+      easy.
+  - rewrite map_unmap.
+    easy.
+Qed.
+
+(* flatten_octx is too precise. 
+Γ == Γ1 ∙ Γ2 doesn't imply 
+flatten_octx Γ = flatten_octx Γ1 ∙ flatten_octx Γ2.
+We rephrase this in terms of remove_indices but still don't get what we  *)
 Lemma hoas_to_db_pat_typed : forall Γ w (p : Pat w),
       Γ ⊢ p :Pat ->
       flatten_octx Γ ⊢ hoas_to_db_pat Γ p :Pat.
 Proof.
-  induction 1.
-  * simpl. constructor.
-  * simpl. unfold hoas_to_db_pat. simpl.
-    constructor. Search SingletonCtx flatten_ctx.
+  intros.
+  destruct Γ as [|Γ]. inversion H. invalid_contradiction.
+  simpl. rewrite <- remove_flatten.
+  gen Γ.
+  induction p.
+  - intros.
+    inversion H; subst.
+    constructor.
+  - intros.
+    unfold hoas_to_db_pat. simpl.
+    inversion H; subst.
+    constructor. 
+    rewrite remove_flatten.
     erewrite SingletonCtx_flatten; eauto.
-    admit (* true *).
-  * admit.
-  * unfold hoas_to_db_pat. simpl.
+    apply SingletonCtx_dom in H2.
+    simpl.
+    rewrite H2.
+    rewrite subst_singleton.
+    constructor.
+  - intros.
+    unfold hoas_to_db_pat. simpl.
+    inversion H; subst.
+    constructor. 
+    rewrite remove_flatten.
+    erewrite SingletonCtx_flatten; eauto.
+    apply SingletonCtx_dom in H2.
+    simpl.
+    rewrite H2.
+    rewrite subst_singleton.
+    constructor.
+  - intros.
+    unfold hoas_to_db_pat in *. 
+    simpl.
+    dependent destruction H.
+    destruct Γ1 as [|Γ1]. invalid_contradiction.
+    destruct Γ2 as [|Γ2]. invalid_contradiction.
     econstructor.
-Admitted (* can't do induction on p because IH is not strong enough...
-            induction on Γ?? *).
+    + simpl; validate.
+    + apply remove_indices_merge. 
+      split. easy. 
+      apply e.
+(* Unfortunately, the contexts still don't quite line up with the IH
+    + rewrite <- (subst_pat_superset Γ1 Γ Γ2); trivial. 2: split; easy.
+      apply IHp1.
+      assumption.
+    + rewrite <- (subst_pat_superset Γ2 Γ Γ1); trivial. 
+      2: split; subst; validate; monoid.
+      apply IHp2.
+      assumption. *)
+Admitted.
+
 
 Fixpoint hoas_to_db {w} Γ (c : Circuit w) : DeBruijn_Circuit w :=
   match c with
   | output p   => db_output (hoas_to_db_pat Γ p)
-  | gate g p f => (* p' will be the input to f, so a hoas-level pat *)
-                  let p' := process_gate_pat g p Γ in
-                  (* p0 is the db-pat corresponding to p *)
+  | gate g p f =>  (* p0 is the db-pat corresponding to p *)
                   let p0 := hoas_to_db_pat Γ p in
-                  (* σ' is the updated substitution,to go with p' *)
-                  let Γ' := process_gate_state g p Γ in
+                  (* p' and Γ' are the updated DB pattern and context *)
+                  let (p',Γ') := process_gate g p Γ in
                   db_gate g p0 (hoas_to_db Γ' (f p'))
-  | lift p f   => let p0 := hoas_to_db_pat Γ p in
+  | lift p f   =>  let p0 := hoas_to_db_pat Γ p in
                   let Γ' := remove_pat p Γ in
                   db_lift p0 (fun b => hoas_to_db Γ' (f b))
   end.
@@ -1284,6 +1448,11 @@ Definition hoas_to_db_box {w1 w2} (B : Box w1 w2) : DeBruijn_Box w1 w2 :=
              let p := fresh_pat w1 ∅ in
              db_box w1 (hoas_to_db Γ (f p))
   end.
+
+Open Scope circ_scope.
+Delimit Scope circ_scope with qc.
+Eval compute in (hoas_to_db_box (box (fun (p : Pat (Qubit ⊗ Bit)) => output p))).
+
 
 
 Lemma fmap_S_seq : forall len start,

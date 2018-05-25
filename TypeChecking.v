@@ -17,6 +17,19 @@ Global Opaque merge.
 Global Opaque Ctx.
 Global Opaque is_valid.
 
+Fixpoint pair_circ' {W1 W2} (p : Pat W1) (c2 : Circuit W2) : Circuit (W1 ⊗ W2) :=
+  match c2 with
+  | output p2   => output (pair p p2)
+  | gate g p1 f => gate g p1 (fun p2 => pair_circ' p (f p2))
+  | lift p1 f   => lift p1 (fun x => pair_circ' p (f x))
+  end.
+Fixpoint pair_circ {W1 W2} (c1 : Circuit W1) (c2 : Circuit W2) : Circuit (W1 ⊗ W2) :=
+  match c1 with
+  | output p1   => pair_circ' p1 c2
+  | gate g p1 f => gate g p1 (fun p2 => pair_circ (f p2) c2)
+  | lift p f    => lift p (fun b => pair_circ (f b) c2)
+  end.
+Notation "( x , y , .. , z )" := (pair_circ .. (pair_circ x y) .. z) (at level 0) : circ_scope.
 
 
 (*** Notations ***)
@@ -28,14 +41,30 @@ Set Printing Coercions.
 
 Notation letpair p1 p2 p c := (let (p1,p2) := wproj p in c).
 
-Notation "'box_' p ⇒ C" := (box (fun p => C)) (at level 8).
-Notation "'box_' () ⇒ C" := (box (fun _ => C)) (at level 8).
-(*Notation "( x , y ) ⇒ C" := (box (fun _ z => letpair x y z C)) (at level 8).*)
-
+Notation "'box_' p ⇒ C" := (box (fun p => C)) 
+    (at level 11) : circ_scope.
+Notation "'box_' () ⇒ C" := (box (fun _ => C)) 
+    (at level 11) : circ_scope.
+Notation "'box_' ( p1 , p2 ) ⇒ C" := (box (fun p => letpair p1 p2 p C)) 
+    (at level 11) : circ_scope.
+Notation "'box_' ( p1 , p2 , p3 ) ⇒ C" := (box (fun p =>
+    let (y,p3) := wproj p in
+    let (p1,p2) := wproj y in C)) 
+    (at level 11) : circ_scope.
+Notation "'box_' ( p1 , ( p2 , p3 ) ) ⇒ C" := (box (fun x =>
+    let (p1,y) := wproj x in
+    let (p2,p3) := wproj y in C)) 
+    (at level 11) : circ_scope.
+Notation "'box_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ⇒ C" := (box (fun x =>
+    let (y,z) := wproj x in
+    let (p1,p2) := wproj y in
+    let (p3,p4) := wproj z in
+    C)) 
+    (at level 11) : circ_scope.
 
 (* Notations for patterns *)
 Notation "()" := unit : circ_scope.
-Notation "( x , y , .. , z )" := (pair .. (pair x y) .. z) (at level 0) : circ_scope.
+(*Notation "( x , y , .. , z )" := (pair .. (pair x y) .. z) (at level 0) : circ_scope.*)
 
 
 (* Notations for circuits *)
@@ -73,7 +102,6 @@ Notation "'let_' ( p1 , ( p2 , ( p3 , ( p4 , ( p5 , p6 ) ) ) ) ) ← c1 ; c2" :=
                        let (p5,p6) := wproj b in c2))
                             (at level 12, right associativity) : circ_scope.
 
-
 Notation "'gate_' p2 ← g @ p ; c2" := (gate g p (fun p2 => c2))
          (at level 12, right associativity).
 Notation "'gate_' () ← g @ p ; c2" := (gate g p (fun _ => c2))
@@ -105,15 +133,6 @@ Notation "'gate_' ( p1 , ( p2 , ( p3 , ( p4 , ( p5 , p6 ) ) ) ) ) ← g @ p ; c2
                        let (p4,b) := wproj a in
                        let (p5,p6) := wproj b in c2))
                             (at level 12, right associativity) : circ_scope.
-
-Notation lift_pat x p c := (lift p (fun x => c)).
-Notation "'lift_' x ← p ; c" := (lift_pat x p c) 
-         (at level 12, right associativity) : circ_scope.
-
-
-Notation "'lift_' ( x , y ) ← p ; c" := (let (p1,p2) := wproj p in
-                                     lift_pat x p1 (lift_pat y p2 c)) 
-         (at level 12, right associativity) : circ_scope.
 
 Notation "'discard_' p ; c" := (gate discard p (fun _ => c))
          (at level 12, right associativity) : circ_scope.
@@ -176,7 +195,7 @@ Create HintDb typed_db.
 Ltac type_check_once := 
   intros;
   try match goal with 
-  | [|- Typed_Box _ ]           => solve [auto with typed_db] (* extensible *)
+  | [|- Typed_Box _ ]           => solve [eauto with typed_db] (* extensible *)
   | [|- @Typed_Box  ?W1 ?W2 ?c] => unfold Typed_Box in *; try unfold c
   end;
   intros;

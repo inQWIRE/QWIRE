@@ -192,8 +192,8 @@ destruct m as [|m'].
 + exact ps.
 + dependent destruction ps.
     destruct n as [|n'].
-  - exact (p, ps2).
-  - exact (ps1, replace_wire W m' p n' ps2).
+  - exact (pair p ps2).
+  - exact (pair ps1 (replace_wire W m' p n' ps2)).
 Defined.
 
 (* Different approach *)
@@ -202,7 +202,7 @@ Fixpoint default_wire (W : WType) : Pat W :=
   | One          => unit  
   | Qubit        => qubit 0%nat
   | Bit          => bit 0%nat 
-  | Tensor W1 W2 => (default_wire W1, default_wire W2)
+  | Tensor W1 W2 => pair (default_wire W1) (default_wire W2)
   end.
 
 Fixpoint unzip_wires {W m} (n : nat) (ps : Pat (m ⨂ W)) : 
@@ -218,18 +218,17 @@ Fixpoint unzip_wires {W m} (n : nat) (ps : Pat (m ⨂ W)) :
     + simpl.
       apply unzip_wires with (n:=n') in ps2.
       destruct ps2 as [[ps1' p] ps2'].
-      pose (ps1'' := (ps1,ps1')).
-      exact (ps1'', p, ps2')%core.                                             
+      exact (pair ps1 ps1', p, ps2')%core.                                             
 Defined.
 
 Fixpoint zip_wires {W m1 m2} (ps1 : Pat (m1 ⨂ W)) (p: Pat W) (ps2 : Pat (m2 ⨂ W)) :
   Pat ((m1 + m2 + 1) ⨂ W).
 destruct m1.
-- simpl. rewrite Nat.add_1_r. apply (p,ps2).
+- simpl. rewrite Nat.add_1_r. apply (pair p ps2).
 - simpl. 
   dependent destruction ps1.
   specialize (zip_wires _ _ _ ps1_2 p ps2).
-  exact (ps1_1, zip_wires).
+  exact (pair ps1_1 zip_wires).
 Defined.
 
 Notation "'Square_Box' W" := (Box W W) (at level 100).
@@ -242,12 +241,12 @@ Fixpoint share_to (n k : nat) : Square_Box ((n ⨂ Qubit) ⊗ Qubit) :=
   | S n' => match k with
            | 0    => box_ qqst ⇒
                     let_ ((q,qs),t) ← output qqst;
-                    gate_ (q,t)     ← CNOT @(q,t);
-                    output ((q,qs),t)
+                    let_ (q,t)     ← CNOT $ (q,t);
+                    ((q,qs),t)
            | S k' => box_ qqst ⇒
                     let_ ((q,qs),t) ← output qqst;
-                    let_ (qs,t) ← unbox (share_to n' k') (qs,t);
-                    output ((q,qs),t)
+                    let_ (qs,t) ← share_to n' k' $ (qs,t);
+                    ((q,qs),t)
            end
   end.
 
@@ -275,12 +274,12 @@ Fixpoint share_to' (n k : nat) : Square_Box ((S n ⨂ Qubit)) :=
   | S n' => match k with
            | 0    => box_ qqst ⇒
                     let_ (t,(q,qs)) ← qqst;
-                    gate_ (q,t)     ← CNOT @(q,t);
-                    output (t,(q,qs))
+                    let_ (q,t)     ← CNOT $ (q,t);
+                    (t,(q,qs))
            | S k' => box_ qqst ⇒
                     let_ (t,(q,qs)) ← qqst;
-                    let_ (t,qs) ← unbox (share_to' n' k') (t,qs);
-                    output (t,(q,qs))
+                    let_ (t,qs) ← share_to' n' k' $ (t,qs);
+                    (t,(q,qs))
            end
   end.
 
@@ -320,7 +319,7 @@ Fixpoint pat_max {W} (p : Pat W) : nat :=
   | () => 0
   | qubit v => v 
   | bit v   => v 
-  | (p1, p2) => Nat.max (pat_max p1) (pat_max p2)
+  | pair p1 p2 => Nat.max (pat_max p1) (pat_max p2)
   end.
 
 (* Does it make sense to have a shifted version of this too? *)
@@ -703,8 +702,8 @@ Proof.
       specialize denote_db_pad_left as DDP. unfold denote_circuit in *.
       specialize (DDP [Some Qubit] (repeat (Some Qubit) (n'+1)%nat) 1%nat (n'+1)%nat 
                       (Tensor (NTensor n' Qubit) Qubit)). 
-      specialize (DDP (unbox (share_to n' k) (@fresh_pat OCtx OCtx_State 
-        (NTensor n' Qubit) (Valid (repeat (Some Qubit) 1)), qubit (S n')))). 
+      specialize (DDP (unbox (share_to n' k) (pair (@fresh_pat OCtx OCtx_State 
+        (NTensor n' Qubit) (Valid (repeat (Some Qubit) 1))) (qubit (S n'))))).
       match goal with
       | [|- context[?a ⊗ ?b] ] => remember b as ρ2
       end.
@@ -716,6 +715,7 @@ Proof.
       replace (2 ^ length l1 * (2 ^ length l2 * 2 + (2 ^ length l2 * 2 + 0)))%nat
               with (2 ^ n' + (2 ^ n' + 0))%nat.
       2: clear -L1 L2 Lt; inversion L1; subst; unify_pows_two. 
+      unfold apply_box. simpl.
       rewrite DDP by reflexivity.
       hide_dimensions.
       rewrite decr_circuit_pat. simpl.
@@ -965,6 +965,8 @@ Ltac compile_typing lem :=
 Lemma compile_WT : forall (b : bexp) (Γ : Ctx), Typed_Box (compile b Γ).
 Proof. induction b; intros; simpl; compile_typing True. Qed.
 
+Hint Resolve compile_WT : typed_db.
+
 Open Scope matrix_scope.
 
 Fixpoint ctx_to_mat_list (Γ : Ctx) (f : Var -> bool) {struct Γ} : list (Matrix 2 2) :=
@@ -998,7 +1000,11 @@ Proof.
     simpl. 
     apply IHΓ.
 Qed.
-Hint Resolve WF_ctx_to_matrix : wf_db.
+
+Lemma WF_ctx_to_mat_list : forall Γ f, WF_Matrix (2^⟦Γ⟧) (2^⟦Γ⟧) (big_kron (ctx_to_mat_list Γ f)).
+Proof. apply WF_ctx_to_matrix. Qed.
+
+Hint Resolve WF_ctx_to_matrix WF_ctx_to_mat_list : wf_db.
 
 Lemma pure_bool_to_matrix : forall b, Pure_State (bool_to_matrix b).
 Proof. destruct b. apply pure1. apply pure0. Qed.
@@ -1198,12 +1204,14 @@ Ltac show_mixed :=
     clear H; clear T
   end; try solve [apply Pure_S; show_pure].
 
+Hint Extern 2 (Mixed_State _) => show_mixed : wf_db. 
+
 Ltac rewrite_inPar := 
   match goal with
   [|- context[(@denote_box true ?W ?W' (@inPar ?W1 ?W1' ?W2 ?W2' ?f ?g))
     (@kron ?m ?n ?o ?p ?ρ1 ?ρ2)]] =>
     let IP := fresh "IP" in 
-    specialize (inPar_correct W1 W1' W2 W2' f g ρ1 ρ2) as IP;
+    specialize (inPar_correct W1 W1' W2 W2' f g true ρ1 ρ2) as IP;
     simpl in IP; 
     try rewrite ctx_to_mat_list_length in *;
     try rewrite size_ntensor in IP; 
@@ -1212,7 +1220,9 @@ Ltac rewrite_inPar :=
     simpl in *;
     rewrite IP;
     clear IP
-  end; compile_typing (compile_WT); show_mixed.
+  end; try solve [type_check]; eauto with wf_db. 
+
+(* compile_typing (compile_WT); show_mixed. *)
 
 (* Designated successor to rewrite_inPar *)
 Ltac rewrite_inPar' := 
@@ -1235,7 +1245,7 @@ Ltac rewrite_inPar' :=
       try rewrite H
      end;
      clear IP
-  end; compile_typing (compile_WT); auto with wf_db; show_mixed.
+  end; try solve [type_check]; eauto with wf_db. 
 
 Ltac listify_kron := 
     unfold ctx_to_matrix;
@@ -1306,19 +1316,19 @@ Proof.
     rewrite strip_one_l_in_eq.
     rewrite <- (kron_1_l _ _ (⨂ l2)) at 1; auto with wf_db. 
     rewrite Nat.sub_0_r in L2. rewrite L2 in *.
-    rewrite_inPar.
-    simpl_rewrite id_circ_Id.
+    rewrite_inPar. 
+    simpl_rewrite id_circ_spec.
     simpl_rewrite init_spec.
     easy.
     subst.
     rewrite size_ntensor. simpl. rewrite Nat.mul_1_r. 
     assert(WF2 : forall j, WF_Matrix 2 2 (nth j l2 B)).
-    intros j. apply WF_Mixed. apply M2.
-    apply WF_big_kron in WF2. simpl in WF2.
+      intros j. apply WF_Mixed. apply M2.
+    eapply WF_big_kron. 
     apply WF2.
-    type_check.
     specialize (mixed_big_kron 2 l2 B M2) as M2'. 
     rewrite L2 in M2'.    
+    apply WF_Mixed.
     apply M2'.
     eapply WF_big_kron.
     intros i. apply WF_Mixed. apply (M2 i).
@@ -1332,23 +1342,23 @@ Proof.
     rewrite H0, L2. simpl.
     hide_dimensions.
     rewrite_inPar.
-    simpl_rewrite id_circ_Id.
+    simpl_rewrite id_circ_spec.
     erewrite IHi; trivial.
     unify_dim_solve.
     intros j.
     apply (M1 (S j)).
     omega.
     simpl.
-    apply WF_Mixed.
-    apply (M1 0).
-    apply init_at_WT.
-    apply (M1 0).
-    erewrite big_kron_append.
+    apply WF_Mixed. apply (M1 0).
+    apply WF_Mixed. apply (M1 0).
     specialize (mixed_kron) as M.
     specialize (M _ _ (@big_kron (S (S O)) (S (S O)) l1) 
                       (@big_kron (S (S O)) (S (S O)) l2)).
     rewrite <- Nat.pow_add_r in M.
     replace (length l1 + length l2) with n in M by omega.
+    apply WF_Mixed.
+    Search big_kron app.
+    erewrite big_kron_append.
     apply M.
     eapply mixed_big_kron. intros j. apply (M1 (S j)).
     eapply mixed_big_kron. intros j. apply (M2 j). 
@@ -1368,14 +1378,14 @@ Proof.
   - simpl.
     rewrite_inPar.    
     simpl_rewrite TRUE_spec.
-    simpl_rewrite id_circ_Id.
+    simpl_rewrite id_circ_spec.
     easy.
     rewrite size_ntensor, Nat.mul_1_r.
     apply WF_ctx_to_matrix.
   - simpl. 
     rewrite_inPar.
     simpl_rewrite FALSE_spec.
-    simpl_rewrite id_circ_Id.
+    simpl_rewrite id_circ_spec.
     easy. 
     rewrite size_ntensor, Nat.mul_1_r.
     apply WF_ctx_to_matrix.
@@ -1399,7 +1409,7 @@ Proof.
     rewrite strip_one_l_in_eq.
     rewrite <- (kron_1_l _ _ (ctx_to_matrix Γ f)); auto with wf_db.
     rewrite_inPar.
-    repeat simpl_rewrite id_circ_Id; auto with wf_db.
+    repeat simpl_rewrite id_circ_spec; auto with wf_db.
     simpl_rewrite init1_spec.
     replace (|1⟩⟨1|) with (bool_to_matrix true) by reflexivity.    
     rewrite (IHb Γ f true H). rewrite xorb_true_l. (* yay! *)
@@ -1409,19 +1419,16 @@ Proof.
     rewrite_inPar.
     unfold ctx_to_matrix in *.
     rewrite IHb; trivial.
-    simpl_rewrite id_circ_Id; auto with wf_db.
+    simpl_rewrite id_circ_spec; auto with wf_db.
     rewrite_inPar.     
-    simpl_rewrite id_circ_Id; auto with wf_db.
+    simpl_rewrite id_circ_spec; auto with wf_db.
     rewrite strip_one_l_out_eq.
     rewrite xorb_nb_b. 
     rewrite_inPar.     
-    simpl_rewrite assert1_spec.
-    simpl_rewrite id_circ_Id.    
+    simpl_rewrite assert1_spec; auto with wf_db.
+    simpl_rewrite id_circ_spec; auto with wf_db.    
     rewrite xorb_comm.
     reflexivity.
-(* cleanup *)    
-    rewrite size_ntensor, Nat.mul_1_r. apply WF_ctx_to_matrix.
-    rewrite size_ntensor, Nat.mul_1_r. apply WF_ctx_to_matrix.
   - simpl in *.
     specialize inSeq_correct as IS. simpl in IS.    
     repeat (rewrite IS; compile_typing (compile_WT)). clear IS.
@@ -1431,7 +1438,7 @@ Proof.
     replace (ctx_to_matrix Γ f) with (Id 1 ⊗ ctx_to_matrix Γ f) by
         (Msimpl; easy).
     rewrite_inPar.    
-    repeat simpl_rewrite id_circ_Id.
+    repeat simpl_rewrite id_circ_spec; auto with wf_db.
     simpl_rewrite init0_spec.
     apply subset_classical_merge in H as [S1 S2].
     simpl_rewrite (IHb1 Γ f false); trivial.
@@ -1444,7 +1451,7 @@ Proof.
     rewrite_inPar.
     rewrite_inPar.
     simpl_rewrite init0_spec.
-    repeat simpl_rewrite id_circ_Id; auto with wf_db.
+    repeat simpl_rewrite id_circ_spec; auto with wf_db.
     replace (|0⟩⟨0|) with (bool_to_matrix false) by reflexivity.
     simpl_rewrite IHb2; trivial.
     rewrite xorb_false_l.
@@ -1458,7 +1465,7 @@ Proof.
     simpl_rewrite IHb2; trivial.
     repeat simpl_rewrite strip_one_l_out_eq.
     rewrite_inPar.
-    repeat simpl_rewrite id_circ_Id.
+    repeat simpl_rewrite id_circ_spec; auto with wf_db.
     rewrite xorb_nilpotent.
     replace (bool_to_matrix false) with (|0⟩⟨0|) by easy.
     simpl_rewrite assert0_spec.
@@ -1468,12 +1475,10 @@ Proof.
     rewrite xorb_nilpotent.
     replace (bool_to_matrix false) with (|0⟩⟨0|) by easy.
     simpl_rewrite assert0_spec.
-    simpl_rewrite id_circ_Id.
+    simpl_rewrite id_circ_spec; auto with wf_db.
     Msimpl.
     rewrite xorb_comm.
     reflexivity.
-(* cleanup *)    
-    all: simpl; try rewrite size_ntensor, Nat.mul_1_r; auto with wf_db.
   - simpl in *.
     specialize inSeq_correct as IS. simpl in IS.    
     repeat (rewrite IS; compile_typing (compile_WT)). clear IS.
@@ -1483,7 +1488,7 @@ Proof.
     replace (ctx_to_matrix Γ f) with (Id 1 ⊗ ctx_to_matrix Γ f) by
         (Msimpl; easy).
     rewrite_inPar.    
-    repeat simpl_rewrite id_circ_Id.
+    repeat simpl_rewrite id_circ_spec; auto with wf_db.
     simpl_rewrite init0_spec.
     apply subset_classical_merge in H as [S1 S2].
     simpl_rewrite (IHb1 Γ f false); trivial.
@@ -1500,13 +1505,13 @@ Proof.
     simpl_rewrite IHb2; trivial.
     rewrite xorb_false_l.
     repeat simpl_rewrite strip_one_l_out_eq.
-    repeat simpl_rewrite id_circ_Id.
+    repeat simpl_rewrite id_circ_spec; auto with wf_db.
     listify_kron.
     simpl_rewrite (CNOT_at_spec (⌈b2 | f⌉) (⌈b1 | f⌉ ⊕ t) (2 + ⟦Γ⟧) 1 0); trivial;
       try omega.
     simpl.
     rewrite_inPar.
-    simpl_rewrite id_circ_Id.
+    simpl_rewrite id_circ_spec; auto with wf_db.
     replace (@big_kron (S (S O)) (S (S O)) (ctx_to_mat_list Γ f)) with
         (ctx_to_matrix Γ f) by easy.
     simpl_rewrite IHb2; trivial.
@@ -1514,11 +1519,10 @@ Proof.
     rewrite_inPar.
     simpl_rewrite strip_one_l_out_eq.
     rewrite_inPar.
-    repeat simpl_rewrite id_circ_Id.
+    repeat simpl_rewrite id_circ_spec; auto with wf_db.
     simpl_rewrite assert0_spec.
     rewrite xorb_comm.
     rewrite (xorb_comm _ t).
     rewrite xorb_assoc.
     reflexivity.
-    all: simpl; try rewrite size_ntensor, Nat.mul_1_r; auto with wf_db.
 Qed.
