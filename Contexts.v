@@ -842,10 +842,10 @@ Inductive Unitary : WType -> Set :=
   | X         : Unitary Qubit
   | Y         : Unitary Qubit
   | Z         : Unitary Qubit
-(*  | R         : C -> Unitary Qubit (* may add. see also T and S *) *)
+  | R_        : R -> Unitary Qubit 
   | ctrl      : forall {W} (U : Unitary W), Unitary (Qubit ⊗ W) 
   | bit_ctrl  : forall {W} (U : Unitary W), Unitary (Bit ⊗ W) 
-  | transpose : forall {W} (U : Unitary W), Unitary W.
+  | trans     : forall {W} (U : Unitary W), Unitary W.
 
 (* NOT, CNOT and Tofolli notation *)
 Notation CNOT := (ctrl X).

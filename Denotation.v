@@ -34,13 +34,14 @@ Instance Denote_OCtx : Denote OCtx nat := {| denote := size_octx |}.
 
 Fixpoint denote_unitary {W} (U : Unitary W) : Square (2^⟦W⟧) :=
   match U with  
-  | H => hadamard 
-  | X => σx
-  | Y => σy
-  | Z => σz
-  | ctrl g => control (denote_unitary g)
+  | H          => hadamard 
+  | X          => σx
+  | Y          => σy
+  | Z          => σz
+  | R_ ϕ       => phase_shift ϕ
+  | ctrl g     => control (denote_unitary g)
   | bit_ctrl g => control (denote_unitary g)  
-  | Contexts.transpose g => (denote_unitary g)†
+  | trans g    => (denote_unitary g)†
   end. 
 Instance Denote_Unitary W : Denote (Unitary W) (Square (2^⟦W⟧)) := 
     {| denote := denote_unitary |}.
@@ -59,6 +60,7 @@ Proof.
   + apply σx_unitary.
   + apply σy_unitary.
   + apply σz_unitary.
+  + apply phase_unitary.
   + simpl. apply control_unitary; assumption. (* NB: Admitted lemma *)
   + simpl. apply control_unitary; assumption. (* NB: Admitted lemma *)
   + simpl. apply transpose_unitary; assumption.
@@ -82,7 +84,7 @@ Definition denote_gate' (safe : bool) n {w1 w2} (g : Gate w1 w2)
   | init1   => super (|1⟩ ⊗ Id (2^n))
   | new0    => super (|0⟩ ⊗ Id (2^n))
   | new1    => super (|1⟩ ⊗ Id (2^n))
-  | meas    => fun ρ => super (|0⟩⟨0| ⊗ Id (2^n)) ρ .+ super (|1⟩⟨1| ⊗ Id (2^n)) ρ
+  | meas    => Splus (super (|0⟩⟨0| ⊗ Id (2^n))) (super (|1⟩⟨1| ⊗ Id (2^n)))
   | discard => Splus (super (⟨0| ⊗ Id (2^n))) (super (⟨1| ⊗ Id (2^n)))
   (* Safe performs a standard measure-discard, unsafe takes for granted that the 
      qubit to be removed is in the desired state. *)
@@ -179,6 +181,7 @@ Proof.
     unfold super.
     Msimpl.
     specialize (WF_Mixed _ H) as WF.
+    unfold Splus.
     replace (|0⟩⟨0| × ρ × |0⟩⟨0|) with (ρ 0%nat 0%nat .* |0⟩⟨0|) by solve_matrix.
     replace (|1⟩⟨1| × ρ × |1⟩⟨1|) with (ρ 1%nat 1%nat .* |1⟩⟨1|) by solve_matrix.
     specialize (mixed_state_trace_1 _ H) as TR1. unfold trace in TR1. simpl in TR1.

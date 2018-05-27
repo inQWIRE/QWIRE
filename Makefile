@@ -53,6 +53,10 @@ Symmetric.vo : Symmetric.v Ancilla.vo SemanticLib.vo
 Oracles.vo: Oracles.v Symmetric.vo HOASExamples.vo 
 	coqc Oracles.v
 
+Arithmetic.vo: Arithmetic.v Oracles.vo
+	coqc Arithmetic.v
+
+
 # not built by `make`
 
 FlatCircuits.vo: FlatCircuits.v HOASCircuits.vo Monad.vo

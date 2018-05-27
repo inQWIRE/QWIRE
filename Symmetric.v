@@ -665,7 +665,7 @@ Lemma fresh_state_ntensor : forall n (Γ : Ctx), fresh_state (n ⨂ Qubit) (Vali
 Proof.                            
   induction n. 
   - intros. simpl. rewrite app_nil_r; reflexivity.
-  - intros. simpl. rewrite IHn. rewrite <- app_assoc. reflexivity.
+  - intros. simpl. unfold add_fresh_state. simpl. rewrite IHn. rewrite <- app_assoc. reflexivity.
 Qed.
 
 (* Currently working on these in Oracles.v *)
@@ -1080,6 +1080,13 @@ Proof.
 Qed.
 
 (* The noop property implies actual reversibility *)
+
+
+Definition reversible {W1 W2} (c : Box W1 W2) : Prop :=
+  exists c', c · c' ≡ id_circ.
+
+Definition self_inverse {W} (c : Box W W) : Prop :=
+  c · c ≡ id_circ. 
 
 Lemma gate_acts_on_reversible : forall m g k (pf_g : @gate_acts_on m k g),
       g · g ≡ id_circ.

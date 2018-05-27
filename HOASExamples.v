@@ -288,7 +288,7 @@ Qed.
 (** Unitary Transpose **)
 
 Definition unitary_transpose {W} (U : Unitary W) : Box W W := 
-  box_ p ⇒ transpose U $ U $ p.
+  box_ p ⇒ trans U $ U $ p.
 Lemma unitary_transpose_WT : forall W (U : Unitary W), Typed_Box (unitary_transpose U).
 Proof. type_check. Qed.
 

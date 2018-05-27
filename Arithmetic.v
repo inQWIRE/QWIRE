@@ -5,7 +5,6 @@ Require Import HOASLib.
 Require Import Oracles.
 Require Import SemanticLib.
 Require Import Symmetric.
-Require Import Reversible.
 Require Import Matrix.
 Require Import Denotation.
 Require Import Monad.
@@ -199,6 +198,15 @@ Lemma calc_id_circ_with_pads_WT : forall n,
   Typed_Box (calc_id_circ_with_pads n).
 Proof. intros. apply compile_WT. Qed.
 
+Hint Resolve adder_cout_circ_WT adder_sum_circ_WT adder_cout_circ_with_pads_WT adder_sum_circ_with_pads_WT calc_xor_circ_WT calc_id_circ_WT calc_id_circ_with_pads_WT : typed_db.
+
+Hint Extern 2 (Typed_Box (adder_cout_circ_with_pads _)) => 
+  apply adder_cout_circ_with_pads_WT : typed_db.
+Hint Extern 2 (Typed_Box (adder_sum_circ_with_pads _)) => 
+  apply adder_sum_circ_with_pads_WT : typed_db.
+Hint Extern 2 (Typed_Box (calc_id_circ_with_pads _)) =>
+  apply calc_id_circ_with_pads_WT : typed_db.
+
 Open Scope matrix_scope.
 
 (* Specifications *)
@@ -341,10 +349,7 @@ Next Obligation.
 Defined.
 
 Lemma carrier_circ_1_WT : Typed_Box carrier_circ_1.
-Proof.
-  unfold carrier_circ_1.
-  apply adder_cout_circ_WT.
-Qed.
+Proof. type_check. Qed.
 
 Lemma carrier_circ_1_with_pads_WT : forall (n : nat),
   Typed_Box (carrier_circ_1_with_pads n).
@@ -355,25 +360,27 @@ Proof.
 Qed.
 
 Lemma adder_circ_1_WT : Typed_Box adder_circ_1.
-Proof.
-  apply inSeq_WT.
-  - apply inPar_WT.
-    + apply id_circ_WT.
-    + apply adder_sum_circ_WT.
-  - apply adder_cout_circ_WT.
-Qed.
+Proof. type_check. Qed.
 
 Lemma adder_circ_1_with_pads_WT : forall (n : nat),
   Typed_Box (adder_circ_1_with_pads n).
-Proof.
+Proof. 
   intros.
   unfold adder_circ_1_with_pads. simpl_eq.
   apply inSeq_WT.
   - apply inPar_WT.
     + apply id_circ_WT.
-    +apply adder_sum_circ_with_pads_WT.
+    + apply adder_sum_circ_with_pads_WT.
   - apply adder_cout_circ_with_pads_WT.
 Qed.
+
+Hint Resolve carrier_circ_1_WT carrier_circ_1_with_pads_WT adder_circ_1_WT 
+     adder_circ_1_with_pads_WT : typed_db.
+
+Hint Extern 2 (Typed_Box (carrier_circ_1_with_pads _)) =>
+  apply carrier_circ_1_with_pads_WT : typed_db.
+Hint Extern 2 (Typed_Box (adder_circ_1_with_pads _)) =>
+  apply adder_circ_1_with_pads_WT : typed_db.
 
 Open Scope matrix_scope.
 
@@ -443,25 +450,20 @@ Lemma adder_circ_1_spec : forall (cin x y sum cout : bool),
   = (bools_to_matrix [cout ⊕ (calc_cout cin x y); sum ⊕ (calc_sum cin x y); y; x; cin]).
 Proof.
   intros.
-  unfold adder_circ_1.
-  rewrite inSeq_correct.
-  - unfold compose_super.
-    unfold denote. unfold Denote_Box.
-    unfold bools_to_matrix. simpl.
-    rewrite_inPar.
-    + remember adder_sum_circ_spec as H; clear HeqH.
-      unfold bools_to_matrix in H. simpl in H.
-      rewrite H. clear H.
-      simpl_rewrite id_circ_Id.
-      * remember adder_cout_circ_spec as H; clear HeqH.
-      unfold bools_to_matrix in H. simpl in H.
-        rewrite H. clear H.
-        reflexivity.
-      * apply WF_bool_to_matrix.
-  - apply adder_cout_circ_WT.
-  - apply inPar_WT.
-    + apply id_circ_WT.
-    + apply adder_sum_circ_WT.
+  unfold adder_circ_1. simpl.
+  rewrite inSeq_correct; [|type_check|type_check].
+  unfold compose_super.
+  unfold denote. unfold Denote_Box.
+  unfold bools_to_matrix. simpl.
+  rewrite_inPar.
+  remember adder_sum_circ_spec as H; clear HeqH.
+  unfold bools_to_matrix in H. simpl in H.
+  rewrite H. clear H.
+  simpl_rewrite id_circ_spec; [|auto with wf_db].
+  remember adder_cout_circ_spec as H; clear HeqH.
+  unfold bools_to_matrix in H. simpl in H.
+  rewrite H. clear H.
+  reflexivity.
 Qed.
 (*
 Lemma adder_circ_1_spec : forall (cin x y sum cout : bool),
@@ -523,7 +525,8 @@ Proof.
   intros.
   unfold adder_circ_1_with_pads.
   Opaque denote. simpl_eq. Transparent denote.
-  rewrite inSeq_correct.
+  simpl.
+  rewrite inSeq_correct; try solve [type_check]. 
   - unfold compose_super.
     unfold denote. unfold Denote_Box.
     unfold ctx_to_matrix. simpl.
@@ -542,7 +545,7 @@ Proof.
       rewrite H1 in H. unfold list_of_Qubits in H.
       rewrite H.
       clear H1 H.
-      simpl_rewrite id_circ_Id.
+      simpl_rewrite id_circ_spec.
       * 
         assert (H1 : forall n f, length (ctx_to_mat_list (list_of_Qubits n) f) = size_ctx (list_of_Qubits n)).
         { induction n0.
@@ -559,10 +562,6 @@ Proof.
         rewrite H1 in H. unfold list_of_Qubits in H.
         apply H.
       * apply WF_bool_to_matrix.
-  - apply adder_cout_circ_with_pads_WT.
-  - apply inPar_WT.
-    + apply id_circ_WT.
-    + apply adder_sum_circ_with_pads_WT.
 Qed.
 Close Scope matrix_scope.
 
@@ -866,7 +865,7 @@ Proof.
 *)
   induction n.
   - intros. unfold ctx_to_matrix. simpl.
-    remember id_circ_Id. simpl in *. apply e.
+    remember id_circ_spec. simpl in *. apply e.
     rewrite kron_1_r. apply WF_bool_to_matrix.
   - intros. unfold list_of_Qubits in *.
     Opaque compute_adder_n_left.
@@ -914,7 +913,7 @@ Proof.
                     (ctx_to_matrix (repeat (Some Qubit) (1 + 3 * n)) (fun v : Var => f (S (S (S v))))).
                 { simpl in *. rewrite IHn. clear IHn.
                   Unset Printing All. Unset Printing Implicit.
-                  specialize id_circ_Id as Iid. simpl in Iid. repeat rewrite Iid. clear Iid.
+                  specialize id_circ_spec as Iid. simpl in Iid. repeat rewrite Iid. clear Iid.
                   Locate "⊗".
                   - rewrite strip_one_l_in_eq.
                     specialize (kron_1_l
@@ -937,7 +936,7 @@ Proof.
                       rewrite dim_eq_lemma_2. rewrite IP. clear IP.
                       Unset Printing Implicit.
                       * specialize init0_spec as IG. simpl in IG. rewrite IG. clear IG.
-                        specialize id_circ_Id as Iid. simpl in Iid. rewrite Iid. clear Iid.
+                        specialize id_circ_spec as Iid. simpl in Iid. rewrite Iid. clear Iid.
                         { Check adder_circ_1_with_pads_spec.
                           Set Printing Implicit.
                           specialize (adder_circ_1_with_pads_spec
@@ -998,7 +997,7 @@ Proof.
                         specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + (n + 0)))))) as IW. simpl in IW. rewrite dim_eq_lemma_1 in IW. apply IW.
                       * apply (init_WT false).
                       * apply id_circ_WT.
-                      * show_mixed.
+                      * auto with wf_db.
                       * unfold ctx_to_matrix.
                         repeat (try apply (mixed_kron 2); try apply mixed_big_kron; try show_mixed).
                         specialize (mixed_state_big_kron_ctx_to_mat_list (1 + n + (n + (n + (n + 0)))) (compute_adder_n_left n (fun v : Var => f (S (S (S v))))))
@@ -1041,6 +1040,50 @@ Proof.
       * simpl_eq. apply adder_circ_1_with_pads_WT.
     + repeat (apply inPar_WT; try apply id_circ_WT). apply adder_circ_n_left_WT.
 Qed.
+
+
+(* RR: Code I used at first broken case:
+                      * repeat apply WF_kron; try solve [omega]; auto with wf_db.
+                        unify_pows_two. 
+                        simpl. fold ctx_to_mat_list.
+                        rewrite ctx_to_mat_list_length. simpl.
+                        rewrite size_repeat_ctx.
+                        omega.
+                        simpl. fold ctx_to_mat_list.
+                        rewrite ctx_to_mat_list_length. simpl.
+                        rewrite size_repeat_ctx.
+                        omega.
+                        simpl. fold ctx_to_mat_list.
+                        rewrite ctx_to_mat_list_length. simpl.
+                        rewrite size_repeat_ctx.
+                        fold @big_kron.
+                        specialize WF_ctx_to_matrix as WF.
+                        unfold ctx_to_matrix in WF. simpl in WF.
+                        specialize (WF (@repeat (option WType) (@Some WType Qubit) (n + (n + (n + (n + 0)))))).
+                        simpl in WF.
+                        rewrite size_repeat_ctx in WF.
+                        apply WF.
+                    + repeat apply WF_kron; try solve [omega]; auto with wf_db.
+                      unify_pows_two. 
+                      simpl. fold ctx_to_mat_list.
+                      rewrite ctx_to_mat_list_length. simpl.
+                      rewrite size_repeat_ctx.
+                      omega.
+                      simpl. fold ctx_to_mat_list.
+                      rewrite ctx_to_mat_list_length. simpl.
+                      rewrite size_repeat_ctx.
+                      omega.
+                      simpl. fold ctx_to_mat_list.
+                      rewrite ctx_to_mat_list_length. simpl.
+                      rewrite size_repeat_ctx.
+                      fold @big_kron.
+                      specialize WF_ctx_to_matrix as WF.
+                      unfold ctx_to_matrix in WF. simpl in WF.
+                      specialize (WF (@repeat (option WType) (@Some WType Qubit) (n + (n + (n + (n + 0)))))).
+                      simpl in WF.
+                      rewrite size_repeat_ctx in WF.
+                      apply WF.
+*)
 
 (* compute_adder_n_right
    : Functional meaning of [adder_circ_n_right]
@@ -1096,7 +1139,7 @@ Lemma adder_circ_n_spec_right_1 : forall (n : nat) (f : Var -> bool),
 Proof.
   induction n.
   - intros. simpl.
-    specialize id_circ_Id as Iid. simpl in Iid. repeat rewrite Iid. clear Iid. reflexivity.
+    specialize id_circ_spec as Iid. simpl in Iid. repeat rewrite Iid. clear Iid. reflexivity.
     apply WF_kron; try reflexivity; try apply WF_bool_to_matrix; try apply WF_Id.
   - intros. simpl_eq.
     replace (n - n + (n - n) + (n - n)) with 0 in * by omega.
@@ -1161,7 +1204,7 @@ Proof.
           specialize assert0_spec as IA. simpl in IA. rewrite IA. clear IA.
 
           rewrite kron_1_l.
-          - specialize id_circ_Id as Iid. simpl in Iid. repeat rewrite Iid. clear Iid.
+          - specialize id_circ_spec as Iid. simpl in Iid. repeat rewrite Iid. clear Iid.
             + specialize (inPar_correct
                             Qubit Qubit
                             (NTensor (3 + n + (n + (n + (n + 0)))) Qubit)
@@ -1183,7 +1226,7 @@ Proof.
                     as IP.
                   simpl in IP. rewrite dim_eq_lemma_3 in *.
                   rewrite IP. clear IP.
-                  - specialize id_circ_Id as Iid. simpl in Iid. repeat rewrite Iid. clear Iid.
+                  - specialize id_circ_spec as Iid. simpl in Iid. repeat rewrite Iid. clear Iid.
                     + replace (n + S (n + S (n + 0))) with (2 + n + (n + (n + 0))) by omega.
                       simpl. rewrite dim_eq_lemma_3. repeat apply kron_eq_1.
                       * reflexivity.
@@ -1227,7 +1270,7 @@ Proof.
               * simpl. rewrite dim_eq_lemma_3. reflexivity.
               * simpl. rewrite dim_eq_lemma_3. reflexivity.
               * specialize (WF_ctx_to_matrix (@repeat (option WType) (@Some WType Qubit) (n + (n + (n + (n + 0)))))) as IW. simpl in IW. rewrite dim_eq_lemma_1 in IW. apply IW.
-          - specialize id_circ_Id as Iid. simpl in Iid. repeat rewrite Iid. clear Iid.
+          - specialize id_circ_spec as Iid. simpl in Iid. repeat rewrite Iid. clear Iid.
             repeat apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
             specialize (WF_ctx_to_matrix (@repeat (option WType) (@Some WType Qubit) (n + (n + (n + (n + 0)))))) as IW. simpl in IW. rewrite dim_eq_lemma_1 in IW. apply IW.
             simpl. rewrite dim_eq_lemma_3.
@@ -1359,7 +1402,7 @@ Proof.
               simpl in IP. rewrite dim_eq_lemma_3 in IP.
               rewrite dim_eq_lemma_3 in IP.
               rewrite IP. clear IP.
-              * specialize id_circ_Id as Iid. simpl in Iid. repeat rewrite Iid. clear Iid.
+              * specialize id_circ_spec as Iid. simpl in Iid. repeat rewrite Iid. clear Iid.
                 specialize
                   (adder_circ_n_spec_left_1 n (fun v => f (4 + v))) as H.
                 simpl in H. unfold ctx_to_matrix in H. simpl in H.
@@ -1411,7 +1454,7 @@ Proof.
                         simpl in IP. rewrite dim_eq_lemma_3 in IP.
                         rewrite dim_eq_lemma_3 in IP.
                         rewrite IP. clear IP.
-                        { specialize id_circ_Id as Iid. simpl in Iid. repeat rewrite Iid.
+                        { specialize id_circ_spec as Iid. simpl in Iid. repeat rewrite Iid.
                           clear Iid.
                           - repeat apply kron_eq_1.
                             + Transparent compute_adder_n. simpl.
@@ -2115,16 +2158,16 @@ Proof.
     specialize (inPar_correct Qubit Qubit (NTensor (n+n+n) Qubit) (NTensor (n+n+n) Qubit)) as IP.
     rewrite dim_eq_lemma_3 in IP. (* simplify dimension of boxes *)
     rewrite IP. clear IP.
-    remember id_circ_Id. simpl in e. repeat rewrite e. clear e Heqe.
+    remember id_circ_spec. simpl in e. repeat rewrite e. clear e Heqe.
     remember init0_spec. simpl in e. rewrite e. clear e Heqe.
     assert (inParMany_correct : forall n f, denote_box true (inParMany n (@id_circ Qubit)) (⨂ ctx_to_mat_list (list_of_Qubits (n)) f)%M = (⨂ ctx_to_mat_list (list_of_Qubits (n)) f)%M).
     { induction n0.
-      - intros. simpl. remember id_circ_Id. simpl in e. rewrite e. reflexivity.
+      - intros. simpl. remember id_circ_spec. simpl in e. rewrite e. reflexivity.
         apply WF_I1.
       - intros. simpl. show_dimensions. rewrite dim_eq_lemma_2.
         specialize (inPar_correct Qubit Qubit (NTensor n0 Qubit) (NTensor n0 Qubit)) as IP.
         rewrite dim_eq_lemma_3 in IP. simpl in IP. rewrite IP.
-        rewrite IHn0. remember id_circ_Id. simpl in e. rewrite e. reflexivity.
+        rewrite IHn0. remember id_circ_spec. simpl in e. rewrite e. reflexivity.
         + simpl. apply WF_bool_to_matrix.
         + apply id_circ_WT.
         + apply inParMany_WT. apply id_circ_WT.
@@ -2146,7 +2189,7 @@ Proof.
     specialize (inPar_correct Qubit Qubit (NTensor (2+n+n+n) Qubit) (NTensor (2+n+n+n) Qubit)) as IP.
     rewrite dim_eq_lemma_3 in IP. (* simplify dimension of boxes *)
     rewrite IP. clear IP.
-    remember id_circ_Id. simpl in e. repeat rewrite e. clear e Heqe.
+    remember id_circ_spec. simpl in e. repeat rewrite e. clear e Heqe.
     unfold ctx_to_matrix in IHn. simpl in IHn.
     specialize (IHn (fun x => match x with
                               | 0 => false
@@ -2206,7 +2249,7 @@ Proof.
     specialize (inPar_correct Qubit Qubit (NTensor (n+n+n) Qubit) (NTensor (n+n+n) Qubit)) as IP. 
     rewrite dim_eq_lemma_3 in IP. (* simplify dimension of boxes *)
     rewrite IP. clear IP.
-    remember id_circ_Id. simpl in e. repeat rewrite e. clear e Heqe.
+    remember id_circ_spec. simpl in e. repeat rewrite e. clear e Heqe.
     remember inSeq_correct. simpl in e. rewrite e. unfold compose_super. clear e Heqe.
     rewrite inParMany_correct. clear inParMany_correct.
     assert (meas_spec : forall b, ⟦boxed_gate meas⟧ (bool_to_matrix b) = bool_to_matrix b).
@@ -2355,11 +2398,11 @@ Proof.
     rewrite strip_one_l_in_eq.
     rewrite <- (kron_1_l _ _ (bool_to_matrix (f 1) ⊗ _)). 
     repeat rewrite_inPar'.
-    repeat simpl_rewrite id_circ_Id.    
+    repeat simpl_rewrite id_circ_spec.    
     simpl_rewrite init0_spec.
     rewrite strip_one_l_out_eq.
     rewrite_inPar'.
-    simpl_rewrite id_circ_Id.    
+    simpl_rewrite id_circ_spec.    
     simpl_rewrite assert0_spec.
     rewrite kron_1_l.
 (* this is an identity, so that's as far as you get *)
@@ -2455,7 +2498,7 @@ Proof.
       rewrite_inPar.
       Set Printing All.
       apply inSeq_correct.
-      remember id_circ_Id. simpl in e. repeat rewrite e. clear e Heqe.
+      remember id_circ_spec. simpl in e. repeat rewrite e. clear e Heqe.
       unfold strip_one_l_in. unfold denote_box at 2. simpl.
       unfold compose_super. unfold apply_new0. unfold super. simpl.
       Locate "⨂".
@@ -2487,7 +2530,7 @@ fold inParMany (n + n + n + 1)%nat (@id_circ Qubit).
       unfold big_kron.
 rewrite H2. rewrite inPar_correct.
       remember
-      rewrite id_circ_Id.
+      rewrite id_circ_spec.
       simpl_rewrite calc_id_circ_spec.
       rewrite calc_id_circ_spec.
       unfold strip_one_l_in. simpl.
