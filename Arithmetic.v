@@ -141,7 +141,7 @@ Definition calc_xor_circ :=
 
 Definition calc_id_circ := compile id_bexp (list_of_Qubits 1).
 
-Notation "'let_' ( p1 , p2 ) ← 'output' p3 ; c" := (letpair p1 p2 p3 c) (at level 12, right associativity) : circ_scope.
+Notation "'let_' ( p1 , p2 ) ← 'output' p3 ; c" := (letpair p1 p2 p3 c) (at level 14, right associativity) : circ_scope.
 
 Ltac compute_compile :=
   repeat (try unfold compile; simpl;
@@ -166,7 +166,7 @@ Proof.
   
   Check (output ∘ pair (qubit 1)). simpl_eq. show_goal. show_hyps. program_simpl. unfold compose. simpl.
   unfold comp. Locate "∘". Check pair.
-Notation "'let_' p ← 'unbox' ( c1 ) ; c2" := (comp p c1 c2) (at level 12, right associativity) : circ_scope.
+Notation "'let_' p ← 'unbox' ( c1 ) ; c2" := (comp p c1 c2) (at level 14, right associativity) : circ_scope.
 
 (let_ (p8, p9)← output p7;
                           comp p2'

@@ -15,7 +15,7 @@ Coercion boxed_gate : Gate >-> Box.
 Definition apply_box {w1 w2} (b : Box w1 w2) (c : Circuit w1) : Circuit w2 :=
   let_ x ← c;
   unbox b x.
-Notation "b $ c" := (apply_box b c)  (right associativity, at level 10) : circ_scope.
+Notation "b $ c" := (apply_box b c)  (right associativity, at level 12) : circ_scope.
 Coercion output : Pat >-> Circuit.
 
 (* Should move other notations in Typechecking *)
@@ -54,18 +54,18 @@ Program Definition lift_wire {W W' : WType} (c0 : Circuit W) (c : bool -> Circui
   end.
 
 Notation "'lift_' x ← c0 ; c" := (lift_wire c0 (fun x => c))
-         (at level 12, right associativity) : circ_scope.
+         (at level 14, right associativity) : circ_scope.
 
 Notation "'lift_' ( x , y ) ← c0 ; c" := (compose c0 (fun p => 
             letpair p1 p2 p (lift_wire p1 (fun x => lift_wire p2 (fun y => c)))))
-         (at level 12, right associativity) : circ_scope.
+         (at level 14, right associativity) : circ_scope.
 
 (* 
 Notation "'lift_' x ← c0 ; c" := (lift_circ c0 (fun x => c))
-         (at level 12, right associativity) : circ_scope.
+         (at level 14, right associativity) : circ_scope.
 
 Notation "'lift_' ( x , y ) ← c0 ; c" := (lift_circ c0 (fun p => let (x,y) := p in c))
-         (at level 12, right associativity) : circ_scope.
+         (at level 14, right associativity) : circ_scope.
 *)
 
 

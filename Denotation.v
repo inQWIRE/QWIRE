@@ -1453,9 +1453,11 @@ Add Parametric Relation W1 W2 : (Box W1 W2) (@HOAS_Equiv W1 W2)
 (* Hints for automation *)
 (************************)
 
-Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard apply_assert0
-     apply_assert1 compose_super Splus swap_list swap_two pad denote_box denote_pat 
-     super : den_db.
+Hint Unfold get_fresh add_fresh_state get_fresh_var process_gate process_gate_state : den_db.
+
+Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard apply_assert0 apply_assert1 compose_super Splus swap_list swap_two pad denote_box denote_pat super: den_db.
+
+Hint Unfold get_fresh add_fresh_state get_fresh_var process_gate process_gate_state : ket_den_db.
 
 Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard apply_assert0
      apply_assert1 compose_super Splus swap_list swap_two pad denote_box denote_pat 
