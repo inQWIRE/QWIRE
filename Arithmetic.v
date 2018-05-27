@@ -994,18 +994,21 @@ Proof.
                         apply WF_kron; simpl; try rewrite dim_eq_lemma_3; try reflexivity; try apply WF_bool_to_matrix.
                         apply WF_kron; simpl; try rewrite dim_eq_lemma_3; try reflexivity; try apply WF_bool_to_matrix.
                         apply WF_kron; simpl; try rewrite dim_eq_lemma_3; try reflexivity; try apply WF_bool_to_matrix.
-                        specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + (n + 0)))))) as IW. simpl in IW. rewrite dim_eq_lemma_1 in IW. apply IW.
+                        specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + (n + 0)))))) as IW.
+                        simpl in IW. rewrite dim_eq_lemma_1 in IW. apply IW.
                       * apply (init_WT false).
                       * apply id_circ_WT.
                       * auto with wf_db.
-                      * unfold ctx_to_matrix.
-                        repeat (try apply (mixed_kron 2); try apply mixed_big_kron; try show_mixed).
-                        specialize (mixed_state_big_kron_ctx_to_mat_list (1 + n + (n + (n + (n + 0)))) (compute_adder_n_left n (fun v : Var => f (S (S (S v))))))
-                          as Hmixed. rewrite dim_eq_lemma_2 in Hmixed. simpl in Hmixed. apply Hmixed.
-                    + apply WF_kron; simpl; try rewrite dim_eq_lemma_3; try reflexivity; try apply WF_bool_to_matrix.
-                      apply WF_kron; simpl; try rewrite dim_eq_lemma_3; try reflexivity; try apply WF_bool_to_matrix.
-                      apply WF_kron; simpl; try rewrite dim_eq_lemma_3; try reflexivity; try apply WF_bool_to_matrix.
-                      specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + (n + 0)))))) as IW. simpl in IW. rewrite dim_eq_lemma_1 in IW. apply IW.
+                      * apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+                        apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+                        apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+                        specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + (n + 0)))))) as IW.
+                        simpl in IW. rewrite dim_eq_lemma_1 in IW. apply IW.
+                    + apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+                      apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+                      apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+                      specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + (n + 0)))))) as IW.
+                      simpl in IW. rewrite dim_eq_lemma_1 in IW. apply IW.
                   - apply WF_bool_to_matrix.
                   - apply WF_bool_to_matrix.
                   - apply WF_bool_to_matrix.
@@ -1013,22 +1016,22 @@ Proof.
                 { unfold ctx_to_matrix. simpl. rewrite dim_eq_lemma_2. reflexivity. }
               * apply id_circ_WT.
               * apply adder_circ_n_left_WT.
-              * show_mixed.
-              * repeat (try apply (mixed_kron 2); try apply mixed_big_kron; try show_mixed).
-                specialize (mixed_state_big_kron_ctx_to_mat_list (n + (n + (n + 0))) (fun v : Var => f (S (S (S (S v))))))
-                  as Hmixed. rewrite dim_eq_lemma_2 in Hmixed. simpl in Hmixed. apply Hmixed.
+              * apply WF_bool_to_matrix.
+              * specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + 0)))) (fun x => f (S (S (S x))))) as IW.
+                unfold ctx_to_matrix in IW. simpl in IW. rewrite dim_eq_lemma_1 in *. rewrite dim_eq_lemma_2 in *. apply IW.
             + apply id_circ_WT.
             + repeat apply inPar_WT; try apply id_circ_WT; try apply adder_circ_n_left_WT.
-            + show_mixed.
-            + repeat (try apply (mixed_kron 2); try apply mixed_big_kron; try show_mixed).
-              specialize (mixed_state_big_kron_ctx_to_mat_list (n + (n + (n + 0))) (fun v : Var => f (S (S (S (S v))))))
-                as Hmixed. rewrite dim_eq_lemma_2 in Hmixed. simpl in Hmixed. apply Hmixed.
+            + apply WF_bool_to_matrix.
+            + apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+              specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + 0)))) (fun x => f (S (S (S x))))) as IW.
+              unfold ctx_to_matrix in IW. simpl in IW. rewrite dim_eq_lemma_1 in *. rewrite dim_eq_lemma_2 in *. apply IW.
           - apply id_circ_WT.
           - repeat apply inPar_WT; try apply id_circ_WT; try apply adder_circ_n_left_WT.
-          - show_mixed.
-          - repeat (try apply (mixed_kron 2); try apply mixed_big_kron; try show_mixed).
-            specialize (mixed_state_big_kron_ctx_to_mat_list (n + (n + (n + 0))) (fun v : Var => f (S (S (S (S v))))))
-              as Hmixed. rewrite dim_eq_lemma_2 in Hmixed. simpl in Hmixed. apply Hmixed.
+          - apply WF_bool_to_matrix.
+          - apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+            apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+            specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + 0)))) (fun x => f (S (S (S x))))) as IW.
+            unfold ctx_to_matrix in IW. simpl in IW. rewrite dim_eq_lemma_1 in *. rewrite dim_eq_lemma_2 in *. apply IW.
         }
         { unfold ctx_to_matrix. simpl.
           replace (n + S (n + S (n + 0))) with (2 + (n + (n + (n + 0)))) by omega.
@@ -1247,25 +1250,25 @@ Proof.
                     + apply WF_bool_to_matrix.
                   - apply id_circ_WT.
                   - apply adder_circ_n_right_WT.
-                  - show_mixed.
-                  - repeat (try apply (mixed_kron 2); try apply mixed_big_kron; try show_mixed).
-                    specialize (mixed_state_big_kron_ctx_to_mat_list (n + (n + (n + (n + 0)))) (fun v : Var => compute_adder_n_left n (fun i : Var => f (S (S (S (S (S (S (S i)))))))) (S v)))
-                      as Hmixed. rewrite dim_eq_lemma_2 in Hmixed. simpl in Hmixed. apply Hmixed.
+                  - apply WF_bool_to_matrix.
+                  - specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + (n + 0))))) (compute_adder_n_left n (fun i : Var => f (S (S (S (S (S (S (S i)))))))))) as IW.
+                    unfold ctx_to_matrix in IW. simpl in IW. rewrite dim_eq_lemma_1 in *. rewrite dim_eq_lemma_2 in *. apply IW.
                 }
                 { apply id_circ_WT. }
                 { apply inPar_WT.
                   - apply id_circ_WT.
                   - apply adder_circ_n_right_WT. }
-                { show_mixed. }
-                { repeat (try apply (mixed_kron 2); try apply mixed_big_kron; try show_mixed).
-                  specialize (mixed_state_big_kron_ctx_to_mat_list (n + (n + (n + (n + 0)))) (fun v : Var => compute_adder_n_left n (fun i : Var => f (S (S (S (S (S (S (S i)))))))) (S v))) as Hmixed.
-                  rewrite dim_eq_lemma_2 in Hmixed. simpl in Hmixed. apply Hmixed. }
+                { apply WF_bool_to_matrix. }
+                { apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+                  specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + (n + 0))))) (compute_adder_n_left n (fun i : Var => f (S (S (S (S (S (S (S i)))))))))) as IW.
+                  unfold ctx_to_matrix in IW. simpl in IW. rewrite dim_eq_lemma_1 in *. rewrite dim_eq_lemma_2 in *. apply IW. }
               * apply id_circ_WT.
               * repeat apply inPar_WT; try apply id_circ_WT. apply adder_circ_n_right_WT.
-              * show_mixed.
-              * repeat (try apply (mixed_kron 2); try apply mixed_big_kron; try show_mixed).
-                specialize (mixed_state_big_kron_ctx_to_mat_list (n + (n + (n + (n + 0)))) (fun v : Var => compute_adder_n_left n (fun i : Var => f (S (S (S (S (S (S (S i)))))))) (S v))) as Hmixed.
-                rewrite dim_eq_lemma_2 in Hmixed. simpl in Hmixed. apply Hmixed. 
+              * apply WF_bool_to_matrix.
+              * apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+                apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+                specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + (n + 0))))) (compute_adder_n_left n (fun i : Var => f (S (S (S (S (S (S (S i)))))))))) as IW.
+                unfold ctx_to_matrix in IW. simpl in IW. rewrite dim_eq_lemma_1 in *. rewrite dim_eq_lemma_2 in *. apply IW.
             + repeat apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
               * simpl. rewrite dim_eq_lemma_3. reflexivity.
               * simpl. rewrite dim_eq_lemma_3. reflexivity.
@@ -1279,10 +1282,12 @@ Proof.
         }
         { apply (assert_WT false). }
         { apply id_circ_WT. }
-        { show_mixed. }
-        { repeat (try apply (mixed_kron 2); try apply mixed_big_kron; try show_mixed).
-          specialize (mixed_state_big_kron_ctx_to_mat_list (n + (n + (n + (n + 0)))) (fun v : Var => compute_adder_n_left n (fun i : Var => f (S (S (S (S (S (S (S i)))))))) (S v))) as Hmixed.
-          rewrite dim_eq_lemma_2 in Hmixed. simpl in Hmixed. apply Hmixed. }
+        { apply WF_bool_to_matrix. }
+        { apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+          apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+          apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+          specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + (n + 0))))) (compute_adder_n_left n (fun i : Var => f (S (S (S (S (S (S (S i)))))))))) as IW.
+          unfold ctx_to_matrix in IW. simpl in IW. rewrite dim_eq_lemma_1 in *. rewrite dim_eq_lemma_2 in *. apply IW. }
       * simpl_eq. repeat (apply inPar_WT; try apply id_circ_WT).
         apply adder_circ_n_right_WT.
       * apply strip_one_l_out_WT.
@@ -1559,29 +1564,31 @@ Proof.
                         }
                         { apply id_circ_WT. }
                         { apply adder_circ_n_right_WT. }
-                        { show_mixed. }
-                        { repeat (try apply (mixed_kron 2); try apply mixed_big_kron; try show_mixed).
-                          specialize (mixed_state_big_kron_ctx_to_mat_list (n + (n + (n + (n + 0)))) (fun v : Var => compute_adder_n_left n (fun i : Var => f (S (S (S (S i))))) (S v))) as Hmixed.
-                          rewrite dim_eq_lemma_2 in Hmixed. simpl in Hmixed. apply Hmixed. }
+                        { apply WF_bool_to_matrix. }
+                        { specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + (n + 0))))) (compute_adder_n_left n (fun i : Var => f (S (S (S (S i))))))) as IW.
+                          unfold ctx_to_matrix in IW. simpl in IW. rewrite dim_eq_lemma_1 in *. rewrite dim_eq_lemma_2 in *. apply IW. }
                       * apply id_circ_WT.
                       * apply inPar_WT; try apply id_circ_WT. apply adder_circ_n_right_WT.
-                      * show_mixed.
-                      * repeat (try apply (mixed_kron 2); try apply mixed_big_kron; try show_mixed).
-                        specialize (mixed_state_big_kron_ctx_to_mat_list (n + (n + (n + (n + 0)))) (fun v : Var => compute_adder_n_left n (fun i : Var => f (S (S (S (S i))))) (S v))) as Hmixed.
-                        rewrite dim_eq_lemma_2 in Hmixed. simpl in Hmixed. apply Hmixed.
+                      * apply WF_bool_to_matrix.
+                      * apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+                        specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + (n + 0))))) (compute_adder_n_left n (fun i : Var => f (S (S (S (S i))))))) as IW.
+                        unfold ctx_to_matrix in IW. simpl in IW. rewrite dim_eq_lemma_1 in *. rewrite dim_eq_lemma_2 in *. apply IW.
                     + apply id_circ_WT.
                     + repeat apply inPar_WT; try apply id_circ_WT.
                       apply adder_circ_n_right_WT.
-                    + show_mixed.
-                    + repeat (try apply (mixed_kron 2); try apply mixed_big_kron; try show_mixed).
-                        specialize (mixed_state_big_kron_ctx_to_mat_list (n + (n + (n + (n + 0)))) (fun v : Var => compute_adder_n_left n (fun i : Var => f (S (S (S (S i))))) (S v))) as Hmixed.
-                        rewrite dim_eq_lemma_2 in Hmixed. simpl in Hmixed. apply Hmixed.
+                    + apply WF_bool_to_matrix.
+                    + apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+                      apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+                      specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + (n + 0))))) (compute_adder_n_left n (fun i : Var => f (S (S (S (S i))))))) as IW.
+                      unfold ctx_to_matrix in IW. simpl in IW. rewrite dim_eq_lemma_1 in *. rewrite dim_eq_lemma_2 in *. apply IW.
                   - apply id_circ_WT.
                   - repeat apply inPar_WT; try apply id_circ_WT. apply adder_circ_n_right_WT.
-                  - show_mixed.
-                  - repeat (try apply (mixed_kron 2); try apply mixed_big_kron; try show_mixed).
-                    specialize (mixed_state_big_kron_ctx_to_mat_list (n + (n + (n + (n + 0)))) (fun v : Var => compute_adder_n_left n (fun i : Var => f (S (S (S (S i))))) (S v))) as Hmixed.
-                    rewrite dim_eq_lemma_2 in Hmixed. simpl in Hmixed. apply Hmixed.
+                  - apply WF_bool_to_matrix.
+                  - apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+                    apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+                    apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+                    specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + (n + 0))))) (compute_adder_n_left n (fun i : Var => f (S (S (S (S i))))))) as IW.
+                    unfold ctx_to_matrix in IW. simpl in IW. rewrite dim_eq_lemma_1 in *. rewrite dim_eq_lemma_2 in *. apply IW.
                 }
                 { apply WF_bool_to_matrix. }
                 { apply WF_bool_to_matrix. }
@@ -1589,29 +1596,31 @@ Proof.
                 { apply WF_bool_to_matrix. }
               * apply id_circ_WT.
               * apply adder_circ_n_left_WT.
-              * show_mixed.                
-              * repeat (try apply (mixed_kron 2); try apply mixed_big_kron; try show_mixed).
-                specialize (mixed_state_big_kron_ctx_to_mat_list (n + (n + (n + 0))) (fun v : Var => f (S (S (S (S (S v))))))) as Hmixed.
-                rewrite dim_eq_lemma_2 in Hmixed. simpl in Hmixed. apply Hmixed.
+              * apply WF_bool_to_matrix.
+              * specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + 0)))) (fun v : Var => f (S (S (S (S v)))))) as IW.
+                unfold ctx_to_matrix in IW. simpl in IW. rewrite dim_eq_lemma_1 in *. rewrite dim_eq_lemma_2 in *. apply IW.
             + apply id_circ_WT.
             + repeat apply inPar_WT; try apply id_circ_WT. apply adder_circ_n_left_WT.
-            + show_mixed.
-            + repeat (try apply (mixed_kron 2); try apply mixed_big_kron; try show_mixed).
-              specialize (mixed_state_big_kron_ctx_to_mat_list (n + (n + (n + 0))) (fun v : Var => f (S (S (S (S (S v))))))) as Hmixed.
-              rewrite dim_eq_lemma_2 in Hmixed. simpl in Hmixed. apply Hmixed.
+            + apply WF_bool_to_matrix.
+            + apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+              specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + 0)))) (fun v : Var => f (S (S (S (S v)))))) as IW.
+              unfold ctx_to_matrix in IW. simpl in IW. rewrite dim_eq_lemma_1 in *. rewrite dim_eq_lemma_2 in *. apply IW.
           - apply id_circ_WT.
           - repeat apply inPar_WT; try apply id_circ_WT. apply adder_circ_n_left_WT.
-          - show_mixed.
-          - repeat (try apply (mixed_kron 2); try apply mixed_big_kron; try show_mixed).
-            specialize (mixed_state_big_kron_ctx_to_mat_list (n + (n + (n + 0))) (fun v : Var => f (S (S (S (S (S v))))))) as Hmixed.
-            rewrite dim_eq_lemma_2 in Hmixed. simpl in Hmixed. apply Hmixed.
+          - apply WF_bool_to_matrix.
+          - apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+            apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+            specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + 0)))) (fun v : Var => f (S (S (S (S v)))))) as IW.
+            unfold ctx_to_matrix in IW. simpl in IW. rewrite dim_eq_lemma_1 in *. rewrite dim_eq_lemma_2 in *. apply IW.
         }
         { apply id_circ_WT. }
         { repeat apply inPar_WT; try apply id_circ_WT. apply adder_circ_n_left_WT. }
-        { show_mixed. }
-        { repeat (try apply (mixed_kron 2); try apply mixed_big_kron; try show_mixed).
-          specialize (mixed_state_big_kron_ctx_to_mat_list (n + (n + (n + 0))) (fun v : Var => f (S (S (S (S (S v))))))) as Hmixed.
-          rewrite dim_eq_lemma_2 in Hmixed. simpl in Hmixed. apply Hmixed.
+        { apply WF_bool_to_matrix. }
+        { apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+          apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+          apply WF_kron; try reflexivity; try apply WF_bool_to_matrix.
+          specialize (WF_ctx_to_matrix (@Some WType Qubit :: @repeat (option WType) (@Some WType Qubit) (n + (n + (n + 0)))) (fun v : Var => f (S (S (S (S v)))))) as IW.
+          unfold ctx_to_matrix in IW. simpl in IW. rewrite dim_eq_lemma_1 in *. rewrite dim_eq_lemma_2 in *. apply IW.
         }
       * repeat apply inPar_WT; try apply id_circ_WT. apply adder_circ_n_right_WT.
       * apply adder_circ_1_with_pads_WT.
