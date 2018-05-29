@@ -8,7 +8,7 @@ Require Import TypeChecking.
 
 Inductive not_assert : forall {W1 W2} (g : Gate W1 W2), Prop :=  
   | na_U       : forall W u, not_assert (@U W u)
-  | na_NOT     : not_assert NOT
+  | na_NOT     : not_assert BNOT
   | na_init0   : not_assert init0
   | na_init1   : not_assert init1
   | na_new0    : not_assert new0
@@ -129,15 +129,112 @@ Proof.
     simpl.
 *)
 
-Definition valid_ancillae {W} (c : Circuit W) := forall Γ Γ0, 
+Definition valid_ancillae {W} (c : Circuit W) : Prop := forall Γ Γ0, 
   (* Γ' == Γ0 ∙ Γ -> *) (* necessary? *)
   Γ ⊢ c:Circ -> (* <- is this right? *)
   ⟨ Γ0 | Γ ⊩ c ⟩ = ⟨! Γ0 | Γ ⊩ c !⟩.
 
-(*
-Definition valid_ancillae {W1 W2} (c : Box W1 W2) := 
+Definition valid_ancillae_box {W1 W2} (c : Box W1 W2) := 
+  Typed_Box c -> 
   denote_box true c = denote_box false c.
-*)
+
+Definition valid_ancillae' {W} (c : Circuit W) := forall Γ Γ0 ρ, 
+  Γ ⊢ c:Circ -> (* <- is this right? *)
+  Mixed_State ρ ->
+  trace (⟨! Γ0 | Γ ⊩ c !⟩ ρ) = 1.
+
+Definition valid_ancillae_box' {W1 W2} (c : Box W1 W2) : Prop := forall ρ, 
+  Typed_Box c -> 
+  Mixed_State ρ ->
+  trace (denote_box false c ρ) = 1.
+
+Print valid_ancillae_box'.
+
+Lemma valid_ancillae_equal : forall W (c : Circuit W), 
+  valid_ancillae c <-> valid_ancillae' c.
+Proof.
+  intros.
+  unfold valid_ancillae, valid_ancillae'.
+  split.
+  - intros VA.
+  unfold valid_ancillae, valid_ancillae'.
+  induction c.
+Admitted.
+
+Lemma valid_ancillae_box_equal : forall W1 W2 (c : Box W1 W2), 
+  valid_ancillae_box c <-> valid_ancillae_box' c.
+Proof.
+  intros.
+  destruct c.
+Admitted.
+
+Lemma size_fresh_state : forall W (Γ : Ctx), 
+  size_ctx (fresh_state W Γ) = (size_ctx Γ + size_wtype W)%nat.
+Proof.
+  induction W; trivial.
+  - intros. simpl. unfold add_fresh_state. simpl. rewrite size_ctx_app. reflexivity.
+  - intros. simpl. unfold add_fresh_state. simpl. rewrite size_ctx_app. reflexivity.
+  - intros. simpl. rewrite IHW2, IHW1. omega.
+Qed.
+
+Lemma size_fresh_state_o : forall W (Γ : OCtx), 
+  is_valid Γ ->
+  size_octx (fresh_state W Γ) = (size_octx Γ + size_wtype W)%nat.
+Proof.
+  induction W; trivial.
+  - intros. simpl. destruct Γ. invalid_contradiction. simpl. 
+    rewrite size_ctx_app. reflexivity.
+  - intros. simpl. destruct Γ. invalid_contradiction. simpl. 
+    rewrite size_ctx_app. reflexivity.
+  - intros. simpl. rewrite IHW2, IHW1; trivial. omega.
+    apply is_valid_fresh; easy.
+Qed.
+
+(* This relationship should be easy to prove. 
+   Alternatively, we could just define one in terms of the other *)
+Lemma valid_ancillae_unbox : forall W W' (c : Pat W -> Circuit W'),
+  (forall p, valid_ancillae (c p)) <-> valid_ancillae_box (box (fun p => c p)).
+Proof.
+  intros.
+  unfold valid_ancillae, valid_ancillae_box.
+  unfold denote_box. unfold denote_circuit.
+  unfold denote_db_box.
+  unfold hoas_to_db_box.  
+  split.
+  - intros H T.
+    specialize (H (fresh_pat W ∅) (fresh_state W ∅) ∅).
+    simpl in *.
+    rewrite size_fresh_state_o in H; [| apply valid_empty].
+    simpl in H. rewrite H. easy.
+    unfold Typed_Box in T. simpl in T. apply T.
+    apply fresh_state_pat.
+  - intros H p Γ Γ0 T.
+    simpl in *.
+    Search fresh_state fresh_pat.
+
+    Search fresh_state.
+
+    specialize (is_valid_fresh ∅ W valid_empty) as V.
+    destruct (fresh_state W ∅). invalid_contradiction. 
+    simpl in H.
+
+Admitted.
+
+Lemma valid_ancillae_unbox' : forall W W' (c : Box W W') (p : Pat W),
+  valid_ancillae (unbox c p) <-> valid_ancillae_box c.
+Proof.
+  intros W W' c p.
+  unfold valid_ancillae, valid_ancillae_box.
+  unfold denote_box.
+  unfold denote_db_box.
+  destruct c.
+  simpl.
+  unfold denote_circuit.
+  simpl.
+  split.
+  - intros H.    
+    admit.
+Admitted.
 
 Lemma id_correct : forall W p, valid_ancillae (@output W p).
 Proof.
@@ -146,24 +243,14 @@ Proof.
   reflexivity.
 Qed.
 
-(* Lemmas for ancilla_free_valid *)
-Transparent merge.
-
-Lemma append_merge : forall Γ W, 
-  Valid (Γ ++ [Some W]) = (Valid Γ) ⋓ singleton (length Γ) W.
-Proof.
-  intros Γ W.
+(* Also in Reversible.v *)
+Lemma merge_singleton_append : forall W (Γ : Ctx), 
+        Γ ⋓ (singleton (length Γ) W) = Valid (Γ ++ [Some W]). 
+Proof. 
   induction Γ.
-  + simpl.
-    reflexivity.
-  + simpl.
-    simpl in *.
-    inversion IHΓ.
-    destruct a.
-    simpl.
-    reflexivity.
-    simpl.
-    reflexivity.
+  - simpl. rewrite merge_nil_l. reflexivity.
+  - unlock_merge. simpl in *.
+    destruct a; simpl; rewrite IHΓ; reflexivity.
 Qed.
 
 Lemma add_fresh_merge : forall Γ W, 
@@ -186,7 +273,7 @@ Proof.
     simpl.
     unfold get_fresh_var.
     simpl.
-    rewrite append_merge.
+    rewrite <- merge_singleton_append.
     rewrite merge_comm.
     reflexivity.
 Qed.
@@ -223,28 +310,30 @@ Proof.
       simpl.
       edestruct IHv.
       constructor.
-      2: rewrite merge_nil_r; reflexivity.
+      2: rewrite merge_nil_r; easy.
       apply valid_valid.
       rewrite merge_nil_r in pf_merge0.
       inversion pf_merge0.
       constructor.
       apply valid_valid.
       rewrite merge_nil_r.
-      reflexivity.
+      easy.
     + destruct H.
       constructor.
       apply valid_valid.
-      simpl in pf_merge.
+      unlock_merge. simpl in *.
       destruct (merge' (singleton v W) Γ) eqn:E. 
-      rewrite pf_merge in pf_valid. apply not_valid in pf_valid. contradiction.
-      inversion pf_merge.
+      rewrite pf_merge in pf_valid. invalid_contradiction. 
       simpl.
       edestruct IHv.
       constructor.
-      2: symmetry in E; apply E.
-      apply valid_valid.
-      inversion pf_merge0.
-      reflexivity.
+      2: symmetry in E; unlock_merge; apply E.
+      apply valid_valid.      
+      unlock_merge.
+      rewrite <- pf_merge0.
+      inversion pf_merge.
+      simpl.
+      easy.
 Qed.
 
 (*
@@ -259,13 +348,13 @@ Proof.
   dependent induction H.
   - destruct v; inversion x.
   - induction v.
-    + reflexivity. 
+    + simpl. unfold remove_pat. simpl. admit. (* Now this case isn't true either? *)
     + simpl. 
       unfold remove_pat in *.
       simpl in *.
       inversion IHv.
       (* Bah! 
-         I think this needs to be true, the definition of remove_pat might
+         This needs to be true: The definition of remove_pat might
          need to be changed to trim trailing Nones. *)
 Admitted.
 
@@ -289,34 +378,16 @@ Proof.
     apply IHp2.
 Qed.
 
-Lemma denote_singleton : forall v W Γ, SingletonCtx v W Γ -> 
-                                  denote_OCtx Γ = 1%nat.
-Proof.
-  intros v W Γ H.
-  generalize dependent v.
-  induction Γ.
-  - intros v H. inversion H.
-  - intros v H. 
-    inversion H; subst.
-    reflexivity.
-    simpl.
-    eapply IHΓ.
-    apply H3.
-Qed.  
-
 Lemma remove_bit_pred : forall Γ Γ' v, Γ' == (singleton v Bit) ∙ Γ ->
-                        denote_OCtx (remove_pat (bit v) Γ') = (denote_OCtx Γ' - 1)%nat.
+                        size_octx (remove_pat (bit v) Γ') = (size_octx Γ' - 1)%nat.
 Proof.
   intros Γ Γ' v H.
-  remember H as H'. clear HeqH'.
-  apply denote_OCtx_merge in H.
-  apply remove_bit_merge in H'.
-  rewrite H, H'.
-  rewrite (denote_singleton v Bit) by apply singleton_singleton.
-  omega.
+  remember H as H'. clear HeqH'. apply remove_bit_merge in H'.
+  destruct H. rewrite pf_merge in *. rewrite size_octx_merge by easy. 
+  erewrite remove_bit_merge.
+  2: constructor; trivial.
+  unfold size_octx at 2. rewrite singleton_size. omega.
 Qed.
-
-Opaque merge.
 
 Lemma ancilla_free_valid : forall W (c : Circuit W), 
                            ancilla_free c -> 
@@ -336,17 +407,19 @@ Proof.
     dependent destruction WT.
     erewrite denote_gate_circuit; [|apply pf1|apply t]. 
     erewrite denote_gate_circuit_unsafe; [|apply pf1|apply t].
+    destruct Γ1' as [|Γ1']. invalid_contradiction.
     destruct g.
     - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
     - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
-    - simpl. erewrite VA. reflexivity.      
-      eapply t0. 
+    - simpl. erewrite VA. reflexivity.
+      eapply t0.
       2: constructor; apply singleton_singleton.
       dependent destruction p.
       dependent destruction t.
       destruct pf1.
       rewrite merge_nil_l in pf_merge. subst.
-      apply add_fresh_merge.
+      unfold process_gate_state. simpl.
+      apply (add_fresh_merge Γ1').
       assumption.
     - simpl. erewrite VA. reflexivity.      
       eapply t0. 
@@ -355,7 +428,7 @@ Proof.
       dependent destruction t.
       destruct pf1.
       rewrite merge_nil_l in pf_merge. subst.
-      apply add_fresh_merge.
+      apply (add_fresh_merge Γ1').
       assumption.
     - simpl. erewrite VA. reflexivity.      
       eapply t0. 
@@ -364,7 +437,7 @@ Proof.
       dependent destruction t.
       destruct pf1.
       rewrite merge_nil_l in pf_merge. subst.
-      apply add_fresh_merge.
+      apply (add_fresh_merge Γ1').
       assumption.
     - simpl. erewrite VA. reflexivity.
       eapply t0. 
@@ -373,13 +446,12 @@ Proof.
       dependent destruction t.
       destruct pf1.
       rewrite merge_nil_l in pf_merge. subst.
-      apply add_fresh_merge.
+      apply (add_fresh_merge Γ1').
       assumption.
     - dependent destruction p.
       dependent destruction t.
       simpl. erewrite VA. reflexivity.
       eapply t0.      
-      destruct Γ1'. destruct pf1. apply not_valid in pf_valid. contradiction.      
       2: constructor; apply singleton_singleton.
       apply singleton_equiv in s; subst.
       destruct Γ.        
@@ -408,7 +480,7 @@ Proof.
     intros Γ Γ0 WT.
     unfold denote_circuit in *.
     simpl in *.
-    replace (denote_OCtx Γ - 1)%nat with (denote_OCtx (DBCircuits.remove_pat p Γ)).
+    replace (size_octx Γ - 1)%nat with (size_octx (DBCircuits.remove_pat p Γ)).
     erewrite VA.
     erewrite VA.
     reflexivity.
@@ -432,14 +504,30 @@ Proof.
       apply pf.
 Qed.
 
+Lemma ancilla_free_box_valid : forall W W' (c : Box W W'), 
+    ancilla_free_box c -> 
+    valid_ancillae_box c.
+Proof.
+  intros.
+  destruct H.
+  apply valid_ancillae_unbox.
+  intros p. 
+  apply ancilla_free_valid.
+  apply H.
+Qed.
+
+(* *)
 
             
+(* Subsequent stuff doesn't work - not sure what it was supposed to do.
 
-Lemma add_fresh_union_l : forall W Γ Γ0 Γ1,
+Lemma add_fresh_union_l : forall W (Γ : Ctx) Γ0 Γ1,
           Γ == Γ0 ∙ Γ1 ->
-          add_fresh_state W Γ == (Γ0 ⋓ (SingletonCtx (length Γ) W)) ∙ Γ1.
-
+          add_fresh_state W Γ == (Γ0 ⋓ (singleton (length Γ) W)) ∙ Γ1.
+Proof.
       type_check.
+
+(* Not sure how this was supposed to go:
  eapply t0; [apply pf1|apply t].
     - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
     - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
@@ -458,6 +546,7 @@ type_check. apply M. eapply t0. apply pf1. apply t.
     Focus 2.
     
     Search process_gate_state process_gate_pat.
+*)
 
 Lemma process_gate_typing : forall W W' g p (c : Circuit W) Γ Γ0 Γ', Γ' == Γ0 ∙ Γ ->
                                            Γ ⊢ c :Circ ->
@@ -514,143 +603,11 @@ apply M. eapply t0. apply pf1. apply t.
     intros Γ0 Γ Γ' H1.
     unfold denote_circuit in *.
     simpl in *.
-    replace (denote_OCtx Γ - 1)%nat with (denote_OCtx (DBCircuits.remove_pat p Γ)).
+    replace (size_octx Γ - 1)%nat with (size_octx (DBCircuits.remove_pat p Γ)).
     erewrite H0.
     erewrite H0.
     reflexivity.
     apply H.
 Admitted.    
 
-
-(* Add a requirement that the circuit is well-typed? *)
-Lemma ancilla_free_valid : forall W (c : Circuit W), ancilla_free c -> valid_ancillae c.
-Proof.
-  intros W c H.
-  induction c.  
-  + unfold valid_ancillae. reflexivity.
-  + assert (forall p : Pat w2, valid_ancillae (c p)) as VA.
-      intros p'.
-      apply H0.
-      dependent destruction H.
-      apply H1.
-    clear H0.
-    intros Γ0 Γ Γ' M.
-    unfold valid_ancillae in *. 
-    erewrite denote_gate_circuit. 2: admit. 2: admit.
-    erewrite denote_gate_circuit_unsafe. 2: admit. 2: admit.
-    unfold denote_circuit in *.
-    simpl in *.
-    erewrite VA. 2: admit.
-    destruct g eqn:gE.
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - dependent destruction H. inversion H.
-    - dependent destruction H. inversion H.
-  + dependent destruction H.
-    unfold valid_ancillae in *.      
-    intros Γ0 Γ Γ' H1.
-    unfold denote_circuit in *.
-    simpl in *.
-    replace (denote_OCtx Γ - 1)%nat with (denote_OCtx (DBCircuits.remove_pat p Γ)).
-    erewrite H0.
-    erewrite H0.
-    reflexivity.
-    apply H.
-Admitted.    
-
-      
-      2: rewrite merge_nil_l.
-with (Γ0 := Γ0) (Γ1 := ∅).
-      
-      rewrite VA.
-      simpl.
-
-rewrite VA. reflexivity. 
-    - simpl. unfold apply_new0. simpl. 
-      unfold DBCircuits.get_fresh_var. simpl. 
-      unfold DBCircuits.add_fresh_state. 
-      simpl.
-      destruct Γ.
-      simpl.      
-      Search DBCircuits.hoas_to_db Invalid.
-      rewrite VA.
-
-rewrite VA. reflexivity.
-    - simpl. rewrite VA. reflexivity.
-     
-    inversion H; subst.
-    inversion H6.
-    apply H7.
-    assumption.
-    apply 
-
-    inversion H; subst.
-    specialize (H0
-    apply H0 in H7.
-    apply H7 in H0.
-
-
-
-inversion H; subst. clear H. 
-  unfold valid_ancillae.
-  
-  induction (c p).
-  + unfold valid_ancillae.
-    unfold denote_box. simpl.
-    reflexivity.
-    simpl.
-    reflexivity.
-  + unfold valid_ancillae in *.
-
-    inversion H; subst.
-    specialize (H0 
-
-    assert ⟦ b ⟧ = ⟨ [] | DBCircuits.fresh_state w1 [] ⊩ unbox b (DBCircuits.fresh_pat w1 []) ⟩
-
-
-    specialize denote_db_unbox with (b:=(c p)).  (w2:=W).
-    replace (denote_box true box_ () ⇒ (c p)) with (⟦(box_ () ⇒ (c p))⟧) in H0.
-
-
-    (* Apply IH *)
-    rewrite denote_db_unbox in H0.
-    unfold fresh_pat in IHn.
-    unfold fresh_state in IHn.
-    rewrite merge_nil_r.
-    unfold compose_super.
-    rewrite IHn.
-
-
-    replace (denote_box true box_ () ⇒ (c p)) with (⟦c⟧) in H0.
-
-    unfold denote_box in *.
-
-
-    destruct g.
-    unfold denote_box in *.
-    - simpl in *.
-      
-    simpl in *.
-    
-
-(*
-C0;
-assert0 p;
-C1; 
-p' <- init0;
-C2
-output ;
-
-=
-
-C0;
-rename p into p';
-C1;
-C2; 
 *)

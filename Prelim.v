@@ -10,6 +10,14 @@ Require Import Monad.
 
 Export ListNotations.
 
+(* Boolean notations, lemmas *)
+
+Notation "¬ b" := (negb b) (at level 10).
+Infix  "⊕" := xorb (at level 20).
+
+Lemma xorb_nb_b : forall b, ¬ b ⊕ b = true. Proof. destruct b; easy. Qed.
+Lemma xorb_b_nb : forall b, b ⊕ ¬ b = true. Proof. destruct b; easy. Qed.
+
 
 (* A bit of useful reflection from Software Foundations Vol 3 *)
 
@@ -41,6 +49,13 @@ Ltac bdestruct X :=
     | destruct H as [H|H];
        [ | try first [apply not_lt in H | apply not_le in H]]].
 
+
+(* Currying *)
+
+Definition curry {A B C : Type} (f : A * B -> C) : (A -> B -> C) :=
+  fun x y => f (x,y).
+Definition uncurry {A B C : Type} (f : A -> B -> C) : (A * B -> C) :=
+  fun p => f (fst p) (snd p).
 
 (* Lists *)
 
@@ -225,3 +240,51 @@ Proof.
   reflexivity.
 Qed.
 
+(************************************)
+(* Helpful, general purpose tactics *)
+(************************************)
+
+Ltac simpl_rewrite lem :=
+  let H := fresh "H" in 
+  specialize lem as H; simpl in H; rewrite H; clear H.
+
+(* From SF *)
+Tactic Notation "gen" ident(X1) :=
+  generalize dependent X1.
+Tactic Notation "gen" ident(X1) ident(X2) :=
+  gen X2; gen X1.
+Tactic Notation "gen" ident(X1) ident(X2) ident(X3) :=
+  gen X3; gen X2; gen X1.
+Tactic Notation "gen" ident(X1) ident(X2) ident(X3) ident(X4) :=
+  gen X4; gen X3; gen X2; gen X1.
+Tactic Notation "gen" ident(X1) ident(X2) ident(X3) ident(X4) ident(X5) :=
+  gen X5; gen X4; gen X3; gen X2; gen X1.
+
+
+(***************)
+(* Powers of 2 *)
+(***************)
+
+Lemma double_mult : forall (n : nat), (n + n = 2 * n)%nat. Proof. intros. omega. Qed.
+Lemma pow_two_succ_l : forall x, (2^x * 2 = 2 ^ (x + 1))%nat.
+Proof. intros. rewrite mult_comm. rewrite <- Nat.pow_succ_r'. intuition. Qed.
+Lemma pow_two_succ_r : forall x, (2 * 2^x = 2 ^ (x + 1))%nat.
+Proof. intros. rewrite <- Nat.pow_succ_r'. intuition. Qed.
+Lemma double_pow : forall (n : nat), (2^n + 2^n = 2^(n+1))%nat. 
+Proof. intros. rewrite double_mult. rewrite pow_two_succ_r. reflexivity. Qed.
+Lemma pow_components : forall (a b m n : nat), a = b -> m = n -> (a^m = b^n)%nat.
+Proof. intuition. Qed.
+
+Ltac unify_pows_two :=
+  repeat match goal with
+  (* NB: this first thing is potentially a bad idea, do not do with 2^1 *)
+  | [ |- context[ 4%nat ]]                  => replace 4%nat with (2^2)%nat by reflexivity
+  | [ |- context[ (0 + ?a)%nat]]            => rewrite plus_0_l 
+  | [ |- context[ (?a + 0)%nat]]            => rewrite plus_0_r 
+  | [ |- context[ (2 * 2^?x)%nat]]          => rewrite <- Nat.pow_succ_r'
+  | [ |- context[ (2^?x * 2)%nat]]          => rewrite pow_two_succ_l
+  | [ |- context[ (2^?x + 2^?x)%nat]]       => rewrite double_pow 
+  | [ |- context[ (2^?x * 2^?y)%nat]]       => rewrite <- Nat.pow_add_r 
+  | [ |- context[ (?a + (?b + ?c))%nat ]]   => rewrite plus_assoc 
+  | [ |- (2^?x = 2^?y)%nat ]                => apply pow_components; try omega 
+  end.

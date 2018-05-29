@@ -11,6 +11,10 @@ Open Scope R_scope.
 Open Scope C_scope.
 Open Scope matrix_scope.
 
+(*******************************************)
+(* Representations of quantum basis states *)
+(*******************************************)
+
 Definition ket0 : Matrix 2 1:= 
   fun x y => match x, y with 
           | 0, 0 => C1
@@ -37,6 +41,28 @@ Notation "|0⟩⟨0|" := (|0⟩×⟨0|).
 Notation "|1⟩⟨1|" := (|1⟩×⟨1|).
 Notation "|1⟩⟨0|" := (|1⟩×⟨0|).
 Notation "|0⟩⟨1|" := (|0⟩×⟨1|).
+
+Definition bool_to_matrix (b : bool) : Matrix 2 2 := if b then |1⟩⟨1| else |0⟩⟨0|.
+
+Definition bool_to_matrix' (b : bool) : Matrix 2 2 := fun x y =>
+  match x, y with
+  | 0, 0 => if b then 0 else 1
+  | 1, 1 => if b then 1 else 0
+  | _, _ => 0
+  end.  
+
+Definition bool_to_ket (b : bool) : Matrix 2 1 := if b then |1⟩ else |0⟩.
+  
+Lemma bool_to_matrix_eq : forall b, bool_to_matrix b = bool_to_matrix' b.
+Proof. intros. destruct b; simpl; solve_matrix. Qed.
+
+Lemma bool_to_ket_matrix_eq : forall b, outer_product (bool_to_ket b) = bool_to_matrix b.
+Proof. unfold outer_product. destruct b; simpl; reflexivity. Qed.
+
+
+(*************)
+(* Unitaries *)
+(*************)
 
 Definition hadamard : Matrix 2 2 := 
   (fun x y => match x, y with
@@ -83,6 +109,14 @@ Definition σz : Matrix 2 2 :=
           | 1, 1 => -C1
           | _, _ => C0
           end.
+
+Definition phase_shift (ϕ : R) : Matrix 2 2 :=
+  fun x y => match x, y with
+          | 0, 0 => C1
+          | 1, 1 => Cexp ϕ
+          | _, _ => C0
+          end.
+    
   
 Definition control {n : nat} (A : Matrix n n) : Matrix (2*n) (2*n) :=
   fun x y => if (x <? n) && (y =? x) then 1 else 
@@ -145,29 +179,6 @@ Qed.
 Hint Rewrite swap_swap swap_swap_r using (auto 100 with wf_db): M_db.
 
 
-Lemma double_mult : forall (n : nat), (n + n = 2 * n)%nat. Proof. intros. omega. Qed.
-Lemma pow_two_succ_l : forall x, (2^x * 2 = 2 ^ (x + 1))%nat.
-Proof. intros. rewrite mult_comm. rewrite <- Nat.pow_succ_r'. intuition. Qed.
-Lemma pow_two_succ_r : forall x, (2 * 2^x = 2 ^ (x + 1))%nat.
-Proof. intros. rewrite <- Nat.pow_succ_r'. intuition. Qed.
-Lemma double_pow : forall (n : nat), (2^n + 2^n = 2^(n+1))%nat. 
-Proof. intros. rewrite double_mult. rewrite pow_two_succ_r. reflexivity. Qed.
-Lemma pow_components : forall (a b m n : nat), a = b -> m = n -> (a^m = b^n)%nat.
-Proof. intuition. Qed.
-
-Ltac unify_pows_two :=
-  repeat match goal with
-  (* NB: this first thing is potentially a bad idea, do not do with 2^1 *)
-  | [ |- context[ 4%nat ]]                  => replace 4%nat with (2^2)%nat by reflexivity
-  | [ |- context[ (0 + ?a)%nat]]            => rewrite plus_0_l 
-  | [ |- context[ (?a + 0)%nat]]            => rewrite plus_0_r 
-  | [ |- context[ (2 * 2^?x)%nat]]          => rewrite <- Nat.pow_succ_r'
-  | [ |- context[ (2^?x * 2)%nat]]          => rewrite pow_two_succ_l
-  | [ |- context[ (2^?x + 2^?x)%nat]]       => rewrite double_pow 
-  | [ |- context[ (2^?x * 2^?y)%nat]]       => rewrite <- Nat.pow_add_r 
-  | [ |- context[ (?a + (?b + ?c))%nat ]]   => rewrite plus_assoc 
-  | [ |- (2^?x = 2^?y)%nat ]                => apply pow_components; try omega 
-  end.
 
 (* The input k is really k+1, to appease to Coq termination gods *)
 (* NOTE: Check that the offsets are right *)
@@ -239,8 +250,15 @@ Lemma WF_ket0 : WF_Matrix 2 1 |0⟩. Proof. show_wf. Qed.
 Lemma WF_ket1 : WF_Matrix 2 1 |1⟩. Proof. show_wf. Qed.
 Lemma WF_braket0 : WF_Matrix 2 2 |0⟩⟨0|. Proof. show_wf. Qed.
 Lemma WF_braket1 : WF_Matrix 2 2 |1⟩⟨1|. Proof. show_wf. Qed.
+Lemma WF_bool_to_ket : forall b, WF_Matrix 2 1 (bool_to_ket b).
+Proof. destruct b; simpl; show_wf. Qed.
+Lemma WF_bool_to_matrix : forall b, WF_Matrix 2 2 (bool_to_matrix b).
+Proof. destruct b; simpl; show_wf. Qed.
+Lemma WF_bool_to_matrix' : forall b, WF_Matrix 2 2 (bool_to_matrix' b).
+Proof. intros. rewrite <- bool_to_matrix_eq. apply WF_bool_to_matrix. Qed.
 
 Hint Resolve WF_bra0 WF_bra1 WF_ket0 WF_ket1 WF_braket0 WF_braket1 : wf_db.
+Hint Resolve WF_bool_to_ket WF_bool_to_matrix WF_bool_to_matrix' : wf_db.
 
 Lemma WF_hadamard : WF_Matrix 2 2 hadamard. Proof. show_wf. Qed.
 Lemma WF_σx : WF_Matrix 2 2 σx. Proof. show_wf. Qed.
@@ -248,6 +266,7 @@ Lemma WF_σy : WF_Matrix 2 2 σy. Proof. show_wf. Qed.
 Lemma WF_σz : WF_Matrix 2 2 σz. Proof. show_wf. Qed.
 Lemma WF_cnot : WF_Matrix 4 4 cnot. Proof. show_wf. Qed.
 Lemma WF_swap : WF_Matrix 4 4 swap. Proof. show_wf. Qed.
+Lemma WF_phase : forall ϕ, WF_Matrix 2 2 (phase_shift ϕ). Proof. intros. show_wf. Qed.
 
 Lemma WF_control : forall (n m : nat) (U : Matrix n n), 
       (m = 2 * n)%nat ->
@@ -261,7 +280,7 @@ Proof.
   all: rewrite WFU; [reflexivity|omega].
 Qed.
 
-Hint Resolve WF_hadamard WF_σx WF_σy WF_σz WF_cnot WF_swap WF_control : wf_db.
+Hint Resolve WF_hadamard WF_σx WF_σy WF_σz WF_cnot WF_swap WF_phase WF_control : wf_db.
 
 (** Unitaries are unitary **)
 
@@ -324,6 +343,31 @@ Proof.
   replace ((S (S x) <? 2)) with false by reflexivity.
   rewrite andb_false_r.
   clra.
+Qed.
+
+Lemma phase_unitary : forall ϕ, @is_unitary 2 (phase_shift ϕ).
+Proof.
+  intros ϕ.
+  split; [show_wf|].
+  unfold Mmult, Id, phase_shift, conj_transpose, Cexp.
+  prep_matrix_equality.
+  destruct x as [| [|x]]; destruct y as [|[|y]]; try clra.
+  - simpl.
+    Csimpl.
+    unfold Cconj, Cmult.
+    simpl.
+    unfold Rminus.
+    rewrite Ropp_mult_distr_l.
+    rewrite Ropp_involutive.
+    replace (cos ϕ * cos ϕ)%R with ((cos ϕ)²) by easy.
+    replace (sin ϕ * sin ϕ)%R with ((sin ϕ)²) by easy. 
+    rewrite Rplus_comm.
+    rewrite sin2_cos2.
+    clra.
+  - simpl. Csimpl.
+    replace ((S (S x) <? 2)) with false by reflexivity.
+    rewrite andb_false_r.
+    clra.
 Qed.
 
 Lemma control_unitary : forall n (A : Matrix n n), 
@@ -584,6 +628,7 @@ Lemma WF_Mixed : forall {n} (ρ : Density n), Mixed_State ρ -> WF_Matrix n n ρ
 Proof. induction 1; auto with wf_db. Qed.
 Hint Resolve WF_Mixed : wf_db.
 
+
 (** Density matrices and superoperators **)
 
 Definition Superoperator m n := Density m -> Density n.
@@ -604,6 +649,14 @@ Proof.
   unfold super.
   autorewrite with M_db.
   reflexivity.
+Qed.
+
+Lemma super_outer_product : forall m (φ : Matrix m 1) (U : Matrix m m), 
+    super U (outer_product φ) = outer_product (U × φ).
+Proof.
+  intros. unfold super, outer_product.
+  autorewrite with M_db.
+  repeat rewrite Mmult_assoc. reflexivity.
 Qed.
 
 Definition compose_super {m n p} (g : Superoperator n p) (f : Superoperator m n)
@@ -777,9 +830,9 @@ Proof.
     clra.
 Qed.  
 
-(************
- *Automation*
- ************)
+(**************)
+(* Automation *)
+(**************)
 
 (* For when autorewrite needs some extra help *)
 
@@ -799,9 +852,9 @@ Ltac Msimpl :=
   | _                         => autorewrite with M_db
   end.
 
-(**************
- *Swap testing*
- **************)
+(****************************************)
+(* Tests and Lemmas about swap matrices *)
+(****************************************)
 
 Lemma swap_spec : forall (q q' : Matrix 2 1), WF_Matrix 2 1 q -> 
                                          WF_Matrix 2 1 q' ->
@@ -918,6 +971,5 @@ Proof.
   repeat setoid_rewrite kron_assoc.
   reflexivity.
 Qed.
-
 
 (* *)

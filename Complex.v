@@ -589,7 +589,6 @@ Proof.
   unfold Cconj.
   unfold Cmult.
   simpl.
-  Search (_ * - _)%R.
   rewrite <- Ropp_mult_distr_r.
   rewrite Rmult_comm.
   rewrite Rplus_opp_l.
@@ -615,6 +614,14 @@ Proof.
   apply pow_nonzero. 
   lra.
 Qed.
+
+(* e^(iθ) *)
+Definition Cexp (θ : R) : C := (cos θ, sin θ).
+
+(*
+Definition Cexp' (θ : R) : C := cos θ + Ci * (sin θ).
+Lemma Cexp_eq : forall θ, Cexp θ = Cexp' θ. Proof. intros. clra. Qed.
+*)
 
 (**************)
 (* Automation *)

@@ -149,6 +149,9 @@ Definition transpose {m n} (A : Matrix m n) : Matrix n m :=
 Definition conj_transpose {m n} (A : Matrix m n) : Matrix n m := 
   (fun x y => Cconj (A y x)).
 
+Definition outer_product {m} (v : Matrix m 1) : Square m := 
+  Mmult v (conj_transpose v).
+
 (* Kronecker of n copies of A *)
 Fixpoint kron_n n {m1 m2} (A : Matrix m1 m2) : Matrix (m1^n) (m2^n) :=
   match n with
@@ -169,16 +172,17 @@ Infix ".+" := Mplus (at level 50, left associativity) : matrix_scope.
 Infix ".*" := scale (at level 40, left associativity) : matrix_scope.
 Infix "×" := Mmult (at level 40, left associativity) : matrix_scope.
 Infix "⊗" := kron (at level 40, left associativity) : matrix_scope.
-Infix "≡" := mat_equiv (at level 100) : matrix_scope.
+Infix "≡" := mat_equiv (at level 70) : matrix_scope.
 Notation "A ⊤" := (transpose A) (at level 0) : matrix_scope. 
 Notation "A †" := (conj_transpose A) (at level 0) : matrix_scope. 
-Notation "Σ^ n f" := (Csum f n) (at level 90) : matrix_scope.
-Hint Unfold Zero Id trace dot Mplus scale Mmult kron mat_equiv transpose 
-            conj_transpose : M_db.
+Notation "Σ^ n f" := (Csum f n) (at level 60) : matrix_scope.
 Notation "n ⨂ A" := (kron_n n A) (at level 30, no associativity) : matrix_scope.
 Notation "⨂ A" := (big_kron A) (at level 60): matrix_scope.
+Hint Unfold Zero Id trace dot Mplus scale Mmult kron mat_equiv transpose 
+            conj_transpose : M_db.
 
 Open Scope matrix_scope.
+Delimit Scope matrix_scope with M.
   
 Ltac destruct_m_1 :=
   match goal with
@@ -448,6 +452,21 @@ Lemma WF_conj_transpose : forall {m n : nat} (A : Matrix m n),
 Proof. unfold WF_Matrix, conj_transpose, Cconj. intros m n A H x y H0. simpl. 
 rewrite H. clra. omega. Qed.
 
+Lemma WF_outer_product : forall {n} (v : Matrix n 1), WF_Matrix n 1 v ->
+                                                 WF_Matrix n n (outer_product v).
+Proof. intros. apply WF_mult; [|apply WF_conj_transpose]; assumption. Qed.
+
+Lemma WF_big_kron : forall n m (l : list (Matrix m n)) (A : Matrix m n), 
+                        (forall i, WF_Matrix m n (nth i l A)) ->
+                         WF_Matrix (m^(length l)) (n^(length l)) (⨂ l). 
+Proof.                         
+  intros n m l A H.
+  induction l.
+  - simpl. apply WF_Id.
+  - simpl. apply WF_kron; trivial. apply (H O).
+    apply IHl. intros i. apply (H (S i)).
+Qed.
+
 (***************************************)
 (* Tactics for showing well-formedness *)
 (***************************************)
@@ -472,8 +491,9 @@ Ltac show_wf :=
     repeat (destruct y; try reflexivity; try omega).
 
 (* Create HintDb wf_db. *)
-Hint Resolve WF_Zero WF_Id WF_I1 WF_mult WF_plus WF_scale WF_kron WF_transpose 
-     WF_conj_transpose : wf_db.
+Hint Resolve WF_Zero WF_Id WF_I1 WF_mult WF_plus WF_scale WF_transpose 
+     WF_conj_transpose WF_outer_product WF_big_kron WF_kron : wf_db.
+Hint Extern 2 (_ = _) => unify_pows_two : wf_db.
 
 
 (** Basic Matrix Lemmas **)
@@ -663,6 +683,26 @@ Proof.
   assumption.
   apply functional_extensionality. intros z. 
   bdestruct (z =? y); bdestruct (z <? n); simpl; try clra; try omega. 
+Qed.
+
+Lemma kron_0_l : forall (m n o p : nat) (A : Matrix o p), 
+  Zero m n ⊗ A = Zero (m * o) (n * p).
+Proof.
+  intros m n o p A.
+  prep_matrix_equality.
+  unfold Zero, kron.
+  rewrite Cmult_0_l.
+  reflexivity.
+Qed.
+
+Lemma kron_0_r : forall (m n o p : nat) (A : Matrix m n), 
+   A ⊗ Zero o p = Zero (m * o) (n * p).
+Proof.
+  intros m n o p A.
+  prep_matrix_equality.
+  unfold Zero, kron.
+  rewrite Cmult_0_r.
+  reflexivity.
 Qed.
 
 Lemma kron_1_r : forall (m n : nat) (A : Matrix m n), A ⊗ Id 1 = A.
@@ -981,15 +1021,25 @@ Proof.
     rewrite H, H0; reflexivity.
 Qed.
 
+Lemma outer_product_eq : forall m (φ ψ : Matrix m 1), φ = ψ -> 
+                                                 outer_product φ = outer_product ψ.
+Proof. congruence. Qed.
 
-
+Lemma outer_product_kron : forall m n (φ : Matrix m 1) (ψ : Matrix n 1), 
+    outer_product φ ⊗ outer_product ψ = outer_product (φ ⊗ ψ).
+Proof. 
+  intros. unfold outer_product. 
+  specialize (kron_conj_transpose _ _ _ _ φ ψ) as KT. 
+  simpl in *. rewrite KT.
+  specialize (kron_mixed_product _ _ _ _ _ _ φ ψ (φ†) (ψ†)) as KM. 
+  simpl in *. rewrite KM.
+  reflexivity.
+Qed.
 
 Hint Rewrite kron_1_l kron_1_r Mmult_1_l Mmult_1_r id_conj_transpose_eq
      Mmult_conj_transpose kron_conj_transpose
      id_conj_transpose_eq conj_transpose_involutive using 
      (auto 100 with wf_db; autorewrite with M_db; auto 100 with wf_db; omega) : M_db.
-
-
 
 (* Note on "using [tactics]": Most generated subgoals will be of the form 
    WF_Matrix M, where auto with wf_db will work.
@@ -1183,3 +1233,14 @@ Ltac solve_matrix := assoc_least;
                      repeat reduce_matrix; try crunch_matrix;
                      Csimpl; try clra.
        
+(* Tactics to show implicit arguments *)
+Definition kron' := @kron.      
+Lemma kron_shadow : @kron = kron'. reflexivity. Qed.
+
+Definition Mmult' := @Mmult.
+Lemma Mmult_shadow : @Mmult = Mmult'. reflexivity. Qed.
+
+Ltac show_dimensions := try rewrite kron_shadow in *; 
+                        try rewrite Mmult_shadow in *.
+Ltac hide_dimensions := try rewrite <- kron_shadow in *; 
+                        try rewrite <- Mmult_shadow in *.

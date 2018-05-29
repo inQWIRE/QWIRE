@@ -12,7 +12,7 @@ Module M.
 
 (*** Paper Examples ***)
 
-(* Infix "↦" := m_box (at level 12, left associativity). *)
+(* Infix "↦" := m_box (at level 14, left associativity). *)
 Notation "'gate' g 'on' l ; C" := (m_gate l g C) (at level 10, right associativity).
 Notation "# l " := (length l) (at level 0).
 

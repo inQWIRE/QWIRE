@@ -10,12 +10,12 @@ Notation " W1 ⊗ W2 " := (Tensor W1 W2) (at level 40, left associativity)
                      : circ_scope.
 
 Open Scope circ_scope.
-Fixpoint size_WType (W : WType) : nat := 
+Fixpoint size_wtype (W : WType) : nat := 
   match W with
   | One => 0
   | Qubit => 1
   | Bit => 1
-  | W1 ⊗ W2 => size_WType W1 + size_WType W2
+  | W1 ⊗ W2 => size_wtype W1 + size_wtype W2
   end.
 
 (* Coq interpretations of wire types *)
@@ -26,6 +26,25 @@ Fixpoint interpret (w:WType) : Set :=
     | One   => unit
     | w1 ⊗ w2 => (interpret w1) * (interpret w2)
   end.
+
+(* Large tensor product. Right associative with a trailing One  *)
+Fixpoint NTensor (n : nat) (W : WType) := 
+  match n with 
+  | 0    => One
+  | S n' => W ⊗ NTensor n' W
+  end.
+
+Infix "⨂" := NTensor (at level 30) : circ_scope.
+
+Lemma size_ntensor : forall n W, size_wtype (n ⨂ W) = (n * size_wtype W)%nat.
+Proof.
+  intros n W.
+  induction n; trivial.
+  simpl.
+  rewrite IHn.
+  reflexivity.
+Qed.
+
 Close Scope circ_scope.
 
 
@@ -38,25 +57,20 @@ Inductive OCtx :=
 | Valid : Ctx -> OCtx.
 
 (* The size of a context is the number of wires it holds *)
-Fixpoint size_Ctx (Γ : Ctx) : nat :=
+Fixpoint size_ctx (Γ : Ctx) : nat :=
   match Γ with
   | [] => 0
-  | None :: Γ' => size_Ctx Γ'
-  | Some _ :: Γ' => S (size_Ctx Γ')
+  | None :: Γ' => size_ctx Γ'
+  | Some _ :: Γ' => S (size_ctx Γ')
   end.
-Definition size_OCtx (Γ : OCtx) : nat :=
+Definition size_octx (Γ : OCtx) : nat :=
   match Γ with
   | Invalid => 0
-  | Valid Γ' => size_Ctx Γ'
+  | Valid Γ' => size_ctx Γ'
   end.
-
 
 Lemma ctx_octx : forall Γ Γ', Valid Γ = Valid Γ' <-> Γ = Γ'.
 Proof. intuition; congruence. Defined.
-
-(* Operations on contexts *)
-
-
 
 (**********************)
 (* Singleton Contexts *)
@@ -119,6 +133,17 @@ Definition merge (Γ1 Γ2 : OCtx) : OCtx :=
   | Valid Γ1', Valid Γ2' => merge' Γ1' Γ2'
   | _, _ => Invalid
   end. 
+
+(* Merge will generally be opaque outside of this file *)
+Lemma merge_shadow : merge = fun Γ1 Γ2 => 
+  match Γ1 with
+  | Invalid => Invalid
+  | Valid Γ1' => match Γ2 with
+                | Invalid => Invalid
+                | Valid Γ2' => merge' Γ1' Γ2'
+                end
+  end. Proof. reflexivity. Qed.
+Ltac unlock_merge := rewrite merge_shadow in *.
 
 Notation "∅" := (Valid []).
 Infix "⋓" := merge (left associativity, at level 50).
@@ -486,8 +511,8 @@ Defined.
 Ltac valid_invalid_absurd := try (absurd (is_valid Invalid); 
                                   [apply not_valid | auto]; fail).
 
-Lemma size_ctx_merge : forall (Γ1 Γ2 : OCtx), is_valid (Γ1 ⋓ Γ2) ->
-                       size_OCtx (Γ1 ⋓ Γ2) = (size_OCtx Γ1 + size_OCtx Γ2)%nat.
+Lemma size_octx_merge : forall (Γ1 Γ2 : OCtx), is_valid (Γ1 ⋓ Γ2) ->
+                       size_octx (Γ1 ⋓ Γ2) = (size_octx Γ1 + size_octx Γ2)%nat.
 Proof.
   intros Γ1 Γ2 valid.
   destruct Γ1 as [ | Γ1];
@@ -514,6 +539,15 @@ Proof.
       [absurd (is_valid Invalid); auto; apply not_valid | ].
     simpl in *. rewrite IHΓ1; auto. apply valid_valid.
 Defined.
+
+Lemma size_ctx_app : forall (Γ1 Γ2 : Ctx),
+      size_ctx (Γ1 ++ Γ2) = (size_ctx Γ1 + size_ctx Γ2)%nat.
+Proof.
+  induction Γ1; intros; simpl; auto.
+  destruct a; trivial.
+  rewrite IHΓ1; easy.
+Qed.
+
 
 
 (*** Disjointness ***)
@@ -718,23 +752,21 @@ Proof.
 Qed.
 
 (* empty context *)
-Inductive empty_Ctx : Ctx -> Prop :=
-| empty_nil : empty_Ctx []
-| empty_cons : forall Γ, empty_Ctx Γ -> empty_Ctx (None :: Γ)
+Inductive empty_ctx : Ctx -> Prop :=
+| empty_nil : empty_ctx []
+| empty_cons : forall Γ, empty_ctx Γ -> empty_ctx (None :: Γ)
 .
-Lemma trim_empty : forall Γ, empty_Ctx Γ -> trim Γ = [].
+Lemma trim_empty : forall Γ, empty_ctx Γ -> trim Γ = [].
 Proof.
   induction 1; simpl; auto.
-  rewrite IHempty_Ctx; auto.
+  rewrite IHempty_ctx; auto.
 Qed.
-
-
 
 (* length is the actual length of the underlying list, as opposed to size, which
  * is the number of Some entries in the list 
  *)
-Definition length_OCtx (ls : OCtx) : nat :=
-  match ls with
+Definition octx_length (Γ : OCtx) : nat :=
+  match Γ with
   | Invalid => O
   | Valid ls => length ls
   end.
@@ -786,19 +818,22 @@ Fixpoint pat_map {w} (f : Var -> Var) (p : Pat w) : Pat w :=
   | pair p1 p2 => pair (pat_map f p1) (pat_map f p2)
   end.
 
-(* Not sure if this is the right approach. See below. *)
+
+Reserved Notation "Γ ⊢ p ':Pat'" (at level 30).
+
 Inductive Types_Pat : OCtx -> forall {W : WType}, Pat W -> Set :=
-| types_unit : Types_Pat ∅ unit
-| types_qubit : forall x Γ, SingletonCtx x Qubit Γ -> Types_Pat Γ (qubit x)
-| types_bit : forall x Γ, SingletonCtx x Bit Γ -> Types_Pat Γ (bit x)
+| types_unit : ∅ ⊢ unit :Pat
+| types_qubit : forall x Γ, SingletonCtx x Qubit Γ ->  Γ ⊢ qubit x :Pat
+| types_bit : forall x Γ, SingletonCtx x Bit Γ -> Γ ⊢ bit x :Pat
 | types_pair : forall Γ1 Γ2 Γ w1 w2 (p1 : Pat w1) (p2 : Pat w2),
         is_valid Γ 
       -> Γ = Γ1 ⋓ Γ2
-      -> Types_Pat Γ1 p1
-      -> Types_Pat Γ2 p2
-      -> Types_Pat Γ (pair p1 p2).
+      -> Γ1 ⊢ p1 :Pat
+      -> Γ2 ⊢ p2 :Pat
+      -> Γ  ⊢ pair p1 p2 :Pat
+where "Γ ⊢ p ':Pat'" := (@Types_Pat Γ _ p).
 
-Lemma pat_ctx_valid : forall Γ W (p : Pat W), Types_Pat Γ p -> is_valid Γ.
+Lemma pat_ctx_valid : forall Γ W (p : Pat W), Γ ⊢ p :Pat -> is_valid Γ.
 Proof. intros Γ W p TP. unfold is_valid. inversion TP; eauto. Qed.
 
 Open Scope circ_scope.
@@ -807,10 +842,10 @@ Inductive Unitary : WType -> Set :=
   | X         : Unitary Qubit
   | Y         : Unitary Qubit
   | Z         : Unitary Qubit
-(*  | R         : C -> Unitary Qubit (* may add. see also T and S *) *)
+  | R_        : R -> Unitary Qubit 
   | ctrl      : forall {W} (U : Unitary W), Unitary (Qubit ⊗ W) 
   | bit_ctrl  : forall {W} (U : Unitary W), Unitary (Bit ⊗ W) 
-  | transpose : forall {W} (U : Unitary W), Unitary W.
+  | trans     : forall {W} (U : Unitary W), Unitary W.
 
 (* NOT, CNOT and Tofolli notation *)
 Notation CNOT := (ctrl X).
@@ -818,7 +853,7 @@ Notation CCNOT := (ctrl (ctrl X)).
 
 Inductive Gate : WType -> WType -> Set := 
   | U : forall {W} (u : Unitary W), Gate W W
-  | NOT     : Gate Bit Bit
+  | BNOT     : Gate Bit Bit
   | init0   : Gate One Qubit
   | init1   : Gate One Qubit
   | new0    : Gate One Bit
