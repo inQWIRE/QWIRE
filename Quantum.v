@@ -282,6 +282,9 @@ Qed.
 
 Hint Resolve WF_hadamard WF_σx WF_σy WF_σz WF_cnot WF_swap WF_phase WF_control : wf_db.
 
+Hint Extern 2 (WF_Matrix 2 2 (phase_shift _)) => apply WF_phase : wf_db.
+Hint Extern 2 (WF_Matrix 2 2 (control _)) => apply WF_control : wf_db.
+
 (** Unitaries are unitary **)
 
 Definition is_unitary {n: nat} (U : Matrix n n): Prop :=

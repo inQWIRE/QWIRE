@@ -50,6 +50,9 @@ Proof.
   intros W ρ safe H.
   simpl. unfold denote_box. simpl.
   autorewrite with proof_db.
+  unfold pad.
+  rewrite Nat.sub_diag.
+  rewrite kron_1_r.
   rewrite super_I; auto.
 Qed.
 
@@ -111,7 +114,7 @@ Proof. destruct b; [apply assert1_spec | apply assert0_spec]. Qed.
 Lemma CNOT_spec : forall (b1 b2 safe : bool), 
   denote_box safe CNOT (bool_to_matrix b1 ⊗ bool_to_matrix b2)
   = (bool_to_matrix b1 ⊗ bool_to_matrix (b1 ⊕ b2)).
-Proof. 
+Proof.
   ket_denote. destruct b1, b2; unfold bool_to_ket; simpl; Msimpl; solve_matrix.
 Qed.
 

@@ -24,6 +24,7 @@ Qed.
 (* Identity circuits *)
 (*********************)
 
+(* Need updating for new apply_U 
 (* Qubit form *) 
 Lemma unitary_transpose_id_qubit : forall (U : Unitary Qubit),
    unitary_transpose U ≡ id_circ.
@@ -31,11 +32,12 @@ Proof.
   intros U ρ safe pf_ρ.
   assert (unitary_U : is_unitary (denote_unitary U)) by apply unitary_gate_unitary.
   destruct unitary_U as [WF inv].
-  repeat (autounfold with den_db; simpl in *).
+  matrix_denote.
   Msimpl.          
   repeat rewrite Mmult_assoc; try rewrite inv.
   repeat rewrite <- Mmult_assoc; try rewrite inv.
-  Msimpl.          
+  Msimpl.     
+  unfold ctrl_list_to_unitary. simpl.
   reflexivity.
 Qed.
 
@@ -49,7 +51,7 @@ Proof.
   assert (wf_U : WF_Matrix (2^⟦W⟧) (2^⟦W⟧) (⟦U⟧)) by show_wf.
   assert (wf_U_dag : WF_Matrix (2^⟦W⟧) (2^⟦W⟧) (⟦U⟧†)) by show_wf.
   autorewrite with proof_db.
-  repeat (simpl; autounfold with den_db).
+  matrix_denote.
   autorewrite with M_db.
   repeat rewrite <- Mmult_assoc.
   setoid_rewrite UU.
@@ -58,6 +60,7 @@ Proof.
   autorewrite with M_db.
   reflexivity.
 Qed.
+*)
 
 (****************)
 (* Coin Tossing *)
@@ -400,7 +403,11 @@ Proof.
   specialize (unitary_gate_unitary U_f). intros [WFU UU].
   simpl in WFU.
   Msimpl.
-  destruct H; rewrite H; clear.
+  destruct H. simpl in H.
+  dependent destruction U_f. simpl.
+  unfold ctrls_to_list. simpl.
+  destruct U_f.
+rewrite H; clear.
   + (* f0 *)
     unfold f0.
     solve_matrix.
