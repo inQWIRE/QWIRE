@@ -109,6 +109,7 @@ Definition process_gate {A w1 w2} `{Gate_State A} (g : Gate w1 w2)
   | init0 | init1 => fun p st => let (v,st') := get_fresh Qubit st in (qubit v, st')
   | new0 | new1   => fun p st => let (v,st') := get_fresh Bit st in (bit v, st')
   | meas          => fun p st => match p with qubit v => (bit v, change_type v Bit st) end
+  | measQ         => fun p st => (p,st)
   | discard | assert0 | assert1  => fun p st => (unit, remove_pat p st)
   end. 
 

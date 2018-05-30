@@ -460,6 +460,7 @@ Proof.
         apply not_valid in pf_valid. contradiction.
       eapply update_merge.
       apply pf1.
+    - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
     - dependent destruction p.
       dependent destruction t.
       simpl. erewrite VA. reflexivity.

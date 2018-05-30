@@ -138,7 +138,7 @@ Definition test01 : Box One (Bit ⊗ Bit) :=
     gate_ b ← init1 @();
     gate_ a' ← meas @a;
     gate_ b' ← meas @b;
-    output (a', b').
+    (a', b').
 
 Definition test01_db := hoas_to_db_box test01.
 
@@ -148,7 +148,7 @@ Definition test10 : Box One (Bit ⊗ Bit) :=
     gate_ a ← init1 @();
     gate_ a' ← meas @a;
     gate_ b' ← meas @b;
-    output (a', b').
+    (a', b').
 
 Definition test10_db := hoas_to_db_box test10.
 
@@ -369,6 +369,11 @@ Program Fixpoint unitary_to_qasm {W} (li : list string) (u : Unitary W) (p : Pat
     | qubit x => [s_qop (q_uop (u_U [0;0;pi] (a_id (get_var_name li x))))]
     | unit | bit _ | pair _ _ => [s_error "db_gate Unitary Z error"]
     end
+  | R_ phi =>
+    match p with
+    | qubit x => [s_qop (q_uop (u_U [0;0;e_real phi] (a_id (get_var_name li x))))]
+    | unit | bit _ | pair _ _ => [s_error "db_gate Unitary R error"] 
+    end
   | ctrl u' =>
     match p with
     | pair p1 p2 =>
@@ -387,7 +392,7 @@ Program Fixpoint unitary_to_qasm {W} (li : list string) (u : Unitary W) (p : Pat
       end
     | unit | bit _ | qubit _ => [s_error "db_gate Unitary bit_ctrl error"]
     end
-  | transpose u' => (process_transpose (unitary_to_qasm li u' p))
+  | trans u' => (process_transpose (unitary_to_qasm li u' p))
   end.
 
 Fixpoint pat_to_anylist {w} (li : list string) (p : Pat w) : anylist :=
@@ -409,7 +414,7 @@ Program Fixpoint db_to_qasm {w} (li : list string) (v : nat) (c : DeBruijn_Circu
       let qasm_unitary := (unitary_to_qasm li u p) in
       let (qasm_ramnent, v') := (db_to_qasm li v c') in
       (qasm_unitary ++ qasm_ramnent, v')
-    | NOT =>
+    | BNOT =>
       match p with
       | bit x =>
         let (qasm, v') := (db_to_qasm li (S v) c') in
