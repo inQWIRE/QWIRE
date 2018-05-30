@@ -80,6 +80,8 @@ Inductive statement : Set :=
 | s_opaque (name:id) (args:option idlist) (names:idlist)
 | s_qop (q:qop)
 | s_if (x:id) (n:nat) (q:qop)
+| s_ifcall (bx:bexp) (q:qop) (* <= new (Compute q if the binary expression bx
+                                evaluates the value true.) *)
 | s_barrier (args:anylist)
 | s_output (args:anylist)
 | s_error (msg:string) (* msg explains about the compile error *)
@@ -103,6 +105,18 @@ Open Scope qasm_scope.
 Notation pi := (e_pi).
 Close Scope qasm_scope.
 
+(** Convert from Minimal Circuits to QASM **)
+
+(* [Min Circuit] to [QASM] translation procedure 
+   1. Transform [Unitary] gates into a sequence of universal gates (ROT3 and CNOT).
+      - See [min_circuit_translation_helper], [min_circuit_merge], 
+            [unitary_gate_translation], [transpose_unitary_gate_circuit], 
+            [append_gate_last], and [control_unitary_gate_circuit] functions.
+   2. Translate the circuit into [QASM] program
+      - See [trans], [trans'], [trans_exp], [pat_to_anylist], [meta_if], 
+            [meta_if_true], and [meta_if_flase] functions.
+*)
+
 Require Import HOASCircuits.
 Require Import HOASExamples.
 Require Import DBCircuits.
@@ -116,18 +130,6 @@ Open Scope R_scope.
 Import ListNotations.
 Require Import Notations.
 Open Scope circ_scope.
-
-(** Convert from Minimal Circuits to QASM **)
-
-(* [Min Circuit] to [QASM] translation procedure 
-   1. Transform [Unitary] gates into a sequence of universal gates (ROT3 and CNOT).
-      - See [min_circuit_translation_helper], [min_circuit_merge], 
-            [unitary_gate_translation], [transpose_unitary_gate_circuit], 
-            [append_gate_last], and [control_unitary_gate_circuit] functions.
-   2. Translate the circuit into [QASM] program
-      - See [trans], [trans'], [trans_exp], [pat_to_anylist], [meta_if], 
-            [meta_if_true], and [meta_if_flase] functions.
-*)
 
 Locate "()".
 Definition test01 : Box One (Bit ⊗ Bit) :=
@@ -219,43 +221,71 @@ Fixpoint remove_var_name (li : list string) (x : nat) : list string :=
 
 Open Scope qasm_scope.
 
+(* meta_if : return [QASM] code equivalent to [if (bits[bn] == 1) then P1 else P2]  *)
+Fixpoint meta_if_true (p1 : program) (bname : string) : program :=
+  match p1 with
+  | [] => []
+  | h :: p1' =>
+    (match h with
+     | s_ifcall bx q =>
+       (s_ifcall (BAnd (BId bname) bx) q)
+     | s_qop q =>
+       (s_ifcall (BId bname) q)
+     | _ => h
+     end) :: (meta_if_true p1' bname)
+  end.
+Fixpoint meta_if_false (p2 : program) (bname : string) : program :=
+  match p2 with
+  | [] => []
+  | h :: p2' =>
+    (match h with
+     | s_ifcall bx q =>
+       (s_ifcall (BAnd (BNot (BId bname)) bx) q)
+     | s_qop q =>
+       (s_ifcall (BNot (BId bname)) q)
+     | _ => h
+     end) :: (meta_if_false p2' bname)
+  end.
+Definition meta_if (p1 p2 : program) (bname : string) : program :=
+  (meta_if_true p1 bname) ++ (meta_if_false p2 bname).
+
 Fixpoint process_ctrl (p : program) (ctrl_name : string) : program :=
   match p with
   | [] => []
   | h :: t =>
     match h with
-    | s_if id val qop =>
+    | s_ifcall bexp qop =>
       match qop with
       | q_uop (u_U [theta; phi; lambda] target_arg) =>
         let c := (a_id ctrl_name) in
         let t := target_arg in
-        [s_if id val (q_uop (u_U [0; 0; (lambda-phi)/2] t));
+        [s_ifcall bexp (q_uop (u_U [0; 0; (lambda-phi)/2] t));
                                              (* u1((lambda-phi)/2) t *)
-           s_if id val (q_uop (u_CX c t)); (* cx c,t *)
-           s_if id val (q_uop (u_U [-theta/2; 0; -(phi+lambda)/2] t));
+           s_ifcall bexp (q_uop (u_CX c t)); (* cx c,t *)
+           s_ifcall bexp (q_uop (u_U [-theta/2; 0; -(phi+lambda)/2] t));
                                              (* u3(-theta/2,0,-(phi+lambda)/2) t *)
-           s_if id val (q_uop (u_CX c t)); (* cx c,t *)
-           s_if id val (q_uop (u_U [theta/2; phi; 0] t))]
+           s_ifcall bexp (q_uop (u_CX c t)); (* cx c,t *)
+           s_ifcall bexp (q_uop (u_U [theta/2; phi; 0] t))]
                                              (* u3(theta/2,phi,0) t *)
       | q_uop (u_CX ctrl2_arg target_arg) =>
         let a := (a_id ctrl_name) in
         let b := ctrl2_arg in
         let c := target_arg in
-        [s_if id val (q_uop (u_U [pi/2;0;pi] c)); (* h c *)
-           s_if id val (q_uop (u_CX b c));          (* cx b,c *)
-           s_if id val (q_uop (u_U [0;0;-pi/4] c)); (* tdg c *)
-           s_if id val (q_uop (u_CX a c));          (* cx a,c *)
-           s_if id val (q_uop (u_U [0;0;pi/4] c));  (* t c *)
-           s_if id val (q_uop (u_CX b c));          (* cx b,c *)
-           s_if id val (q_uop (u_U [0;0;-pi/4] c)); (* tdg c *)
-           s_if id val (q_uop (u_CX a c));          (* cx a,c *)
-           s_if id val (q_uop (u_U [0;0;pi/4] b));  (* t b *)
-           s_if id val (q_uop (u_U [0;0;pi/4] c));  (* t c *)
-           s_if id val (q_uop (u_U [pi/2;0;pi] c)); (* h c *)
-           s_if id val (q_uop (u_CX a b));          (* cx a,b *)
-           s_if id val (q_uop (u_U [0;0;pi/4] a));  (* t a *)
-           s_if id val (q_uop (u_U [0;0;-pi/4] b)); (* tdg b *)
-           s_if id val (q_uop (u_CX a b))]          (* cx a,b *)
+        [s_ifcall bexp (q_uop (u_U [pi/2;0;pi] c)); (* h c *)
+           s_ifcall bexp (q_uop (u_CX b c));          (* cx b,c *)
+           s_ifcall bexp (q_uop (u_U [0;0;-pi/4] c)); (* tdg c *)
+           s_ifcall bexp (q_uop (u_CX a c));          (* cx a,c *)
+           s_ifcall bexp (q_uop (u_U [0;0;pi/4] c));  (* t c *)
+           s_ifcall bexp (q_uop (u_CX b c));          (* cx b,c *)
+           s_ifcall bexp (q_uop (u_U [0;0;-pi/4] c)); (* tdg c *)
+           s_ifcall bexp (q_uop (u_CX a c));          (* cx a,c *)
+           s_ifcall bexp (q_uop (u_U [0;0;pi/4] b));  (* t b *)
+           s_ifcall bexp (q_uop (u_U [0;0;pi/4] c));  (* t c *)
+           s_ifcall bexp (q_uop (u_U [pi/2;0;pi] c)); (* h c *)
+           s_ifcall bexp (q_uop (u_CX a b));          (* cx a,b *)
+           s_ifcall bexp (q_uop (u_U [0;0;pi/4] a));  (* t a *)
+           s_ifcall bexp (q_uop (u_U [0;0;-pi/4] b)); (* tdg b *)
+           s_ifcall bexp (q_uop (u_CX a b))]          (* cx a,b *)
       | _ => [s_error "db_gate Unitary ctrl process error"]
       end
     | s_qop qop =>
@@ -301,12 +331,12 @@ Fixpoint process_transpose (p : program) : program :=
   | h :: t =>
     (process_transpose t)
       ++ match h with
-         | s_if id val qop =>
+         | s_ifcall bexp qop =>
            match qop with
            | q_uop (u_U [theta; phi; lambda] target_name) =>
-             [s_if id val (q_uop (u_U [-theta; -phi; -lambda] target_name))]
+             [s_ifcall bexp (q_uop (u_U [-theta; -phi; -lambda] target_name))]
            | q_uop (u_CX ctrl2_name target_name) =>
-             [s_if id val (q_uop (u_CX ctrl2_name target_name))]
+             [s_ifcall bexp (q_uop (u_CX ctrl2_name target_name))]
            | _ => [s_error "db_gate Unitary transpose process error"]
            end
          | s_qop (q_uop (u_U [theta; phi; lambda] target_name)) =>
@@ -317,63 +347,52 @@ Fixpoint process_transpose (p : program) : program :=
          end
   end.
 
-Open Scope type_scope.
-Close Scope circ_scope.
-Program Fixpoint unitary_to_qasm {W} (li : list string) (v : nat) (u : Unitary W) (p : Pat W) : (program * nat) :=
+Program Fixpoint unitary_to_qasm {W} (li : list string) (u : Unitary W) (p : Pat W) : program :=
   match u with
   | H =>
     match p with
-    | qubit x => ([s_qop (q_uop (u_U [pi/2;0;pi] (a_id (get_var_name li x))))], v)
-    | unit | bit _ | pair _ _ => ([s_error "db_gate Unitary H error"], v)
+    | qubit x => [s_qop (q_uop (u_U [pi/2;0;pi] (a_id (get_var_name li x))))]
+    | unit | bit _ | pair _ _ => [s_error "db_gate Unitary H error"] 
     end
   | X =>
     match p with
-    | qubit x => ([s_qop (q_uop (u_U [pi;0;pi] (a_id (get_var_name li x))))], v)
-    | unit | bit _ | pair _ _ => ([s_error "db_gate Unitary X error"], v)
+    | qubit x => [s_qop (q_uop (u_U [pi;0;pi] (a_id (get_var_name li x))))]
+    | unit | bit _ | pair _ _ => [s_error "db_gate Unitary X error"]
     end
   | Y =>
     match p with
-    | qubit x => ([s_qop (q_uop (u_U [pi;pi/2;pi/2] (a_id (get_var_name li x))))], v)
-    | unit | bit _ | pair _ _ => ([s_error "db_gate Unitary Y error"], v)
+    | qubit x => [s_qop (q_uop (u_U [pi;pi/2;pi/2] (a_id (get_var_name li x))))]
+    | unit | bit _ | pair _ _ => [s_error "db_gate Unitary Y error"]
     end
   | Z =>
     match p with
-    | qubit x => ([s_qop (q_uop (u_U [0;0;pi] (a_id (get_var_name li x))))], v)
-    | unit | bit _ | pair _ _ => ([s_error "db_gate Unitary Z error"], v)
+    | qubit x => [s_qop (q_uop (u_U [0;0;pi] (a_id (get_var_name li x))))]
+    | unit | bit _ | pair _ _ => [s_error "db_gate Unitary Z error"]
     end
   | R_ phi =>
     match p with
-    | qubit x => ([s_qop (q_uop (u_U [0;0;e_real phi] (a_id (get_var_name li x))))], v)
-    | unit | bit _ | pair _ _ => ([s_error "db_gate Unitary R error"], v)
+    | qubit x => [s_qop (q_uop (u_U [0;0;e_real phi] (a_id (get_var_name li x))))]
+    | unit | bit _ | pair _ _ => [s_error "db_gate Unitary R error"] 
     end
   | ctrl u' =>
     match p with
     | pair p1 p2 =>
       match p1 with
-      | qubit x =>
-        let (qasm_unitary, v') := (unitary_to_qasm li v u' p2) in
-        ((process_ctrl qasm_unitary (get_var_name li x)), v')
-      | unit | bit _ | pair _ _ => ([s_error "db_gate Unitary ctrl error"], v)
+      | qubit x => (process_ctrl (unitary_to_qasm li u' p2) (get_var_name li x))
+      | unit | bit _ | pair _ _ => [s_error "db_gate Unitary ctrl error"]
       end
-    | unit | bit _ | qubit _ => ([s_error "db_gate Unitary ctrl error"], v)
+    | unit | bit _ | qubit _ => [s_error "db_gate Unitary ctrl error"]
     end
   | bit_ctrl u' =>
     match p with
     | pair p1 p2 =>
       match p1 with
-      | bit x =>
-        let (qasm_unitary, v') := (unitary_to_qasm li (S v) u' p2) in
-        (([s_decl (qreg (qname v) 1);
-             s_if (get_var_name li x) 1
-                  (q_uop (u_U [e_pi; e_nat 0; e_pi] (a_id (qname v))))]
-            ++ (process_ctrl qasm_unitary (qname v))), v')
-      | unit | qubit _ | pair _ _ => ([s_error "db_gate Unitary bit_ctrl error"], v)
+      | bit x => (meta_if_true (unitary_to_qasm li u' p2) (get_var_name li x))
+      | unit | qubit _ | pair _ _ => [s_error "db_gate Unitary bit_ctrl error"]
       end
-    | unit | bit _ | qubit _ => ([s_error "db_gate Unitary bit_ctrl error"], v)
+    | unit | bit _ | qubit _ => [s_error "db_gate Unitary bit_ctrl error"]
     end
-  | trans u' =>
-    let (qasm_unitary, v') := (unitary_to_qasm li v u' p) in
-    ((process_transpose qasm_unitary), v')
+  | trans u' => (process_transpose (unitary_to_qasm li u' p))
   end.
 
 Fixpoint pat_to_anylist {w} (li : list string) (p : Pat w) : anylist :=
@@ -384,22 +403,24 @@ Fixpoint pat_to_anylist {w} (li : list string) (p : Pat w) : anylist :=
   | pair p1 p2 => (pat_to_anylist li p1) ++ (pat_to_anylist li p2)
   end.
 
+Open Scope type_scope.
+Close Scope circ_scope.
 Program Fixpoint db_to_qasm {w} (li : list string) (v : nat) (c : DeBruijn_Circuit w) : (program * nat) :=
   match c with
   | db_output p => ([s_output (pat_to_anylist li p)], v)
   | db_gate g p c' =>
     match g with
     | U u =>
-      let (qasm_unitary, v') := (unitary_to_qasm li v u p) in
-      let (qasm_ramnent, v'') := (db_to_qasm li v' c') in
-      (qasm_unitary ++ qasm_ramnent, v'')
+      let qasm_unitary := (unitary_to_qasm li u p) in
+      let (qasm_ramnent, v') := (db_to_qasm li v c') in
+      (qasm_unitary ++ qasm_ramnent, v')
     | BNOT =>
       match p with
       | bit x =>
         let (qasm, v') := (db_to_qasm li (S v) c') in
         ([s_decl (qreg (qname v) 1);
-            s_if (get_var_name li x) 0
-                 (q_uop (u_U [e_pi; e_nat 0; e_pi] (a_id (qname v))));
+            s_ifcall (BNot (BId (get_var_name li x)))
+                     (q_uop (u_U [e_pi; e_nat 0; e_pi] (a_id (qname v))));
             s_qop (q_meas (a_id (qname v)) (a_id (get_var_name li x)))]
            ++ qasm, v')
       | unit | qubit _ | pair _ _ => ([s_error "db_gate NOT error"], v)
@@ -479,15 +500,21 @@ Program Fixpoint db_to_qasm {w} (li : list string) (v : nat) (c : DeBruijn_Circu
   | db_lift p f =>
     match p with
     | bit x =>
-      let (qasm_true, v') := db_to_qasm li (S v) (f true) in
+      let (qasm_true, v') := db_to_qasm li (S (S v)) (f true) in
       let (qasm_false, v'') := db_to_qasm li v' (f false) in
       (([s_decl (qreg (qname v) 1);
-           s_if (get_var_name li x) 1
-                (q_uop (u_U [e_pi; e_nat 0; e_pi] (a_id (qname v))))]
-          ++ (process_ctrl qasm_true (qname v))
-          ++ [s_qop (q_uop (u_U [e_pi; e_nat 0; e_pi] (a_id (qname v))))]
-          ++ (process_ctrl qasm_false (qname v))), v'')
-    | qubit _ | unit | pair _ _ => ([s_error "db_lift error"], v)
+           s_decl (creg (cname (S v)) 1);
+           s_ifcall (BId (get_var_name li x))
+                    (q_uop (u_U [e_pi; e_nat 0; e_pi] (a_id (qname v))));
+           s_qop (q_meas (a_id (qname v)) (a_id (cname (S v))))]
+          ++ meta_if qasm_true qasm_false (cname (S v))), v'')
+    | qubit x =>
+      let (qasm_true, v') := db_to_qasm li (S v) (f true) in
+      let (qasm_false, v'') := db_to_qasm li v' (f false) in
+      (([s_decl (creg (cname v) 1);
+           s_qop (q_meas (a_id (get_var_name li x)) (a_id (cname v)))]
+          ++ meta_if qasm_true qasm_false (cname v)), v'')
+    | unit | pair _ _ => ([s_error "db_lift error"], v)
     end
   end.
 
