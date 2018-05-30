@@ -1,4 +1,5 @@
 Require Export Prelim.
+Require Import IndexContext.
 
 Open Scope list_scope.
 
@@ -55,49 +56,11 @@ Inductive VType :=
 | BIT
 | QUBIT.
 
-Definition Ctx := list (option VType).
+Definition Ctx := IdxMap VType.
 
-Fixpoint singleton (x : Var) (v : VType) : Ctx :=
-  match x with
-  | O => [Some v]
-  | S x => None :: singleton x v
-  end.
-
-
-(* The size of a context is the number of wires it holds *)
-Fixpoint size_ctx (Γ : Ctx) : nat :=
-  match Γ with
-  | [] => 0
-  | None :: Γ' => size_ctx Γ'
-  | Some v :: Γ' => S (size_ctx Γ')
-  end.
-
-Lemma size_ctx_app : forall (Γ1 Γ2 : Ctx),
-      size_ctx (Γ1 ++ Γ2) = (size_ctx Γ1 + size_ctx Γ2)%nat.
-Proof.
-  induction Γ1; intros; simpl; auto.
-  destruct a; trivial.
-  rewrite IHΓ1; easy.
-Qed.
-
-(***********)
-(* Merging *)
-(***********)
-
-Inductive Merge_Wire : option VType -> option VType -> option VType -> Set :=
-| Merge_None : Merge_Wire None None None
-| Merge_Some_l : forall v, Merge_Wire (Some v) None (Some v)
-| Merge_Some_r : forall v, Merge_Wire None (Some v) (Some v).
-    
-Inductive Merge : Ctx -> Ctx -> Ctx -> Set :=
-| m_nil_l : forall Γ, Merge [] Γ Γ
-| m_nil_r : forall Γ, Merge Γ [] Γ
-| m_cons  : forall o1 o2 o Γ1 Γ2 Γ,
-    Merge_Wire o1 o2 o ->
-    Merge Γ1 Γ2 Γ ->
-    Merge (o1 :: Γ1) (o2 :: Γ2) (o :: Γ).
-
+Notation "∅" := (@nil VType).
 Notation "Γ == Γ1 ⋓ Γ2" := (Merge Γ1 Γ2 Γ) (at level 20).
+
 
 (**********************)
 (* Patterns and Gates *)
@@ -128,10 +91,13 @@ Fixpoint pat_map {w} (f : Var -> Var) (p : Pat w) : Pat w :=
 
 Reserved Notation "Γ ⊢ p ':Pat'" (at level 30).
 
-Inductive Types_Pat : Ctx -> forall {W : WType}, Pat W -> Set :=
+Require Export TypingContext.
+Require Export Monoid.
+
+Inductive Types_Pat : Ctx -> forall {W : WType}, Pat W -> Type :=
 | types_unit  : [] ⊢ unit :Pat
-| types_qubit : forall x, singleton x QUBIT ⊢ qubit x :Pat
-| types_bit   : forall x, singleton x BIT ⊢ bit x :Pat
+| types_qubit : forall x, singleton' x QUBIT ⊢ qubit x :Pat
+| types_bit   : forall x, singleton' x BIT ⊢ bit x :Pat
 | types_pair : forall Γ1 Γ2 Γ w1 w2 (p1 : Pat w1) (p2 : Pat w2),
         Γ == Γ1 ⋓ Γ2
       -> Γ1 ⊢ p1 :Pat

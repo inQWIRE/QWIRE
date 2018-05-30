@@ -51,6 +51,7 @@ Fixpoint is_empty_map (i : IdxMap) :=
   end.
 
 
+
 (* This will hold for all monads if you depend on functional extensionality *)
 Lemma bind_option_eq : forall X Y (e : option X) (f f' : X -> option Y), 
       (forall x, f x = f' x) -> bind e f = bind e f'.
@@ -156,8 +157,21 @@ Lemma is_Some_m'_Some_Some : forall a1 a2 Γ1 Γ2,
       is_Some (mergeIdxMap (Some a1 :: Γ1) (Some a2 :: Γ2)) = false.
 Admitted.
 
+(* The size of a context is the number of wires it holds *)
+Fixpoint size_ctx (Γ : IdxMap) : nat :=
+  match Γ with
+  | [] => 0
+  | None :: Γ' => size_ctx Γ'
+  | Some v :: Γ' => S (size_ctx Γ')
+  end.
 
-
+Lemma size_ctx_app : forall (Γ1 Γ2 : IdxMap),
+      size_ctx (Γ1 ++ Γ2) = (size_ctx Γ1 + size_ctx Γ2)%nat.
+Proof.
+  induction Γ1; intros; simpl; auto.
+  destruct a; trivial.
+  rewrite IHΓ1; easy.
+Qed.
 
 End IndexContext.
 Hint Resolve mergeIdxMap_nil_r.
@@ -174,15 +188,11 @@ Proof.
 Defined.
 Instance Monoid_IdxMap_Laws A : PCM_Laws (IdxCtx A) :=
   PPCM_to_PCM_Laws (IdxMap A).
-(* WHY IS THIS NECESSARY? (see examples at end of file *)
 Hint Resolve Monoid_IdxMap_Laws.
 
 Instance PTypingContext_IdxMap A : PTypingContext nat A (IdxMap A) :=
   { singleton' := @singleton' A
   }.
-
-Instance DecidablePaths_nat : DecidablePaths nat :=
-  { decPaths := Nat.eq_dec }.
 
 Ltac unfold_m' :=
   repeat match goal with
@@ -247,43 +257,34 @@ Instance TypingContext_IdxMap A : TypingContext_Laws nat A (IdxCtx A)  :=
   PTypingContext_to_TypingContext_Laws nat A (IdxMap A).
 Hint Resolve TypingContext_IdxMap.
 
-(* Now option IdxCtx should be a typing context *)
+(* NOTE: THIS IS A BAD KLUDGE FOR TYPECLASS SEARCH! *)
+Hint Extern 2 (PCM_Laws (option (IdxMap _))) => apply Monoid_IdxMap_Laws.
 
-Section Tests.
+Section InductiveMerge.
+
 Variable A : Type.
 
-
-Lemma singleton_not_empty : forall x a, is_valid (singleton x a : IdxCtx A).
-Proof.
-  intros. eapply singleton_is_valid; auto.
-Defined.
-
-
-Example test : forall x y a b, 
-    singleton x a ∙ singleton y b = singleton y b ∙ singleton x a ∙ (⊤ : IdxCtx A).
-Proof.
-  intros. monoid.
-Defined.
-
-Example test' : forall x y a b, x <> y ->
-    singleton x a ⊎ singleton y b == singleton y b ∙ singleton x a ∙ (⊤ : IdxCtx A).
-Proof.
-  intros.
-  solve_ctx.
-Defined.
-
-End Tests.
+(* Inductive Predicate *)
+Inductive Merge_Option : option A -> option A -> option A -> Type :=
+| Merge_None : Merge_Option None None None
+| Merge_Some_l : forall v, Merge_Option (Some v) None (Some v)
+| Merge_Some_r : forall v, Merge_Option None (Some v) (Some v).
     
-Require Import Contexts.
+Inductive Merge : IdxMap A -> IdxMap A -> IdxMap A -> Type :=
+| m_nil_l : forall Γ, Merge [] Γ Γ
+| m_nil_r : forall Γ, Merge Γ [] Γ
+| m_cons  : forall o1 o2 o Γ1 Γ2 Γ,
+    Merge_Option o1 o2 o ->
+    Merge Γ1 Γ2 Γ ->
+    Merge (o1 :: Γ1) (o2 :: Γ2) (o :: Γ).
 
-Definition OCtx := IdxCtx VType.
+(* Notations *)
+Notation "∅" := ⊤.
+Notation "Γ == Γ1 ⋓ Γ2" := (Merge Γ1 Γ2 Γ) (at level 20).
 
-Instance Monoid_OCtx_Laws : PCM_Laws OCtx :=
-  PPCM_to_PCM_Laws (IdxMap VType).
-Hint Resolve Monoid_OCtx_Laws.
+(* Hint Resolve (@Monoid_IdxMap_Laws A). *)
 
-Lemma OCtx_Ctx : OCtx = option Ctx.
-Proof. reflexivity. Qed.
+(* Relating inductive and functional merges *)
 
 (* We shouldn't need these, but we do. *)
 Lemma M_unit_r : forall (A : Type) (PCM_A : PCM A), PCM_Laws A -> forall a : A,  a ∙ ⊤  = a.
@@ -292,17 +293,17 @@ Proof. intros. apply M_unit. Qed.
 Lemma M_absorb_r : forall (A : Type) (PCM_A : PCM A), PCM_Laws A -> forall a : A,  a ∙ ⊥  = ⊥.
 Proof. intros. apply M_absorb. Qed.
 
-Lemma merge_wire_ind_fun : forall o1 o2 o,
-    Merge_Wire o1 o2 o -> mergeOption o1 o2 = Some o.
+Lemma merge_option_ind_fun : forall o1 o2 o,
+    Merge_Option o1 o2 o -> mergeOption o1 o2 = Some o.
 Proof. induction 1; auto. Qed.
 
-Lemma merge_ind_fun : forall Γ Γ1 Γ2,
+Lemma merge_ind_fun : forall (Γ Γ1 Γ2 : IdxMap A),
     Γ == Γ1 ⋓ Γ2 ->
     Some Γ = Some Γ1 ∙ Some Γ2.
 Proof.
-  intros.
+  intros Γ Γ1 Γ2 H.
   induction H; subst.
-  - rewrite M_unit_l. easy. auto.
+  - rewrite M_unit_l. easy. auto. 
   - rewrite M_unit_r. easy. auto. (* very weird that M_unit won't work... *)
   - inversion m; subst.
     + simpl in *. rewrite <- IHMerge. easy.
@@ -311,12 +312,12 @@ Proof.
 Qed.
  
 Lemma merge_wire_fun_ind : forall o1 o2 o,
-    mergeOption o1 o2 = Some o -> Merge_Wire o1 o2 o.
+    mergeOption o1 o2 = Some o -> Merge_Option o1 o2 o.
 Proof.
   intros [w1 | ] [w2 | ] [w | ]; simpl; inversion 1; constructor.
 Qed.
 
-(* Is this true? *)
+(* True for IdxCtx, probably not for all PCMs *)
 Lemma M_unit_inversion : forall {A : Type} (Γ1 Γ2 : IdxCtx A), 
   Γ1 ∙ Γ2 = ⊤  -> (Γ1 = ⊤) * (Γ2 = ⊤).
 Proof.
@@ -329,7 +330,7 @@ Proof.
   - auto.
 Qed.
 
-Lemma merge_fun_ind : forall Γ1 Γ2 Γ,
+Lemma merge_fun_ind : forall (Γ1 Γ2 Γ : IdxMap A),
     Some Γ = Some Γ1 ∙ Some Γ2 ->
     Γ == Γ1 ⋓ Γ2.
 Proof.
@@ -365,9 +366,42 @@ Proof.
         inversion H.
 Qed.
 
-Lemma test_octx1 : forall (Γ1 Γ2 Γ3 : OCtx), Γ1 ∙ Γ2 ∙ Γ3 = Γ3 ∙ Γ1 ∙ Γ2.
-Proof. intros. monoid. Qed.
+End InductiveMerge.
 
-Lemma test_octx2 : forall (Γ1 Γ2 Γ3 : Ctx), 
+(* Now option IdxCtx should be a typing context *)
+
+Section Tests.
+Variable A : Type.
+
+(* Hint Resolve (@Monoid_IdxMap_Laws A). *)
+
+
+
+Lemma singleton_not_empty : forall x a, is_valid (singleton x a : IdxCtx A).
+Proof.
+  intros. eapply singleton_is_valid; auto.
+Defined.
+
+
+Example test : forall x y a b, 
+    singleton x a ∙ singleton y b = singleton y b ∙ singleton x a ∙ (⊤ : IdxCtx A).
+Proof.
+  intros. monoid.
+Defined.
+
+Example test' : forall x y a b, x <> y ->
+    singleton x a ⊎ singleton y b == singleton y b ∙ singleton x a ∙ (⊤ : IdxCtx A).
+Proof.
+  intros.
+  solve_ctx.
+Defined.
+
+Print test.
+
+Lemma test'' : forall (Γ1 Γ2 Γ3 : IdxMap A), 
   (Some Γ1) ∙ (Some Γ2) ∙ (Some Γ3) = (Some Γ3) ∙ (Some Γ1) ∙ (Some Γ2).
 Proof. intros. monoid. Qed.
+
+End Tests.
+    
+

@@ -15,16 +15,25 @@ Matrix.vo: Matrix.v Complex.vo
 Quantum.vo: Quantum.v Matrix.vo
 	coqc Quantum.v
 
-Contexts.vo: Contexts.v Prelim.vo
+Monoid.vo: Monoid.v Monad.vo
+	coqc Monoid.v
+
+TypingContext.vo: TypingContext.v Monoid.vo
+	coqc TypingContext.v
+
+IndexContext.vo: IndexContext.v TypingContext.vo
+	coqc IndexContext.v
+
+Contexts.vo: Contexts.v Prelim.vo IndexContext.vo
 	coqc Contexts.v 
 
 HOASCircuits.vo: HOASCircuits.v Contexts.vo
 	coqc HOASCircuits.v
 
-DBCircuits.vo : DBCircuits.v HOASCircuits.vo Monad.vo
+DBCircuits.vo : DBCircuits.v HOASCircuits.vo
 	coqc DBCircuits.v
 
-TypeChecking.vo: TypeChecking.v HOASCircuits.vo
+TypeChecking.vo: TypeChecking.v HOASCircuits.vo IndexContext.vo
 	coqc TypeChecking.v
 
 HOASLib.vo: HOASLib.v TypeChecking.vo
