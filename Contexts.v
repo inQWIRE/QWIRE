@@ -56,7 +56,7 @@ Inductive VType :=
 | BIT
 | QUBIT.
 
-Definition Ctx := IdxMap VType.
+Notation Ctx := (IdxMap VType).
 
 Notation "∅" := (@nil VType).
 Notation "Γ == Γ1 ⋓ Γ2" := (Merge Γ1 Γ2 Γ) (at level 20).

@@ -143,15 +143,12 @@ Proof.
     * simpl. split; auto.
   - intros; simpl; auto.
   - simpl; auto.
-  - intros. simpl. unfold nequiv_decb.
-    destruct (equiv_dec x y) as [e | ne]; auto.
-    * cbv in e. subst.
-      unfold is_Some.
-      destruct (validity_singleton_merge' y y a b) as [_ N].
-      rewrite N by easy.
-      rewrite eq_bdec_true; easy.
+  - intros. simpl. 
+    unfold nequiv_decb, equiv_decb, equiv_dec. 
+    destruct (H x y) as [e | ne]; auto.
+    * apply (validity_singleton_merge' x y a b) in e.
+      rewrite e.  auto.
     * destruct (m' (singleton' x a) (singleton' y b)) as [ | z] eqn:eq'; auto.
-      rewrite neq_bdec_false; easy.
       apply (validity_singleton_merge') in eq'. contradiction.
 Qed.
 
