@@ -471,6 +471,7 @@ Qed.
 (* Tactics for showing well-formedness *)
 (***************************************)
 
+(*
 Ltac show_wf := 
   repeat match goal with
   | [ |- WF_Matrix _ _ (?A × ?B) ]  => apply WF_mult 
@@ -489,6 +490,19 @@ Ltac show_wf :=
   intros x y [H | H];
     repeat (destruct x; try reflexivity; try omega);
     repeat (destruct y; try reflexivity; try omega).
+*)
+
+(* Much less awful *)
+Ltac show_wf := 
+  unfold WF_Matrix;
+  let x := fresh "x" in
+  let y := fresh "y" in
+  let H := fresh "H" in
+  intros x y [H | H];
+  apply le_plus_minus in H; rewrite H;
+  cbv;
+  destruct_m_eq;
+  try clra.
 
 (* Create HintDb wf_db. *)
 Hint Resolve WF_Zero WF_Id WF_I1 WF_mult WF_plus WF_scale WF_transpose 

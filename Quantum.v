@@ -244,18 +244,18 @@ Eval compute in (print_matrix (swap_two 1 0 2)).
 
 (** Well Formedness of Quantum States and Unitaries **)
 
-Lemma WF_bra0 : WF_Matrix 1 2 ⟨0|. Proof. show_wf. Qed.
+Lemma WF_bra0 : WF_Matrix 1 2 ⟨0|. Proof. show_wf. Qed. 
 Lemma WF_bra1 : WF_Matrix 1 2 ⟨1|. Proof. show_wf. Qed.
 Lemma WF_ket0 : WF_Matrix 2 1 |0⟩. Proof. show_wf. Qed.
 Lemma WF_ket1 : WF_Matrix 2 1 |1⟩. Proof. show_wf. Qed.
 Lemma WF_braket0 : WF_Matrix 2 2 |0⟩⟨0|. Proof. show_wf. Qed.
 Lemma WF_braket1 : WF_Matrix 2 2 |1⟩⟨1|. Proof. show_wf. Qed.
-Lemma WF_bool_to_ket : forall b, WF_Matrix 2 1 (bool_to_ket b).
-Proof. destruct b; simpl; show_wf. Qed.
+Lemma WF_bool_to_ket : forall b, WF_Matrix 2 1 (bool_to_ket b). 
+Proof. destruct b; show_wf. Qed.
 Lemma WF_bool_to_matrix : forall b, WF_Matrix 2 2 (bool_to_matrix b).
-Proof. destruct b; simpl; show_wf. Qed.
+Proof. destruct b; show_wf. Qed.
 Lemma WF_bool_to_matrix' : forall b, WF_Matrix 2 2 (bool_to_matrix' b).
-Proof. intros. rewrite <- bool_to_matrix_eq. apply WF_bool_to_matrix. Qed.
+Proof. destruct b; show_wf. Qed.
 
 Hint Resolve WF_bra0 WF_bra1 WF_ket0 WF_ket1 WF_braket0 WF_braket1 : wf_db.
 Hint Resolve WF_bool_to_ket WF_bool_to_matrix WF_bool_to_matrix' : wf_db.
@@ -586,7 +586,92 @@ Hint Rewrite hadamard_sa σx_sa σy_sa σz_sa cnot_sa swap_sa
 
 Hint Rewrite control_sa using (autorewrite with M_db; reflexivity) : M_db.
 
+(* Positive Semidefiniteness *)
 
+Definition positive_semidefinite {n} (A : Square n) : Prop :=
+  forall (z : Matrix n 1), WF_Matrix 2 1 z -> fst ((z† × A × z) O O) >= 0.  
+
+Lemma braket0_psd : positive_semidefinite |0⟩⟨0|.
+Proof. 
+  intros z WFz. 
+  do 3 reduce_matrices. 
+  simpl.
+  rewrite <- Ropp_mult_distr_l.
+  unfold Rminus.
+  rewrite Ropp_involutive.
+  replace (fst (z 0%nat 0%nat) * fst (z 0%nat 0%nat))%R with ((fst (z 0%nat 0%nat))²) by easy. 
+  replace (snd (z 0%nat 0%nat) * snd (z 0%nat 0%nat))%R with ((snd (z 0%nat 0%nat))²) by easy. 
+  apply Rle_ge.
+  apply Rplus_le_le_0_compat; apply Rle_0_sqr.
+Qed.
+
+Lemma braket1_psd : positive_semidefinite |1⟩⟨1|.
+Proof. 
+  intros z WFz. 
+  do 3 reduce_matrices. 
+  simpl.
+  rewrite <- Ropp_mult_distr_l.
+  unfold Rminus.
+  rewrite Ropp_involutive.
+  replace (fst (z 1%nat 0%nat) * fst (z 1%nat 0%nat))%R with ((fst (z 1%nat 0%nat))²) by easy. 
+  replace (snd (z 1%nat 0%nat) * snd (z 1%nat 0%nat))%R with ((snd (z 1%nat 0%nat))²) by easy. 
+  apply Rle_ge.
+  apply Rplus_le_le_0_compat; apply Rle_0_sqr.
+Qed.
+
+Lemma H0_psd : positive_semidefinite (hadamard × |0⟩⟨0| × hadamard).
+Proof.
+  intros z WFz.
+  do 5 reduce_matrices.  
+  simpl.
+  autorewrite with R_db.
+  replace (√ 2 * / 2 * (√ 2 * / 2))%R with ((√ 2 / 2)²) by reflexivity.
+  rewrite Rsqr_div by lra.
+  rewrite Rsqr_sqrt by lra.
+  Search (_ * ?x + _ * ?x).
+  rewrite <- Rmult_plus_distr_r.
+  Search (- _ + - _).
+  rewrite <- Ropp_plus_distr.
+  repeat rewrite <- Ropp_mult_distr_l.
+  repeat rewrite Ropp_involutive.
+  rewrite <- Rmult_plus_distr_r.
+  rewrite (Rmult_comm _ (2/2²)).
+  rewrite (Rmult_comm _ (2/2²)).
+  repeat rewrite Rmult_assoc.
+  repeat rewrite <- Rmult_plus_distr_l.
+  apply Rle_ge.
+  apply Rmult_le_pos. 
+  left. 
+  apply Rmult_lt_0_compat. 
+  lra.
+  apply Rinv_0_lt_compat.
+  apply Rmult_lt_0_compat; lra.
+  Search ((_ + _) * _)%R.
+  repeat rewrite Rmult_plus_distr_r.
+  remember (fst (z 0 0)%nat) as a.
+  remember (snd (z 0 0)%nat) as b.
+  remember (fst (z 1 0)%nat) as c.
+  remember (snd (z 1 0)%nat) as d.
+  (* This is (a + b)² + (b + c)². *)
+  clear.
+  rewrite <- Rplus_assoc.
+  remember (a * a + c * a)%R as ac1. 
+  remember (b * b + d * b)%R as bd1. 
+  remember (a * c + c * c)%R as ac2. 
+  remember (b * d + d * d)%R as bd2.
+  rewrite (Rplus_assoc ac1).
+  rewrite (Rplus_comm bd1).
+  repeat rewrite <- Rplus_assoc.
+  rewrite (Rplus_assoc _ bd1).
+  apply Rplus_le_le_0_compat.
+  replace (ac1 + ac2)%R with ((a + c)²).
+  apply Rle_0_sqr.
+  unfold Rsqr. lra.
+  replace (bd1 + bd2)%R with ((b + d)²).
+  apply Rle_0_sqr.
+  unfold Rsqr. lra.
+Qed.
+    
 (* Pure and Mixed States *)
 
 (* Wiki:

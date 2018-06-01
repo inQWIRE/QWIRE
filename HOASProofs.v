@@ -395,6 +395,10 @@ Close Scope matrix_scope.
 Open Scope circ_scope.  
 (* Set Ltac Profiling. *)
 
+(* New approach no longer epxlicitly calls denote_unitary. 
+   And, unfortunately, we don't have a unitary corresponding to f0, f2 or f3.
+   Should use the circuit where U_f is a boxed_circuit instead 
+
 Lemma deutsch_constant : forall U_f, constant U_f -> 
                                 ⟦U_deutsch U_f⟧ I1 = |0⟩⟨0|.
 Proof.
@@ -403,11 +407,8 @@ Proof.
   specialize (unitary_gate_unitary U_f). intros [WFU UU].
   simpl in WFU.
   Msimpl.
-  destruct H. simpl in H.
-  dependent destruction U_f. simpl.
-  unfold ctrls_to_list. simpl.
-  destruct U_f.
-rewrite H; clear.
+  destruct H; rewrite H; clear.
+  rewrite H; clear.
   + (* f0 *)
     unfold f0.
     solve_matrix.
@@ -462,6 +463,7 @@ Proof.
     autorewrite with C_db. 
     reflexivity.
 Qed.
+*)
 
 (* Show Ltac Profile *)
 
