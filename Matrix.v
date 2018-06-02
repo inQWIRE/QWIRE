@@ -855,6 +855,24 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma Mscale_0 : forall (m n : nat) (A : Matrix m n), C0 .* A = Zero m n.
+Proof.
+  intros m n A.
+  prep_matrix_equality.
+  unfold Zero, scale.
+  rewrite Cmult_0_l.
+  reflexivity.
+Qed.
+
+Lemma Mscale_1 : forall (m n : nat) (A : Matrix m n), C1 .* A = A.
+Proof.
+  intros m n A.
+  prep_matrix_equality.
+  unfold scale.
+  rewrite Cmult_1_l.
+  reflexivity.
+Qed.
+
 Lemma Mscale_mult_dist_l : forall (m n o : nat) (x : C) (A : Matrix m n) (B : Matrix n o), 
     ((x .* A) × B) = x .* (A × B).
 Proof.

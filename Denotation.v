@@ -191,10 +191,27 @@ Proof.
     replace (ρ 1%nat 1%nat) with (1 - ρ O O) by (rewrite <- TR1; clra).
     replace (ρ O O) with ((fst (ρ O O)), snd (ρ O O)) by clra. 
     rewrite mixed_state_diag_real by assumption.
-    replace (1 - (fst (ρ O O), 0)) with (RtoC (1 - fst (ρ O O))) by clra.
-    replace (fst (ρ O O), 0) with (RtoC (fst (ρ O O))) by reflexivity.
-    apply Mix_S.
-    (* here's probably where we need positive semidefiniteness *)
+    set (a := (ρ 0 0)%nat). replace (ρ 0 0)%nat with a in TR1 by reflexivity.
+    set (b := (ρ 1 1)%nat). replace (ρ 1 1)%nat with b in TR1 by reflexivity.
+    replace (1 - (fst a, 0)) with (RtoC (1 - fst a)) by clra.
+    replace (fst a, 0) with (RtoC (fst a)) by reflexivity.
+    destruct (Ceq_dec a C0) as [Z | NZ]; [|destruct (Ceq_dec a C1) as [O | NO]].
+    * rewrite Z in *.
+      rewrite Mscale_0.
+      rewrite Mplus_0_l.
+      simpl. autorewrite with R_db.
+      rewrite Mscale_1.
+      apply Pure_S.
+      apply pure1.
+    * rewrite O in *.
+      rewrite Mscale_1.
+      simpl. unfold Rminus. rewrite Rplus_opp_r.
+      rewrite Mscale_0.
+      rewrite Mplus_0_r.
+      apply Pure_S.
+      apply pure0.
+    * apply Mix_S; [| apply Pure_S, pure0| apply Pure_S, pure1].     
+    (* show that for any pure (and hence mixed) state ρ n n = a * a^* is in [0,1] *)
     admit.
     constructor; apply pure0.
     constructor; apply pure1.
@@ -927,7 +944,7 @@ Proof.
 Qed.
 
 
-Ltac fold_denote :=
+Ltac fold_denotation :=
   repeat match goal with
   | [ |- context[ size_octx ?Γ ] ] => replace (size_octx Γ) with (⟦Γ⟧); auto
   end.
@@ -1500,7 +1517,7 @@ Lemma denote_gate_circuit : forall Γ0 (Γ : OCtx) Γ1 Γ1' {w1 w2 w'}
                     (apply_gate g (pat_to_list (hoas_to_db_pat Γ p1))).
 Proof.
   intros.
-  simpl. fold_denote.
+  simpl. fold_denotation.
   set (p1' := hoas_to_db_pat Γ p1).
   set (p2 := process_gate_pat g p1 Γ).
   rewrite (process_gate_nat _ p1' p1).
@@ -1519,11 +1536,11 @@ Lemma denote_gate_circuit : forall {w1 w2 w'}
 Proof.
   intros.
   unfold denote_circuit.
-  simpl; fold_denote.
+  simpl; fold_denotation.
   replace (process_gate g p1 Γ) with 
       (process_gate_pat g p1 Γ, process_gate_state g p1 Γ) by 
       (symmetry; apply surjective_pairing).
-  simpl; fold_denote.
+  simpl; fold_denotation.
   set (p1' := hoas_to_db_pat Γ p1).
   set (p2 := process_gate_pat g p1 Γ).    
   rewrite (process_gate_nat _ p1' p1).
@@ -1541,11 +1558,11 @@ Lemma denote_gate_circuit_unsafe : forall {w1 w2 w'}
 Proof.
   intros.
   unfold denote_circuit.
-  simpl; fold_denote.
+  simpl; fold_denotation.
   replace (process_gate g p1 Γ) with 
       (process_gate_pat g p1 Γ, process_gate_state g p1 Γ) by 
       (symmetry; apply surjective_pairing).
-  simpl; fold_denote.
+  simpl; fold_denotation.
   set (p1' := hoas_to_db_pat Γ p1).
   set (p2 := process_gate_pat g p1 Γ).    
   rewrite (process_gate_nat _ p1' p1).
@@ -1572,7 +1589,7 @@ Lemma denote_compose : forall safe w (c : Circuit w) Γ, Γ ⊢ c :Circ ->
                     (denote_circuit safe c (Γ0 ⋓ Γ1) Γ). 
 Proof.
   induction 1; intros w' h Γ0 Γ3 Γ3' wf_f pf_merge.
-  * simpl; fold_denote.
+  * simpl; fold_denotation.
     admit. (* property about f being parametric *)
     (* ⟨ Γ0 | Γ1 ⋓ Γ2 ⊩ f p ⟩
     =  ⟨ Γ0 | fresh_state Γ2 ⊩ f (fresh_pat w Γ2) ⟩ ∘ ⟨ Γ1 ⊩ p ⟩ 
@@ -1580,7 +1597,7 @@ Proof.
   * replace (compose (gate g p1 f) h) 
       with (gate g p1 (fun p2 => compose (f p2) h)) 
       by auto.
-    repeat rewrite denote_gate_circuit; fold_denote.
+    repeat rewrite denote_gate_circuit; fold_denotation.
 
 
     set (p2 := process_gate_pat g p1 Γ3').
@@ -1768,6 +1785,7 @@ Hint Unfold get_fresh add_fresh_state get_fresh_var process_gate process_gate_st
 
 Hint Unfold apply_new0 apply_new1 apply_U apply_qubit_unitary denote_ctrls apply_meas apply_discard apply_assert0 apply_assert1 compose_super Splus swap_list swap_two pad denote_box denote_pat : ket_den_db.
 
+(* This should probably be vector_denote *)
 Ltac ket_denote :=
   intros; 
   repeat (autounfold with ket_den_db; simpl);

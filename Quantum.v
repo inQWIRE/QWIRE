@@ -937,7 +937,7 @@ Ltac Msimpl :=
                                   let H := fresh "H" in 
                                   specialize (kron_mixed_product _ _ _ _ _ _ A B C D);
                                   intros H; simpl in H; rewrite H; clear H
-  | _                         => autorewrite with M_db
+  | _                           => autorewrite with M_db
   end.
 
 (****************************************)
