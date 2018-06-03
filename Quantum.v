@@ -160,11 +160,7 @@ Lemma MmultX0 : σx × |0⟩ = |1⟩. Proof. solve_matrix. Qed.
 Lemma Mmult0X : ⟨0| × σx = ⟨1|. Proof. solve_matrix. Qed.
 Hint Rewrite Mmult0X Mmult1X MmultX0 MmultX1 : M_db.
 
-Lemma swap_swap : swap × swap = Id 4.
-Proof.
-  solve_matrix.
-  destruct (x =? y); auto.
-Qed.
+Lemma swap_swap : swap × swap = Id 4. Proof. solve_matrix. Qed.
 
 Lemma swap_swap_r : forall n A, WF_Matrix n 4 A ->
       A × swap × swap = A.
@@ -674,28 +670,21 @@ Qed.
     
 (* Pure and Mixed States *)
 
-(* Wiki:
-In operator language, a density operator is a positive semidefinite, hermitian 
-operator of trace 1 acting on the state space. A density operator describes 
-a pure state if it is a rank one projection. Equivalently, a density operator ρ 
-describes a pure state if and only if ρ = ρ ^ 2 
-Hence a pure quantum state should be:
-  positive-semidefinite: z†Az >= 0 for any column vector z. 
-  hermitian: self-adjoint
-  trace 1
-  equal to its square
-*)
-
 Notation Density n := (Matrix n n) (only parsing). 
 
-(* don't have positive-semidefinite yet *)
+(* Simpler Definition *)
+Definition Pure_State_Vector {n} (φ : Matrix n 1): Prop := 
+  WF_Matrix n 1 φ /\ φ† × φ = 'I_ 1.
+
 Definition Pure_State {n} (ρ : Density n) : Prop := 
-  WF_Matrix n n ρ /\ trace ρ = 1 /\ ρ = ρ†  /\ ρ = ρ × ρ.
+  exists φ, Pure_State_Vector φ /\ ρ = φ × φ†.
 
 Lemma pure0 : Pure_State |0⟩⟨0|. 
-Proof. unfold Pure_State. repeat split. auto with wf_db. clra. mlra. mlra. Qed.
+Proof. exists |0⟩. intuition. split. auto with wf_db. solve_matrix. Qed.
+
 Lemma pure1 : Pure_State |1⟩⟨1|. 
-Proof. unfold Pure_State. repeat split. auto with wf_db. clra. mlra. mlra. Qed.
+Proof. exists |1⟩. intuition. split. auto with wf_db. solve_matrix. Qed.
+
 
 (* Wiki:
 For a finite-dimensional function space, the most general density operator 
@@ -711,8 +700,9 @@ Inductive Mixed_State {n} : (Matrix n n) -> Prop :=
                                        Mixed_State (p .* ρ1 .+ (1-p)%R .* ρ2).  
 
 Lemma WF_Pure : forall {n} (ρ : Density n), Pure_State ρ -> WF_Matrix n n ρ.
-Proof. unfold Pure_State. intuition. Qed.
+Proof. intros. destruct H as [φ [[WFφ IP1] Eρ]]. rewrite Eρ. auto with wf_db. Qed.
 Hint Resolve WF_Pure : wf_db.
+
 Lemma WF_Mixed : forall {n} (ρ : Density n), Mixed_State ρ -> WF_Matrix n n ρ.
 Proof. induction 1; auto with wf_db. Qed.
 Hint Resolve WF_Mixed : wf_db.
@@ -788,31 +778,23 @@ Definition discard_op : Superoperator 2 1 := fun ρ => super ⟨0| ρ .+ super �
 Lemma pure_unitary : forall {n} (U ρ : Matrix n n), 
   is_unitary U -> Pure_State ρ -> Pure_State (super U ρ).
 Proof.
-  intros n U ρ [WFU H] [WFρ [trP [SA SQ]]].
-  unfold Pure_State, is_unitary, super in *.
-  intuition.
-  + (* I don't actually know how to prove this *)
-    rewrite SQ.
-    autounfold with M_db; simpl.    
-    admit.
-  + autorewrite with M_db.
-    rewrite <- SA.
+  intros n U ρ [WFU H] [φ [[WFφ IP1] Eρ]].
+  rewrite Eρ.
+  exists (U × φ).
+  split.
+  - split; auto with wf_db.
+    rewrite (Mmult_conj_transpose _ _ _ U φ).
     rewrite Mmult_assoc.
+    rewrite <- (Mmult_assoc _ _ _ _ (U†)).
+    rewrite H, Mmult_1_l, IP1; easy.
+  - unfold super.
+    rewrite (Mmult_conj_transpose _ _ _ U φ).
+    repeat rewrite Mmult_assoc.
     reflexivity.
-  + remember (U × ρ × (U) † × (U × ρ × (U) †)) as rhs.
-    rewrite SQ.
-    replace (ρ × ρ) with (ρ × Id n × ρ) by (rewrite Mmult_1_r; trivial).
-    rewrite <- H.
-    rewrite Heqrhs.
-    repeat rewrite Mmult_assoc. 
-    reflexivity.
-Admitted.
+Qed.    
 
 Lemma pure_hadamard_1 : Pure_State (super hadamard |1⟩⟨1|).
-Proof. apply pure_unitary. 
-       + apply H_unitary.       
-       + apply pure1. 
-Qed.
+Proof. apply pure_unitary. apply H_unitary. apply pure1. Qed.
 
 Definition dm12 : Matrix 2 2 :=
   (fun x y => match x, y with
@@ -824,11 +806,10 @@ Definition dm12 : Matrix 2 2 :=
           end).
 
 Lemma pure_dm12 : Pure_State dm12. Proof.
-  unfold Pure_State. repeat split.
-  show_wf.
-  unfold dm12; simpl; clra.  
-  unfold dm12; solve_matrix.
-  unfold dm12; solve_matrix.
+  unfold Pure_State. exists (hadamard × |0⟩). repeat split.
+  - auto with wf_db.                                                        
+  - solve_matrix.
+  - solve_matrix.
 Qed.
 
 Lemma mixed_meas_12 : Mixed_State (meas_op dm12).
@@ -860,10 +841,25 @@ Qed.
 
 Lemma mixed_state_trace_1 : forall {n} (ρ : Density n), Mixed_State ρ -> trace ρ = 1.
 Proof.
-  intros.
-  induction H.
-  + unfold Pure_State in H; intuition.
-  + rewrite trace_plus_dist.
+  intros n ρ H. 
+  induction H. 
+  - destruct H as [φ [[WFφ IP1] Eρ]].    
+    rewrite Eρ.
+    clear - IP1.
+    unfold trace.
+    unfold Mmult, conj_transpose in *.
+    simpl in *.
+    match goal with
+    [H : ?f = ?g |- _] => assert (f O O = g O O) by (rewrite <- H; easy)
+    end. 
+    unfold Id in H; simpl in H.
+    rewrite <- H.
+    apply Csum_eq.
+    apply functional_extensionality.
+    intros x.
+    rewrite Cplus_0_l, Cmult_comm.
+    reflexivity.
+  - rewrite trace_plus_dist.
     rewrite 2 trace_mult_dist.
     rewrite IHMixed_State1, IHMixed_State2.
     clra.
@@ -872,17 +868,80 @@ Qed.
 (* The following two lemmas say that for any mixed states, the elements along the 
    diagonal are real numbers in the [0,1] interval. *)
 
+Lemma Csum_ge_0 : forall f n, (forall x, 0 <= fst (f x)) -> 0 <= fst (Csum f n).
+Proof.
+  intros f n H.
+  induction n.
+  - simpl. lra. 
+  - simpl in *.
+    rewrite <- Rplus_0_r at 1.
+    apply Rplus_le_compat; easy.
+Qed.
+
+Lemma Csum_mem_le : forall (f : nat -> C) (n : nat), (forall x, 0 <= fst (f x)) -> 
+                    (forall x, (x < n)%nat -> fst (f x) <= fst (Csum f n)).
+Proof.
+  intros f.
+  induction n.
+  - intros H x Lt. inversion Lt.
+  - intros H x Lt.
+    bdestruct (x <? n).
+    + simpl.
+      rewrite <- Rplus_0_r at 1.
+      apply Rplus_le_compat.
+      apply IHn; easy.
+      apply H.
+    + assert (E: x = n) by omega.
+      rewrite E.
+      simpl.
+      rewrite <- Rplus_0_l at 1.
+      apply Rplus_le_compat. 
+      apply Csum_ge_0; easy.
+      lra.
+Qed.            
+
+
 Lemma mixed_state_diag_in01 : forall {n} (ρ : Density n) i , Mixed_State ρ -> 
                                                         0 <= fst (ρ i i) <= 1.
 Proof.
   intros.
   induction H.
-  + unfold Pure_State in H.
-    destruct H as [WF [TR1 [SA EqSqr]]]. 
-    assert (ρ i i = ρ † i i) by (rewrite <- SA; reflexivity).
-    unfold conj_transpose, Cconj in SA.
-    admit. (* might need positive-semidefiniteness here *)
-  + simpl.
+  - destruct H as [φ [[WFφ IP1] Eρ]].
+    destruct (lt_dec i n). 
+    Focus 2.
+      rewrite Eρ. unfold Mmult, conj_transpose. simpl. rewrite WFφ. simpl. lra.
+      omega.
+    rewrite Eρ.
+    unfold Mmult, conj_transpose in *.
+    simpl in *.
+    rewrite Rplus_0_l.
+    match goal with
+    [H : ?f = ?g |- _] => assert (f O O = g O O) by (rewrite <- H; easy)
+    end. 
+    unfold Id in H. simpl in H. clear IP1.
+    match goal with
+    [ H : ?x = ?y |- _] => assert (H': fst x = fst y) by (rewrite H; easy); clear H
+    end.
+    simpl in H'.
+    rewrite <- H'.    
+    split.
+    + unfold Rminus. rewrite <- Ropp_mult_distr_r. rewrite Ropp_involutive.
+      rewrite <- Rplus_0_r at 1.
+      apply Rplus_le_compat; apply Rle_0_sqr.    
+    + match goal with 
+      [ |- ?x <= fst (Csum ?f ?m)] => specialize (Csum_mem_le f n) as res
+      end.
+      simpl in *.
+      unfold Rminus in *.
+      Search (_ * - _)%R.
+      rewrite <- Ropp_mult_distr_r.
+      rewrite Ropp_mult_distr_l.
+      apply res with (x := i); trivial. 
+      intros x.
+      unfold Rminus. rewrite <- Ropp_mult_distr_l. rewrite Ropp_involutive.
+      rewrite <- Rplus_0_r at 1.
+      apply Rplus_le_compat; apply Rle_0_sqr.    
+  - simpl.
     repeat rewrite Rmult_0_l.
     repeat rewrite Rminus_0_r.
     split.
@@ -898,7 +957,7 @@ Proof.
       rewrite <- Rmult_1_r.
       apply Rmult_le_compat_l; lra.
     lra.
-Admitted.
+Qed.
 
 Lemma mixed_state_diag_real : forall {n} (ρ : Density n) i , Mixed_State ρ -> 
                                                         snd (ρ i i) = 0.
@@ -906,12 +965,9 @@ Proof.
   intros.
   induction H.
   + unfold Pure_State in H. 
-    destruct H as [WF [TR1 [SA EqSqr]]].
-    assert (E : ρ i i = ρ † i i) by (rewrite <- SA; reflexivity).
-    unfold conj_transpose, Cconj in SA.
-    replace (ρ i i) with (fst (ρ i i), snd (ρ i i)) in E by clra. 
-    simpl in E.
-    inversion E.
+  - destruct H as [φ [[WFφ IP1] Eρ]].
+    rewrite Eρ.
+    simpl. 
     lra.
   + simpl.
     rewrite IHMixed_State1, IHMixed_State2.
@@ -920,25 +976,13 @@ Proof.
 Qed.
 
 Lemma pure_id1 : Pure_State ('I_ 1).
-Proof.
-  unfold Pure_State. repeat split. 
-  auto with wf_db. 
-  clra. 
-  autorewrite with M_db; reflexivity. 
-  autorewrite with M_db; reflexivity. 
-Qed.
+Proof. exists ('I_ 1). split. split. auto with wf_db. solve_matrix. solve_matrix. Qed.
 
 Lemma pure_dim1 : forall (ρ : Square 1), Pure_State ρ -> ρ = 'I_ 1.
 Proof.
-  intros ρ [WFP [TRP [SA PPP]]].
-  prep_matrix_equality.
-  destruct x.
-  destruct y.  
-  + unfold trace in TRP; simpl in TRP.
-    rewrite Cplus_0_l in TRP.
-    rewrite TRP; reflexivity.
-  + rewrite WFP, WF_Id; trivial; omega.
-  + rewrite WFP, WF_Id; trivial; omega.
+  intros ρ [φ [[WFφ IP1] Eρ]]. 
+  apply Minv_flip in IP1.
+  rewrite Eρ; easy.
 Qed.    
 
 Lemma mixed_dim1 : forall (ρ : Square 1), Mixed_State ρ -> ρ = 'I_ 1.

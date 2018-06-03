@@ -141,7 +141,7 @@ Proof.
   + simpl.
     rewrite kron_1_r.
     rewrite Nat.mul_1_r.
-    apply mixed_unitary. (* admitted *)
+    apply mixed_unitary.
     apply WF_unitary. 
     apply unitary_gate_unitary.
     assumption.
@@ -212,7 +212,7 @@ Proof.
       apply pure0.
     * apply Mix_S; [| apply Pure_S, pure0| apply Pure_S, pure1].     
       unfold a in *.
-      specialize (mixed_state_diag_in01 ρ 0%nat H) as IN01. (* admitted *)
+      specialize (mixed_state_diag_in01 ρ 0%nat H) as IN01.
       destruct IN01 as [G L].
       destruct G. 
         Focus 2. 
@@ -431,25 +431,10 @@ Proof.
 Qed.
 
 Lemma denote_ctrls_CNOT_swap : denote_ctrls 2 (ctrl X) [1;0]%nat = swap × cnot × swap.
-Proof.
-  unfold denote_ctrls. simpl.
-  solve_matrix.
-  replace ((S (S (fst (Nat.divmod x 1 0 0))) <? 2)) with false by
-      (destruct (fst (Nat.divmod _ _ _ _)); easy).
-  rewrite andb_false_r.
-  Csimpl. easy.
-  replace ((S (S (fst (Nat.divmod x 1 0 0))) <? 2)) with false by
-      (destruct (fst (Nat.divmod _ _ _ _)); easy).
-  rewrite andb_false_r.
-  Csimpl.
-  easy.
-Qed.
+Proof. unfold denote_ctrls. simpl. solve_matrix. Qed.
 
 Lemma denote_ctrls_CCNOT :denote_ctrls 3 (CCNOT) [0;1;2]%nat = ⟦CCNOT⟧.
-Proof.
-  unfold denote_ctrls. simpl.
-  crunch_matrix.
-Qed.
+Proof. unfold denote_ctrls. simpl. crunch_matrix. Qed.
 
 Eval compute in (denote_ctrls 2 (ctrl X) [0;1])%nat. 
 Eval simpl in (denote_ctrls 6 (ctrl (ctrl Z)) [0;3;2])%nat. 

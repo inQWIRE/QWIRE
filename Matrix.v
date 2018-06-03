@@ -1253,7 +1253,8 @@ Ltac reduce_matrix := match goal with
                               end.
 
 (* Reduces matrices anywhere they appear *)
-Ltac reduce_matrices := match goal with 
+Ltac reduce_matrices := assoc_least;
+                        match goal with 
                         | [ |- context[?M]] => reduce_aux M
                         end;
                         repeat match goal with 
@@ -1263,7 +1264,10 @@ Ltac reduce_matrices := match goal with
 
 Ltac solve_matrix := assoc_least;
                      repeat reduce_matrix; try crunch_matrix;
-                     Csimpl; try clra.
+                     (* handle out-of-bounds *)
+                     unfold Nat.ltb; simpl; try rewrite andb_false_r; 
+                     (* try to solve complex equalities *)
+                     autorewrite with C_db; try clra.
        
 (* Tactics to show implicit arguments *)
 Definition kron' := @kron.      
