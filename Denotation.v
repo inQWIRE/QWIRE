@@ -141,8 +141,8 @@ Proof.
   + simpl.
     rewrite kron_1_r.
     rewrite Nat.mul_1_r.
-    apply mixed_unitary.
-    apply WF_unitary.
+    apply mixed_unitary. (* admitted *)
+    apply WF_unitary. 
     apply unitary_gate_unitary.
     assumption.
   + simpl.
@@ -211,10 +211,20 @@ Proof.
       apply Pure_S.
       apply pure0.
     * apply Mix_S; [| apply Pure_S, pure0| apply Pure_S, pure1].     
-    (* show that for any pure (and hence mixed) state ρ n n = a * a^* is in [0,1] *)
-    admit.
-    constructor; apply pure0.
-    constructor; apply pure1.
+      unfold a in *.
+      specialize (mixed_state_diag_in01 ρ 0%nat H) as IN01. (* admitted *)
+      destruct IN01 as [G L].
+      destruct G. 
+        Focus 2. 
+        contradict NZ; apply c_proj_eq. 
+        rewrite <- H0; reflexivity.
+        apply mixed_state_diag_real; easy.
+      destruct L. 
+        Focus 2. 
+        contradict NO; apply c_proj_eq. 
+        rewrite <- H1; reflexivity.
+        apply mixed_state_diag_real; easy.
+      lra.
   + simpl in *.
     unfold super, Splus.
     Msimpl.
@@ -257,7 +267,7 @@ Proof.
     apply pure_id1.
     crunch_matrix. 
     bdestruct (S (S x) <? 1). omega. rewrite andb_false_r. reflexivity.
-Admitted.
+Qed.
 
 Instance Denote_Gate W1 W2 : Denote (Gate W1 W2) (Superoperator (2^⟦W1⟧) (2^⟦W2⟧)):=
     {| denote := denote_gate true |}.

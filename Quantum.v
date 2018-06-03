@@ -679,10 +679,11 @@ In operator language, a density operator is a positive semidefinite, hermitian
 operator of trace 1 acting on the state space. A density operator describes 
 a pure state if it is a rank one projection. Equivalently, a density operator ρ 
 describes a pure state if and only if ρ = ρ ^ 2 
-Hence a quantum state state should be:
-  positive-semidefinite = z†Az >= 0 for any column vector z. 
-  hermitian = self-adjoint
+Hence a pure quantum state should be:
+  positive-semidefinite: z†Az >= 0 for any column vector z. 
+  hermitian: self-adjoint
   trace 1
+  equal to its square
 *)
 
 Notation Density n := (Matrix n n) (only parsing). 
@@ -868,17 +869,49 @@ Proof.
     clra.
 Qed.
 
+(* The following two lemmas say that for any mixed states, the elements along the 
+   diagonal are real numbers in the [0,1] interval. *)
+
+Lemma mixed_state_diag_in01 : forall {n} (ρ : Density n) i , Mixed_State ρ -> 
+                                                        0 <= fst (ρ i i) <= 1.
+Proof.
+  intros.
+  induction H.
+  + unfold Pure_State in H.
+    destruct H as [WF [TR1 [SA EqSqr]]]. 
+    assert (ρ i i = ρ † i i) by (rewrite <- SA; reflexivity).
+    unfold conj_transpose, Cconj in SA.
+    admit. (* might need positive-semidefiniteness here *)
+  + simpl.
+    repeat rewrite Rmult_0_l.
+    repeat rewrite Rminus_0_r.
+    split.
+    assert (0 <= p * fst (ρ1 i i)).
+      apply Rmult_le_pos; lra.
+    assert (0 <= (1 - p) * fst (ρ2 i i)).
+      apply Rmult_le_pos; lra.
+    lra.
+    assert (p * fst (ρ1 i i) <= p)%R. 
+      rewrite <- Rmult_1_r.
+      apply Rmult_le_compat_l; lra.
+    assert ((1 - p) * fst (ρ2 i i) <= (1-p))%R. 
+      rewrite <- Rmult_1_r.
+      apply Rmult_le_compat_l; lra.
+    lra.
+Admitted.
+
 Lemma mixed_state_diag_real : forall {n} (ρ : Density n) i , Mixed_State ρ -> 
                                                         snd (ρ i i) = 0.
 Proof.
   intros.
   induction H.
-  + unfold Pure_State in H; intuition. 
-    assert (ρ i i = ρ † i i) by (rewrite <- H1; reflexivity).
-    unfold conj_transpose, Cconj in H2.
-    replace (ρ i i) with (fst (ρ i i), snd (ρ i i)) in H2 by clra. 
-    simpl in H2.
-    inversion H2.
+  + unfold Pure_State in H. 
+    destruct H as [WF [TR1 [SA EqSqr]]].
+    assert (E : ρ i i = ρ † i i) by (rewrite <- SA; reflexivity).
+    unfold conj_transpose, Cconj in SA.
+    replace (ρ i i) with (fst (ρ i i), snd (ρ i i)) in E by clra. 
+    simpl in E.
+    inversion E.
     lra.
   + simpl.
     rewrite IHMixed_State1, IHMixed_State2.
