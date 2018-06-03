@@ -139,7 +139,6 @@ Eval cbv in teleport.
 Eval cbn in teleport.
 Eval simpl in teleport.
 
-
 Definition bob_lift : Box (Bit ⊗ Bit ⊗ Qubit) Qubit :=
   box_ (x,y,b) ⇒
     lift_ (u,v)  ← (x,y);
@@ -147,11 +146,15 @@ Definition bob_lift : Box (Bit ⊗ Bit ⊗ Qubit) Qubit :=
     let_ b       ← (if u then Z else id_circ) $b;
     b.
 Lemma bob_lift_WT : Typed_Box bob_lift.
-Proof. type_check. all: try destruct b0; try destruct b; type_check. Defined. 
+Proof. type_check. Defined. 
 
-Definition bob_lift' := 
-  box_ (xy,b) ⇒
-    lift_ (u,v)  ← xy;
+Print bob_lift.
+Eval compute in bob_lift.
+
+
+Program Definition bob_lift' : Box (Bit ⊗ Bit ⊗ Qubit) Qubit := 
+  box_ (x,y,b) ⇒
+    lift_ (u,v) ← (x,y);
     match u,v with
     | true,  true  => let_ b ← X $ b; Z $ b
     | true,  false => Z $ b
@@ -286,7 +289,7 @@ Qed.
 (** Unitary Transpose **)
 
 Definition unitary_transpose {W} (U : Unitary W) : Box W W := 
-  box_ p ⇒ transpose U $ U $ p.
+  box_ p ⇒ trans U $ U $ p.
 Lemma unitary_transpose_WT : forall W (U : Unitary W), Typed_Box (unitary_transpose U).
 Proof. type_check. Qed.
 

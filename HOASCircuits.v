@@ -41,15 +41,15 @@ Inductive Types_Circuit : OCtx -> forall {w}, Circuit w -> Set :=
                                          {p1 : Pat w1} {g : Gate w1 w2} ,
                Γ1 ⊢ p1 :Pat ->
 (*               Γ ⊢ f :Fun ->*)
-               (forall Γ0 Γ0' (p2 : Pat w2) {pf2 : Γ0' == Γ0 ∙ Γ},
-                       Γ0 ⊢ p2 :Pat -> Γ0' ⊢ f p2 :Circ) ->
+               (forall Γ2 Γ2' (p2 : Pat w2) {pf2 : Γ2' == Γ2 ∙ Γ},
+                       Γ2 ⊢ p2 :Pat -> Γ2' ⊢ f p2 :Circ) ->
                forall {pf1 : Γ1' == Γ1 ∙ Γ},
                Γ1' ⊢ gate g p1 f :Circ
-| types_lift_bit : forall {Γ1 Γ2 Γ w } {p : Pat Bit} {f : bool -> Circuit w},
-                          Γ1 ⊢ p :Pat ->
-                          (forall b, Γ2 ⊢ f b :Circ) ->
-                          forall {pf : Γ == Γ1 ∙ Γ2},
-                          Γ ⊢ lift p f :Circ
+| types_lift : forall {Γ1 Γ2 Γ w } {p : Pat Bit} {f : bool -> Circuit w},
+               Γ1 ⊢ p :Pat ->
+               (forall b, Γ2 ⊢ f b :Circ) ->
+               forall {pf : Γ == Γ1 ∙ Γ2},
+               Γ ⊢ lift p f :Circ
 where "Γ ⊢ c :Circ" := (Types_Circuit Γ c)
 and "Γ ⊢ f :Fun" := (forall Γ0 Γ0' p0, Γ0' == Γ0 ∙ Γ ->
                                             Γ0 ⊢ p0 :Pat ->
@@ -70,6 +70,8 @@ Notation "Γ ⊢ f :Fun" := (forall Γ0 Γ0' p0, Γ0' == Γ0 ∙ Γ ->
                                             Γ0 ⊢ p0 :Pat ->
                                             Γ0' ⊢ f p0 :Circ ) (at level 30).
 *)
+
+Print Types_Circuit.
 
 Definition Typed_Box {W1 W2 : WType} (b : Box W1 W2) : Set := 
   forall Γ (p : Pat W1), Γ ⊢ p :Pat -> Γ ⊢ unbox b p :Circ.
@@ -97,9 +99,9 @@ Proof.
   * simpl. 
     eapply @types_gate with (Γ1 := Γ1) (Γ := Γ ⋓ Γ0); auto; try solve_merge.
     intros. 
-    apply H with (Γ0 := Γ2) (Γ := Γ0) (Γ0' := Γ2 ⋓ Γ); auto; solve_merge.
+    apply H with (Γ2 := Γ2) (Γ := Γ0) (Γ2' := Γ2 ⋓ Γ); auto; solve_merge.
   * simpl. 
-    apply @types_lift_bit with (Γ1 := Γ1) (Γ2 := Γ2 ⋓ Γ0); auto; try solve_merge.
+    apply @types_lift with (Γ1 := Γ1) (Γ2 := Γ2 ⋓ Γ0); auto; try solve_merge.
     intros. apply H with (Γ := Γ0); auto; solve_merge.
 Qed.
 

@@ -346,10 +346,10 @@ Proof.
   induction n; trivial.
   intros.
   simpl.
+  unfold add_fresh_state; simpl.
+  unfold get_fresh_var; simpl.
   rewrite repeat_length.
   rewrite subst_var_σ_n by omega.
-  Search subst_pat.
-  Search repeat.
   replace ([Some Qubit]) with (repeat (Some Qubit) 1) by reflexivity.
   rewrite repeat_combine.
   rewrite IHn by omega.
@@ -357,7 +357,7 @@ Proof.
   reflexivity.
 Qed.
 
-
+Transparent add_fresh_state.
 Lemma pat_max_fresh : forall m n, 
     (pat_max (@fresh_pat OCtx OCtx_State (n ⨂ Qubit) (Valid (repeat (Some Qubit) m))) < S (m + n))%nat.
 Proof.
@@ -367,6 +367,8 @@ Proof.
   - intros; simpl; omega.
   - intros.
     simpl.
+    unfold add_fresh_state; simpl.
+    unfold get_fresh_var; simpl.
     rewrite repeat_length.
     apply Nat.max_lub_lt. omega.
     simpl. 
@@ -536,6 +538,8 @@ Proof.
     rewrite Nat.add_1_r.
     unfold compose_super.
     simpl.
+    unfold add_fresh_state; simpl.
+    unfold get_fresh_var; simpl.
 
 (* Show that padding and subst_var are the identity *)
     rewrite fresh_state_ntensor. 
@@ -559,6 +563,8 @@ Proof.
       rewrite seq_S.
       rewrite IHn'.
       simpl.
+      unfold add_fresh_state; simpl.
+      unfold get_fresh_var; simpl.
       rewrite ctx_dom_repeat.      
       repeat rewrite seq_shift.      
       replace (0%nat :: 1%nat :: 2%nat :: seq 3 n') with (σ_{3+n'}) by reflexivity.
@@ -569,8 +575,8 @@ Proof.
       rewrite ntensor_pat_to_list_shifted by omega.
       rewrite ntensor_pat_to_list_shifted by omega.
       rewrite <- seq_S. simpl. reflexivity.
-    simpl.
 
+    simpl.
     rewrite size_ntensor. simpl.
     rewrite Nat.add_1_r, Nat.mul_1_r.
     rewrite swap_list_n_id.
@@ -605,6 +611,8 @@ Proof.
     simpl.
 
     repeat (autounfold with den_db; simpl).
+    unfold add_fresh_state; simpl.
+    unfold get_fresh_var; simpl.
     rewrite fresh_state_ntensor. simpl.
     rewrite size_ntensor. simpl. rewrite Nat.add_1_r, Nat.mul_1_r.
     replace ([Some Qubit]) with (repeat (Some Qubit) 1) by reflexivity.
@@ -662,6 +670,8 @@ Proof.
       destruct H. simpl. rewrite <- merge_assoc. rewrite merge_comm. assumption.
 
       unfold compose_super. simpl.
+      unfold add_fresh_state; simpl.
+      unfold get_fresh_var; simpl.
       rewrite fresh_state_ntensor. simpl.
       replace ([Some Qubit]) with (repeat (Some Qubit) 1) by reflexivity.
       rewrite repeat_combine.
@@ -724,7 +734,6 @@ Proof.
       rewrite (repeat_combine (option WType) n' 1) in IH.
       rewrite size_repeat_ctx in IH.
       subst.
-      rewrite repeat_length in IH.
       rewrite Nat.add_1_r in IH. simpl in IH.
       repeat rewrite kron_assoc in IH.
       assert (k < n')%nat as Lt' by (clear -Lt; omega).
@@ -732,7 +741,13 @@ Proof.
       specialize (IH Lt' L1' L2).
       replace (2 ^ length l2 * 2 + (2 ^ length l2 * 2 + 0))%nat with 
           (2 * (2 ^ length l2 * 2))%nat by unify_pows_two.
-      rewrite IH; trivial.      
+      unfold add_fresh_state in IH. simpl in IH.
+      unfold get_fresh_var in IH. simpl in IH.
+      rewrite repeat_length in IH.
+      rewrite (repeat_combine (option WType) n' 1) in IH.
+      rewrite Nat.add_1_r in IH.
+      simpl in IH.
+      setoid_rewrite IH; trivial.      
       2: intros i; apply (WF1 (S i)).
       unfold super.
       rewrite size_ntensor. simpl. rewrite Nat.mul_1_r, Nat.add_1_r. simpl.
@@ -743,7 +758,6 @@ Proof.
       Msimpl.
       reflexivity.
 Qed.
-
 
 (* Strong sematics for init and assert
 Open Scope matrix_scope.
@@ -907,7 +921,6 @@ Fixpoint compile (b : bexp) (Γ : Ctx) : Square_Box (S (⟦Γ⟧) ⨂ Qubit) :=
                      (id_circ ∥ compile b2 Γ) ;;
                      (id_circ ∥ (strip_one_l_out (assert0 ∥ id_circ)))              
   end. *)
-
 Open Scope circ_scope.
 Fixpoint compile (b : bexp) (Γ : Ctx) : Square_Box (S (⟦Γ⟧) ⨂ Qubit) :=
   match b with

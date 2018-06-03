@@ -34,13 +34,14 @@ Instance Denote_OCtx : Denote OCtx nat := {| denote := size_octx |}.
 
 Fixpoint denote_unitary {W} (U : Unitary W) : Square (2^⟦W⟧) :=
   match U with  
-  | H => hadamard 
-  | X => σx
-  | Y => σy
-  | Z => σz
-  | ctrl g => control (denote_unitary g)
+  | H          => hadamard 
+  | X          => σx
+  | Y          => σy
+  | Z          => σz
+  | R_ ϕ       => phase_shift ϕ
+  | ctrl g     => control (denote_unitary g)
   | bit_ctrl g => control (denote_unitary g)  
-  | Contexts.transpose g => (denote_unitary g)†
+  | trans g    => (denote_unitary g)†
   end. 
 Instance Denote_Unitary W : Denote (Unitary W) (Square (2^⟦W⟧)) := 
     {| denote := denote_unitary |}.
@@ -59,6 +60,7 @@ Proof.
   + apply σx_unitary.
   + apply σy_unitary.
   + apply σz_unitary.
+  + apply phase_unitary.
   + simpl. apply control_unitary; assumption. (* NB: Admitted lemma *)
   + simpl. apply control_unitary; assumption. (* NB: Admitted lemma *)
   + simpl. apply transpose_unitary; assumption.
@@ -82,7 +84,7 @@ Definition denote_gate' (safe : bool) n {w1 w2} (g : Gate w1 w2)
   | init1   => super (|1⟩ ⊗ Id (2^n))
   | new0    => super (|0⟩ ⊗ Id (2^n))
   | new1    => super (|1⟩ ⊗ Id (2^n))
-  | meas    => fun ρ => super (|0⟩⟨0| ⊗ Id (2^n)) ρ .+ super (|1⟩⟨1| ⊗ Id (2^n)) ρ
+  | meas    => Splus (super (|0⟩⟨0| ⊗ Id (2^n))) (super (|1⟩⟨1| ⊗ Id (2^n)))
   | discard => Splus (super (⟨0| ⊗ Id (2^n))) (super (⟨1| ⊗ Id (2^n)))
   (* Safe performs a standard measure-discard, unsafe takes for granted that the 
      qubit to be removed is in the desired state. *)
@@ -179,6 +181,7 @@ Proof.
     unfold super.
     Msimpl.
     specialize (WF_Mixed _ H) as WF.
+    unfold Splus.
     replace (|0⟩⟨0| × ρ × |0⟩⟨0|) with (ρ 0%nat 0%nat .* |0⟩⟨0|) by solve_matrix.
     replace (|1⟩⟨1| × ρ × |1⟩⟨1|) with (ρ 1%nat 1%nat .* |1⟩⟨1|) by solve_matrix.
     specialize (mixed_state_trace_1 _ H) as TR1. unfold trace in TR1. simpl in TR1.
@@ -804,15 +807,19 @@ Proof.
   induction 1; auto.
 Qed.
 
+(* This doesn't seem to be true in the case where Γ is invalid and w1 is One. *)
+(* Discuss with Jennifer *)
 Lemma process_gate_ctx_size : forall w1 w2 (g : Gate w1 w2) p (Γ : OCtx),
       (⟦w1⟧ <= ⟦Γ⟧)%nat ->
       ⟦process_gate_state g p Γ⟧ = (⟦Γ⟧ + ⟦w2⟧ - ⟦w1⟧)%nat.
 Proof.
-  destruct g; intros p Γ H; 
-    try (simpl; omega);
-    try (simpl; rewrite Nat.sub_add; auto; fail);
+  destruct g; intros p Γ H;
+    try (simpl; rewrite Nat.add_sub; auto; fail);
     try (simpl; rewrite ctx_size_app; simpl; omega).
+(*
+  * simpl. rewrite Nat.sub_0_r. destruct Γ. simpl in *. omega. simpl. auto.
 
+  * simpl. rewrite Nat.add_sub. auto.
   * dependent destruction p. 
     simpl. admit (* need slightly updated lemmas *).
 (*
@@ -829,6 +836,7 @@ Proof.
     unfold remove_pat. simpl.
     apply denote_empty_Ctx.
     eapply remove_at_singleton; eauto. *)
+*)
 Admitted.
   
 
@@ -842,6 +850,8 @@ Proof.
     dependent destruction types_p.
     rewrite merge_nil_l.
     unfold process_gate_state at 2.
+    unfold process_gate_state. simpl.
+    destruct Γ2; simpl. auto.
     admit (* not true! *).
   * admit.
   * admit.
@@ -1203,8 +1213,12 @@ Proof.
   intros.
   unfold denote_circuit.
   simpl; fold_denote.
+  replace (process_gate g p1 Γ) with 
+      (process_gate_pat g p1 Γ, process_gate_state g p1 Γ) by 
+      (symmetry; apply surjective_pairing).
+  simpl; fold_denote.
   set (p1' := hoas_to_db_pat Γ p1).
-  set (p2 := process_gate_pat g p1 Γ).
+  set (p2 := process_gate_pat g p1 Γ).    
   rewrite (process_gate_nat _ p1' p1).
   rewrite (process_gate_denote _ _ Γ Γ1 Γ2) by assumption.   
   reflexivity.
@@ -1221,8 +1235,12 @@ Proof.
   intros.
   unfold denote_circuit.
   simpl; fold_denote.
+  replace (process_gate g p1 Γ) with 
+      (process_gate_pat g p1 Γ, process_gate_state g p1 Γ) by 
+      (symmetry; apply surjective_pairing).
+  simpl; fold_denote.
   set (p1' := hoas_to_db_pat Γ p1).
-  set (p2 := process_gate_pat g p1 Γ).
+  set (p2 := process_gate_pat g p1 Γ).    
   rewrite (process_gate_nat _ p1' p1).
   rewrite (process_gate_denote _ _ Γ Γ1 Γ2) by assumption.   
   reflexivity.
@@ -1327,9 +1345,8 @@ Lemma decr_pat_once_qubit : forall n Γ,
     decr_pat_once (fresh_pat (NTensor n Qubit) (Valid (Some Qubit :: Γ)))
     = fresh_pat (NTensor n Qubit) (Valid Γ).
 Proof.
-  induction n; intros.
-  - simpl. reflexivity.
-  - simpl. rewrite IHn. rewrite Nat.sub_0_r. reflexivity.
+  induction n; intros; trivial.
+  simpl. unfold add_fresh_state. simpl. rewrite IHn. rewrite Nat.sub_0_r. easy.
 Qed.
 
 Lemma decr_circuit_pat : forall W1 W2 (c : Box W1 W2) (p : Pat W1), 
@@ -1436,9 +1453,11 @@ Add Parametric Relation W1 W2 : (Box W1 W2) (@HOAS_Equiv W1 W2)
 (* Hints for automation *)
 (************************)
 
-Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard apply_assert0
-     apply_assert1 compose_super Splus swap_list swap_two pad denote_box denote_pat 
-     super : den_db.
+Hint Unfold get_fresh add_fresh_state get_fresh_var process_gate process_gate_state : den_db.
+
+Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard apply_assert0 apply_assert1 compose_super Splus swap_list swap_two pad denote_box denote_pat super: den_db.
+
+Hint Unfold get_fresh add_fresh_state get_fresh_var process_gate process_gate_state : ket_den_db.
 
 Hint Unfold apply_new0 apply_new1 apply_U apply_meas apply_discard apply_assert0
      apply_assert1 compose_super Splus swap_list swap_two pad denote_box denote_pat 
@@ -1493,10 +1512,12 @@ Proof.
   induction w; intros;
     (destruct Γ as [ | Γ]; [invalid_contradiction | ]);
     simpl.
-  - solve_merge. apply merge_singleton_end.
-  - solve_merge. apply merge_singleton_end.
+  - solve_merge. unfold add_fresh_state. simpl. validate. 
+    simpl. apply merge_singleton_end.
+  - solve_merge. unfold add_fresh_state. simpl. validate. 
+    simpl. apply merge_singleton_end.
   - solve_merge.
-  - solve_merge.
+  - solve_merge. 
     * repeat apply is_valid_fresh; auto.
     * destruct (IHw1 Γ); [auto | ].
       rewrite pf_merge.

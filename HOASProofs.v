@@ -334,8 +334,9 @@ Proof.
     replace (S (⟦∅⟧)) with 1%nat by auto.
     replace (Valid [Some Qubit; Some Qubit]) with Γ_1' by (subst; auto).
     
+    unfold process_gate_state. simpl.
     specialize denote_compose as DC. unfold denote_circuit in DC.
-    rewrite DC with (Γ := Γ_1) (Γ1 := Γ_2) (Γ1' := Γ_1');
+    rewrite DC with (Γ0 := ∅) (Γ := Γ_1) (Γ1 := Γ_2) (Γ1' := Γ_1');
     [ | apply share_WT; type_check; repeat constructor
     | intros; simpl; type_check
     | type_check ].

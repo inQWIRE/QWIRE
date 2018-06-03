@@ -109,6 +109,14 @@ Definition σz : Matrix 2 2 :=
           | 1, 1 => -C1
           | _, _ => C0
           end.
+
+Definition phase_shift (ϕ : R) : Matrix 2 2 :=
+  fun x y => match x, y with
+          | 0, 0 => C1
+          | 1, 1 => Cexp ϕ
+          | _, _ => C0
+          end.
+    
   
 Definition control {n : nat} (A : Matrix n n) : Matrix (2*n) (2*n) :=
   fun x y => if (x <? n) && (y =? x) then 1 else 
@@ -258,6 +266,7 @@ Lemma WF_σy : WF_Matrix 2 2 σy. Proof. show_wf. Qed.
 Lemma WF_σz : WF_Matrix 2 2 σz. Proof. show_wf. Qed.
 Lemma WF_cnot : WF_Matrix 4 4 cnot. Proof. show_wf. Qed.
 Lemma WF_swap : WF_Matrix 4 4 swap. Proof. show_wf. Qed.
+Lemma WF_phase : forall ϕ, WF_Matrix 2 2 (phase_shift ϕ). Proof. intros. show_wf. Qed.
 
 Lemma WF_control : forall (n m : nat) (U : Matrix n n), 
       (m = 2 * n)%nat ->
@@ -271,7 +280,7 @@ Proof.
   all: rewrite WFU; [reflexivity|omega].
 Qed.
 
-Hint Resolve WF_hadamard WF_σx WF_σy WF_σz WF_cnot WF_swap WF_control : wf_db.
+Hint Resolve WF_hadamard WF_σx WF_σy WF_σz WF_cnot WF_swap WF_phase WF_control : wf_db.
 
 (** Unitaries are unitary **)
 
@@ -334,6 +343,31 @@ Proof.
   replace ((S (S x) <? 2)) with false by reflexivity.
   rewrite andb_false_r.
   clra.
+Qed.
+
+Lemma phase_unitary : forall ϕ, @is_unitary 2 (phase_shift ϕ).
+Proof.
+  intros ϕ.
+  split; [show_wf|].
+  unfold Mmult, Id, phase_shift, conj_transpose, Cexp.
+  prep_matrix_equality.
+  destruct x as [| [|x]]; destruct y as [|[|y]]; try clra.
+  - simpl.
+    Csimpl.
+    unfold Cconj, Cmult.
+    simpl.
+    unfold Rminus.
+    rewrite Ropp_mult_distr_l.
+    rewrite Ropp_involutive.
+    replace (cos ϕ * cos ϕ)%R with ((cos ϕ)²) by easy.
+    replace (sin ϕ * sin ϕ)%R with ((sin ϕ)²) by easy. 
+    rewrite Rplus_comm.
+    rewrite sin2_cos2.
+    clra.
+  - simpl. Csimpl.
+    replace ((S (S x) <? 2)) with false by reflexivity.
+    rewrite andb_false_r.
+    clra.
 Qed.
 
 Lemma control_unitary : forall n (A : Matrix n n), 

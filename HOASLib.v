@@ -3,38 +3,7 @@ Require Export TypeChecking.
 Import ListNotations.
 Open Scope list_scope.
 Open Scope circ_scope.
-
-Definition apply_box {w1 w2} (b : Box w1 w2) (c : Circuit w1) : Circuit w2 :=
-  let_ x ← c;
-  unbox b x.
-Notation "b $ c" := (apply_box b c)  (right associativity, at level 10) : circ_scope.
-Coercion output : Pat >-> Circuit.
-
-Lemma apply_box_WT : forall σ τ (b : Box σ τ) (c : Circuit σ) Δ,
-      is_valid Δ ->
-      Typed_Box b -> Δ ⊢ c :Circ -> Δ ⊢ b $ c :Circ.
-Proof.
-  intros σ τ b c Δ pf_Δ pf_b pf_c.
-  eapply compose_typing.
-  - eauto.
-  - type_check. apply pf_b. type_check.
-  - type_check.
-Qed.
  
-
-
-Theorem box_WT : forall σ₁ σ₂ (f : Pat σ₁ -> Circuit σ₂),
-                 Typed_Box (box f) ->
-                 forall Δ (p : Pat σ₁), 
-                 Δ ⊢ p :Pat -> Δ ⊢ f p :Circ.
-Proof.
-
-
-Definition id_circ {W} : Box W W :=
-  box_ p ⇒ (output p).
-Lemma id_circ_WT : forall W, Typed_Box (@id_circ W).
-Proof. type_check. Qed.
-
 Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Box W1 W2 := 
   box_ p ⇒ 
     gate_ p2 ← g @ p;
@@ -43,19 +12,83 @@ Lemma boxed_gate_WT {W1 W2} (g : Gate W1 W2) : Typed_Box (boxed_gate g).
 Proof. type_check. Qed.
 Coercion boxed_gate : Gate >-> Box.
 
-Definition SWAP : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) := 
-  box_ p ⇒ let_ (p1,p2) ← p; (p2,p1).
-Lemma WT_SWAP : Typed_Box SWAP. Proof. type_check. Qed.
+Definition apply_box {w1 w2} (b : Box w1 w2) (c : Circuit w1) : Circuit w2 :=
+  let_ x ← c;
+  unbox b x.
+Notation "b $ c" := (apply_box b c)  (right associativity, at level 12) : circ_scope.
+Coercion output : Pat >-> Circuit.
+
+
+(* Should move other notations in Typechecking *)
+
+(* 
+Program Fixpoint lift_circ {W W' : WType} (c0 : Circuit W) (c : interpret W -> Circuit W') {struct W} : Circuit W' :=
+  match W with 
+  | Bit   => compose c0 (fun p => lift p c)
+  | Qubit => compose (meas $ c0) (fun p => lift p c)
+  | One   => compose c0 (fun _ => c tt) 
+  | Tensor W1 W2 => let c' := (curry c) in 
+                   compose c0 (fun p => letpair p1 p2 p 
+                     (lift_circ W1 W' p1 (fun x1 => lift_circ W2 W' p2 (c' x1))))
+  end.
+*)
+
+Fixpoint lift_circ {W W' : WType} (c0 : Circuit W) (c : interpret W -> Circuit W') {struct W} : Circuit W'. 
+  induction W.
+  + exact (compose (meas $ c0) (fun p => lift p c)).
+  + exact (compose c0 (fun p => lift p c)).
+  + exact (compose c0 (fun _ => c tt)). 
+  + simpl in c.
+    pose (c' := (curry c)).
+    exact (compose c0 (fun p => letpair p1 p2 p 
+                     (lift_circ W1 W' p1 (fun x1 => lift_circ W2 W' p2 (c' x1))))).
+Defined.
+
+(* One bit/qubit version that the Coq typechecker can deal with *)
+Program Definition lift_wire {W W' : WType} (c0 : Circuit W) (c : bool -> Circuit W')
+  : Circuit W' :=
+  match W with 
+  | Bit   => compose c0 (fun p => lift p c)
+  | Qubit => compose (meas $ c0) (fun p => lift p c)
+  | One   => c true (* invalid case *)
+  | Tensor W1 W2 => c true  (* invalid case *)
+  end.
+
+Notation "'lift_' x ← c0 ; c" := (lift_wire c0 (fun x => c))
+         (at level 14, right associativity) : circ_scope.
+
+Notation "'lift_' ( x , y ) ← c0 ; c" := (compose c0 (fun p => 
+            letpair p1 p2 p (lift_wire p1 (fun x => lift_wire p2 (fun y => c)))))
+         (at level 14, right associativity) : circ_scope.
+
+(* 
+Notation "'lift_' x ← c0 ; c" := (lift_circ c0 (fun x => c))
+         (at level 14, right associativity) : circ_scope.
+
+Notation "'lift_' ( x , y ) ← c0 ; c" := (lift_circ c0 (fun p => let (x,y) := p in c))
+         (at level 14, right associativity) : circ_scope.
+*)
 
 
 (***********************)
 (* Structural circuits *)
 (***********************)
 
+
+Definition id_circ {W} : Box W W :=
+  box_ p ⇒ (output p).
+Lemma id_circ_WT : forall W, Typed_Box (@id_circ W).
+Proof. type_check. Qed.
+
+
+Definition SWAP : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) := 
+  box_ p ⇒ let_ (p1,p2) ← p; (p2,p1).
+Lemma WT_SWAP : Typed_Box SWAP. Proof. type_check. Qed.
+
+
 Definition new (b : bool) : Box One Bit := if b then new1 else new0.
 Lemma new_WT : forall b, Typed_Box (new b).
 Proof. destruct b; type_check. Defined.
-
 
 Definition init (b : bool) : Box One Qubit := if b then init1 else init0.
 Lemma init_WT : forall b, Typed_Box (init b).

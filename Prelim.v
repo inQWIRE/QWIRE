@@ -50,6 +50,13 @@ Ltac bdestruct X :=
        [ | try first [apply not_lt in H | apply not_le in H]]].
 
 
+(* Currying *)
+
+Definition curry {A B C : Type} (f : A * B -> C) : (A -> B -> C) :=
+  fun x y => f (x,y).
+Definition uncurry {A B C : Type} (f : A -> B -> C) : (A * B -> C) :=
+  fun p => f (fst p) (snd p).
+
 (* Lists *)
 
 
