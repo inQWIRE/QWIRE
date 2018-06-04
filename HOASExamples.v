@@ -68,9 +68,10 @@ Definition deutsch (U__f : Square_Box (Qubit ⊗ Qubit)) : Box One Bit :=
     let_ y     ← H $ init1 $ ();
     let_ (x,y) ← U__f $ (x,y);
     let_ _     ← discard $ meas $ y;
-    unbox meas x.
+    meas $ H $ x.
 Lemma deutsch_WF : forall U__f, Typed_Box U__f -> Typed_Box (deutsch U__f).
 Proof. type_check. Qed.
+
 
 Definition Deutsch_Jozsa (n : nat) (U__f : Square_Box (S n ⨂ Qubit)) : 
   Box One (n ⨂ Bit) := 

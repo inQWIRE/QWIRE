@@ -359,6 +359,7 @@ Qed. *)
 (* Deutsch's Algorithm *)
 (***********************)
 
+
 Delimit Scope circ_scope with qc.
 Close Scope circ_scope. 
 Open Scope matrix_scope.
