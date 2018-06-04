@@ -41,9 +41,6 @@ Proof.
   reflexivity.
 Qed.
 
-  Lemma apply_box_WT : forall w1 w2 (b : Box w1 w2) (c : Circuit w1) Γ,
-        Γ ⊢ c :Circ -> Γ ⊢ apply_box b c :Circ.
-  Admitted.
 
 
 Ltac denote_compose :=
@@ -67,7 +64,8 @@ Ltac denote_compose :=
             ]
   end.
 
-
+Lemma matrix_1_1_Id : forall (ρ : Matrix 1 1), Mixed_State ρ -> ρ = Id 1.
+Admitted.
 
 (* U (|x⟩⊗|y⟩) = |x⟩⊗|f x ⊕ y⟩ 
   If f is constant, deutsch U returns 0 
@@ -115,14 +113,18 @@ Section Deutsch.
 
 
   Lemma deutsch_constant : (f = fun _ => true) \/ (f = fun _ => false) -> 
-                            ⟦deutsch U⟧ I1 = ⟦new false⟧ I1.
+                           forall ρ, Mixed_State ρ -> 
+                           ⟦deutsch U⟧ ρ = ⟦new false⟧ ρ.
   Proof.
-    intros pf_constant. 
+    intros pf_constant ρ pf_ρ. simpl in ρ.
+    replace ρ with I1 by (symmetry; apply matrix_1_1_Id; auto).
+    clear ρ pf_ρ.
+
     repeat (simpl; autounfold with den_db).
     Msimpl.
 
   denote_compose.
-  - unfold Γ. apply apply_box_WT. econstructor; [reflexivity | ].
+  - unfold Γ. apply apply_box_WT; auto. econstructor; [reflexivity | ].
     apply types_pair with (Γ1 := Valid [Some Qubit]) 
                           (Γ2 := Valid [None ; Some Qubit]);
     [ validate | reflexivity
@@ -167,13 +169,17 @@ Section Deutsch.
         
 
   Lemma deutsch_balanced : (f = fun x => x) \/ (f = fun x => negb x) -> 
-                            ⟦deutsch U⟧ I1 = ⟦new true⟧ I1.
-    intros pf_balanced. 
+                           forall ρ, Mixed_State ρ -> 
+                           ⟦deutsch U⟧ ρ = ⟦new true⟧ ρ.
+    intros pf_balanced ρ pf_ρ. simpl in ρ.
+    replace ρ with I1 by (symmetry; apply matrix_1_1_Id; auto).
+    clear ρ pf_ρ.
+
     repeat (simpl; autounfold with den_db).
     Msimpl.
 
   denote_compose.
-  - unfold Γ. apply apply_box_WT. econstructor; [reflexivity | ].
+  - unfold Γ. apply apply_box_WT; auto. econstructor; [reflexivity | ].
     apply types_pair with (Γ1 := Valid [Some Qubit]) 
                           (Γ2 := Valid [None ; Some Qubit]);
     [ validate | reflexivity
@@ -218,8 +224,5 @@ Section Deutsch.
       apply arithmetic_fact.
 
   Qed.
-
-    
-
 
 End Deutsch.

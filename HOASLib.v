@@ -12,11 +12,29 @@ Lemma boxed_gate_WT {W1 W2} (g : Gate W1 W2) : Typed_Box (boxed_gate g).
 Proof. type_check. Qed.
 Coercion boxed_gate : Gate >-> Box.
 
+Lemma types_circuit_valid : forall w (c : Circuit w) Γ, Γ ⊢ c :Circ -> is_valid Γ.
+Proof.
+  intros w c Γ pf_c.
+  induction pf_c.
+  - subst. eapply pat_ctx_valid; eauto.
+  - destruct pf1. subst. auto.
+  - destruct pf. subst. auto.
+Qed.
+
 Definition apply_box {w1 w2} (b : Box w1 w2) (c : Circuit w1) : Circuit w2 :=
   let_ x ← c;
   unbox b x.
 Notation "b $ c" := (apply_box b c)  (right associativity, at level 12) : circ_scope.
 Coercion output : Pat >-> Circuit.
+Lemma apply_box_WT : forall w1 w2 (b : Box w1 w2) (c : Circuit w1) Γ,
+      Typed_Box b -> Γ ⊢ c :Circ -> Γ ⊢ apply_box b c :Circ.
+Proof.
+  intros w1 w2 b c Γ pf_b pf_c.
+  type_check; [exact pf_c | | solve_merge; eapply types_circuit_valid; eauto].
+  apply unbox_typing; auto.
+  type_check.
+Qed.
+
 
 
 (* Should move other notations in Typechecking *)
