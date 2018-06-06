@@ -92,7 +92,7 @@ Section Deutsch.
   Hint Unfold apply_box : den_db.
 
 Lemma deutsch_constant : forall (f : bool -> bool) 
-                                (U : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)),
+                                (U : Box (Qubit ⊗ Qubit)%qc (Qubit ⊗ Qubit)%qc),
       Typed_Box U ->
       (f = fun _ => true) \/ (f = fun _ => false) -> 
       (forall ρ, ⟦U⟧ ρ = (toUnitary f) × ρ × (toUnitary f)†) ->
