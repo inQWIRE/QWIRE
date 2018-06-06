@@ -27,6 +27,7 @@ Lemma hadamard_measure_WT : Typed_Box hadamard_measure.
 Proof. type_check. Qed.
 
 
+
 (*************************************)
 (* Variations on Deutsch's Algorithm *)
 (*************************************)
@@ -67,19 +68,20 @@ Definition deutsch (U__f : Square_Box (Qubit ⊗ Qubit)) : Box One Bit :=
     let_ y     ← H $ init1 $ ();
     let_ (x,y) ← U__f $ (x,y);
     let_ _     ← discard $ meas $ y;
-    unbox meas x.
+    meas $ H $ x.
 Lemma deutsch_WF : forall U__f, Typed_Box U__f -> Typed_Box (deutsch U__f).
 Proof. type_check. Qed.
 
-Definition Deutsch_Jozsa (n : nat) (U__f : Square_Box (S n ⨂ Qubit)) : 
-  Box One (n ⨂ Bit) := 
+
+
+Definition Deutsch_Jozsa (n : nat) (U : Box (S n ⨂ Qubit) (S n ⨂ Qubit)) : Box One (n ⨂ Bit) := 
   box_ () ⇒
-  let_ q      ← H $ init1 $ (); 
-  let_ qs     ← ((H · init0) #n) $ (());
-  let_ (q,qs) ← U__f $ (q,qs);   
-  let_ qs     ← ((meas · H) #n) $ qs;
-  let_ _      ← discard $ meas $q; 
-  qs. 
+    let_ q      ← H $ init1 $ (); 
+    let_ qs     ← ((H · init0) #n) $ (());
+    let_ (q,qs) ← U $ (q,qs);   
+    let_ qs     ← meas #n $ H #n $ qs;
+    let_ _      ← discard $ meas $q; 
+    qs. 
 Lemma Deutsch_Jozsa_WT : forall n U__f, Typed_Box U__f -> Typed_Box (Deutsch_Jozsa n U__f).
 Proof.
   intros n U__f U_WT.
@@ -92,7 +94,7 @@ Proof.
     all: try apply WT_Par. 
     all: type_check.
     apply types_units.
-Qed.    
+Qed.
 
 
 (*******************)

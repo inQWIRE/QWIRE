@@ -65,6 +65,9 @@ FlatCircuits.vo: FlatCircuits.v HOASCircuits.vo Monad.vo
 HOASProofs.vo: HOASProofs.v HOASExamples.vo SemanticLib.vo
 	coqc HOASProofs.v
 
+Deutsch.vo: Deutsch.v HOASExamples.vo Complex.vo Denotation.vo DBCircuits.vo TypeChecking.vo
+	coqc Deutsch.v
+
 Equations.vo: Equations.v SemanticLib.vo
 	coqc Equations.v
 
