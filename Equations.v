@@ -14,16 +14,12 @@ Open Scope circ_scope.
 
 (** Equality 1: X; meas = meas; NOT **)
 
-Definition X_meas : Box Qubit Bit :=
-  box_ q ⇒ 
-    let_ q ← X $ q;
-    let_ b ← meas $ q;
-    b.
+Definition X_meas : Box Qubit Bit := X ;; meas.
 Lemma X_meas_WT : Typed_Box X_meas.
 Proof. type_check. Qed.
 
-Definition meas_NOT : Box Qubit Bit := 
-  box_ q ⇒ BNOT $ meas $ q.
+
+Definition meas_NOT : Box Qubit Bit := meas ;; BNOT.
 
 Lemma meas_NOT_WT : Typed_Box meas_NOT.
 Proof. type_check. Qed.
@@ -32,10 +28,13 @@ Lemma NOT_meas_comm : X_meas ≡ meas_NOT.
 Proof.
   matrix_denote.
   intros ρ b M.
+  Msimpl.
+  
 
-  rewrite C; trivial; omega.
+  rewrite M; trivial; omega.
   rewrite C; trivial; omega.
 Qed.  
+
 
 
 (** Equation 7': meas q; lift x <- p; new x = meas q **)

@@ -181,7 +181,10 @@ Notation "b' · b" := (inSeq b b') (at level 60, right associativity) : circ_sco
 Notation "c1 ;; c2" := (inSeq c1 c2) (at level 60, right associativity) : circ_scope.
 
 Notation "(())" := (units _) (at level 0) : circ_scope.
-Notation "g # n" := (inParMany n g) (at level 40) : circ_scope.
+Notation "g # n" := (inParMany n g) (at level 11) : circ_scope.
+
+
+
 
 Hint Resolve types_units id_circ_WT boxed_gate_WT init_WT inSeq_WT inPar_WT 
      initMany_WT inSeqMany_WT inParMany_WT : typed_db.

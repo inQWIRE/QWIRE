@@ -73,58 +73,39 @@ Admitted.
 *)
 Section Deutsch.
 
-  Variable U : Box (Qubit ⊗ Qubit)%qc (Qubit ⊗ Qubit)%qc.
-  Hypothesis U_WT : Typed_Box U.
-  Variable f : bool -> bool.
-  Variable M : Matrix 4 4. 
-
-  Definition constant := (f = fun _ => true) \/ (f = fun _ => false).
-  Definition balanced := (f = fun b => b) \/ (f = fun b => negb b).
-
-  Lemma f_constant_true_M : (f = fun _ => true) -> M = Id 2 ⊗ σx.
-  Admitted.
-
-  Lemma f_constant_false_M : (f = fun _ => false) -> M = Id 4.
-  Admitted.
-
-  Lemma f_balanced_id_M : (f = fun x => x) -> M = cnot.
-  Admitted.
-
   Definition M_balanced_neg : Matrix 4 4 := 
     list2D_to_matrix [[C0;C1;C0;C0]
                     ;[C1;C0;C0;C0]
                     ;[C0;C0;C1;C0]
                     ;[C0;C0;C0;C1]].
-  Lemma f_balanced_neg_M : (f = fun x => negb x) -> M = M_balanced_neg.
+  Definition toUnitary (f : bool -> bool) : Matrix 4 4 :=
+    match f true, f false with
+    | true, true => (* constant true *) Id 2 ⊗ σx
+    | false, false => (* constant false *) Id 4
+    | true, false  => (* balanced id *)    cnot
+    | false, true  => (* balanced other *) M_balanced_neg
+    end.
+
+  Lemma toUnitary_unitary : forall f, is_unitary (toUnitary f).
   Admitted.
 
+  Hint Unfold apply_box : den_db.
 
+Lemma deutsch_constant : forall (f : bool -> bool) 
+                                (U : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit)),
+      Typed_Box U ->
+      (f = fun _ => true) \/ (f = fun _ => false) -> 
+      (forall ρ, ⟦U⟧ ρ = (toUnitary f) × ρ × (toUnitary f)†) ->
+      ⟦deutsch U⟧ I1 = |0⟩⟨0|.
+Proof.
+  intros f U pf_U pf_constant H_U.
 
-  Hypothesis M_encodes_f : forall x y,
-             M × (bool_to_ket x ⊗ bool_to_ket y) 
-           = bool_to_ket x ⊗ bool_to_ket (f x ⊕ y).
-
-  Lemma M_unitary : is_unitary M.
-  Admitted.
-
-  Hypothesis U_encodes_M : ⟦U⟧ = super M.
-
-
-
-
-  Lemma deutsch_constant : (f = fun _ => true) \/ (f = fun _ => false) -> 
-                           forall ρ, Mixed_State ρ -> 
-                           ⟦deutsch U⟧ ρ = ⟦new false⟧ ρ.
-  Proof.
-    intros pf_constant ρ pf_ρ. simpl in ρ.
-    replace ρ with I1 by (symmetry; apply matrix_1_1_Id; auto).
-    clear ρ pf_ρ.
-
+   (* simplify definition of deutsch U *)
     repeat (simpl; autounfold with den_db).
     Msimpl.
 
   denote_compose.
-  - unfold Γ. apply apply_box_WT; auto. econstructor; [reflexivity | ].
+  - unfold Γ. apply pf_U.
     apply types_pair with (Γ1 := Valid [Some Qubit]) 
                           (Γ2 := Valid [None ; Some Qubit]);
     [ validate | reflexivity
@@ -133,53 +114,51 @@ Section Deutsch.
     ].
   - apply size_octx_0. reflexivity.
   - simpl in DC. rewrite DC. clear DC.
+    repeat (simpl; autounfold with den_db).
+    rewrite merge_nil_r. simpl.
+    
 
-    (* rewrite by the semantics of U w/ respect to M *)
-    rewrite denote_db_unbox in U_encodes_M.
-    unfold denote_circuit in U_encodes_M.
+    (* rewrite by the semantics of U *)
+    rewrite denote_db_unbox in H_U. simpl in H_U.
 
-    repeat (simpl in *; autounfold with den_db in *).
-
-    (* rewrite defn of U *)
-    rewrite merge_nil_r.
-    unfold apply_box; simpl. 
-    rewrite U_encodes_M. 
+    repeat (simpl in H_U; autounfold with den_db in H_U).
+    unfold denote_circuit in H_U. simpl in H_U.
+    rewrite H_U.
 
     (* simplify the goal *)
-    destruct M_unitary as [WFU UU]; simpl in WFU.
+    destruct (toUnitary_unitary f) as [WFU UU]; simpl in WFU.
     Msimpl.
 
     (* if f is constant, then it is either always true or false *)
     destruct pf_constant as [pf_true | pf_false].
     + (* f = fun _ => true *)
-      assert (M_eq : M = Id 2 ⊗ σx) by (apply f_constant_true_M; auto).
-      rewrite M_eq.
+      subst. unfold toUnitary. 
       solve_matrix.
       (* Arithmetic: 2 * 2 * 1/√2 * 2 * 1/2 * 1/2 * 1/√2 = 1 *)
       apply arithmetic_fact.
    + (* f = fun _ => false *)
-     assert (M_eq : M = Id 4) by (apply f_constant_false_M; auto).
-     rewrite M_eq.
+     subst. unfold toUnitary.
      solve_matrix.
       (* Arithmetic: 2 * 2 * 1/√2 * 2 * 1/2 * 1/2 * 1/√2 = 1 *)
       apply arithmetic_fact.
-
   Qed.
 
-        
 
-  Lemma deutsch_balanced : (f = fun x => x) \/ (f = fun x => negb x) -> 
-                           forall ρ, Mixed_State ρ -> 
-                           ⟦deutsch U⟧ ρ = ⟦new true⟧ ρ.
-    intros pf_balanced ρ pf_ρ. simpl in ρ.
-    replace ρ with I1 by (symmetry; apply matrix_1_1_Id; auto).
-    clear ρ pf_ρ.
 
+Lemma deutsch_balanced : forall (f : bool -> bool) (U : Box (Qubit ⊗ Qubit)%qc (Qubit ⊗ Qubit)%qc),
+      Typed_Box U ->
+      (f = fun x => x) \/ (f = fun x => negb x) ->
+      (forall ρ, ⟦U⟧ ρ = (toUnitary f) × ρ × (toUnitary f)†) ->
+      ⟦deutsch U⟧ I1 = |1⟩⟨1|.
+Proof.
+  intros f U pf_U pf_constant H_U.
+
+   (* simplify definition of deutsch U *)
     repeat (simpl; autounfold with den_db).
     Msimpl.
 
   denote_compose.
-  - unfold Γ. apply apply_box_WT; auto. econstructor; [reflexivity | ].
+  - unfold Γ. apply pf_U.
     apply types_pair with (Γ1 := Valid [Some Qubit]) 
                           (Γ2 := Valid [None ; Some Qubit]);
     [ validate | reflexivity
@@ -188,41 +167,35 @@ Section Deutsch.
     ].
   - apply size_octx_0. reflexivity.
   - simpl in DC. rewrite DC. clear DC.
+    repeat (simpl; autounfold with den_db).
+    rewrite merge_nil_r. simpl.
+    
 
-    (* rewrite by the semantics of U w/ respect to M *)
-    rewrite denote_db_unbox in U_encodes_M.
-    unfold denote_circuit in U_encodes_M.
+    (* rewrite by the semantics of U *)
+    rewrite denote_db_unbox in H_U. simpl in H_U.
 
-    repeat (simpl in *; autounfold with den_db in *).
-
-    (* rewrite defn of U *)
-    rewrite merge_nil_r.
-    unfold apply_box; simpl. 
-    rewrite U_encodes_M. 
+    repeat (simpl in H_U; autounfold with den_db in H_U).
+    unfold denote_circuit in H_U. simpl in H_U.
+    rewrite H_U.
 
     (* simplify the goal *)
-    destruct M_unitary as [WFU UU]; simpl in WFU.
+    destruct (toUnitary_unitary f) as [WFU UU]; simpl in WFU.
     Msimpl.
 
     (* if f is balanced, then it is either always identity or negation *)
-    destruct pf_balanced as [pf_id | pf_neg].
+    destruct pf_constant as [pf_id | pf_neg].
     + (* f = fun x => x *)
-      assert (M_eq : M = cnot) by (apply f_balanced_id_M; auto).
-      rewrite M_eq.
+      subst. unfold toUnitary. 
       solve_matrix.
       (* Arithmetic: 2 * 2 * 1/√2 * 2 * 1/2 * 1/2 * 1/√2 = 1 *)
       apply arithmetic_fact.
-   + (* f = fun x => ¬b *)
-     assert (M_eq : M = M_balanced_neg) by (apply f_balanced_neg_M; auto).
-     rewrite M_eq.
+   + (* f = fun x => ¬ x *)
+     subst. unfold toUnitary. simpl. unfold M_balanced_neg, list2D_to_matrix. simpl.
      solve_matrix.
-     unfold M_balanced_neg. unfold list2D_to_matrix. simpl.
-     solve_matrix.
-
       (* Arithmetic: 2 * 2 * 1/√2 * 2 * 1/2 * 1/2 * 1/√2 = 1 *)
-      autorewrite with C_db. 
       apply arithmetic_fact.
-
   Qed.
+
+        
 
 End Deutsch.
