@@ -14,7 +14,6 @@ Import ListNotations.
 Set Bullet Behavior "Strict Subproofs".
 Global Unset Asymmetric Patterns.
 
-
 Class Denote source target := {denote : source -> target}.
 
 Notation "⟦ s ⟧" := (denote s) (at level 10).
@@ -34,14 +33,17 @@ Instance Denote_OCtx : Denote OCtx nat := {| denote := size_octx |}.
 
 Fixpoint denote_unitary {W} (U : Unitary W) : Square (2^⟦W⟧) :=
   match U with  
-  | _H          => hadamard 
-  | _X          => σx
-  | _Y          => σy
-  | _Z          => σz
-  | _R_ ϕ       => phase_shift ϕ
+  | H          => hadamard 
+  | X          => σx
+  | Y          => σy
+  | Z          => σz
+  | R_ ϕ       => phase_shift ϕ
   | ctrl g     => control (denote_unitary g)
   | bit_ctrl g => control (denote_unitary g)  
+  | trans g    => (denote_unitary g)†
   end. 
+
+
 
 Instance Denote_Unitary W : Denote (Unitary W) (Square (2^⟦W⟧)) := 
     {| denote := denote_unitary |}.
@@ -61,8 +63,9 @@ Proof.
   + apply σy_unitary.
   + apply σz_unitary.
   + apply phase_unitary.
-  + simpl. apply control_unitary; assumption. 
-  + simpl. apply control_unitary; assumption. 
+  + simpl. apply control_unitary; assumption. (* NB: Admitted lemma *)
+  + simpl. apply control_unitary; assumption. (* NB: Admitted lemma *)
+  + simpl. apply transpose_unitary; assumption.
 Qed.
 (* Hint Resolve unitary_gate_unitary. Do we need this? Where? *)
 Instance Denote_Unitary_Correct W : Denote_Correct (Denote_Unitary W) :=
@@ -482,7 +485,7 @@ Lemma denote_ctrls_trans_trans : forall W (n : nat) (u : Unitary W) li,
 Proof. 
   intros W n u li. unfold denote_ctrls. simpl.
   destruct (ctrls_to_list (repeat false n) li u) as [[n' lb] U]. 
-  rewrite adjoint_involutive.
+  rewrite conj_transpose_involutive.
   reflexivity.
 Qed.
          
@@ -492,7 +495,7 @@ Proof.
   intros W n u li. unfold denote_ctrls. simpl.
   destruct li. 
   - simpl. 
-    rewrite zero_adjoint_eq.
+    rewrite zero_conj_transpose_eq.
     reflexivity.
   - destruct (ctrls_to_list (repeat false n) li u) as [[n' lb] U].
     reflexivity.
@@ -501,9 +504,9 @@ Qed.
 Lemma ctrls_to_list_empty  : forall W lb g, @ctrls_to_list W lb [] g = (O,[],Zero 2 2).
 Proof.
   induction g; trivial.
-  destruct g; try solve [simpl; rewrite zero_adjoint_eq; easy].
+  destruct g; try solve [simpl; rewrite zero_conj_transpose_eq; easy].
   remember (trans g) as g'.
-  simpl. rewrite IHg. rewrite zero_adjoint_eq.
+  simpl. rewrite IHg. rewrite zero_conj_transpose_eq.
   easy.
 Qed.  
 
@@ -523,52 +526,52 @@ Lemma denote_ctrls_transpose_qubit : forall (n : nat) (u : Unitary Qubit) (li : 
 Proof.
   intros.
   destruct li as [| k li]. 
-  rewrite 2 denote_ctrls_empty_zero. rewrite zero_adjoint_eq. easy.
+  rewrite 2 denote_ctrls_empty_zero. rewrite zero_conj_transpose_eq. easy.
   remember Qubit as W.
   induction u.
   - unfold denote_ctrls. subst; clear.
     unfold ctrls_to_list. fold (@ctrls_to_list Qubit).
     rewrite skipn_repeat, rev_repeat, firstn_repeat.
     rewrite 2 ctrl_list_to_unitary_false by (auto with wf_db).    
-    repeat setoid_rewrite kron_adjoint.
+    repeat setoid_rewrite kron_conj_transpose.
     Msimpl.
     reflexivity.
   - unfold denote_ctrls. subst; clear.
     unfold ctrls_to_list. fold (@ctrls_to_list Qubit).
     rewrite skipn_repeat, rev_repeat, firstn_repeat.
     rewrite 2 ctrl_list_to_unitary_false by (auto with wf_db).    
-    repeat setoid_rewrite kron_adjoint.
+    repeat setoid_rewrite kron_conj_transpose.
     Msimpl.
     reflexivity.
   - unfold denote_ctrls. subst; clear.
     unfold ctrls_to_list. fold (@ctrls_to_list Qubit).
     rewrite skipn_repeat, rev_repeat, firstn_repeat.
     rewrite 2 ctrl_list_to_unitary_false by (auto with wf_db).    
-    repeat setoid_rewrite kron_adjoint.
+    repeat setoid_rewrite kron_conj_transpose.
     Msimpl.
     reflexivity.
   - unfold denote_ctrls. subst; clear.
     unfold ctrls_to_list. fold (@ctrls_to_list Qubit).
     rewrite skipn_repeat, rev_repeat, firstn_repeat.
     rewrite 2 ctrl_list_to_unitary_false by (auto with wf_db).    
-    repeat setoid_rewrite kron_adjoint.
+    repeat setoid_rewrite kron_conj_transpose.
     Msimpl.
     reflexivity.
   - unfold denote_ctrls. subst; clear.
     unfold ctrls_to_list. fold (@ctrls_to_list Qubit).
     rewrite skipn_repeat, rev_repeat, firstn_repeat.
     rewrite 2 ctrl_list_to_unitary_false by (simpl; auto with wf_db).    
-    repeat setoid_rewrite kron_adjoint.
+    repeat setoid_rewrite kron_conj_transpose.
     Msimpl.
     reflexivity.
   - inversion HeqW.
   - inversion HeqW.
   - rewrite IHu by easy. subst; clear.
-    rewrite adjoint_involutive.
+    rewrite conj_transpose_involutive.
     unfold denote_ctrls. subst; clear.
     unfold ctrls_to_list. fold (@ctrls_to_list Qubit).
     destruct (ctrls_to_list (repeat false n) (k :: li) u) as [[n' lb'] u'] eqn:E1.
-    rewrite adjoint_involutive.
+    rewrite conj_transpose_involutive.
     reflexivity.
 Qed.
 
@@ -579,6 +582,45 @@ Proof.
   induction u; try (apply denote_ctrls_transpose_qubit).
   - unfold denote_ctrls. simpl.
 Admitted.    
+
+
+Lemma denote_ctrls_ctrl_u : forall (u : Unitary Qubit), denote_ctrls 2 (ctrl u) [0%nat;1%nat] = (control (denote u)). 
+Proof.
+  intros.
+  dependent induction u.
+  - unfold denote_ctrls; simpl; solve_matrix.
+  - unfold denote_ctrls; simpl; solve_matrix.
+  - unfold denote_ctrls; simpl; solve_matrix.
+  - unfold denote_ctrls; simpl; solve_matrix.
+  - unfold denote_ctrls; simpl; solve_matrix.
+  - rewrite denote_ctrls_ctrl_trans.
+    rewrite denote_ctrls_transpose.
+    rewrite IHu; trivial.
+    simpl.
+    setoid_rewrite control_adjoint. 
+    reflexivity.
+Qed.
+
+Lemma denote_ctrls_ctrl_u' : forall (u : Unitary Qubit), denote_ctrls 2 (ctrl u) [1%nat;0%nat] = swap × (control (denote u)) × swap. 
+Proof.
+  intros.
+  dependent induction u.
+  - unfold denote_ctrls; simpl; solve_matrix.
+  - unfold denote_ctrls; simpl; solve_matrix.
+  - unfold denote_ctrls; simpl; solve_matrix.
+  - unfold denote_ctrls; simpl; solve_matrix.
+  - unfold denote_ctrls; simpl; solve_matrix.
+  - rewrite denote_ctrls_ctrl_trans.
+    rewrite denote_ctrls_transpose.
+    rewrite IHu; trivial.
+    simpl.
+    repeat rewrite Mmult_adjoint.
+    Msimpl.
+    setoid_rewrite control_adjoint. 
+    rewrite Mmult_assoc.
+    reflexivity.
+Qed.
+
 
 Lemma denote_ctrls_qubit : forall n (u : Unitary Qubit) k,
   (k < n)%nat ->
@@ -598,7 +640,7 @@ Proof.
   subst.
   rewrite denote_ctrls_transpose_qubit.
   rewrite IHu.
-  repeat setoid_rewrite kron_adjoint.
+  repeat setoid_rewrite kron_conj_transpose.
   Msimpl.
   reflexivity.
 Qed.
