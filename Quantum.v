@@ -348,7 +348,7 @@ Lemma phase_unitary : forall ϕ, @is_unitary 2 (phase_shift ϕ).
 Proof.
   intros ϕ.
   split; [show_wf|].
-  unfold Mmult, Id, phase_shift, conj_transpose, Cexp.
+  unfold Mmult, Id, phase_shift, adjoint, Cexp.
   prep_matrix_equality.
   destruct x as [| [|x]]; destruct y as [|[|y]]; try clra.
   - simpl.
@@ -372,29 +372,130 @@ Qed.
 Lemma control_unitary : forall n (A : Matrix n n), 
                           is_unitary A -> is_unitary (control A). 
 Proof.
-  intros n A.
-  split.
-  destruct H; auto with wf_db.
-  induction n.
-  + unfold control, is_unitary, conj_transpose, Mmult, Id.
-    prep_matrix_equality.
-    replace (x <? 0) with false by reflexivity.
-    rewrite andb_false_r.
-    reflexivity.
-  + unfold control, is_unitary, Mmult, Id.
-    prep_matrix_equality.    
-    simpl.
-
-(*
-  intros.
-  unfold control.
+  intros n A H.
+  destruct H as [WF U].
+  split; auto with wf_db.
+  unfold control, adjoint, Mmult, Id.
   prep_matrix_equality.
-  unfold conj_transpose, Mmult, Id in *.
-  destruct (x <? n) eqn:Ltxn, (y <? n) eqn:Ltyn.
   simpl.
-*)    
-
-Admitted.
+  bdestructΩ (x =? y).
+  - subst; simpl.
+    rewrite Csum_sum.
+    bdestructΩ (y <? n + (n + 0)).
+    + bdestructΩ (n <=? y).
+      * rewrite Csum_0_bounded. Csimpl.
+        rewrite (Csum_eq _ (fun x => A x (y - n)%nat ^* * A x (y - n)%nat)).
+        ++ unfold control, adjoint, Mmult, Id in U.
+           rewrite Nat.add_0_r.
+           eapply (equal_f) in U. 
+           eapply (equal_f) in U. 
+           rewrite U.
+           rewrite Nat.eqb_refl. simpl.
+           bdestructΩ (y - n <? n).
+           easy.
+        ++ apply functional_extensionality. intros x.
+           bdestructΩ (n + x <? n).
+           bdestructΩ (n <=? n + x).
+           rewrite minus_plus.
+           easy.
+        ++ intros x L.
+           bdestructΩ (y =? x).
+           rewrite andb_false_r.
+           bdestructΩ (n <=? x).
+           simpl. clra.
+      * rewrite (Csum_unique 1). 
+        rewrite Csum_0_bounded.
+        ++ clra.
+        ++ intros.
+           rewrite andb_false_r.
+           bdestructΩ (n + x <? n).
+           simpl.
+           clra.
+        ++ exists y.
+           repeat rewrite andb_false_r.
+           split. easy.
+           split. 
+           rewrite Nat.eqb_refl.
+           bdestructΩ (y <? n).
+           simpl. clra.
+           intros x Ne.
+           bdestructΩ (y =? x ).
+           repeat rewrite andb_false_r.
+           clra.
+    + rewrite 2 Csum_0_bounded; [clra| |].
+      * intros x L.
+        rewrite WF by (right; omega).
+        bdestructΩ (n + x <? n).
+        bdestructΩ (n <=? n + x).
+        bdestructΩ (n <=? y).
+        clra.
+      * intros x L.
+        bdestructΩ (y =? x).
+        rewrite andb_false_r.
+        bdestructΩ (n <=? x).
+        simpl. clra.
+  - simpl.
+    rewrite Csum_sum.
+    bdestructΩ (y <? n + (n + 0)).
+    + bdestructΩ (n <=? y).
+      * rewrite Csum_0_bounded. Csimpl.
+        bdestructΩ (n <=? x).
+        rewrite (Csum_eq _ (fun z => A z (x - n)%nat ^* * A z (y - n)%nat)).
+        ++ unfold control, adjoint, Mmult, Id in U.
+           rewrite Nat.add_0_r.
+           eapply (equal_f) in U. 
+           eapply (equal_f) in U. 
+           rewrite U.
+           bdestructΩ (x - n =? y - n).
+           simpl.
+           easy.
+        ++ apply functional_extensionality. intros z.
+           bdestructΩ (n + z <? n).
+           bdestructΩ (n <=? n + z).
+           rewrite minus_plus.
+           easy.
+        ++ rewrite Csum_0. easy.
+           intros z.
+           bdestructΩ (n + z <? n).
+           rewrite andb_false_r.
+           Csimpl. easy. 
+        ++ intros z L.
+           bdestructΩ (z <? n).
+           bdestructΩ (n <=? z).
+           bdestructΩ (x =? z); bdestructΩ (y =? z); try clra. 
+      * bdestructΩ (n <=? x).        
+        ++ rewrite Csum_0_bounded.
+           rewrite Csum_0_bounded. clra.
+           ** intros z L.
+              bdestructΩ (n + z <? n).
+              rewrite andb_false_r.
+              clra.
+           ** intros z L.
+              bdestructΩ (z <? n).
+              rewrite andb_false_r.
+              bdestructΩ (x =? z); bdestructΩ (y =? z); try clra.
+              bdestructΩ (n <=? z).
+              clra.
+        ++ rewrite 2 Csum_0_bounded; [clra| |].
+           ** intros z L.
+              rewrite andb_false_r.
+              bdestructΩ (x =? n + z); bdestructΩ (y =? n + z); rewrite andb_false_r; clra.
+           ** intros z L.
+              rewrite andb_false_r.
+              bdestructΩ (x =? z); bdestructΩ (y =? z); rewrite andb_false_r; clra.
+    + rewrite 2 Csum_0_bounded; [clra| |].
+      * intros z L.
+        bdestructΩ (n + z <? n). 
+        bdestructΩ (n <=? n + z). 
+        bdestructΩ (n <=? y).
+        rewrite (WF _ (y-n)%nat) by (right; omega).
+        clra.
+      * intros z L.
+        bdestructΩ (y =? z).
+        rewrite andb_false_r.
+        rewrite (WF _ (y-n)%nat) by (right; omega).
+        destruct ((n <=? z) && (n <=? y)); clra.
+Qed.
 
 Lemma transpose_unitary : forall n (A : Matrix n n), is_unitary A -> is_unitary (A†).
   intros. 
@@ -402,7 +503,7 @@ Lemma transpose_unitary : forall n (A : Matrix n n), is_unitary A -> is_unitary 
   split.
   + destruct H; auto with wf_db.
   + unfold is_unitary in *.
-    rewrite conj_transpose_involutive.
+    rewrite adjoint_involutive.
     destruct H as [_ H].
     apply Minv_left in H as [_ S]. (* NB: Admitted lemma *)
     assumption.
@@ -425,7 +526,7 @@ Proof.
   split.
   apply WF_Id.
   unfold is_unitary.
-  rewrite id_conj_transpose_eq.
+  rewrite id_adjoint_eq.
   apply Mmult_1_l.
   apply WF_Id.
 Qed.
@@ -478,7 +579,7 @@ Proof.
       * simpl.
         remember ( Id (2 ^ (n - 2))) as A.
         remember swap as B.
-        setoid_rewrite (kron_conj_transpose _ _ _ _ B A).            
+        setoid_rewrite (kron_adjoint _ _ _ _ B A).            
     
 (*    rewrite (kron_mixed_product B† A† B A). *)
 
@@ -515,7 +616,7 @@ Admitted.
 
 (* Our unitaries are self-adjoint *)
 
-Definition id_sa := id_conj_transpose_eq.
+Definition id_sa := id_adjoint_eq.
 
 Lemma hadamard_sa : hadamard† = hadamard.
 Proof.
@@ -553,34 +654,50 @@ Proof.
   repeat (try destruct x; try destruct y; try clra; trivial).
 Qed.
 
+Lemma control_adjoint : forall n (U : Square n), (control U)† = control (U†).
+Proof.
+  intros n U.
+  unfold control, adjoint.
+  prep_matrix_equality.
+  rewrite Nat.eqb_sym.
+  bdestruct (y =? x). 
+  - subst.
+    bdestruct (x <? n); bdestruct (n <=? x); try omega; simpl; clra.
+  - rewrite 2 andb_false_r.
+    rewrite andb_comm.
+    rewrite (if_dist _ _ _ Cconj).
+    rewrite Cconj_0.
+    reflexivity.
+Qed.
+
 Lemma control_sa : forall (n : nat) (A : Square n), 
     A† = A -> (control A)† = (control A).
 Proof.
   intros n A H.
-  prep_matrix_equality.
-  autounfold with M_db in *.
-  autounfold with M_db in *.
-  bdestruct (x =? y); bdestruct (y =? x); 
-  bdestruct (y <? n); bdestruct (x <? n); 
-  bdestruct (n <=? y); bdestruct (n <=? x); 
-    try omega; simpl; try clra.
-  subst. 
-  (* ah, rewriting at X *)
-  remember (Cconj (A (y - n)%nat (y - n)%nat)) as L.
-  rewrite <- H. subst.
-  reflexivity.
-  remember (Cconj (A (y - n)%nat (x - n)%nat)) as L. (* oh hackyness *)
-  rewrite <- H. subst.
-  reflexivity.
+  rewrite control_adjoint.
+  rewrite H.
+  easy.
 Qed.  
+
+Lemma phase_adjoint : forall ϕ, (phase_shift ϕ)† = phase_shift (-ϕ). 
+Proof.
+  intros ϕ.
+  unfold phase_shift, adjoint.
+  prep_matrix_equality.
+  destruct_m_eq; try clra.
+  unfold Cexp, Cconj. 
+  rewrite cos_neg, sin_neg.
+  easy.
+Qed.
 
 Lemma braket0_sa : |0⟩⟨0|† = |0⟩⟨0|. Proof. mlra. Qed.
 Lemma braket1_sa : |1⟩⟨1|† = |1⟩⟨1|. Proof. mlra. Qed.
 
 Hint Rewrite hadamard_sa σx_sa σy_sa σz_sa cnot_sa swap_sa 
-             braket1_sa braket0_sa : M_db.
+             braket1_sa braket0_sa control_adjoint phase_adjoint : M_db.
 
-Hint Rewrite control_sa using (autorewrite with M_db; reflexivity) : M_db.
+(* Rather use control_adjoint :
+Hint Rewrite control_sa using (autorewrite with M_db; reflexivity) : M_db. *)
 
 (* Positive Semidefiniteness *)
 
@@ -783,12 +900,12 @@ Proof.
   exists (U × φ).
   split.
   - split; auto with wf_db.
-    rewrite (Mmult_conj_transpose _ _ _ U φ).
+    rewrite (Mmult_adjoint _ _ _ U φ).
     rewrite Mmult_assoc.
     rewrite <- (Mmult_assoc _ _ _ _ (U†)).
     rewrite H, Mmult_1_l, IP1; easy.
   - unfold super.
-    rewrite (Mmult_conj_transpose _ _ _ U φ).
+    rewrite (Mmult_adjoint _ _ _ U φ).
     repeat rewrite Mmult_assoc.
     reflexivity.
 Qed.    
@@ -847,7 +964,7 @@ Proof.
     rewrite Eρ.
     clear - IP1.
     unfold trace.
-    unfold Mmult, conj_transpose in *.
+    unfold Mmult, adjoint in *.
     simpl in *.
     match goal with
     [H : ?f = ?g |- _] => assert (f O O = g O O) by (rewrite <- H; easy)
@@ -909,10 +1026,10 @@ Proof.
   - destruct H as [φ [[WFφ IP1] Eρ]].
     destruct (lt_dec i n). 
     Focus 2.
-      rewrite Eρ. unfold Mmult, conj_transpose. simpl. rewrite WFφ. simpl. lra.
+      rewrite Eρ. unfold Mmult, adjoint. simpl. rewrite WFφ. simpl. lra.
       omega.
     rewrite Eρ.
-    unfold Mmult, conj_transpose in *.
+    unfold Mmult, adjoint in *.
     simpl in *.
     rewrite Rplus_0_l.
     match goal with
@@ -1004,7 +1121,7 @@ Qed.
 Ltac Msimpl := 
   repeat match goal with 
   | [ |- context[(?A ⊗ ?B)†]]    => let H := fresh "H" in 
-                                  specialize (kron_conj_transpose _ _ _ _ A B) as H;
+                                  specialize (kron_adjoint _ _ _ _ A B) as H;
                                   simpl in H; rewrite H; clear H
   | [ |- context[(control ?U)†]] => let H := fresh "H" in 
                                   specialize (control_sa _ U) as H;

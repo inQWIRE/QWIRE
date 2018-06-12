@@ -49,6 +49,13 @@ Ltac bdestruct X :=
     | destruct H as [H|H];
        [ | try first [apply not_lt in H | apply not_le in H]]].
 
+Ltac bdestructΩ X := bdestruct X; simpl; try omega.
+
+
+(* Distribute functions over lists *)
+
+Lemma if_dist : forall (A B : Type) (b : bool) (f : A -> B) (x y : A), f (if b then x else y) = if b then f x else f y.
+Proof. destruct b; reflexivity. Qed.
 
 (* Currying *)
 

@@ -146,11 +146,11 @@ Definition kron {m n o p : nat} (A : Matrix m n) (B : Matrix o p) :
 Definition transpose {m n} (A : Matrix m n) : Matrix n m := 
     (fun x y => A y x).
 
-Definition conj_transpose {m n} (A : Matrix m n) : Matrix n m := 
+Definition adjoint {m n} (A : Matrix m n) : Matrix n m := 
   (fun x y => Cconj (A y x)).
 
 Definition outer_product {m} (v : Matrix m 1) : Square m := 
-  Mmult v (conj_transpose v).
+  Mmult v (adjoint v).
 
 (* Kronecker of n copies of A *)
 Fixpoint kron_n n {m1 m2} (A : Matrix m1 m2) : Matrix (m1^n) (m2^n) :=
@@ -174,12 +174,12 @@ Infix "×" := Mmult (at level 40, left associativity) : matrix_scope.
 Infix "⊗" := kron (at level 40, left associativity) : matrix_scope.
 Infix "≡" := mat_equiv (at level 70) : matrix_scope.
 Notation "A ⊤" := (transpose A) (at level 0) : matrix_scope. 
-Notation "A †" := (conj_transpose A) (at level 0) : matrix_scope. 
+Notation "A †" := (adjoint A) (at level 0) : matrix_scope. 
 Notation "Σ^ n f" := (Csum f n) (at level 60) : matrix_scope.
 Notation "n ⨂ A" := (kron_n n A) (at level 30, no associativity) : matrix_scope.
 Notation "⨂ A" := (big_kron A) (at level 60): matrix_scope.
 Hint Unfold Zero Id trace dot Mplus scale Mmult kron mat_equiv transpose 
-            conj_transpose : M_db.
+            adjoint : M_db.
 
 Open Scope matrix_scope.
 Delimit Scope matrix_scope with M.
@@ -319,6 +319,27 @@ Proof.
     reflexivity.
 Qed.
 
+Lemma Csum_unique : forall k (f : nat -> C) n, 
+  (exists x, (x < n)%nat /\ f x = k /\ (forall x', x <> x' -> f x' = 0)) ->
+  Csum f n = k.
+Proof.                    
+  intros k f n [x [L [Eq Unique]]].
+  induction n; try omega.
+  Search Csum.
+  rewrite <- Csum_extend_r.
+  destruct (Nat.eq_dec x n).
+  - subst. 
+    rewrite Csum_0_bounded.
+    clra.
+    intros.
+    apply Unique.
+    omega.
+  - rewrite Unique by easy.
+    Csimpl.
+    apply IHn.
+    omega.
+Qed.    
+
 Lemma Csum_sum : forall m n f, Csum f (m + n) = 
                           Csum f m + Csum (fun x => f (m + x)%nat) n. 
 Proof.    
@@ -447,14 +468,14 @@ Lemma WF_transpose : forall {m n : nat} (A : Matrix m n),
 Proof. unfold WF_Matrix, transpose. intros m n A H x y H0. apply H. 
        destruct H0; auto. Qed.
 
-Lemma WF_conj_transpose : forall {m n : nat} (A : Matrix m n), 
+Lemma WF_adjoint : forall {m n : nat} (A : Matrix m n), 
       WF_Matrix m n A -> WF_Matrix n m A†. 
-Proof. unfold WF_Matrix, conj_transpose, Cconj. intros m n A H x y H0. simpl. 
+Proof. unfold WF_Matrix, adjoint, Cconj. intros m n A H x y H0. simpl. 
 rewrite H. clra. omega. Qed.
 
 Lemma WF_outer_product : forall {n} (v : Matrix n 1), WF_Matrix n 1 v ->
                                                  WF_Matrix n n (outer_product v).
-Proof. intros. apply WF_mult; [|apply WF_conj_transpose]; assumption. Qed.
+Proof. intros. apply WF_mult; [|apply WF_adjoint]; assumption. Qed.
 
 Lemma WF_big_kron : forall n m (l : list (Matrix m n)) (A : Matrix m n), 
                         (forall i, WF_Matrix m n (nth i l A)) ->
@@ -479,7 +500,7 @@ Ltac show_wf :=
   | [ |- WF_Matrix _ _ (?p .* ?B) ] => apply WF_scale
   | [ |- WF_Matrix _ _ (?A ⊗ ?B) ]  => apply WF_kron
   | [ |- WF_Matrix _ _ (?A⊤) ]      => apply WF_transpose 
-  | [ |- WF_Matrix _ _ (?A†) ]      => apply WF_conj_transpose 
+  | [ |- WF_Matrix _ _ (?A†) ]      => apply WF_adjoint 
   | [ |- WF_Matrix _ _ (Id _) ]     => apply WF_Id
   end;
   trivial;
@@ -506,7 +527,7 @@ Ltac show_wf :=
 
 (* Create HintDb wf_db. *)
 Hint Resolve WF_Zero WF_Id WF_I1 WF_mult WF_plus WF_scale WF_transpose 
-     WF_conj_transpose WF_outer_product WF_big_kron WF_kron : wf_db.
+     WF_adjoint WF_outer_product WF_big_kron WF_kron : wf_db.
 Hint Extern 2 (_ = _) => unify_pows_two : wf_db.
 
 
@@ -767,7 +788,7 @@ Qed.
 Theorem transpose_involutive : forall (m n : nat) (A : Matrix m n), (A⊤)⊤ = A.
 Proof. reflexivity. Qed.
 
-Theorem conj_transpose_involutive : forall (m n : nat) (A : Matrix m n), A†† = A.
+Theorem adjoint_involutive : forall (m n : nat) (A : Matrix m n), A†† = A.
 Proof. intros. mlra. Qed.  
 
 Lemma id_transpose_eq : forall n, (Id n)⊤ = (Id n).
@@ -778,14 +799,20 @@ Proof.
     trivial; omega.
 Qed.
 
-Lemma id_conj_transpose_eq : forall n, (Id n)† = (Id n).
+Lemma zero_transpose_eq : forall m n, (Zero m n)⊤ = (Zero n m).
+Proof. reflexivity. Qed.
+
+Lemma id_adjoint_eq : forall n, (Id n)† = (Id n).
 Proof.
   intros n.
-  unfold conj_transpose, Id.
+  unfold adjoint, Id.
   prep_matrix_equality.
   bdestruct (y =? x); bdestruct (x =? y); bdestruct (y <? n); bdestruct (x <? n);
     try omega; clra.
 Qed.
+
+Lemma zero_adjoint_eq : forall m n, (Zero m n)† = (Zero n m).
+Proof. unfold adjoint, Zero. rewrite Cconj_0. reflexivity. Qed.
 
 Theorem Mplus_comm : forall (m n : nat) (A B : Matrix m n), A .+ B = B .+ A.
 Proof.
@@ -986,11 +1013,11 @@ Theorem kron_transpose : forall (m n o p : nat) (A : Matrix m n) (B : Matrix o p
   (A ⊗ B)⊤ = A⊤ ⊗ B⊤.
 Proof. reflexivity. Qed.
   
-Lemma Mmult_conj_transpose : forall (m n o : nat) (A : Matrix m n) (B : Matrix n o),
+Lemma Mmult_adjoint : forall (m n o : nat) (A : Matrix m n) (B : Matrix n o),
       (A × B)† = B† × A†.
 Proof.
   intros m n o A B.
-  unfold Mmult, conj_transpose.
+  unfold Mmult, adjoint.
   prep_matrix_equality.
   rewrite Csum_conj_distr.
   apply Csum_eq.  
@@ -1000,10 +1027,10 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma kron_conj_transpose : forall (m n o p : nat) (A : Matrix m n) (B : Matrix o p ),
+Lemma kron_adjoint : forall (m n o p : nat) (A : Matrix m n) (B : Matrix o p ),
   (A ⊗ B)† = A† ⊗ B†.
 Proof. 
-  intros. unfold conj_transpose, kron. 
+  intros. unfold adjoint, kron. 
   prep_matrix_equality.
   rewrite Cconj_mult_distr.
   reflexivity.
@@ -1061,16 +1088,16 @@ Lemma outer_product_kron : forall m n (φ : Matrix m 1) (ψ : Matrix n 1),
     outer_product φ ⊗ outer_product ψ = outer_product (φ ⊗ ψ).
 Proof. 
   intros. unfold outer_product. 
-  specialize (kron_conj_transpose _ _ _ _ φ ψ) as KT. 
+  specialize (kron_adjoint _ _ _ _ φ ψ) as KT. 
   simpl in *. rewrite KT.
   specialize (kron_mixed_product _ _ _ _ _ _ φ ψ (φ†) (ψ†)) as KM. 
   simpl in *. rewrite KM.
   reflexivity.
 Qed.
 
-Hint Rewrite kron_1_l kron_1_r Mmult_1_l Mmult_1_r id_conj_transpose_eq
-     Mmult_conj_transpose kron_conj_transpose
-     id_conj_transpose_eq conj_transpose_involutive using 
+Hint Rewrite kron_1_l kron_1_r Mmult_1_l Mmult_1_r id_adjoint_eq
+     Mmult_adjoint kron_adjoint
+     id_adjoint_eq adjoint_involutive using 
      (auto 100 with wf_db; autorewrite with M_db; auto 100 with wf_db; omega) : M_db.
 
 (* Note on "using [tactics]": Most generated subgoals will be of the form 
