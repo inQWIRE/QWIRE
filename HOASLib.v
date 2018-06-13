@@ -199,7 +199,7 @@ Hint Resolve types_units id_circ_WT boxed_gate_WT init_WT inSeq_WT inPar_WT
 
 Definition CL_AND : Box (Qubit ⊗ Qubit) Qubit :=
   box_ ab ⇒
-    let_ (a,b)      ← output ab;
+    let_ (a,b)     ← output ab;
     let_ z         ← init0 $ ();
     let_ (a,(b,z)) ← CCNOT $ (a,(b,z));
     let_ a         ← meas $ a;
@@ -221,10 +221,10 @@ Proof. type_check. Qed.
 
 Definition CL_OR : Box (Qubit ⊗ Qubit) Qubit :=
   box_ (a,b) ⇒ 
-    let_ a'         ← X $a;
-    let_ b'         ← X $b;
+    let_ a'         ← _X $a;
+    let_ b'         ← _X $b;
     let_ z          ← CL_AND $ (a',b');
-    X $z.
+    _X $z.
 Lemma CL_OR_WT : Typed_Box CL_OR.
 Proof. type_check. Qed.
 
@@ -244,7 +244,7 @@ Definition TRUE : Box Qubit Qubit :=
     let_ ()    ← assert1 $x;
     output z.
 *)
-Definition TRUE : Box Qubit Qubit := X.
+Definition TRUE : Box Qubit Qubit := _X.
 Lemma TRUE_WT : Typed_Box TRUE.
 Proof. type_check. Qed.
 
@@ -262,9 +262,9 @@ Proof. type_check. Qed.
 
 Definition NOT : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) :=
   box_ (x,z) ⇒ 
-    let_ x         ← X $x;
+    let_ x         ← _X $x;
     let_ (x,z)     ← CNOT $(x,z);
-    let_ x         ← X $x;
+    let_ x         ← _X $x;
     (x,z).
 Lemma NOT_WT : Typed_Box NOT.
 Proof. type_check. Qed.

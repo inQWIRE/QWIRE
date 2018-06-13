@@ -22,7 +22,7 @@ Lemma init_discard_WT : Typed_Box init_discard.
 Proof. type_check. Qed.
 
 Definition hadamard_measure : Box Qubit Bit :=
-  box_ q ⇒ meas $ H $ q.
+  box_ q ⇒ meas $ _H $ q.
 Lemma hadamard_measure_WT : Typed_Box hadamard_measure.
 Proof. type_check. Qed.
 
@@ -34,14 +34,14 @@ Proof. type_check. Qed.
 
 Definition U_deutsch (U__f : Unitary (Qubit ⊗ Qubit)) : Box One Bit :=
   box_ () ⇒ 
-    let_ x ← init0 $();
-    let_ x ← H $x;
-    let_ y ← init1 $();
-    let_ y ← H $y;
+    let_ x     ← init0 $();
+    let_ x     ← _H $x;
+    let_ y     ← init1 $();
+    let_ y     ← _H $y;
     let_ (x,y) ← U__f $(x,y);
-    let_ x ← H $x; (* found through verification! *)
-    let_ y ← meas $y;
-    let_ () ← discard $y;
+    let_ x     ← _H $x; (* found through verification! *)
+    let_ y     ← meas $y;
+    let_ ()    ← discard $y;
     meas $x.
 
 Lemma U_deutsch_WT : forall U__f, Typed_Box (U_deutsch U__f).
@@ -49,13 +49,13 @@ Proof. type_check. Qed.
 
 Definition lift_deutsch (U__f : Square_Box (Qubit ⊗ Qubit)) : Box One Bit :=
   box_ () ⇒
-    let_ x    ← init0 $();
-    let_ x    ← H $x;
-    let_ y    ← init1 $();
-    let_ y    ← H $y;
+    let_ x     ← init0 $();
+    let_ x     ← _H $x;
+    let_ y     ← init1 $();
+    let_ y     ← _H $y;
     let_ (x,y) ← U__f $ (x,y);
-    let_ y    ← meas $y;
-    let_ x ← H $x;
+    let_ y     ← meas $y;
+    let_ x     ← _H $x;
     lift_ _    ← y;
     meas $x.
     
@@ -64,11 +64,11 @@ Proof. type_check. Qed.
 
 Definition deutsch (U__f : Square_Box (Qubit ⊗ Qubit)) : Box One Bit :=
   box_ () ⇒ 
-    let_ x     ← H $ init0 $ ();
-    let_ y     ← H $ init1 $ ();
+    let_ x     ← _H $ init0 $ ();
+    let_ y     ← _H $ init1 $ ();
     let_ (x,y) ← U__f $ (x,y);
     let_ _     ← discard $ meas $ y;
-    meas $ H $ x.
+    meas $ _H $ x.
 Lemma deutsch_WF : forall U__f, Typed_Box U__f -> Typed_Box (deutsch U__f).
 Proof. type_check. Qed.
 
@@ -76,10 +76,10 @@ Proof. type_check. Qed.
 
 Definition Deutsch_Jozsa (n : nat) (U : Box (S n ⨂ Qubit) (S n ⨂ Qubit)) : Box One (n ⨂ Bit) := 
   box_ () ⇒
-    let_ q      ← H $ init1 $ (); 
-    let_ qs     ← ((H · init0) #n) $ (());
+    let_ q      ← _H $ init1 $ (); 
+    let_ qs     ← ((_H · init0) #n) $ (());
     let_ (q,qs) ← U $ (q,qs);   
-    let_ qs     ← meas #n $ H #n $ qs;
+    let_ qs     ← meas #n $ _H #n $ qs;
     let_ _      ← discard $ meas $q; 
     qs. 
 Lemma Deutsch_Jozsa_WT : forall n U__f, Typed_Box U__f -> Typed_Box (Deutsch_Jozsa n U__f).
@@ -103,7 +103,7 @@ Qed.
 
 Definition bell00 : Box One (Qubit ⊗ Qubit) :=
   box_ () ⇒  
-    let_ a ← H $ init0 $();
+    let_ a ← _H $ init0 $();
     let_ b ← init0 $();
     CNOT $ (a,b).
 Lemma bell00_WT : Typed_Box bell00.
@@ -112,7 +112,7 @@ Proof. type_check. Qed.
 Definition alice : Box (Qubit ⊗ Qubit) (Bit ⊗ Bit) :=
   box_ qa ⇒ 
     let_ (q,a) ← CNOT $qa;
-    let_ x     ← meas $ H $q;
+    let_ x     ← meas $ _H $q;
     let_ y     ← meas $a;
     (x,y).
 Lemma alice_WT : Typed_Box alice.
@@ -120,8 +120,8 @@ Proof. type_check. Qed.
 
 Definition bob : Box (Bit ⊗ Bit ⊗ Qubit) Qubit :=
   box_ (x,y,b) ⇒ 
-    let_ (y,b)     ← bit_ctrl X $ (y,b);
-    let_ (x,b)     ← bit_ctrl Z $ (x,b);
+    let_ (y,b)     ← bit_ctrl _X $ (y,b);
+    let_ (x,b)     ← bit_ctrl _Z $ (x,b);
     discard_ (x,y) ;  
     b.
 Lemma bob_WT : Typed_Box bob.
@@ -143,8 +143,8 @@ Eval simpl in teleport.
 Definition bob_lift : Box (Bit ⊗ Bit ⊗ Qubit) Qubit :=
   box_ (x,y,b) ⇒
     lift_ (u,v)  ← (x,y);
-    let_ b       ← (if v then X else id_circ) $b;
-    let_ b       ← (if u then Z else id_circ) $b;
+    let_ b       ← (if v then _X else id_circ) $b;
+    let_ b       ← (if u then _Z else id_circ) $b;
     b.
 Lemma bob_lift_WT : Typed_Box bob_lift.
 Proof. type_check. Defined. 
@@ -157,9 +157,9 @@ Program Definition bob_lift' : Box (Bit ⊗ Bit ⊗ Qubit) Qubit :=
   box_ (x,y,b) ⇒
     lift_ (u,v) ← (x,y);
     match u,v with
-    | true,  true  => let_ b ← X $ b; Z $ b
-    | true,  false => Z $ b
-    | false, true  => X $ b
+    | true,  true  => let_ b ← _X $ b; _Z $ b
+    | true,  false => _Z $ b
+    | false, true  => _X $ b
     | false, false => b
     end.
 Lemma bob_lift_WT' : Typed_Box bob_lift'.
@@ -176,8 +176,8 @@ Proof. type_check. Defined.
 (* teleport lift outside of bob *)
 Definition bob_distant (u v : bool) : Box Qubit Qubit :=
   box_ b ⇒
-    let_ b ← (if v then X else id_circ) $ b;
-    let_ b ← (if u then Z else id_circ) $ b;
+    let_ b ← (if v then _X else id_circ) $ b;
+    let_ b ← (if u then _Z else id_circ) $ b;
     output b.
 Lemma bob_distant_WT : forall b1 b2, Typed_Box (bob_distant b1 b2).
 Proof. type_check. Defined.
@@ -196,7 +196,9 @@ Proof. type_check. Qed.
 (** Quantum Fourier Transform **)
 (*******************************)
 
-Parameter RGate : nat -> Unitary Qubit.
+(* The "controlled phase gate" 'R_ m is the phase_shift gate with 
+   e ^ (2*pi*i / 2^m) in the bottom right *)
+Definition _R'_ (m : nat) := _R_ (2 * PI / INR(2^m)).
 
 (* Check against Quipper implementation *)
 (* n + 2 = number of qubits, m = additional argument *)
@@ -209,7 +211,7 @@ Fixpoint rotations (n m : nat) {struct n}
             | S _ => 
                box_ (c,(q,qs)) ⇒
                let_ (c,qs) ← rotations n' m $ (c,qs);
-               let_ (c,q)  ← ctrl (RGate (m + 2 - n')) $ (c,q);
+               let_ (c,q)  ← ctrl (_R'_ (m + 2 - n')) $ (c,q);
                (c,(q,qs))
             end
    end.
@@ -227,11 +229,11 @@ Program Fixpoint qft (n : nat) : Box (n ⨂ Qubit) (n ⨂ Qubit) :=
   match n with 
   | 0    => id_circ
   | S n' => match n' with
-           | 0 => box_ (q,u) ⇒ (H $ q, u)
+           | 0 => box_ (q,u) ⇒ (_H $ q, u)
            | S n'' => box_ (q,qs) ⇒
                         let_ qs     ← qft n' $ output qs; 
                         let_ (q,qs) ← rotations n'' n' $ (q,qs);
-                        (H $ q,qs)
+                        (_H $ q,qs)
            end
   end.
 
@@ -246,7 +248,7 @@ Qed.
 (************************)
 
 Definition coin_flip : Box One Bit :=
-  box_ () ⇒ meas $ H $ init0 $ ().
+  box_ () ⇒ meas $ _H $ init0 $ ().
 Lemma coin_flip_WT : Typed_Box coin_flip.
 Proof. type_check. Qed.
 
@@ -256,7 +258,7 @@ Fixpoint coin_flips (n : nat) : Box One Bit :=
   | 0    => new1 $ ()
   | S n' => let_ c      ← coin_flips n' $ ();
             let_ q      ← init0 $ ();
-            let_ (c,q)  ← bit_ctrl H $ (c,q);
+            let_ (c,q)  ← bit_ctrl _H $ (c,q);
             let_ ()     ← discard $ c;
             meas $ q
   end.
@@ -367,7 +369,7 @@ Proof. type_check. Qed.
 
 (* OR defined by way of (A ∨ B) = ¬ (¬ A ∧ ¬ B) *)
 Definition OR : Box (Qubit ⊗ Qubit) Qubit :=
-  box_ (a,b) ⇒ X $ AND $ (X $ a,X $ b).
+  box_ (a,b) ⇒ _X $ AND $ (_X $ a,_X $ b).
 Lemma OR_WT : Typed_Box OR.
 Proof. type_check. Qed.
 
@@ -376,20 +378,25 @@ Proof. type_check. Qed.
 (** Reversible Gates  **)
 (***********************)
 
+(* see HOASLib *)
 
 
+
+(**********************)
 (** Invalid Circuits **)
+(**********************)
+
 Definition absurd_circ : Box Qubit (Bit ⊗ Qubit) :=
   box_ w ⇒ 
     let_ x  ← meas $w ;
-    let_ w' ← H $w ;
+    let_ w' ← _H $w ;
     (x,w').
 Definition absurd_fail : Typed_Box absurd_circ.
 Proof. type_check. Abort.
 
 Definition unmeasure : Box Qubit Qubit :=
   box_ q ⇒ 
-    let_ q ← H $q ;
+    let_ q ← _H $q ;
     let_ b ← meas $q ;
     q.
 Lemma unmeasure_fail : Typed_Box unmeasure.
@@ -398,7 +405,7 @@ Abort.
 
 Definition unused_qubit : Box Qubit One :=
   box_ w ⇒ 
-   let_ w ← H $w ;
+   let_ w ← _H $w ;
    ().
 Lemma unused_qubit_fail : Typed_Box unused_qubit.
 Proof. type_check. Abort.
@@ -411,7 +418,7 @@ Proof. type_check. Abort.
 Program Definition split_qubit : Box Qubit (Qubit ⊗ Qubit) :=
   box_ w ⇒ 
     let_ (w1,w2)  ← output w ;
-    let_ w2'     ← H $w2 ; 
+    let_ w2'     ← _H $w2 ; 
     output (w1,w2').
 Next Obligation. Abort.
 *)

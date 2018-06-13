@@ -3291,7 +3291,7 @@ simpl.
   unfold DBCircuits.hoas_to_db.
   unfold denote_gate.
   unfold Id.
-  unfold state_00. unfold conj_transpose. unfold Cconj. unfold kron. unfold Mmult.
+  unfold state_00. unfold adjoint. unfold Cconj. unfold kron. unfold Mmult.
   destruct x, y.
   -  simpl.
   unfold ket0. simpl.

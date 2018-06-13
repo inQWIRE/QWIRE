@@ -316,7 +316,7 @@ Proof.
     reflexivity.
   * repeat (autounfold with den_db; simpl).
     autorewrite with M_db. 
-    setoid_rewrite kron_conj_transpose.
+    setoid_rewrite kron_adjoint.
     autorewrite with M_db. 
 
     remember (singleton 1%nat Qubit) as Γ_1.
@@ -697,9 +697,9 @@ Proof.
   Msimpl.
   unfold super, compose_super, Splus, SZero.
   Msimpl.
-  rewrite braket0_conj_transpose, braket1_conj_transpose.
+  rewrite braket0_adjoint, braket1_adjoint.
   prep_matrix_equality; simpl.
-  unfold Mplus, Mmult, Id, conj_transpose, Zero. simpl.
+  unfold Mplus, Mmult, Id, adjoint, Zero. simpl.
   autorewrite with C_db.
   rewrite Cplus_comm. reflexivity.
 Qed.
@@ -715,7 +715,7 @@ Abort (* This is only true if ρ is a classical state *).
   unfold super, compose_super, Splus, SZero. 
   Msimpl.
   prep_matrix_equality.
-  unfold Mmult, Mplus, Zero, conj_transpose, ket0, ket1. simpl.
+  unfold Mmult, Mplus, Zero, adjoint, ket0, ket1. simpl.
   Csimpl.
   destruct x; Csimpl. 
   destruct y; Csimpl.

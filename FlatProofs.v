@@ -44,7 +44,7 @@ Proof.
           apply_new0, apply_U, apply_meas, denote_pat_in; simpl).
   Msimpl.
   prep_matrix_equality.
-  unfold fair_coin, ket0, ket1, Mplus, Mmult, conj_transpose.
+  unfold fair_coin, ket0, ket1, Mplus, Mmult, adjoint.
   Csimpl.
   destruct x, y; Csimpl; destruct_Csolve. Csolve.
 Qed.
@@ -81,7 +81,7 @@ Proof.
   repeat rewrite swap_list_n_id.
   specialize (WF_unitary U); intros wf_U.
   specialize (unitary_gate_unitary U). unfold is_unitary. simpl. intros [_ unitary_U].
-  rewrite conj_transpose_involutive. 
+  rewrite adjoint_involutive. 
   rewrite mult_1_r. (* Rewrite implicit arguments *)
   Msimpl. 
   repeat rewrite Mmult_assoc.
@@ -102,12 +102,12 @@ Proof.
   simpl.
 (* Commented because slow: *)
   repeat (repeat rewrite kron_1_l; repeat rewrite kron_1_r; repeat rewrite Mmult_1_l;
-   repeat rewrite Mmult_1_r; repeat rewrite id_conj_transpose_eq;
-   repeat rewrite conj_transpose_involutive).
+   repeat rewrite Mmult_1_r; repeat rewrite id_adjoint_eq;
+   repeat rewrite adjoint_involutive).
   
 
   Search "†".
-  repeat rewrite kron_conj_transpose.
+  repeat rewrite kron_adjoint.
 Admitted.
 *)
 

@@ -1023,7 +1023,7 @@ Proof.
   apply WF_kron; easy.
   destruct H. unfold kron, trace. 
   admit.
-  rewrite kron_conj_transpose.
+  rewrite kron_adjoint.
   destruct H as [_ [_ [SAA _]]], H0 as [_ [_ [SAB _]]].
   rewrite <- SAA, <- SAB.
   reflexivity.

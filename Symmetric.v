@@ -28,7 +28,7 @@ Proof.
   induction i as [ | i]; intros n pf U.
   * destruct n as [ | n]; [omega | ]. simpl.
     refine (box_ q ⇒ let_ (q,qs) ← q; 
-                     let_ q ← X $q; 
+                     let_ q ← _X $q; 
                      (q,qs)).
   * destruct n as [ | n]; [omega | ]. simpl.
     refine (box_ q ⇒ let_ (q,qs) ← q; 
@@ -49,7 +49,7 @@ Proof.
     apply IHi.
     type_check.
 Qed.
-Definition X_at n i (pf : i < n) := unitary_at1 n X i pf.
+Definition X_at n i (pf : i < n) := unitary_at1 n _X i pf.
 Lemma X_at_WT : forall n i pf, Typed_Box (X_at n i pf). 
 Proof. intros; apply unitary_at1_WT. Qed.
 

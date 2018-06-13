@@ -17,7 +17,7 @@ Open Scope circ_scope.
 
 Definition X_meas : Box Qubit Bit :=
   box_ q ⇒ 
-    let_ q ← X $ q;
+    let_ q ← _X $ q;
     let_ b ← meas $ q;
     b.
 Lemma X_meas_WT : Typed_Box X_meas.
@@ -60,9 +60,9 @@ Proof. type_check. Qed.
 Definition alternate {W} (U V : Unitary W) : Box (Qubit ⊗ W) (Qubit ⊗ W) :=
   box_ cx ⇒ 
     let_ (c,x) ← ctrl U $ cx;
-    let_ c     ← X $ c;
+    let_ c     ← _X $ c;
     let_ (c,x) ← ctrl V $ (c,x);
-    (X $ c,x).
+    (_X $ c,x).
 Lemma alternate_WT : forall W (U V : Unitary W), Typed_Box (alternate U V).           
 Proof. type_check. Qed.
 
@@ -239,48 +239,46 @@ Proof. type_check. Qed.
 
 Definition init_if {W}  (b : bool) (U V : Unitary W) : Box W (Qubit ⊗ W) := 
   box_ qs ⇒ 
-    let_ q   ← unbox (init b) ();
+    let_ q   ←init b $ ();
     let_ qs ← (if b then U else V) $ qs;
     (q,qs).
 Lemma init_if_WT : forall W b (U V : Unitary W), Typed_Box (init_if b U V).
 Proof. type_check. Qed.
 
-(*
-Locate "||".
-Lemma init_if_true : forall (U V : Unitary Qubit) ρ, 
-  ⟦init_if true U V⟧ ρ = (|0⟩ ⊗ 'I_2)%M × (⟦U⟧ × ρ × (⟦U⟧†)) × ('I_2 ⊗ ⟨0|)%M. 
+Lemma init_if_true_qubit : forall (U V : Unitary Qubit) ρ,
+  Mixed_State ρ -> 
+  ⟦init_if true U V⟧ ρ = (|1⟩ ⊗ 'I_2 )%M × (⟦U⟧ × ρ × (⟦U⟧†)) × (⟨1| ⊗ 'I_2)%M. 
 Proof.
-  intros U V ρ. simpl.
-  Opaque apply_U.
-  unfold denote_box; simpl.
-  Transparent apply_U.
-  unfold apply_U.
-  
+  intros U V ρ Mρ. simpl in *.
   matrix_denote.
-*)
+  Msimpl.
+  apply WF_Mixed in Mρ.
+  specialize (WF_unitary U) as WFU. simpl in WFU.
+  solve_matrix.
+Qed.  
   
+Lemma init_if_false_qubit : forall (U V : Unitary Qubit) ρ,
+  Mixed_State ρ -> 
+  ⟦init_if false U V⟧ ρ = (|0⟩ ⊗ 'I_2 )%M × (⟦V⟧ × ρ × (⟦V⟧†)) × (⟨0| ⊗ 'I_2)%M. 
+Proof.
+  intros U V ρ Mρ. simpl in *.
+  matrix_denote.
+  Msimpl.
+  apply WF_Mixed in Mρ.
+  specialize (WF_unitary V) as WFV. simpl in WFV.
+  solve_matrix.
+Qed.  
 
 Lemma init_alt_if_qubit : forall b (U V : Unitary Qubit), init_alt b U V ≡ init_if b U V.
 Proof.
   destruct b; simpl; intros U V ρ b Mρ.
-  - repeat (autounfold with den_db; intros; simpl).
-    specialize (WF_Mixed _ H); intros WFρ.
-    specialize (WF_unitary U). simpl; intros WFU.
-    specialize (WF_unitary V). simpl; intros WFV.
+  - matrix_denote. 
+    apply WF_Mixed in Mρ.
+    dependent destruction U; dependent destruction V; simpl.
     Msimpl.
-    repeat rewrite <- Mmult_assoc.
-    repeat rewrite (Mmult_assoc _ _ _ _ _ swap swap).
-    Msimpl.
-    solve_matrix.
-  - repeat (autounfold with den_db; intros; simpl).
-    specialize (WF_Mixed _ H); intros WFρ.
-    specialize (WF_unitary U). simpl; intros WFU.
-    specialize (WF_unitary V). simpl; intros WFV.
-    Msimpl.
-    repeat rewrite <- Mmult_assoc.
-    repeat rewrite (Mmult_assoc _ _ _ _ _ swap swap).
-    Msimpl.
-    solve_matrix.
+    all: solve_matrix.
+(* This takes unreasonably long, especially compared to the old version.
+   Needs a rewrite rule for two-qubit control, or simiplification to that code *)
 Qed.
 
 Lemma init_alt_if : forall W b (U V : Unitary W), init_alt b U V ≡ init_if b U V.

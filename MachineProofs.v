@@ -43,7 +43,7 @@ Proof.
   repeat (unfold apply_U, apply_meas, swap_list, swap_two, pad; simpl).
   Msimpl.
   prep_matrix_equality.
-  unfold compose_super, super, ket0, ket1, Mplus, Mmult, conj_transpose; simpl.
+  unfold compose_super, super, ket0, ket1, Mplus, Mmult, adjoint; simpl.
   Csimpl.
   destruct x, y; Csimpl; [ Csolve | Csolve | destruct_Csolve | destruct_Csolve].
 Qed.
@@ -54,7 +54,7 @@ Proof.
   repeat (unfold apply_U, apply_meas, apply_new0, swap_list, swap_two, pad; simpl).
   Msimpl. 
   prep_matrix_equality.
-  unfold compose_super, super, ket0, ket1, Mplus, Mmult, conj_transpose. 
+  unfold compose_super, super, ket0, ket1, Mplus, Mmult, adjoint. 
   Csimpl.
   destruct x, y; Csimpl; [ Csolve | Csolve | destruct_Csolve | destruct_Csolve].
 Qed.
@@ -93,7 +93,7 @@ Proof.
   specialize (unitary_gate_unitary U). unfold is_unitary. simpl. intros [WFU H]. 
   Msimpl.
   unfold super, compose_super.
-  rewrite conj_transpose_involutive.
+  rewrite adjoint_involutive.
   Msimpl.
   repeat rewrite <- Mmult_assoc. 
   rewrite H.
@@ -123,7 +123,7 @@ Proof.
   Msimpl. 
   prep_matrix_equality.
   unfold super, ket0, ket1. simpl.
-  unfold Mplus, conj_transpose. simpl.
+  unfold Mplus, adjoint. simpl.
   unfold Mmult. 
   simpl. (* Hangs *)
   destruct x, y; simpl.

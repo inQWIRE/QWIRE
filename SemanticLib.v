@@ -56,7 +56,7 @@ Proof.
   rewrite super_I; auto.
 Qed.
 
-Lemma X_spec : forall (b safe : bool), denote_box safe (boxed_gate X) (bool_to_matrix b) = 
+Lemma X_spec : forall (b safe : bool), denote_box safe (boxed_gate _X) (bool_to_matrix b) = 
                                bool_to_matrix (¬ b).
 Proof. intros. ket_denote. destruct b; unfold bool_to_ket; simpl; Msimpl; easy. Qed.
 
@@ -72,15 +72,9 @@ Proof.
   - matrix_denote.
     Msimpl.
     solve_matrix.
-    bdestruct (S (S x) <? 1). omega.
-    rewrite andb_false_r.
-    reflexivity.
   - matrix_denote.
     Msimpl.
     solve_matrix.
-    bdestruct (S (S x) <? 1). omega.
-    rewrite andb_false_r.
-    reflexivity.
 Qed.
 
 Lemma assert1_spec : forall safe, denote_box safe assert1 |1⟩⟨1| = Id 1. 
@@ -89,15 +83,9 @@ Proof.
   - matrix_denote.
     Msimpl.
     solve_matrix.
-    bdestruct (S (S x) <? 1). omega.
-    rewrite andb_false_r.
-    reflexivity.
   - matrix_denote.
     Msimpl.
     solve_matrix.
-    bdestruct (S (S x) <? 1). omega.
-    rewrite andb_false_r.
-    reflexivity.
 Qed.
 
 Lemma init_spec : forall b safe, denote_box safe (init b) (Id (2^0)) = bool_to_matrix b.
@@ -139,7 +127,7 @@ Lemma XOR_spec : forall (x y z safe : bool),
     bool_to_matrix x ⊗ bool_to_matrix y ⊗ bool_to_matrix (x ⊕ y ⊕ z).
 Proof.  
   ket_denote. Msimpl.
-  destruct x, y, z; unfold bool_to_ket; simpl; Msimpl; solve_matrix. 
+  destruct x, y, z; simpl; solve_matrix. 
 Qed.
 
 Lemma AND_spec : forall (x y z safe : bool), 
@@ -147,5 +135,6 @@ Lemma AND_spec : forall (x y z safe : bool),
     bool_to_matrix x ⊗ bool_to_matrix y ⊗ bool_to_matrix ((x && y) ⊕ z).
 Proof. 
   ket_denote. Msimpl.
-  destruct x, y, z; unfold bool_to_ket; simpl; Msimpl; solve_matrix. 
+  destruct x, y, z; simpl; Msimpl; solve_matrix. 
 Qed.
+
