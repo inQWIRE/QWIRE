@@ -274,11 +274,30 @@ Proof.
   destruct b; simpl; intros U V ρ b Mρ.
   - matrix_denote. 
     apply WF_Mixed in Mρ.
-    dependent destruction U; dependent destruction V; simpl.
+    match goal with 
+    | [|- context[let (res, u) := ?exp in _]] => replace exp with (0%nat, [false; true], ⟦V⟧)%core
+    end; [| dependent destruction V; easy]. 
+    match goal with 
+    | [|- context[let (res, u) := ?exp in _]] => replace exp with (0%nat, [false; true], ⟦U⟧)%core
+    end; [| dependent destruction U; easy]. 
+    specialize (WF_unitary U) as WFU. 
+    specialize (WF_unitary V) as WFV.
+    simpl in *.
     Msimpl.
-    all: solve_matrix.
-(* This takes unreasonably long, especially compared to the old version.
-   Needs a rewrite rule for two-qubit control, or simiplification to that code *)
+    solve_matrix.
+  - matrix_denote. 
+    apply WF_Mixed in Mρ.
+    match goal with 
+    | [|- context[let (res, u) := ?exp in _]] => replace exp with (0%nat, [false; true], ⟦V⟧)%core
+    end; [| dependent destruction V; easy]. 
+    match goal with 
+    | [|- context[let (res, u) := ?exp in _]] => replace exp with (0%nat, [false; true], ⟦U⟧)%core
+    end; [| dependent destruction U; easy]. 
+    specialize (WF_unitary U) as WFU. 
+    specialize (WF_unitary V) as WFV.
+    simpl in *.
+    Msimpl.
+    solve_matrix.
 Qed.
 
 Lemma init_alt_if : forall W b (U V : Unitary W), init_alt b U V ≡ init_if b U V.
@@ -291,7 +310,7 @@ Admitted.
 (** Equality 6: init b; X b = init ~b **) 
 
 Definition init_X (b : bool) : Box One Qubit :=
-  box_ () ⇒ X $ init b $ ().
+  box_ () ⇒ _X $ init b $ ().
 Lemma init_X_WT : forall b, Typed_Box (init_X b).
 Proof. type_check. Qed.
 

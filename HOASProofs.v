@@ -24,33 +24,34 @@ Qed.
 (* Identity circuits *)
 (*********************)
 
-(* Need updating for new apply_U 
 (* Qubit form *) 
 Lemma unitary_transpose_id_qubit : forall (U : Unitary Qubit),
    unitary_transpose U ≡ id_circ.
 Proof.
   intros U ρ safe pf_ρ.
-  assert (unitary_U : is_unitary (denote_unitary U)) by apply unitary_gate_unitary.
-  destruct unitary_U as [WF inv].
+  destruct (unitary_gate_unitary U) as [WF inv].
   matrix_denote.
-  Msimpl.          
+  setoid_rewrite denote_unitary_transpose.
+  simpl in *; Msimpl.
   repeat rewrite Mmult_assoc; try rewrite inv.
   repeat rewrite <- Mmult_assoc; try rewrite inv.
   Msimpl.     
-  unfold ctrl_list_to_unitary. simpl.
   reflexivity.
 Qed.
 
 (* General form *)
+(* Needs updating for new apply_U
 Lemma unitary_transpose_id : forall W (U : Unitary W),
   unitary_transpose U ≡ id_circ.
 Proof.
-  intros W U ρ wfρ Mρ.  
+  destruct W; try solve [inversion U].
+  apply unitary_transpose_id_qubit.
+  intros U ρ wfρ Mρ.  
   specialize (unitary_gate_unitary U); intros [WFU UU].
   simpl. autounfold with den_db. simpl.
-  assert (wf_U : WF_Matrix (2^⟦W⟧) (2^⟦W⟧) (⟦U⟧)) by show_wf.
-  assert (wf_U_dag : WF_Matrix (2^⟦W⟧) (2^⟦W⟧) (⟦U⟧†)) by show_wf.
+  assert (WFU' : WF_Matrix _ _ (⟦U⟧†)) by auto with wf_db.
   autorewrite with proof_db.
+  rewrite denote_ctrls_transpose.
   matrix_denote.
   autorewrite with M_db.
   repeat rewrite <- Mmult_assoc.
