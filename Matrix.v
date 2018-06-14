@@ -1008,11 +1008,37 @@ Proof.
     omega.
 Qed.  
 
+Lemma Mplus_tranpose : forall (m n : nat) (A : Matrix m n) (B : Matrix m n),
+  (A .+ B)⊤ = A⊤ .+ B⊤.
+Proof. reflexivity. Qed.
 
-Theorem kron_transpose : forall (m n o p : nat) (A : Matrix m n) (B : Matrix o p ),
+Lemma Mmult_tranpose : forall (m n o : nat) (A : Matrix m n) (B : Matrix n o),
+      (A × B)⊤ = B⊤ × A⊤.
+Proof.
+  intros m n o A B.
+  unfold Mmult, transpose.
+  prep_matrix_equality.
+  apply Csum_eq.  
+  apply functional_extensionality. intros z.
+  rewrite Cmult_comm.
+  reflexivity.
+Qed.
+
+Lemma kron_transpose : forall (m n o p : nat) (A : Matrix m n) (B : Matrix o p ),
   (A ⊗ B)⊤ = A⊤ ⊗ B⊤.
 Proof. reflexivity. Qed.
-  
+
+
+Lemma Mplus_adjoint : forall (m n : nat) (A : Matrix m n) (B : Matrix m n),
+  (A .+ B)† = A† .+ B†.
+Proof.  
+  intros m n A B.
+  unfold Mplus, adjoint.
+  prep_matrix_equality.
+  rewrite Cconj_plus_distr.
+  reflexivity.
+Qed.
+
 Lemma Mmult_adjoint : forall (m n o : nat) (A : Matrix m n) (B : Matrix n o),
       (A × B)† = B† × A†.
 Proof.
@@ -1096,7 +1122,7 @@ Proof.
 Qed.
 
 Hint Rewrite kron_1_l kron_1_r Mmult_1_l Mmult_1_r id_adjoint_eq
-     Mmult_adjoint kron_adjoint
+     Mmult_adjoint Mplus_adjoint kron_adjoint
      id_adjoint_eq adjoint_involutive using 
      (auto 100 with wf_db; autorewrite with M_db; auto 100 with wf_db; omega) : M_db.
 
