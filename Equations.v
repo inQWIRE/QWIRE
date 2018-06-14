@@ -46,7 +46,7 @@ Proof.
   reflexivity.
 Qed.
 
-(** Equality 2: meas x; lift x; if x then U else b = alt x U V; meas-discard x **) 
+(** Equality 2: meas x; lift x; if x then U else V = alt x U V; meas-discard x **) 
 
 Definition lift_UV {W} (U V : Unitary W) : Box (Qubit ⊗ W) W :=
   box_ qr ⇒ 

@@ -99,94 +99,7 @@ Proof.
 Qed.
 
 Lemma fair_toss : ⟦coin_flip⟧ I1  = fair_coin.
-Proof.
-  repeat (autounfold with den_db; simpl).
-  Msimpl.
-  prep_matrix_equality.
-  autounfold with M_db.
-  simpl; autorewrite with C_db.
-  destruct_m_eq; autorewrite with C_db; reflexivity.
-Qed.
-
-Fixpoint upper_bound (li : list nat) : nat :=
-  match li with
-  | nil => 0
-  | n :: li' => max (S n) (upper_bound li')
-  end.
-
-
-Lemma pat_to_ctx_unique : forall {W} Γ (p : Pat W), Types_Pat Γ p ->
-                                               Γ = pat_to_ctx p.
-Proof.
-  intros W Γ p.
-  generalize dependent Γ.
-  induction p.
-  - intros. inversion H. reflexivity.
-  - intros. simpl. inversion H; subst. 
-    apply singleton_equiv in H2; subst.
-    reflexivity.
-  - intros. simpl. inversion H; subst. 
-    apply singleton_equiv in H2; subst.
-    reflexivity.
-  - intros.
-    simpl.
-    dependent destruction H.
-    erewrite <- IHp1 by apply H.
-    erewrite <- IHp2 by apply H0.
-    reflexivity.
-Qed.    
-
-Lemma size_pat_to_ctx : forall {W} (p : Pat W) Γ, Types_Pat Γ p ->
-    ⟦pat_to_ctx p⟧= ⟦W⟧.
-Proof.
-  intros.
-  erewrite <- pat_to_ctx_unique by apply H.
-  symmetry. eapply types_pat_size; apply H.
-Qed.
-
-(* This isn't true. Counterexamples:
-Transparent merge.
-Eval simpl in OCtx_dom (pat_to_ctx (qubit O, qubit O)).
-Eval simpl in pat_to_list (qubit O, qubit O).
-Eval simpl in OCtx_dom (pat_to_ctx (qubit 2%nat, qubit 1%nat)).
-Eval simpl in pat_to_list (qubit 2%nat, qubit 1%nat).
-Opaque merge.
-
-Lemma OCtx_dom_pat : forall w (p : Pat w),
-      OCtx_dom (pat_to_ctx p) = pat_to_list p.
-Proof. 
-  induction p; trivial.
-  - simpl.
-    induction v; simpl; trivial.
-    rewrite IHv.
-    reflexivity.
-  - simpl.
-    induction v; simpl; trivial.
-    rewrite IHv.
-    reflexivity.
-  - simpl. 
-Abort.
-*)
-
-Close Scope circ_scope.
-Lemma denote_tensor : forall (Γ Γ' : OCtx) {w} (c : Circuit w) 
-                             {n1 n2} (ρ1 : Square n1) (ρ2 : Square n2),
-      WF_Matrix (2^⟦Γ'⟧) (2^⟦Γ'⟧) ρ1 ->
-      WF_Matrix (2^⟦Γ⟧) (2^⟦Γ⟧) ρ2 ->
-      ⟨Γ | Γ' ⊩ c⟩ (ρ1 ⊗ ρ2) = (⟨∅ | Γ' ⊩ c⟩ ρ1) ⊗ ρ2.
-Admitted.
-
-
-
-Lemma hoas_to_db_pair : forall Γ w1 w2 (p1 : Pat w1) (p2 : Pat w2),
-      hoas_to_db_pat Γ (pair p1 p2)
-    = pair (hoas_to_db_pat Γ p1) (hoas_to_db_pat Γ p2).
-Proof.
-  intros. unfold hoas_to_db_pat. simpl.
-  reflexivity.
-Qed.
-
-Open Scope circ_scope.
+Proof. matrix_denote. Msimpl. solve_matrix. Qed.
 
 Lemma wf_biased_coin : forall c, WF_Matrix 2 2 (biased_coin c).
 Proof.
@@ -199,11 +112,7 @@ Hint Unfold super_Zero : den_db.
 Lemma flips_correct : forall n, ⟦coin_flips n⟧ I1 = biased_coin (1/(2^n)).
 Proof.
   induction n.  
-  + repeat (autounfold with den_db; simpl).
-    Msimpl.
-    prep_matrix_equality.
-    autounfold with M_db.
-    destruct_m_eq; clra.
+  + matrix_denote. Msimpl. solve_matrix.
   + simpl.
     repeat (simpl; autounfold with den_db). 
     replace 0%nat with (⟦∅⟧) by auto.
@@ -243,13 +152,81 @@ Proof.
       reflexivity.
 Qed.
 
-Lemma cnot_eq : cnot = control σx.
+(* The following uses a lemma (HDUB) that is probably worth proving, but not yet proven *)
+(* Also uses a claim about "hoas_to_db [None]" which shouldn't appear. *)
+Lemma flips_lift_correct : forall n, ⟦coin_flips_lift n⟧ I1 = biased_coin (1/(2^n)).
 Proof.
-  autounfold with M_db.
-  simpl.
-  prep_matrix_equality.
-  repeat (try destruct x; try destruct y; autorewrite with C_db; trivial).
-Qed.
+  induction n.
+  + matrix_denote. Msimpl. solve_matrix.
+  + simpl.
+    matrix_denote.
+    Msimpl.
+    simpl in IHn. unfold denote_box, denote_db_box in IHn. simpl in IHn.
+    unfold hoas_to_db_box in IHn. simpl in IHn.
+    destruct (coin_flips_lift n) eqn:EC.
+    unfold remove_pat. simpl.
+    replace ((box c) $ ()) with (c ()) by reflexivity.
+    replace (⟨1| × (|0⟩⟨0| × (hadamard × |0⟩⟨0| × hadamard) × |0⟩⟨0| .+ 
+                    |1⟩⟨1| × (hadamard × |0⟩⟨0| × hadamard) × |1⟩⟨1|) × |1⟩)
+      with ((1/2) .* 'I_1) by solve_matrix. 
+    (* seems truthy. almost certainly true where ρ = I_1, as in this case  *)
+    assert (scale_safe : forall safe w i j (c : DeBruijn_Circuit w) a ρ, 
+               denote_db_circuit safe i j c (a .* ρ) = a .* denote_db_circuit safe i j c ρ). admit.
+    (* there should never be [None] contexts *)
+    assert (HDUB: forall W, @hoas_to_db W (Valid [None]) = @hoas_to_db W ∅). admit.
+    rewrite HDUB.
+    rewrite HDUB.    
+    setoid_rewrite IHn.
+    solve_matrix.
+    - rewrite Cmult_plus_distr_l.
+      Csimpl.
+      rewrite Cplus_assoc.
+      rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
+      Search (_ * - _).
+      rewrite <- Copp_mult_distr_r.
+      clra.
+    - rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
+      easy.
+Abort.
+
+(* This generalizes the theorem to avoid the lemma *)
+Lemma flips_lift_correct : forall n a, ⟦coin_flips_lift n⟧ (a .* I1) = a .* biased_coin (1/(2^n)).
+Proof.
+  induction n.
+  + matrix_denote. Msimpl. solve_matrix.
+  + intros a.
+    simpl.
+    matrix_denote.
+    Msimpl.
+    simpl in IHn. unfold denote_box, denote_db_box in IHn. simpl in IHn.
+    unfold hoas_to_db_box in IHn. simpl in IHn.
+    destruct (coin_flips_lift n) eqn:EC.
+    unfold remove_pat. simpl.
+    replace ((box c) $ ()) with (c ()) by reflexivity.
+    match goal with 
+    [|- _ .+ ?f ?ρ = _] => replace ρ with ((a/2 .* 'I_1))
+    end.
+    2: solve_matrix; rewrite (Cmult_comm (/√2)), <- Cmult_assoc; autorewrite with C_db; easy.
+    (* there should never be [None] contexts *)
+    assert (HDUB: forall W, @hoas_to_db W (Valid [None]) = @hoas_to_db W ∅). admit.
+    rewrite HDUB.    
+    setoid_rewrite (IHn (a / 2)).
+    solve_matrix.
+    - rewrite (Cmult_comm _ a).
+      repeat rewrite <- Cmult_assoc.
+      rewrite <- Cmult_plus_distr_l.
+      autorewrite with C_db.
+      rewrite (Cmult_plus_distr_l (/2)).
+      autorewrite with C_db.
+      rewrite Cplus_assoc.
+      autorewrite with C_db.      
+      rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
+      easy.
+    - rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
+      rewrite Cmult_assoc.
+      easy.
+Abort.
+
 
 (***********)
 (* sharing *)
@@ -611,14 +588,12 @@ Qed.
    unification. Simply comparing the matrices may be more efficient,
    however. *)
 
-Lemma teleport_eq : forall (ρ : Density 2), 
-  Mixed_State ρ -> ⟦teleport⟧ ρ = ρ.
+Lemma teleport_eq : teleport ≡ id_circ.
 Proof.
-  intros ρ H.
-  repeat (simpl; autounfold with den_db). 
-  specialize (WF_Mixed _ H). intros WFρ.
+  intros ρ safe Mρ.
+  matrix_denote.
+  specialize (WF_Mixed _ Mρ). intros WFρ.
   Msimpl.
-  assoc_least.
   solve_matrix.
   all: rewrite (Cmult_assoc (/ √2));
        autorewrite with C_db;
@@ -654,11 +629,10 @@ Qed.
 
 Definition teleport_distant_eq : teleport_distant ≡ id_circ.
 Proof. 
+  intros ρ safe Mρ.
   matrix_denote.
-  intros ρ H M.
-  specialize (WF_Mixed _ M). intros WFρ.
+  specialize (WF_Mixed _ Mρ). intros WFρ.
   Msimpl.
-  assoc_least.
   solve_matrix.
   all: rewrite (Cmult_assoc (/ √2));
        autorewrite with C_db;

@@ -265,6 +265,7 @@ Fixpoint coin_flips (n : nat) : Box One Bit :=
 Lemma coin_flips_WT : forall n, Typed_Box (coin_flips n).
 Proof. intros. induction n; type_check. Qed.
 
+(* I prefer the version below 
 Fixpoint coin_flips_lift (n : nat) : Box One Bit := 
   box_ () ⇒ 
   match n with
@@ -273,6 +274,17 @@ Fixpoint coin_flips_lift (n : nat) : Box One Bit :=
             lift_ x ← q;
             if x then coin_flip $ ()
                  else new0 $ ()
+  end.
+Lemma coin_flips_lift_WT : forall n, Typed_Box (coin_flips_lift n).
+Proof. intros. induction n; type_check. Qed. *)
+
+Fixpoint coin_flips_lift (n : nat) : Box One Bit := 
+  box_ () ⇒ 
+  match n with
+  | 0    => new1 $ ()
+  | S n' => lift_ x ← coin_flip $ ();
+           if x then coin_flips_lift n' $ ()
+                else new0 $ ()
   end.
 Lemma coin_flips_lift_WT : forall n, Typed_Box (coin_flips_lift n).
 Proof. intros. induction n; type_check. Qed.
@@ -289,7 +301,9 @@ Proof. intros. type_check; try apply types_units; type_check.
 Qed.
 
 
+(***********************)
 (** Unitary Transpose **)
+(***********************)
 
 Definition unitary_transpose {W} (U : Unitary W) : Box W W := 
   box_ p ⇒ trans U $ U $ p.

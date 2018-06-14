@@ -32,7 +32,7 @@ Proof.
   reflexivity.
 Qed.
 
-Ltac denote_compose :=
+Ltac compose_denotations :=
   match goal with
   | [ |- context[denote_db_circuit ?safe ?n_Γ0 ?n_Γ1' (hoas_to_db ?Γ1' (compose ?c ?f))] ]  
          => let Γ1 := fresh "Γ1" in evar (Γ1 : OCtx);
@@ -69,8 +69,30 @@ Definition toUnitary (f : bool -> bool) : Matrix 4 4 :=
   | true, true => (* constant true *) Id 2 ⊗ σx
   | false, false => (* constant false *) Id 4
   | true, false  => (* balanced id *)    cnot
-  | false, true  => (* balanced other *) M_balanced_neg
+  | false, true  => (* balanced flip *) M_balanced_neg
   end.
+
+(* For Matrix.v *)
+Lemma WF_list2D_to_matrix : forall m n li, 
+    length li = m ->
+    (forall li', In li' li -> length li' = n)  ->
+    WF_Matrix m n (list2D_to_matrix li).
+Proof.
+  intros m n li L F x y [l | r].
+  - unfold list2D_to_matrix. 
+    rewrite (nth_overflow _ []).
+    destruct y; easy.
+    rewrite L. apply l.
+  - unfold list2D_to_matrix. 
+    rewrite (nth_overflow _ C0).
+    easy.
+    Search In nth.
+    destruct (nth_in_or_default x li []) as [IN | DEF].
+    apply F in IN.
+    rewrite IN. apply r.
+    rewrite DEF.
+    simpl; omega.
+Qed.
 
 Lemma toUnitary_unitary : forall f, is_unitary (toUnitary f).
 Proof.
@@ -81,17 +103,13 @@ Proof.
   replace (σx × σx) with ('I_2) by solve_matrix. rewrite id_kron. reflexivity.
   solve_matrix.
   unfold M_balanced_neg.
-  
-  Search list2D_to_matrix WF_Matrix.
-  auto with wf_db.
-  Search 
-
-  Search kron Id.
- reduce_matrices. 
-solve_matrix. simpl.
- solve_matrix.
-  
-  Admitted.
+  apply WF_list2D_to_matrix.
+  easy.
+  intros li H.
+  repeat (destruct H; subst; trivial). 
+  unfold M_balanced_neg.  
+  solve_matrix.
+Qed.  
 
   Hint Unfold apply_box : den_db.
 
@@ -108,7 +126,7 @@ Proof.
     repeat (simpl; autounfold with den_db).
     Msimpl.
 
-  denote_compose.
+  compose_denotations.
   - unfold Γ. apply pf_U.
     apply types_pair with (Γ1 := Valid [Some Qubit]) 
                           (Γ2 := Valid [None ; Some Qubit]);
@@ -161,7 +179,7 @@ Proof.
     repeat (simpl; autounfold with den_db).
     Msimpl.
 
-  denote_compose.
+  compose_denotations.
   - unfold Γ. apply pf_U.
     apply types_pair with (Γ1 := Valid [Some Qubit]) 
                           (Γ2 := Valid [None ; Some Qubit]);
