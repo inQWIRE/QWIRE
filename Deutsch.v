@@ -18,21 +18,12 @@ Close Scope circ_scope.
 Open Scope matrix_scope.
 Open Scope C_scope.
 
-  Lemma arithmetic_fact :   2 * (2 * (/ √ 2 * (2 * (/ 2 * / 2))) * / √ 2) = 1. 
-  Proof.
-    assert ((2:C) <> (0:C))%C by admit.
-    replace (2 * (/2 * /2)) with ((2 * /2) * /2)
-      by (rewrite Cmult_assoc; reflexivity).
-    rewrite Cinv_r; auto.
-    rewrite Cmult_1_l; auto.
-    rewrite (Cmult_comm (/√ 2) (/2)).
-    replace (2 * (/2 * /√2)) with ((2 * /2) * /√2)
-      by (rewrite Cmult_assoc; reflexivity).
-    rewrite Cinv_r; auto.
-    rewrite Cmult_1_l; auto.
-    rewrite square_rad2.
-    rewrite Cinv_r; auto.
-  Admitted.
+Lemma arithmetic_fact :   2 * (2 * (/ √ 2 * (2 * (/ 2 * / 2))) * / √ 2) = 1. 
+Proof.
+  rewrite (Cmult_comm (/√2) _).
+  repeat (rewrite (Cmult_assoc 2 (/2)); autorewrite with C_db).
+  easy.
+Qed.
 
 Lemma size_octx_0 : forall Γ, Γ = ∅ -> size_octx Γ = 0%nat.
 Proof.
@@ -40,8 +31,6 @@ Proof.
   subst.
   reflexivity.
 Qed.
-
-
 
 Ltac denote_compose :=
   match goal with
@@ -64,29 +53,44 @@ Ltac denote_compose :=
             ]
   end.
 
-Lemma matrix_1_1_Id : forall (ρ : Matrix 1 1), Mixed_State ρ -> ρ = Id 1.
-Admitted.
-
 (* U (|x⟩⊗|y⟩) = |x⟩⊗|f x ⊕ y⟩ 
   If f is constant, deutsch U returns 0 
   If f is balanced, deutsch U returns 1 
 *)
 Section Deutsch.
 
-  Definition M_balanced_neg : Matrix 4 4 := 
-    list2D_to_matrix [[C0;C1;C0;C0]
-                    ;[C1;C0;C0;C0]
-                    ;[C0;C0;C1;C0]
-                    ;[C0;C0;C0;C1]].
-  Definition toUnitary (f : bool -> bool) : Matrix 4 4 :=
-    match f true, f false with
-    | true, true => (* constant true *) Id 2 ⊗ σx
-    | false, false => (* constant false *) Id 4
-    | true, false  => (* balanced id *)    cnot
-    | false, true  => (* balanced other *) M_balanced_neg
-    end.
+Definition M_balanced_neg : Matrix 4 4 := 
+  list2D_to_matrix [[C0;C1;C0;C0]
+                   ;[C1;C0;C0;C0]
+                   ;[C0;C0;C1;C0]
+                   ;[C0;C0;C0;C1]].
+Definition toUnitary (f : bool -> bool) : Matrix 4 4 :=
+  match f true, f false with
+  | true, true => (* constant true *) Id 2 ⊗ σx
+  | false, false => (* constant false *) Id 4
+  | true, false  => (* balanced id *)    cnot
+  | false, true  => (* balanced other *) M_balanced_neg
+  end.
 
-  Lemma toUnitary_unitary : forall f, is_unitary (toUnitary f).
+Lemma toUnitary_unitary : forall f, is_unitary (toUnitary f).
+Proof.
+  intros. 
+  unfold toUnitary, is_unitary.
+  destruct (f true), (f false); Msimpl.
+  all: split; auto with wf_db.
+  replace (σx × σx) with ('I_2) by solve_matrix. rewrite id_kron. reflexivity.
+  solve_matrix.
+  unfold M_balanced_neg.
+  
+  Search list2D_to_matrix WF_Matrix.
+  auto with wf_db.
+  Search 
+
+  Search kron Id.
+ reduce_matrices. 
+solve_matrix. simpl.
+ solve_matrix.
+  
   Admitted.
 
   Hint Unfold apply_box : den_db.
