@@ -16,10 +16,7 @@ Open Scope circ_scope.
 (** Equality 1: X; meas = meas; NOT **)
 
 Definition X_meas : Box Qubit Bit :=
-  box_ q ⇒ 
-    let_ q ← _X $ q;
-    let_ b ← meas $ q;
-    b.
+  box_ q ⇒ meas $ _X $ q.
 Lemma X_meas_WT : Typed_Box X_meas.
 Proof. type_check. Qed.
 
@@ -103,11 +100,9 @@ Proof. type_check. Qed.
 
 Lemma U_meas_eq_meas : forall U, U_meas_discard U ≡ meas_discard.
 Proof.
-Admitted.
-(*
   repeat (autounfold with den_db; intros; simpl).
   specialize (WF_Mixed _ H); intros WFρ.
-  specialize (unitary_let_unitary U); intros [WFU UU].
+  specialize (unitary_gate_unitary U); intros [WFU UU].
   simpl in *. 
   Msimpl.
   rewrite Mmult_plus_distr_l.
@@ -118,17 +113,17 @@ Admitted.
   rewrite trρ.
   remember (denote_unitary U) as u.
   repeat rewrite Cmult_plus_distr_r.
-  remember (u 0%nat 0%nat) as u00. remember (u 0%nat 1%nat) as u01.
-  remember (u 1%nat 0%nat) as u10. remember (u 1%nat 1%nat) as u11.
-  remember (ρ 0%nat 0%nat) as ρ00. remember (ρ 0%nat 1%nat) as ρ01.
-  remember (ρ 1%nat 0%nat) as ρ10. remember (ρ 1%nat 1%nat) as ρ11.
+  set (u00 := u 0%nat 0%nat). set (u01 := u 0%nat 1%nat).
+  set (u10 := u 1%nat 0%nat). set (u11 := u 1%nat 1%nat).
+  set (ρ00 := ρ 0%nat 0%nat). set (ρ01 := ρ 0%nat 1%nat).
+  set (ρ10 := ρ 1%nat 0%nat). set (ρ11 := ρ 1%nat 1%nat).
   repeat rewrite Cplus_assoc.
   repeat rewrite (Cmult_comm _ ρ00), (Cmult_comm _ ρ01), 
                  (Cmult_comm _ ρ10), (Cmult_comm _ ρ11).
-  remember (ρ00 * u00 * u00 ^* ) as c000. remember (ρ00 * u10 * u10 ^* ) as c001.
-  remember (ρ10 * u01 * u00 ^* ) as c100. remember (ρ10 * u11 * u10 ^* ) as c101.
-  remember (ρ01 * u00 * u01 ^* ) as c010. remember (ρ01 * u10 * u11 ^* ) as c011.
-  remember (ρ11 * u01 * u01 ^* ) as c110. remember (ρ11 * u11 * u11 ^* ) as c111.
+  set (c000 := ρ00 * u00 * u00 ^* ). set (c001 := ρ00 * u10 * u10 ^* ).
+  set (c010 := ρ01 * u00 * u01 ^* ). set (c011 := ρ01 * u10 * u11 ^* ).
+  set (c100 := ρ10 * u01 * u00 ^* ). set (c101 := ρ10 * u11 * u10 ^* ).
+  set (c110 := ρ11 * u01 * u01 ^* ). set (c111 := ρ11 * u11 * u11 ^* ).
   assert (c000 + c100 + c010 + c110 + c001 + c101 + c011 + c111 = 1).   
   { repeat rewrite <- Cplus_assoc. rewrite (Cplus_comm c110).
     repeat rewrite <- Cplus_assoc. rewrite (Cplus_comm c010).
@@ -136,31 +131,31 @@ Admitted.
     repeat rewrite Cplus_assoc.
     replace (c000 + c001) with ρ00.
     Focus 2.
-      subst.
+      unfold c000, c001.
       repeat rewrite <- Cmult_assoc.
       rewrite <- Cmult_plus_distr_l.
-      assert (((denote_unitary U) † × denote_unitary U ) 0 0 = Id 2 0 0)%nat 
-        by (rewrite <- UU; reflexivity).
+      assert ((u † × u) 0 0 = Id 2 0 0)%nat by (rewrite <- UU; easy).
       unfold Mmult, Id, adjoint in H0. simpl in H0.
       autorewrite with C_db in H0.
       rewrite Cmult_comm in H0.
-      rewrite (Cmult_comm ((denote_unitary U 1%nat 0%nat) ^* )) in H0.
+      rewrite (Cmult_comm ((u 1%nat 0%nat) ^* )) in H0.
+      unfold u00, u10.
       rewrite H0.                 
       clra.
     rewrite <- 3 Cplus_assoc.
     rewrite (Cplus_assoc c111).
     replace (c111 + c110) with ρ11.
     Focus 2.
-      subst.
+      unfold c111, c110.
       repeat rewrite <- Cmult_assoc.
       rewrite <- Cmult_plus_distr_l.
-      assert (((denote_unitary U) † × denote_unitary U ) 1 1 = Id 2 1 1)%nat 
-        by (rewrite <- UU; reflexivity).
+      assert ((u † × u) 1 1 = Id 2 1 1)%nat by (rewrite <- UU; easy).
       unfold Mmult, Id, adjoint in H0. simpl in H0.
       autorewrite with C_db in H0.
       rewrite Cmult_comm in H0.
       rewrite Cplus_comm in H0.
       rewrite Cmult_comm in H0.
+      unfold u11, u01. 
       rewrite H0.                 
       clra.
     rewrite (Cplus_comm ρ11).
@@ -168,16 +163,16 @@ Admitted.
     repeat rewrite (Cplus_assoc c011).
     replace (c011 + c010) with C0.
     Focus 2.
-      subst.
+      unfold c011, c010.
       repeat rewrite <- Cmult_assoc.
       rewrite <- Cmult_plus_distr_l.
-      assert (((denote_unitary U) † × denote_unitary U ) 1 0 = Id 2 1 0)%nat 
-        by (rewrite <- UU; reflexivity).
+      assert ((u† × u) 1 0 = Id 2 1 0)%nat  by (rewrite <- UU; easy).
       unfold Mmult, Id, adjoint in H0. simpl in H0.
       autorewrite with C_db in H0.
       rewrite Cmult_comm in H0.
       rewrite Cplus_comm in H0.
       rewrite Cmult_comm in H0.
+      unfold u00, u01, u10, u11.
       rewrite H0.                 
       clra.
     rewrite Cplus_0_l.
@@ -185,16 +180,16 @@ Admitted.
     repeat rewrite (Cplus_assoc c101).
     replace (c101 + c100) with C0.
     Focus 2.
-      subst.
+      unfold c101, c100.
       repeat rewrite <- Cmult_assoc.
       rewrite <- Cmult_plus_distr_l.
-      assert (((denote_unitary U) † × denote_unitary U ) 0 1 = Id 2 0 1)%nat 
-        by (rewrite <- UU; reflexivity).
+      assert ((u † × u ) 0 1 = Id 2 0 1)%nat by (rewrite <- UU; easy).
       unfold Mmult, Id, adjoint in H0. simpl in H0.
       autorewrite with C_db in H0.
       rewrite Cmult_comm in H0.
       rewrite Cplus_comm in H0.
       rewrite Cmult_comm in H0.
+      unfold u00, u01, u10, u11.
       rewrite H0.                 
       clra.
     rewrite Cplus_0_l.
@@ -203,7 +198,6 @@ Admitted.
   rewrite H0. 
   reflexivity.
 Qed.
-*) 
        
 (** Equality 4: init; meas = new **)
 

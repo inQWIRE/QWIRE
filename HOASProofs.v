@@ -40,7 +40,7 @@ Proof.
 Qed.
 
 (* General form *)
-(* Needs updating for new apply_U
+(* Needs updating for new apply_U 
 Lemma unitary_transpose_id : forall W (U : Unitary W),
   unitary_transpose U ≡ id_circ.
 Proof.
@@ -174,7 +174,7 @@ Proof.
                denote_db_circuit safe i j c (a .* ρ) = a .* denote_db_circuit safe i j c ρ). admit.
     (* there should never be [None] contexts *)
     assert (HDUB: forall W, @hoas_to_db W (Valid [None]) = @hoas_to_db W ∅). admit.
-    rewrite HDUB.
+    rewrite scale_safe.
     rewrite HDUB.    
     setoid_rewrite IHn.
     solve_matrix.
@@ -225,7 +225,7 @@ Proof.
     - rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
       rewrite Cmult_assoc.
       easy.
-Abort.
+Admitted.
 
 
 (***********)
