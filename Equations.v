@@ -455,6 +455,7 @@ Abort.
 
 Definition HH_CNOT_HH := box_ (q1,q2) ⇒ (_H ∥ _H) $ CNOT $ (_H ∥ _H) $ (q1, q2). 
 
+(* Just `CNOT_at (1,0)` *)
 Definition NOTC := box_ (q1,q2) ⇒ let_ (q2, q1) ← CNOT $ (q2, q1); (q1, q2).
 
 Lemma HH_CNOT_HH_eq_NOTC : HH_CNOT_HH ≡ NOTC.
@@ -466,11 +467,9 @@ Proof.
   Msimpl.
   apply super_eq; trivial.
   solve_matrix.
-  repeat rewrite <- Cmult_assoc.
-  autorewrite with C_db.
-  
-  
+  all: repeat rewrite <- Cmult_assoc;
+       autorewrite with C_db;
+       repeat (rewrite (Cmult_assoc 2 (/2)); autorewrite with C_db);
+       easy.
+Qed.  
 
-  specialize (WF_unitary _H) as WFH.
-  specialize (WF_unitary ()) as WFSd.
-  
