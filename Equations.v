@@ -385,3 +385,92 @@ Proof.
   Msimpl.
   solve_matrix.
 Qed.
+
+(*********************************************)
+(* "Automated optimization of large quantum  *)
+(*    circuits with continuous parameters"   *)
+(*********************************************)
+
+(* Hadamard elimination *)
+
+Lemma super_super : forall m n o (U : Matrix o n) (V : Matrix n m) (ρ : Square m) , 
+  super U (super V ρ) = super (U × V) ρ.
+Proof.
+  intros m n o U V ρ.
+  unfold super.
+  Msimpl.
+  repeat rewrite Mmult_assoc.
+  reflexivity.
+Qed.
+
+Lemma super_eq : forall m n (U U' : Matrix m n) (ρ ρ' : Square n), 
+  U = U' ->
+  ρ = ρ' ->
+  super U ρ = super U' ρ'.
+Proof. intros; subst; easy. Qed.
+
+Lemma eulers_identity : Cexp PI = -1.
+Proof. unfold Cexp. rewrite cos_PI, sin_PI. easy. Qed.
+
+Lemma eulers_identity2 : Cexp (PI/2) = Ci.
+Proof. unfold Cexp. rewrite cos_PI2, sin_PI2. easy. Qed.
+
+
+Definition HSH := box_ q ⇒ _H $ _S $ _H $ q.
+
+Definition SdHSd := box_ q ⇒ trans _S $ _H $ trans _S $ q. 
+
+Lemma HSH_SdHSd_eq : HSH ≡ SdHSd.
+Proof.
+  intros ρ safe Mρ.
+  repeat (autounfold with ket_den_db; simpl).
+  repeat rewrite super_super.
+  apply WF_Mixed in Mρ.
+  specialize (WF_unitary _S) as WFS.
+  specialize (WF_unitary (trans _S)) as WFSd.
+
+(*
+  apply super_eq; trivial.
+  Msimpl.
+  solve_matrix.
+  (* This doesn't quite work, since their P is only our S up to an
+     "unimportant global phase" since they use R_z gates 
+     (specifically, the coefficient is e^i*pi/4) 
+     I wonder if density matrix form helps...
+*)
+*)
+
+  Msimpl.
+  unfold super.
+  solve_matrix.
+  - rewrite eulers_identity2.
+    unfold Cexp.
+    rewrite cos_neg, sin_neg.
+    rewrite cos_PI2, sin_PI2.
+    replace (0,-1)%core with (-Ci) by clra.
+    repeat rewrite Cmult_plus_distr_r.
+
+    (* maybe? If so, it's a mess *)
+Abort.
+
+Definition HH_CNOT_HH := box_ (q1,q2) ⇒ (_H ∥ _H) $ CNOT $ (_H ∥ _H) $ (q1, q2). 
+
+Definition NOTC := box_ (q1,q2) ⇒ let_ (q2, q1) ← CNOT $ (q2, q1); (q1, q2).
+
+Lemma HH_CNOT_HH_eq_NOTC : HH_CNOT_HH ≡ NOTC.
+Proof.
+  intros ρ safe Mρ.
+  repeat (autounfold with ket_den_db; simpl).
+  repeat rewrite super_super.
+  apply WF_Mixed in Mρ.
+  Msimpl.
+  apply super_eq; trivial.
+  solve_matrix.
+  repeat rewrite <- Cmult_assoc.
+  autorewrite with C_db.
+  
+  
+
+  specialize (WF_unitary _H) as WFH.
+  specialize (WF_unitary ()) as WFSd.
+  
