@@ -72,28 +72,6 @@ Definition toUnitary (f : bool -> bool) : Matrix 4 4 :=
   | false, true  => (* balanced flip *) M_balanced_neg
   end.
 
-(* For Matrix.v *)
-Lemma WF_list2D_to_matrix : forall m n li, 
-    length li = m ->
-    (forall li', In li' li -> length li' = n)  ->
-    WF_Matrix m n (list2D_to_matrix li).
-Proof.
-  intros m n li L F x y [l | r].
-  - unfold list2D_to_matrix. 
-    rewrite (nth_overflow _ []).
-    destruct y; easy.
-    rewrite L. apply l.
-  - unfold list2D_to_matrix. 
-    rewrite (nth_overflow _ C0).
-    easy.
-    Search In nth.
-    destruct (nth_in_or_default x li []) as [IN | DEF].
-    apply F in IN.
-    rewrite IN. apply r.
-    rewrite DEF.
-    simpl; omega.
-Qed.
-
 Lemma toUnitary_unitary : forall f, is_unitary (toUnitary f).
 Proof.
   intros. 

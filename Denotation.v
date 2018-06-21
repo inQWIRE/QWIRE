@@ -382,7 +382,7 @@ Definition apply_to_first {m n} (f : nat -> Superoperator m n) (l : list nat) :
   | []     => super_Zero
   end.
 
-Fixpoint ctrls_to_list {W} (lb : list bool) (l : list nat) (g : Unitary W) : 
+Fixpoint ctrls_to_list {W} (lb : list bool) (l : list nat) (g : Unitary W) {struct g}: 
   (nat * list bool * Square 2) :=
   match g with
   | ctrl g'     => match l with 
@@ -475,6 +475,7 @@ Lemma denote_ctrls_empty : forall W (n : nat) (u : Unitary W),
   denote_ctrls n u [] = Zero (2^n) (2^n).
 Proof. destruct u; cbv; easy. Qed.
 
+(*
 Lemma denote_ctrls_ctrl_u : forall (u : Unitary Qubit), denote_ctrls 2 (ctrl u) [0%nat;1%nat] = (control (denote u)). 
 Proof.
   intros.
@@ -496,6 +497,7 @@ Proof.
   - unfold denote_ctrls; simpl; solve_matrix.
   - unfold denote_ctrls; simpl; solve_matrix.
 Qed.
+*)
 
 Lemma denote_ctrls_qubit : forall n (u : Unitary Qubit) k,
   (k < n)%nat ->
@@ -513,92 +515,153 @@ Proof.
   1-2: inversion HeqW.
 Qed.
 
+(* For Matrix.v *)
+Lemma kron_plus_distr_l : forall (m n o p : nat) (A : Matrix m n) (B C : Matrix o p), 
+                           A ⊗ (B .+ C) = A ⊗ B .+ A ⊗ C.
+Proof. 
+  intros m n o p A B C.
+  unfold Mplus, kron.
+  prep_matrix_equality.
+  rewrite Cmult_plus_distr_l.
+  easy.
+Qed.
+
+Lemma kron_plus_distr_r : forall (m n o p : nat) (A B : Matrix m n) (C : Matrix o p), 
+                           (A .+ B) ⊗ C = A ⊗ C .+ B ⊗ C.
+Proof. 
+  intros m n o p A B C.
+  unfold Mplus, kron.
+  prep_matrix_equality.
+  rewrite Cmult_plus_distr_r. 
+  reflexivity.
+Qed.
+
+Lemma ctrl_list_to_unitary_r_unitary : forall r (u : Square 2), is_unitary u -> 
+                                                           is_unitary (ctrl_list_to_unitary_r r u).
+Proof.
+  intros r u Uu.
+  induction r; auto.
+  simpl.
+  destruct a.
+  - simpl.
+    assert (H : forall n (U : Square n), is_unitary U -> is_unitary (U ⊗ |1⟩⟨1| .+ 'I_n ⊗ |0⟩⟨0|)).
+    intros n U [WFU UU].
+    unfold is_unitary.
+    split; auto with wf_db.
+    Msimpl.
+    rewrite Mmult_plus_distr_r, Mmult_plus_distr_l.
+    rewrite Mmult_plus_distr_l.
+    Msimpl.
+    rewrite UU.
+    replace (|0⟩⟨0| × |1⟩⟨1|) with (Zero 2 2) by solve_matrix.
+    replace (|1⟩⟨1| × |0⟩⟨0|) with (Zero 2 2) by solve_matrix.
+    repeat rewrite kron_0_r.
+    rewrite Mplus_0_r, Mplus_0_l.
+    rewrite <- kron_plus_distr_l.
+    replace (|1⟩⟨1| × |1⟩⟨1| .+ |0⟩⟨0| × |0⟩⟨0|) with ('I_2) by solve_matrix.
+    rewrite id_kron.
+    reflexivity.
+    specialize (H _ (ctrl_list_to_unitary_r r u)).
+    rewrite Nat.mul_comm in H.
+    apply H.
+    apply IHr.
+  - specialize (kron_unitary _ ('I_ 2) IHr) as H.
+    rewrite Nat.mul_comm in H.
+    apply H.
+    apply id_unitary. 
+Qed.
+
+Lemma ctrl_list_to_unitary_unitary : forall l r (u : Square 2), is_unitary u ->
+                                                           is_unitary (ctrl_list_to_unitary l r u).
+Proof.
+  intros l r u Uu.
+  induction l.
+  - simpl. apply ctrl_list_to_unitary_r_unitary. easy.
+  - simpl.
+    destruct a.
+    + simpl.
+      assert (H : forall n (U : Square n), is_unitary U -> is_unitary (|1⟩⟨1| ⊗ U .+ |0⟩⟨0| ⊗ ('I_n))).
+      intros n U [WFU UU].
+      unfold is_unitary.
+      split; auto with wf_db.
+      Msimpl.
+      rewrite Mmult_plus_distr_l, Mmult_plus_distr_r.
+      rewrite Mmult_plus_distr_r.
+      Msimpl.
+      setoid_rewrite kron_mixed_product.
+      rewrite UU.
+      replace (|0⟩⟨0| × |1⟩⟨1|) with (Zero 2 2) by solve_matrix.
+      replace (|1⟩⟨1| × |0⟩⟨0|) with (Zero 2 2) by solve_matrix.
+      repeat rewrite kron_0_l.
+      rewrite Mplus_0_r, Mplus_0_l.
+      Msimpl. 
+      rewrite <- kron_plus_distr_r.
+      replace (|1⟩⟨1| × |1⟩⟨1| .+ |0⟩⟨0| × |0⟩⟨0|) with ('I_2) by solve_matrix.
+      rewrite id_kron.
+      reflexivity.
+      specialize (H _ (ctrl_list_to_unitary l r u)).
+      apply H.
+      apply IHl.
+    + specialize (kron_unitary _ _ (id_unitary 2) IHl) as H.
+      apply H.
+Qed.
+
+Lemma ctrls_to_list_spec : forall W l (g : Unitary W) k lb lb' u, 
+  (length l = ⟦W⟧)%nat ->
+  ctrls_to_list lb l g = (k, lb', u) ->
+  @is_unitary 2 u /\ length lb' = length lb /\ In k l.
+Proof.
+  intros W l g.
+  gen l.
+  induction g; simpl in *; intros l k lb lb' u L H.
+  - destruct l; inversion L. inversion H; subst. split. rewrite H1. apply H_unitary. 
+    split. easy. constructor. easy.
+  - destruct l; inversion L. inversion H; subst. split. rewrite H1. apply σx_unitary. 
+    split. easy. constructor. easy.
+  - destruct l; inversion L. inversion H; subst. split. rewrite H1. apply σy_unitary. 
+    split. easy. constructor. easy.
+  - destruct l; inversion L. inversion H; subst. split. rewrite H1. apply σz_unitary. 
+    split. easy. constructor. easy.
+  - destruct l; inversion L. inversion H; subst. split. rewrite H1. 
+    apply phase_unitary. split. easy. constructor. easy.
+  - destruct l; inversion L.
+    destruct (ctrls_to_list lb l g) as [[k' lb''] u'] eqn:E.
+    inversion H; subst.
+    rewrite update_length.    
+    specialize (IHg l k lb lb'' u H1 E) as [U [LE I]].
+    split; [|split]; trivial.
+    right. easy.
+  - destruct l; inversion L.
+    destruct (ctrls_to_list lb l g) as [[k' lb''] u'] eqn:E.
+    inversion H; subst.
+    rewrite update_length.    
+    specialize (IHg l k lb lb'' u H1 E) as [U [LE I]].
+    split; [|split]; trivial.
+    right. easy.
+Qed.    
+
 Lemma denote_ctrls_unitary : forall W n (g : Unitary W) l, 
     (forallb (fun x => x <? n) l = true) -> 
     (length l = ⟦W⟧)%nat ->
     is_unitary (denote_ctrls n g l).
 Proof.
-  induction g.
-  - intros l H L. destruct l as [|k[|l']]; inversion L. 
-    simpl in H. bdestruct (k <? n). 2: inversion H.
-    rewrite denote_ctrls_qubit by easy. 
-    simpl in H.
-    simpl.
-    specialize (kron_unitary ('I_(2^k) ⊗ hadamard) ('I_(2^(n-k-1)))).
-    unify_pows_two. intros KU.
-    replace (k + 1 + (n - k - 1))%nat with n in KU by omega.
-    apply KU.
-    specialize (kron_unitary ('I_(2^k)) hadamard). 
-    unify_pows_two. intros KU'.
-    apply KU'.
-    apply id_unitary.
-    apply H_unitary.
-    apply id_unitary.
-  - intros l H L. destruct l as [|k[|l']]; inversion L. 
-    simpl in H. bdestruct (k <? n). 2: inversion H.
-    rewrite denote_ctrls_qubit by easy. 
-    simpl in H.
-    simpl.
-    specialize (kron_unitary ('I_(2^k) ⊗ σx) ('I_(2^(n-k-1)))).
-    unify_pows_two. intros KU.
-    replace (k + 1 + (n - k - 1))%nat with n in KU by omega.
-    apply KU.
-    specialize (kron_unitary ('I_(2^k)) σx). 
-    unify_pows_two. intros KU'.
-    apply KU'.
-    apply id_unitary.
-    apply σx_unitary.
-    apply id_unitary.
-  - intros l H L. destruct l as [|k[|l']]; inversion L. 
-    simpl in H. bdestruct (k <? n). 2: inversion H.
-    rewrite denote_ctrls_qubit by easy. 
-    simpl in H.
-    simpl.
-    specialize (kron_unitary ('I_(2^k) ⊗ σy) ('I_(2^(n-k-1)))).
-    unify_pows_two. intros KU.
-    replace (k + 1 + (n - k - 1))%nat with n in KU by omega.
-    apply KU.
-    specialize (kron_unitary ('I_(2^k)) σy). 
-    unify_pows_two. intros KU'.
-    apply KU'.
-    apply id_unitary.
-    apply σy_unitary.
-    apply id_unitary.
-  - intros l H L. destruct l as [|k[|l']]; inversion L. 
-    simpl in H. bdestruct (k <? n). 2: inversion H.
-    rewrite denote_ctrls_qubit by easy. 
-    simpl in H.
-    simpl.
-    specialize (kron_unitary ('I_(2^k) ⊗ σz) ('I_(2^(n-k-1)))).
-    unify_pows_two. intros KU.
-    replace (k + 1 + (n - k - 1))%nat with n in KU by omega.
-    apply KU.
-    specialize (kron_unitary ('I_(2^k)) σz). 
-    unify_pows_two. intros KU'.
-    apply KU'.
-    apply id_unitary.
-    apply σz_unitary.
-    apply id_unitary.
-  - intros l H L. destruct l as [|k[|l']]; inversion L. 
-    simpl in H. bdestruct (k <? n). 2: inversion H.
-    rewrite denote_ctrls_qubit by easy. 
-    simpl in H.
-    simpl.
-    specialize (kron_unitary ('I_(2^k) ⊗ phase_shift r) ('I_(2^(n-k-1)))).
-    unify_pows_two. intros KU.
-    replace (k + 1 + (n - k - 1))%nat with n in KU by omega.
-    apply KU.
-    specialize (kron_unitary ('I_(2^k)) (phase_shift r)). 
-    unify_pows_two. intros KU'.
-    apply KU'.
-    apply id_unitary.
-    apply phase_unitary.
-    apply id_unitary.
-  - intros l H L.
-    unfold denote_ctrls. simpl.
-    destruct l as [|k l']; inversion L. 
-    (* this is the hard case *)
-Admitted.    
+  intros W n g l H H0.
+  unfold denote_ctrls. simpl.
+  destruct (ctrls_to_list (repeat false n) l g) as [[k lb] u] eqn:E.
+  apply ctrls_to_list_spec in E as [Uu [L I]]; trivial.
+  apply forallb_forall with (x := k) in H; trivial.
+  apply Nat.ltb_lt in H.
+  specialize (ctrl_list_to_unitary_unitary (firstn k lb) (rev (skipn (S k) lb)) u Uu) 
+    as U.  
+  assert (E: (length (firstn k lb) + length (rev (skipn (S k) lb)) + 1 = n)%nat).
+  rewrite firstn_length_le.
+  rewrite rev_length.
+  rewrite skipn_length.
+  rewrite L, repeat_length. omega.
+  rewrite L, repeat_length. omega.
+  rewrite E in U.
+  apply U.
+Qed.
 
 Lemma denote_ctrls_transpose_qubit : forall (n : nat) (u : Unitary Qubit) (li : list nat),
   denote_ctrls n (trans u) li = (denote_ctrls n u li)†.

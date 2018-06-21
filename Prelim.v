@@ -97,6 +97,17 @@ Fixpoint update_at {A} (ls : list A) (i : nat) (a : A) : list A :=
   | b :: ls', S i' => b :: update_at ls' i' a
   end.
 
+Lemma update_length : forall A (l: list A) (a : A) (n : nat), 
+    length (update_at l n a) = length l.
+Proof.
+  induction l; auto. 
+  simpl.
+  destruct n.
+  easy.
+  simpl.
+  rewrite IHl; easy.
+Qed.
+
 Fixpoint Injective {A} (ls : list A) :=
   match ls with
   | [] => True
@@ -164,6 +175,21 @@ Proof.
     simpl.
     apply IHm.
 Qed.
+
+Lemma skipn_length : forall {A} (l : list A) n, length (skipn n l) = (length l - n)%nat. 
+Proof.
+  Transparent skipn.
+  intros A l.
+  induction l.
+  intros [|n]; easy.
+  intros [|n].
+  easy.
+  simpl.
+  rewrite IHl.
+  easy.
+  Opaque skipn.
+Qed.
+
 
 (* option type *)
 

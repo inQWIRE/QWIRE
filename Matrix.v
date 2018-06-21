@@ -14,11 +14,17 @@ Bind Scope R_scope with R.
 Bind Scope C_scope with C.
 
 (*******************************************)
-(** Matrix Definitions and infrastructure **)
+(** Matrix Definitions and Infrastructure **)
 (*******************************************)
 
 Definition Matrix (m n : nat) := nat -> nat -> C.
 
+Definition WF_Matrix (m n: nat) (A : Matrix m n) : Prop := 
+  forall x y, x >= m \/ y >= n -> A x y = C0. 
+
+Notation Square n := (Matrix n n).
+
+(* Showing equality via functional extensionality *)
 Ltac prep_matrix_equality :=
   let x := fresh "x" in 
   let y := fresh "y" in 
@@ -26,31 +32,15 @@ Ltac prep_matrix_equality :=
   apply functional_extensionality; intros y.
 
 
-Parameter print_C : C -> string.
-Fixpoint print_row {m n} i j (A : Matrix m n) : string :=
-  match j with
-  | 0   => "\n"
-  | S j' => print_C (A i j') ++ ", " ++ print_row i j' A
-  end.
-Fixpoint print_rows {m n} i j (A : Matrix m n) : string :=
-  match i with
-  | 0   => ""
-  | S i' => print_row i' n A ++ print_rows i' n A
-  end.
-Definition print_matrix {m n} (A : Matrix m n) : string :=
-  print_rows m n A.
-
-Notation Square n := (Matrix n n).
-
-Definition WF_Matrix (m n: nat) (A : Matrix m n) : Prop := 
-  forall x y, x >= m \/ y >= n -> A x y = C0. 
-
-(* I won't be using this much, but it can ensure the matrix bounds *)
+(* Matrix Equivalence *)
 Definition get {m n} (A : Matrix m n) (a : nat | a < m) (b : nat | b < n) := 
   A (`a) (`b).
 
 Definition mat_equiv {m n : nat} (A B : Matrix m n) : Prop := 
-  forall (x : nat | x < m) (y : nat | y < n), A (`x) (`y) = B (`x) (`y).
+  forall (x : nat | x < m) (y : nat | y < n), get A x y = get B x y.
+
+Lemma mat_equiv_refl : forall m n (A : Matrix m n), mat_equiv A A.
+Proof. unfold mat_equiv; reflexivity. Qed.
 
 Lemma mat_equiv_eq : forall {m n : nat} (A B : Matrix m n),
   WF_Matrix m n A -> 
@@ -68,12 +58,48 @@ Proof.
   + rewrite WFA, WFB; trivial; left; try omega.
 Qed.
 
-(* List Representation *)
+(* Printing *)
+
+Parameter print_C : C -> string.
+Fixpoint print_row {m n} i j (A : Matrix m n) : string :=
+  match j with
+  | 0   => "\n"
+  | S j' => print_C (A i j') ++ ", " ++ print_row i j' A
+  end.
+Fixpoint print_rows {m n} i j (A : Matrix m n) : string :=
+  match i with
+  | 0   => ""
+  | S i' => print_row i' n A ++ print_rows i' n A
+  end.
+Definition print_matrix {m n} (A : Matrix m n) : string :=
+  print_rows m n A.
+
+(* 2D List Representation *)
     
 Definition list2D_to_matrix (l : list (list C)) : 
   Matrix (length l) (length (hd [] l)) :=
   (fun x y => nth y (nth x l []) 0%R).
 
+Lemma WF_list2D_to_matrix : forall m n li, 
+    length li = m ->
+    (forall li', In li' li -> length li' = n)  ->
+    WF_Matrix m n (list2D_to_matrix li).
+Proof.
+  intros m n li L F x y [l | r].
+  - unfold list2D_to_matrix. 
+    rewrite (nth_overflow _ []).
+    destruct y; easy.
+    rewrite L. apply l.
+  - unfold list2D_to_matrix. 
+    rewrite (nth_overflow _ C0).
+    easy.
+    Search In nth.
+    destruct (nth_in_or_default x li []) as [IN | DEF].
+    apply F in IN.
+    rewrite IN. apply r.
+    rewrite DEF.
+    simpl; omega.
+Qed.
 
 (* Example *)
 Definition M23 : Matrix 2 3 :=
@@ -111,6 +137,8 @@ Definition Id (n : nat) : Square n :=
   (fun x y => if (x =? y) && (x <? n) then C1 else C0).
 Definition I1 := Id (2^0).
 Notation "'I_ n" := (Id n) (at level 10).
+
+(* This isn't used, but is interesting *)
 Definition I__inf := fun x y => if x =? y then C1 else C0.
 Notation "I∞" := I__inf.
 
@@ -615,8 +643,9 @@ Proof.
   unfold Mmult.
   edestruct (@Mmult_1_l_gen m n) as [Hl Hr].
   apply Nat.le_refl.
+  unfold get.
   apply Hr.
-  omega.
+  simpl; omega.
 Qed.  
 
 Lemma Mmult_1_l: forall (m n : nat) (A : Matrix m n), 
@@ -662,6 +691,7 @@ Proof.
   unfold Mmult.
   edestruct (@Mmult_1_r_gen m n) as [Hl Hr].
   apply Nat.le_refl.
+  unfold get; simpl.
   apply Hr.
   omega.
 Qed.  
@@ -752,7 +782,7 @@ Proof.
   reflexivity.
 Qed.
 
-(* This side is much more limited/annoying *)
+(* This side is more limited *)
 Lemma kron_1_l : forall (m n : nat) (A : Matrix m n), 
   WF_Matrix m n A -> Id 1 ⊗ A = A.
 Proof.
