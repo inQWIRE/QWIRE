@@ -825,6 +825,66 @@ Definition apply_U {m n} (U : Square (2^m)) (l : list nat)
   super SU.
 *)
 
+Lemma apply_to_first_correct : forall k n (u : Square 2), 
+  is_unitary u ->
+  (k < n)%nat ->                             
+  WF_Superoperator (apply_to_first (@apply_qubit_unitary n u) [k]).                  
+Proof.
+  intros k n u U L ρ Mρ.
+  unfold apply_to_first.
+  unfold apply_qubit_unitary.
+  unify_pows_two.
+  replace (k + 1 + (n - k - 1))%nat with n by omega.    
+  apply mixed_unitary; trivial.
+  destruct U; auto with wf_db.
+  specialize @kron_unitary as KU.
+  specialize (KU _ _ ('I_(2^k) ⊗ u) ('I_(2^(n-k-1)))). 
+  replace (2^(k+1))%nat with (2^k * 2)%nat by unify_pows_two. 
+  replace ((2^k * 2) * (2 ^ (n - k - 1)))%nat with (2^n)%nat in KU by unify_pows_two.
+  apply KU.
+  apply kron_unitary.
+  apply id_unitary.
+  apply U.
+  apply id_unitary.
+Qed.
+  
+Lemma apply_U_correct : forall W n (U : Unitary W) l,
+                            length l = ⟦W⟧ ->
+                            (forallb (fun x => x <? n) l = true) -> 
+                            WF_Superoperator (apply_U n U l). 
+Proof.
+  intros W n U l L Lt ρ Mρ.
+  destruct U; simpl.
+  - destruct l; inversion L. destruct l; inversion L. clear L H0.
+    apply apply_to_first_correct; trivial.
+    apply H_unitary.
+    simpl in Lt. rewrite andb_true_r in Lt. apply Nat.ltb_lt in Lt. easy.
+  - destruct l; inversion L. destruct l; inversion L. clear L H0.
+    apply apply_to_first_correct; trivial.
+    apply σx_unitary.
+    simpl in Lt. rewrite andb_true_r in Lt. apply Nat.ltb_lt in Lt. easy.
+  - destruct l; inversion L. destruct l; inversion L. clear L H0.
+    apply apply_to_first_correct; trivial.
+    apply σy_unitary.
+    simpl in Lt. rewrite andb_true_r in Lt. apply Nat.ltb_lt in Lt. easy.
+  - destruct l; inversion L. destruct l; inversion L. clear L H0.
+    apply apply_to_first_correct; trivial.
+    apply σz_unitary.
+    simpl in Lt. rewrite andb_true_r in Lt. apply Nat.ltb_lt in Lt. easy.
+  - destruct l; inversion L. destruct l; inversion L. clear L H0.
+    apply apply_to_first_correct; trivial.
+    apply phase_unitary.
+    simpl in Lt. rewrite andb_true_r in Lt. apply Nat.ltb_lt in Lt. easy.
+  - simpl in *.
+    apply mixed_unitary; trivial.
+    apply denote_ctrls_unitary; trivial.
+    apply denote_ctrls_unitary; trivial.
+  - simpl in *.
+    apply mixed_unitary; trivial.
+    apply denote_ctrls_unitary; trivial.
+    apply denote_ctrls_unitary; trivial.
+Qed.
+
 (* Initializing qubits in the 0 position
 Definition apply_new0 {n} : Superoperator (2^n) (2^(n+1)) :=
   super (|0⟩ ⊗ Id (2^n)).
