@@ -419,6 +419,39 @@ Proof.
     reflexivity.
 Qed.
 
+Lemma Csum_ge_0 : forall f n, (forall x, 0 <= fst (f x)) -> 0 <= fst (Csum f n).
+Proof.
+  intros f n H.
+  induction n.
+  - simpl. lra. 
+  - simpl in *.
+    rewrite <- Rplus_0_r at 1.
+    apply Rplus_le_compat; easy.
+Qed.
+
+Lemma Csum_member_le : forall (f : nat -> C) (n : nat), (forall x, 0 <= fst (f x)) -> 
+                      (forall x, (x < n)%nat -> fst (f x) <= fst (Csum f n)).
+Proof.
+  intros f.
+  induction n.
+  - intros H x Lt. inversion Lt.
+  - intros H x Lt.
+    bdestruct (Nat.ltb x n).
+    + simpl.
+      rewrite <- Rplus_0_r at 1.
+      apply Rplus_le_compat.
+      apply IHn; easy.
+      apply H.
+    + assert (E: x = n) by omega.
+      rewrite E.
+      simpl.
+      rewrite <- Rplus_0_l at 1.
+      apply Rplus_le_compat. 
+      apply Csum_ge_0; easy.
+      lra.
+Qed.            
+
+
 
 (**********************************)
 (** Proofs about Well-Formedness **)
@@ -912,6 +945,27 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma kron_plus_distr_l : forall (m n o p : nat) (A : Matrix m n) (B C : Matrix o p), 
+                           A ⊗ (B .+ C) = A ⊗ B .+ A ⊗ C.
+Proof. 
+  intros m n o p A B C.
+  unfold Mplus, kron.
+  prep_matrix_equality.
+  rewrite Cmult_plus_distr_l.
+  easy.
+Qed.
+
+Lemma kron_plus_distr_r : forall (m n o p : nat) (A B : Matrix m n) (C : Matrix o p), 
+                           (A .+ B) ⊗ C = A ⊗ C .+ B ⊗ C.
+Proof. 
+  intros m n o p A B C.
+  unfold Mplus, kron.
+  prep_matrix_equality.
+  rewrite Cmult_plus_distr_r. 
+  reflexivity.
+Qed.
+
+
 Lemma Mscale_0 : forall (m n : nat) (A : Matrix m n), C0 .* A = Zero m n.
 Proof.
   intros m n A.
@@ -956,6 +1010,29 @@ Proof.
   rewrite (Cmult_comm _ x).
   reflexivity.
 Qed.
+
+Lemma Mscale_kron_dist_l : forall (m n o p : nat) (x : C) (A : Matrix m n) (B : Matrix o p), 
+    ((x .* A) ⊗ B) = x .* (A ⊗ B).
+Proof.
+  intros m n o p x A B.
+  unfold scale, kron.
+  prep_matrix_equality.
+  rewrite Cmult_assoc.
+  easy.
+Qed.
+
+Lemma Mscale_kron_dist_r : forall (m n o p : nat) (x : C) (A : Matrix m n) (B : Matrix o p), 
+    (A ⊗ (x .* B)) = x .* (A ⊗ B).
+Proof.
+  intros m n o p x A B.
+  unfold scale, kron.
+  prep_matrix_equality.
+  rewrite Cmult_assoc.  
+  rewrite (Cmult_comm (A _ _) x).
+  rewrite Cmult_assoc.  
+  easy.
+Qed.
+
 
 (* Inverses of square matrices *)
 

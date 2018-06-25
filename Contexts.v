@@ -851,7 +851,7 @@ Notation CNOT := (ctrl _X).
 Notation CCNOT := (ctrl (ctrl _X)).
 
 Notation _S := (_R_ (PI / 2)). 
-Notation _T := (_R_ (PI / 4)).
+Notation _T := (_R_ (PI / 4)). (* π / 8 gate *)
 
 Fixpoint trans {W} (U : Unitary W) : Unitary W :=
   match U with

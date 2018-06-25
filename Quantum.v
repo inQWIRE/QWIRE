@@ -281,7 +281,9 @@ Hint Resolve WF_hadamard WF_σx WF_σy WF_σz WF_cnot WF_swap WF_phase WF_contro
 Hint Extern 2 (WF_Matrix 2 2 (phase_shift _)) => apply WF_phase : wf_db.
 Hint Extern 2 (WF_Matrix 2 2 (control _)) => apply WF_control : wf_db.
 
+(***************************)
 (** Unitaries are unitary **)
+(***************************)
 
 Definition is_unitary {n: nat} (U : Matrix n n): Prop :=
   WF_Matrix n n U /\ U † × U = Id n.
@@ -546,8 +548,19 @@ Qed.
 
 Lemma kron_unitary : forall {m n} (A : Matrix m m) (B : Matrix n n),
   is_unitary A -> is_unitary B -> is_unitary (A ⊗ B).
-Admitted.
+Proof.
+  intros m n A B [WFA UA] [WFB UB].
+  unfold is_unitary in *.
+  split.
+  auto with wf_db.
+  rewrite kron_adjoint.
+  rewrite kron_mixed_product.
+  rewrite UA, UB.
+  rewrite id_kron. 
+  easy.
+Qed.
 
+(*
 Lemma unitary_swap_to_0 : forall n i, (i < n)%nat -> is_unitary (swap_to_0 n i).
 Proof.
   intros n i.
@@ -613,8 +626,11 @@ Proof.
   + induction i.
     simpl.
 Admitted.
+*)
 
-(* Our unitaries are self-adjoint *)
+(********************)
+(* Self-adjointness *)
+(********************)
 
 Definition id_sa := id_adjoint_eq.
 
@@ -699,7 +715,33 @@ Hint Rewrite hadamard_sa σx_sa σy_sa σz_sa cnot_sa swap_sa
 (* Rather use control_adjoint :
 Hint Rewrite control_sa using (autorewrite with M_db; reflexivity) : M_db. *)
 
+
+(**************)
+(* Automation *)
+(**************)
+
+(* For when autorewrite needs some extra help *)
+
+Ltac Msimpl := 
+  repeat match goal with 
+  | [ |- context[(?A ⊗ ?B)†]]    => let H := fresh "H" in 
+                                  specialize (kron_adjoint _ _ _ _ A B) as H;
+                                  simpl in H; rewrite H; clear H
+  | [ |- context[(control ?U)†]] => let H := fresh "H" in 
+                                  specialize (control_sa _ U) as H;
+                                  simpl in H; rewrite H; 
+                                  [clear H | Msimpl; reflexivity]
+  | [|- context[(?A ⊗ ?B) × (?C ⊗ ?D)]] => 
+                                  let H := fresh "H" in 
+                                  specialize (kron_mixed_product _ _ _ _ _ _ A B C D);
+                                  intros H; simpl in H; rewrite H; clear H
+  | _                           => autorewrite with M_db
+  end.
+
+
+(*****************************)
 (* Positive Semidefiniteness *)
+(*****************************)
 
 Definition positive_semidefinite {n} (A : Square n) : Prop :=
   forall (z : Matrix n 1), WF_Matrix 2 1 z -> fst ((z† × A × z) O O) >= 0.  
@@ -785,31 +827,17 @@ Proof.
   unfold Rsqr. lra.
 Qed.
     
+(*************************)
 (* Pure and Mixed States *)
+(*************************)
 
 Notation Density n := (Matrix n n) (only parsing). 
 
-(* Simpler Definition *)
 Definition Pure_State_Vector {n} (φ : Matrix n 1): Prop := 
   WF_Matrix n 1 φ /\ φ† × φ = 'I_ 1.
 
 Definition Pure_State {n} (ρ : Density n) : Prop := 
   exists φ, Pure_State_Vector φ /\ ρ = φ × φ†.
-
-Lemma pure0 : Pure_State |0⟩⟨0|. 
-Proof. exists |0⟩. intuition. split. auto with wf_db. solve_matrix. Qed.
-
-Lemma pure1 : Pure_State |1⟩⟨1|. 
-Proof. exists |1⟩. intuition. split. auto with wf_db. solve_matrix. Qed.
-
-
-(* Wiki:
-For a finite-dimensional function space, the most general density operator 
-is of the form:
-
-  ρ =∑_j p_j |ψ_j⟩⟨ ψ_j| 
-
-where the coefficients p_j are non-negative and add up to one. *)
 
 Inductive Mixed_State {n} : (Matrix n n) -> Prop :=
 | Pure_S : forall ρ, Pure_State ρ -> Mixed_State ρ
@@ -824,158 +852,63 @@ Lemma WF_Mixed : forall {n} (ρ : Density n), Mixed_State ρ -> WF_Matrix n n ρ
 Proof. induction 1; auto with wf_db. Qed.
 Hint Resolve WF_Mixed : wf_db.
 
+Lemma pure0 : Pure_State |0⟩⟨0|. 
+Proof. exists |0⟩. intuition. split. auto with wf_db. solve_matrix. Qed.
 
-(** Density matrices and superoperators **)
+Lemma pure1 : Pure_State |1⟩⟨1|. 
+Proof. exists |1⟩. intuition. split. auto with wf_db. solve_matrix. Qed.
 
-Definition Superoperator m n := Density m -> Density n.
-
-Definition WF_Superoperator {m n} (f : Superoperator m n) := 
-  (forall ρ, Mixed_State ρ -> Mixed_State (f ρ)).   
-
-(* Transparent Density. *)
-
-Definition super {m n} (M : Matrix m n) : Superoperator n m := fun ρ => 
-  M × ρ × M†.
-
-Lemma super_I : forall n ρ,
-      WF_Matrix n n ρ ->
-      super ('I_n) ρ = ρ.
+Lemma pure_state_kron : forall m n (ρ : Square m) (φ : Square n),
+  Pure_State ρ -> Pure_State φ -> Pure_State (ρ ⊗ φ).
 Proof.
-  intros.
-  unfold super.
-  autorewrite with M_db.
-  reflexivity.
+  intros m n ρ φ [u [[WFu Pu] Eρ]] [v [[WFv Pv] Eφ]].
+  exists (u ⊗ v).
+  split; [split |].
+  - auto with wf_db.
+  - Msimpl. rewrite Pv, Pu. Msimpl. easy.
+  - Msimpl. subst. easy.
 Qed.
 
-Lemma super_outer_product : forall m (φ : Matrix m 1) (U : Matrix m m), 
-    super U (outer_product φ) = outer_product (U × φ).
+Lemma mixed_state_kron : forall m n (ρ : Square m) (φ : Square n),
+  Mixed_State ρ -> Mixed_State φ -> Mixed_State (ρ ⊗ φ).
 Proof.
-  intros. unfold super, outer_product.
-  autorewrite with M_db.
-  repeat rewrite Mmult_assoc. reflexivity.
+  intros m n ρ φ Mρ Mφ.
+  induction Mρ.
+  induction Mφ.
+  - apply Pure_S. apply pure_state_kron; easy.
+  - rewrite kron_plus_distr_l.
+    rewrite 2 Mscale_kron_dist_r.
+    apply Mix_S; easy.
+  - rewrite kron_plus_distr_r.
+    rewrite 2 Mscale_kron_dist_l.
+    apply Mix_S; easy.
 Qed.
 
-Definition compose_super {m n p} (g : Superoperator n p) (f : Superoperator m n)
-                      : Superoperator m p :=
-  fun ρ => g (f ρ).
-Lemma compose_super_correct : forall {m n p} 
-                              (g : Superoperator n p) (f : Superoperator m n),
-      WF_Superoperator g -> WF_Superoperator f ->
-      WF_Superoperator (compose_super g f).
+Lemma pure_state_trace_1 : forall {n} (ρ : Density n), Pure_State ρ -> trace ρ = 1.
 Proof.
-  intros m n p g f pf_g pf_f.
-  unfold WF_Superoperator.
-  intros ρ mixed.
-  unfold compose_super.
-  apply pf_g. apply pf_f. auto.
-Qed.
-
-Definition sum_super {m n} (f g : Superoperator m n) : Superoperator m n :=
-  fun ρ => (1/2)%R .* f ρ .+ (1 - 1/2)%R .* g ρ.
-Lemma WF_sum_super : forall m n (f g : Superoperator m n),
-      WF_Superoperator f -> WF_Superoperator g -> WF_Superoperator (sum_super f g).
-Proof.
-  intros m n f g wf_f wf_g ρ pf_ρ.
-  unfold sum_super. 
-  set (wf_f' := wf_f _ pf_ρ).
-  set (wf_g' := wf_g _ pf_ρ).
-  apply (Mix_S (1/2) (f ρ) (g ρ)); auto. 
-  lra.
-Qed.
-
-Definition SZero {n} : Superoperator n n := fun ρ => Zero n n.
-Definition Splus {m n} (S T : Superoperator m n) : Superoperator m n :=
-  fun ρ => S ρ .+ T ρ.
-
-Definition new0_op : Superoperator 1 2 := super |0⟩.
-Definition new1_op : Superoperator 1 2 := super |1⟩.
-Definition meas_op : Superoperator 2 2 := fun ρ => super |0⟩⟨0| ρ .+ super |1⟩⟨1| ρ.
-Definition discard_op : Superoperator 2 1 := fun ρ => super ⟨0| ρ .+ super ⟨1| ρ.
-
-Lemma pure_unitary : forall {n} (U ρ : Matrix n n), 
-  is_unitary U -> Pure_State ρ -> Pure_State (super U ρ).
-Proof.
-  intros n U ρ [WFU H] [φ [[WFφ IP1] Eρ]].
-  rewrite Eρ.
-  exists (U × φ).
-  split.
-  - split; auto with wf_db.
-    rewrite (Mmult_adjoint _ _ _ U φ).
-    rewrite Mmult_assoc.
-    rewrite <- (Mmult_assoc _ _ _ _ (U†)).
-    rewrite H, Mmult_1_l, IP1; easy.
-  - unfold super.
-    rewrite (Mmult_adjoint _ _ _ U φ).
-    repeat rewrite Mmult_assoc.
-    reflexivity.
-Qed.    
-
-Lemma pure_hadamard_1 : Pure_State (super hadamard |1⟩⟨1|).
-Proof. apply pure_unitary. apply H_unitary. apply pure1. Qed.
-
-Definition dm12 : Matrix 2 2 :=
-  (fun x y => match x, y with
-          | 0, 0 => 1 / 2
-          | 0, 1 => 1 / 2
-          | 1, 0 => 1 / 2
-          | 1, 1 => 1 / 2
-          | _, _ => 0
-          end).
-
-Lemma pure_dm12 : Pure_State dm12. Proof.
-  unfold Pure_State. exists (hadamard × |0⟩). repeat split.
-  - auto with wf_db.                                                        
-  - solve_matrix.
-  - solve_matrix.
-Qed.
-
-Lemma mixed_meas_12 : Mixed_State (meas_op dm12).
-Proof. unfold meas_op. 
-       replace (super |0⟩⟨0| dm12) with ((1/2)%R .* |0⟩⟨0|) 
-         by (unfold dm12, super; mlra).
-       replace (super |1⟩⟨1| dm12) with ((1 - 1/2)%R .* |1⟩⟨1|) 
-         by (unfold dm12, super; mlra).
-       apply Mix_S.
-       lra.       
-       constructor; apply pure0.
-       constructor; apply pure1.
-Qed.
-
-Lemma mixed_unitary : forall {n} (U ρ : Matrix n n), 
-  WF_Matrix n n U -> is_unitary U -> Mixed_State ρ -> Mixed_State (super U ρ).
-Proof.
-  intros n U ρ WFU H M.
-  induction M.
-  + apply Pure_S.
-    apply pure_unitary; trivial.
-  + unfold is_unitary, super in *.
-    rewrite Mmult_plus_distr_l.
-    rewrite Mmult_plus_distr_r.
-    rewrite 2 Mscale_mult_dist_r.
-    rewrite 2 Mscale_mult_dist_l.
-    apply Mix_S; trivial.
+  intros n ρ [u [[WFu Uu] E]]. 
+  subst.
+  clear -Uu.
+  unfold trace.
+  unfold Mmult, adjoint in *.
+  simpl in *.
+  match goal with
+    [H : ?f = ?g |- _] => assert (f O O = g O O) by (rewrite <- H; easy)
+  end. 
+  unfold Id in H; simpl in H.
+  rewrite <- H.
+  apply Csum_eq.
+  apply functional_extensionality.
+  intros x.
+  rewrite Cplus_0_l, Cmult_comm.
+  easy.
 Qed.
 
 Lemma mixed_state_trace_1 : forall {n} (ρ : Density n), Mixed_State ρ -> trace ρ = 1.
 Proof.
   intros n ρ H. 
   induction H. 
-  - destruct H as [φ [[WFφ IP1] Eρ]].    
-    rewrite Eρ.
-    clear - IP1.
-    unfold trace.
-    unfold Mmult, adjoint in *.
-    simpl in *.
-    match goal with
-    [H : ?f = ?g |- _] => assert (f O O = g O O) by (rewrite <- H; easy)
-    end. 
-    unfold Id in H; simpl in H.
-    rewrite <- H.
-    apply Csum_eq.
-    apply functional_extensionality.
-    intros x.
-    rewrite Cplus_0_l, Cmult_comm.
-    reflexivity.
+  - apply pure_state_trace_1. easy.
   - rewrite trace_plus_dist.
     rewrite 2 trace_mult_dist.
     rewrite IHMixed_State1, IHMixed_State2.
@@ -984,39 +917,6 @@ Qed.
 
 (* The following two lemmas say that for any mixed states, the elements along the 
    diagonal are real numbers in the [0,1] interval. *)
-
-Lemma Csum_ge_0 : forall f n, (forall x, 0 <= fst (f x)) -> 0 <= fst (Csum f n).
-Proof.
-  intros f n H.
-  induction n.
-  - simpl. lra. 
-  - simpl in *.
-    rewrite <- Rplus_0_r at 1.
-    apply Rplus_le_compat; easy.
-Qed.
-
-Lemma Csum_mem_le : forall (f : nat -> C) (n : nat), (forall x, 0 <= fst (f x)) -> 
-                    (forall x, (x < n)%nat -> fst (f x) <= fst (Csum f n)).
-Proof.
-  intros f.
-  induction n.
-  - intros H x Lt. inversion Lt.
-  - intros H x Lt.
-    bdestruct (x <? n).
-    + simpl.
-      rewrite <- Rplus_0_r at 1.
-      apply Rplus_le_compat.
-      apply IHn; easy.
-      apply H.
-    + assert (E: x = n) by omega.
-      rewrite E.
-      simpl.
-      rewrite <- Rplus_0_l at 1.
-      apply Rplus_le_compat. 
-      apply Csum_ge_0; easy.
-      lra.
-Qed.            
-
 
 Lemma mixed_state_diag_in01 : forall {n} (ρ : Density n) i , Mixed_State ρ -> 
                                                         0 <= fst (ρ i i) <= 1.
@@ -1046,7 +946,7 @@ Proof.
       rewrite <- Rplus_0_r at 1.
       apply Rplus_le_compat; apply Rle_0_sqr.    
     + match goal with 
-      [ |- ?x <= fst (Csum ?f ?m)] => specialize (Csum_mem_le f n) as res
+      [ |- ?x <= fst (Csum ?f ?m)] => specialize (Csum_member_le f n) as res
       end.
       simpl in *.
       unfold Rminus in *.
@@ -1112,27 +1012,114 @@ Proof.
     clra.
 Qed.  
 
-(**************)
-(* Automation *)
-(**************)
 
-(* For when autorewrite needs some extra help *)
+(** Density matrices and superoperators **)
 
-Ltac Msimpl := 
-  repeat match goal with 
-  | [ |- context[(?A ⊗ ?B)†]]    => let H := fresh "H" in 
-                                  specialize (kron_adjoint _ _ _ _ A B) as H;
-                                  simpl in H; rewrite H; clear H
-  | [ |- context[(control ?U)†]] => let H := fresh "H" in 
-                                  specialize (control_sa _ U) as H;
-                                  simpl in H; rewrite H; 
-                                  [clear H | Msimpl; reflexivity]
-  | [|- context[(?A ⊗ ?B) × (?C ⊗ ?D)]] => 
-                                  let H := fresh "H" in 
-                                  specialize (kron_mixed_product _ _ _ _ _ _ A B C D);
-                                  intros H; simpl in H; rewrite H; clear H
-  | _                           => autorewrite with M_db
-  end.
+Definition Superoperator m n := Density m -> Density n.
+
+Definition WF_Superoperator {m n} (f : Superoperator m n) := 
+  (forall ρ, Mixed_State ρ -> Mixed_State (f ρ)).   
+
+Definition super {m n} (M : Matrix m n) : Superoperator n m := fun ρ => 
+  M × ρ × M†.
+
+Lemma super_I : forall n ρ,
+      WF_Matrix n n ρ ->
+      super ('I_n) ρ = ρ.
+Proof.
+  intros.
+  unfold super.
+  autorewrite with M_db.
+  reflexivity.
+Qed.
+
+Lemma super_outer_product : forall m (φ : Matrix m 1) (U : Matrix m m), 
+    super U (outer_product φ) = outer_product (U × φ).
+Proof.
+  intros. unfold super, outer_product.
+  autorewrite with M_db.
+  repeat rewrite Mmult_assoc. reflexivity.
+Qed.
+
+Definition compose_super {m n p} (g : Superoperator n p) (f : Superoperator m n)
+                      : Superoperator m p :=
+  fun ρ => g (f ρ).
+Lemma compose_super_correct : forall {m n p} 
+                              (g : Superoperator n p) (f : Superoperator m n),
+      WF_Superoperator g -> WF_Superoperator f ->
+      WF_Superoperator (compose_super g f).
+Proof.
+  intros m n p g f pf_g pf_f.
+  unfold WF_Superoperator.
+  intros ρ mixed.
+  unfold compose_super.
+  apply pf_g. apply pf_f. auto.
+Qed.
+
+Definition sum_super {m n} (f g : Superoperator m n) : Superoperator m n :=
+  fun ρ => (1/2)%R .* f ρ .+ (1 - 1/2)%R .* g ρ.
+
+Lemma WF_sum_super : forall m n (f g : Superoperator m n),
+      WF_Superoperator f -> WF_Superoperator g -> WF_Superoperator (sum_super f g).
+Proof.
+  intros m n f g wf_f wf_g ρ pf_ρ.
+  unfold sum_super. 
+  set (wf_f' := wf_f _ pf_ρ).
+  set (wf_g' := wf_g _ pf_ρ).
+  apply (Mix_S (1/2) (f ρ) (g ρ)); auto. 
+  lra.
+Qed.
+
+(* Maybe we shouldn't call these superoperators? Neither is trace-preserving *)
+Definition SZero {n} : Superoperator n n := fun ρ => Zero n n.
+Definition Splus {m n} (S T : Superoperator m n) : Superoperator m n :=
+  fun ρ => S ρ .+ T ρ.
+
+(* These are *)
+Definition new0_op : Superoperator 1 2 := super |0⟩.
+Definition new1_op : Superoperator 1 2 := super |1⟩.
+Definition meas_op : Superoperator 2 2 := Splus (super |0⟩⟨0|) (super |1⟩⟨1|).
+Definition discard_op : Superoperator 2 1 := Splus (super ⟨0|) (super ⟨1|).
+
+Lemma pure_unitary : forall {n} (U ρ : Matrix n n), 
+  is_unitary U -> Pure_State ρ -> Pure_State (super U ρ).
+Proof.
+  intros n U ρ [WFU H] [φ [[WFφ IP1] Eρ]].
+  rewrite Eρ.
+  exists (U × φ).
+  split.
+  - split; auto with wf_db.
+    rewrite (Mmult_adjoint _ _ _ U φ).
+    rewrite Mmult_assoc.
+    rewrite <- (Mmult_assoc _ _ _ _ (U†)).
+    rewrite H, Mmult_1_l, IP1; easy.
+  - unfold super.
+    rewrite (Mmult_adjoint _ _ _ U φ).
+    repeat rewrite Mmult_assoc.
+    reflexivity.
+Qed.    
+
+Lemma mixed_unitary : forall {n} (U ρ : Matrix n n), 
+  is_unitary U -> Mixed_State ρ -> Mixed_State (super U ρ).
+Proof.
+  intros n U ρ H M.
+  induction M.
+  + apply Pure_S.
+    apply pure_unitary; trivial.
+  + unfold is_unitary, super in *.
+    rewrite Mmult_plus_distr_l.
+    rewrite Mmult_plus_distr_r.
+    rewrite 2 Mscale_mult_dist_r.
+    rewrite 2 Mscale_mult_dist_l.
+    apply Mix_S; trivial.
+Qed.
+
+Lemma WF_Superoperator_unitary : forall {n} (U : Matrix n n), 
+  is_unitary U -> WF_Superoperator (super U).
+Proof.
+  intros n U H ρ Mρ.
+  apply mixed_unitary; easy.
+Qed.
 
 (****************************************)
 (* Tests and Lemmas about swap matrices *)

@@ -146,13 +146,11 @@ Proof.
     rewrite kron_1_r.
     rewrite Nat.mul_1_r.
     apply mixed_unitary.
-    apply WF_unitary. 
     apply unitary_gate_unitary.
     assumption.
   + simpl.
     rewrite kron_1_r.
     apply mixed_unitary.
-    apply WF_σx.
     apply σx_unitary.
     assumption.
   + simpl in *.
@@ -515,27 +513,6 @@ Proof.
   1-2: inversion HeqW.
 Qed.
 
-(* For Matrix.v *)
-Lemma kron_plus_distr_l : forall (m n o p : nat) (A : Matrix m n) (B C : Matrix o p), 
-                           A ⊗ (B .+ C) = A ⊗ B .+ A ⊗ C.
-Proof. 
-  intros m n o p A B C.
-  unfold Mplus, kron.
-  prep_matrix_equality.
-  rewrite Cmult_plus_distr_l.
-  easy.
-Qed.
-
-Lemma kron_plus_distr_r : forall (m n o p : nat) (A B : Matrix m n) (C : Matrix o p), 
-                           (A .+ B) ⊗ C = A ⊗ C .+ B ⊗ C.
-Proof. 
-  intros m n o p A B C.
-  unfold Mplus, kron.
-  prep_matrix_equality.
-  rewrite Cmult_plus_distr_r. 
-  reflexivity.
-Qed.
-
 Lemma ctrl_list_to_unitary_r_unitary : forall r (u : Square 2), is_unitary u -> 
                                                            is_unitary (ctrl_list_to_unitary_r r u).
 Proof.
@@ -836,7 +813,6 @@ Proof.
   unify_pows_two.
   replace (k + 1 + (n - k - 1))%nat with n by omega.    
   apply mixed_unitary; trivial.
-  destruct U; auto with wf_db.
   specialize @kron_unitary as KU.
   specialize (KU _ _ ('I_(2^k) ⊗ u) ('I_(2^(n-k-1)))). 
   replace (2^(k+1))%nat with (2^k * 2)%nat by unify_pows_two. 
@@ -878,10 +854,8 @@ Proof.
   - simpl in *.
     apply mixed_unitary; trivial.
     apply denote_ctrls_unitary; trivial.
-    apply denote_ctrls_unitary; trivial.
   - simpl in *.
     apply mixed_unitary; trivial.
-    apply denote_ctrls_unitary; trivial.
     apply denote_ctrls_unitary; trivial.
 Qed.
 
@@ -941,6 +915,74 @@ Definition apply_gate {n w1 w2} (safe : bool) (g : Gate w1 w2) (l : list nat)
   | assert1      => apply_to_first (if safe then apply_discard else apply_assert1) l
   end.
 
+Lemma apply_new0_correct : forall n, 
+  WF_Superoperator (@apply_new0 n).
+Proof.
+  intros n ρ Mρ.
+  unfold apply_new0.
+  unfold super.
+  Msimpl.
+  rewrite <- (kron_1_r _ _ ρ).
+  Msimpl.
+  replace (2 ^ (n+1))%nat with (2^n * 2)%nat by unify_pows_two. 
+  apply (mixed_state_kron _ _ ρ (|0⟩⟨0|)).
+  easy.
+  constructor.
+  apply pure0.
+Qed.
+
+Lemma apply_new1_correct : forall n, 
+  WF_Superoperator (@apply_new1 n).
+Proof.
+  intros n ρ Mρ.
+  unfold apply_new1.
+  unfold super.
+  Msimpl.
+  rewrite <- (kron_1_r _ _ ρ).
+  Msimpl.
+  replace (2 ^ (n+1))%nat with (2^n * 2)%nat by unify_pows_two. 
+  apply (mixed_state_kron _ _ ρ (|1⟩⟨1|)).
+  easy.
+  constructor.
+  apply pure1.
+Qed.
+
+  
+Lemma apply_discard_correct : forall n k, (k < n)%nat ->
+    WF_Superoperator (@apply_discard n k). 
+Proof.
+  intros n k L ρ Mρ.
+  unfold apply_discard.
+  unfold Splus, super.
+Abort.
+
+Lemma apply_gate_correct : forall W1 W2 n (g : Gate W1 W2) l,
+                           length l = ⟦W1⟧ ->
+                           (length l <= n)%nat ->
+                           (forallb (fun x => x <? n) l = true) -> 
+                           WF_Superoperator (@apply_gate n W1 W2 true g l). 
+Proof.
+  intros W1 W2 n g l L1 L2 Lt.
+  destruct g.
+  - simpl in *.
+    rewrite <- L1.
+    bdestructΩ  (length l <=? n).
+    replace (n + length l - length l)%nat with n by omega.
+    apply apply_U_correct; easy.
+  - Opaque apply_U.
+    simpl in *.
+    destruct n; [omega|].
+    replace (S n + 1 - 1)%nat with (S n) by omega.
+    apply apply_U_correct; easy.
+    Transparent apply_U.
+  - simpl in *.
+    unfold WF_Superoperator.
+    intros ρ Mρ.
+    unfold apply_new0, super.
+    Msimpl.
+Abort.    
+    
+(* These probably don't belong here, if they belong anywhere *)
 (* Can also use map_id and map_ext *)
 Lemma map_same_id : forall a l, (map (fun z : nat * nat => if a =? snd z then (fst z, a) else z)
                                 (combine l l)) = combine l l.
