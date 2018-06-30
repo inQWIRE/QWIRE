@@ -838,18 +838,28 @@ Proof. intros Γ W p TP. unfold is_valid. inversion TP; eauto. Qed.
 
 Open Scope circ_scope.
 Inductive Unitary : WType -> Set := 
-  | H         : Unitary Qubit 
-  | X         : Unitary Qubit
-  | Y         : Unitary Qubit
-  | Z         : Unitary Qubit
-  | R_        : R -> Unitary Qubit 
+  | _H         : Unitary Qubit 
+  | _X         : Unitary Qubit
+  | _Y         : Unitary Qubit
+  | _Z         : Unitary Qubit
+  | _R_        : R -> Unitary Qubit 
   | ctrl      : forall {W} (U : Unitary W), Unitary (Qubit ⊗ W) 
-  | bit_ctrl  : forall {W} (U : Unitary W), Unitary (Bit ⊗ W) 
-  | trans     : forall {W} (U : Unitary W), Unitary W.
+  | bit_ctrl  : forall {W} (U : Unitary W), Unitary (Bit ⊗ W).
 
-(* NOT, CNOT and Tofolli notation *)
-Notation CNOT := (ctrl X).
-Notation CCNOT := (ctrl (ctrl X)).
+(* Additional gate notations *)
+Notation CNOT := (ctrl _X).
+Notation CCNOT := (ctrl (ctrl _X)).
+
+Notation _S := (_R_ (PI / 2)). 
+Notation _T := (_R_ (PI / 4)). (* π / 8 gate *)
+
+Fixpoint trans {W} (U : Unitary W) : Unitary W :=
+  match U with
+  | _R_ ϕ       => _R_ (- ϕ)
+  | ctrl U'     => ctrl (trans U')
+  | bit_ctrl U' => bit_ctrl (trans U')
+  | U'          => U' (* our other unitaries are their own adjoints *)
+  end.
 
 Inductive Gate : WType -> WType -> Set := 
   | U : forall {W} (u : Unitary W), Gate W W
@@ -990,28 +1000,28 @@ Proof.
     rewrite merge_nil_r; reflexivity.
     assumption.
   - rename Γ1 into Γ3. rename Γ2 into Γ4. rename o1 into o3. rename o2 into o4.
-    intros Γ1 Γ2 H.
+    intros Γ1 Γ2 M.
     destruct Γ1 as [|Γ1]. invalid_contradiction.
     destruct Γ2 as [|Γ2]. invalid_contradiction.
     destruct Γ1 as [|o1 Γ1], Γ2 as [|o2 Γ2]. 
-    + inversion H.
-    + rewrite merge_nil_l in H. inversion H. subst.
+    + inversion M.
+    + rewrite merge_nil_l in M. inversion M. subst.
       exists ∅, ∅, (Valid (o3 :: Γ3)), (Valid (o4 :: Γ4)).
       repeat split; try apply valid_valid.      
       apply merge_ind_fun.
       constructor; assumption.
-    + rewrite merge_nil_r in H. inversion H. subst.
+    + rewrite merge_nil_r in M. inversion M. subst.
       exists (Valid (o3 :: Γ3)), (Valid (o4 :: Γ4)), ∅, ∅.
       repeat split; try apply valid_valid.      
       apply merge_ind_fun.
       constructor; assumption.
     + assert (M12 : (Valid (o :: Γ) == Valid (o1 :: Γ1) ∙ Valid (o2 :: Γ2))).
       constructor. apply valid_valid. assumption.
-      clear H.
+      clear M.
       apply merge_fun_ind in M12.
       inversion M12. subst. clear M12.
       destruct (IHmerge_ind (Valid Γ1) (Valid Γ2)) as [Γ13 [Γ14 [Γ23 [Γ24 pf]]]].
-      apply merge_ind_fun in H8 as [V M]. assumption.
+      apply merge_ind_fun in H7 as [V M]. assumption.
       destruct pf as [pf1 [pf2 [pf3 pf4]]].
       destruct Γ13 as [|Γ13]. invalid_contradiction.
       destruct Γ14 as [|Γ14]. invalid_contradiction.
@@ -1019,7 +1029,7 @@ Proof.
       destruct Γ24 as [|Γ24]. invalid_contradiction.
       destruct pf1 as [_ M1], pf2 as [_ M2], pf3 as [_ M3], pf4 as [_ M4].
       simpl in *.
-      inversion m; subst; inversion H4; subst.
+      inversion m; subst; inversion H3; subst.
       * exists (Valid (None :: Γ13)), (Valid (None :: Γ14)), 
           (Valid (None :: Γ23)), (Valid (None :: Γ24)).
         repeat split; try apply valid_valid; simpl.         

@@ -296,15 +296,6 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma repeat_combine : forall T n1 n2 (t : T), 
-  List.repeat t n1 ++ List.repeat t n2 = List.repeat t (n1 + n2).
-Proof.
-  induction n1; trivial. 
-  intros. simpl. 
-  rewrite IHn1.
-  reflexivity.
-Qed.
-
 Lemma ctx_dom_repeat : forall n, ctx_dom (repeat (Some Qubit) n) = seq 0 n.
 Proof.      
   induction n; trivial.
@@ -1032,7 +1023,7 @@ Proof.
   apply WF_kron; easy.
   destruct H. unfold kron, trace. 
   admit.
-  rewrite kron_conj_transpose.
+  rewrite kron_adjoint.
   destruct H as [_ [_ [SAA _]]], H0 as [_ [_ [SAB _]]].
   rewrite <- SAA, <- SAB.
   reflexivity.

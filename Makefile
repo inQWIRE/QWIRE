@@ -1,5 +1,7 @@
 all: HOASExamples.vo SemanticLib.vo
 
+everything: HOASProofs.vo Equations.vo Deutsch.vo Arithmetic.vo
+
 Monad.vo: Monad.v
 	coqc Monad.v
 
@@ -56,17 +58,21 @@ Oracles.vo: Oracles.v Symmetric.vo HOASExamples.vo
 Arithmetic.vo: Arithmetic.v Oracles.vo
 	coqc Arithmetic.v
 
-
 # not built by `make`
-
-FlatCircuits.vo: FlatCircuits.v HOASCircuits.vo Monad.vo
-	coqc FlatCircuits.v
 
 HOASProofs.vo: HOASProofs.v HOASExamples.vo SemanticLib.vo
 	coqc HOASProofs.v
 
+Deutsch.vo: Deutsch.v HOASExamples.vo Complex.vo Denotation.vo DBCircuits.vo TypeChecking.vo
+	coqc Deutsch.v
+
 Equations.vo: Equations.v SemanticLib.vo
 	coqc Equations.v
+
+# Not built at all
+
+FlatCircuits.vo: FlatCircuits.v HOASCircuits.vo Monad.vo
+	coqc FlatCircuits.v
 
 
 #MachineProofs.vo: MachineProofs.v MachineExamples.vo Denotation.vo

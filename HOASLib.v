@@ -12,11 +12,30 @@ Lemma boxed_gate_WT {W1 W2} (g : Gate W1 W2) : Typed_Box (boxed_gate g).
 Proof. type_check. Qed.
 Coercion boxed_gate : Gate >-> Box.
 
+Lemma types_circuit_valid : forall w (c : Circuit w) Γ, Γ ⊢ c :Circ -> is_valid Γ.
+Proof.
+  intros w c Γ pf_c.
+  induction pf_c.
+  - subst. eapply pat_ctx_valid; eauto.
+  - destruct pf1. subst. auto.
+  - destruct pf. subst. auto.
+Qed.
+
 Definition apply_box {w1 w2} (b : Box w1 w2) (c : Circuit w1) : Circuit w2 :=
   let_ x ← c;
   unbox b x.
 Notation "b $ c" := (apply_box b c)  (right associativity, at level 12) : circ_scope.
 Coercion output : Pat >-> Circuit.
+Lemma apply_box_WT : forall w1 w2 (b : Box w1 w2) (c : Circuit w1) Γ,
+      Typed_Box b -> Γ ⊢ c :Circ -> Γ ⊢ apply_box b c :Circ.
+Proof.
+  intros w1 w2 b c Γ pf_b pf_c.
+  type_check; [exact pf_c | | solve_merge; eapply types_circuit_valid; eauto].
+  apply unbox_typing; auto.
+  type_check.
+Qed.
+
+
 
 (* Should move other notations in Typechecking *)
 
@@ -162,7 +181,10 @@ Notation "b' · b" := (inSeq b b') (at level 60, right associativity) : circ_sco
 Notation "c1 ;; c2" := (inSeq c1 c2) (at level 60, right associativity) : circ_scope.
 
 Notation "(())" := (units _) (at level 0) : circ_scope.
-Notation "g # n" := (inParMany n g) (at level 40) : circ_scope.
+Notation "g # n" := (inParMany n g) (at level 11) : circ_scope.
+
+
+
 
 Hint Resolve types_units id_circ_WT boxed_gate_WT init_WT inSeq_WT inPar_WT 
      initMany_WT inSeqMany_WT inParMany_WT : typed_db.
@@ -177,7 +199,7 @@ Hint Resolve types_units id_circ_WT boxed_gate_WT init_WT inSeq_WT inPar_WT
 
 Definition CL_AND : Box (Qubit ⊗ Qubit) Qubit :=
   box_ ab ⇒
-    let_ (a,b)      ← output ab;
+    let_ (a,b)     ← output ab;
     let_ z         ← init0 $ ();
     let_ (a,(b,z)) ← CCNOT $ (a,(b,z));
     let_ a         ← meas $ a;
@@ -199,10 +221,10 @@ Proof. type_check. Qed.
 
 Definition CL_OR : Box (Qubit ⊗ Qubit) Qubit :=
   box_ (a,b) ⇒ 
-    let_ a'         ← X $a;
-    let_ b'         ← X $b;
+    let_ a'         ← _X $a;
+    let_ b'         ← _X $b;
     let_ z          ← CL_AND $ (a',b');
-    X $z.
+    _X $z.
 Lemma CL_OR_WT : Typed_Box CL_OR.
 Proof. type_check. Qed.
 
@@ -222,7 +244,7 @@ Definition TRUE : Box Qubit Qubit :=
     let_ ()    ← assert1 $x;
     output z.
 *)
-Definition TRUE : Box Qubit Qubit := X.
+Definition TRUE : Box Qubit Qubit := _X.
 Lemma TRUE_WT : Typed_Box TRUE.
 Proof. type_check. Qed.
 
@@ -240,9 +262,9 @@ Proof. type_check. Qed.
 
 Definition NOT : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) :=
   box_ (x,z) ⇒ 
-    let_ x         ← X $x;
+    let_ x         ← _X $x;
     let_ (x,z)     ← CNOT $(x,z);
-    let_ x         ← X $x;
+    let_ x         ← _X $x;
     (x,z).
 Lemma NOT_WT : Typed_Box NOT.
 Proof. type_check. Qed.

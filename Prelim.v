@@ -49,6 +49,13 @@ Ltac bdestruct X :=
     | destruct H as [H|H];
        [ | try first [apply not_lt in H | apply not_le in H]]].
 
+Ltac bdestructΩ X := bdestruct X; simpl; try omega.
+
+
+(* Distribute functions over lists *)
+
+Lemma if_dist : forall (A B : Type) (b : bool) (f : A -> B) (x y : A), f (if b then x else y) = if b then f x else f y.
+Proof. destruct b; reflexivity. Qed.
 
 (* Currying *)
 
@@ -58,7 +65,6 @@ Definition uncurry {A B C : Type} (f : A -> B -> C) : (A * B -> C) :=
   fun p => f (fst p) (snd p).
 
 (* Lists *)
-
 
 (* Precondition: x must appear in li *)
 Fixpoint lookup (x : nat) (li : list nat) : nat :=
@@ -91,7 +97,16 @@ Fixpoint update_at {A} (ls : list A) (i : nat) (a : A) : list A :=
   | b :: ls', S i' => b :: update_at ls' i' a
   end.
 
-
+Lemma update_length : forall A (l: list A) (a : A) (n : nat), 
+    length (update_at l n a) = length l.
+Proof.
+  induction l; auto. 
+  simpl.
+  destruct n.
+  easy.
+  simpl.
+  rewrite IHl; easy.
+Qed.
 
 Fixpoint Injective {A} (ls : list A) :=
   match ls with
@@ -104,8 +119,79 @@ Proof.
   destruct x; auto.
 Qed.
 
-(* option type *)
+Lemma repeat_combine : forall A n1 n2 (a : A), 
+  List.repeat a n1 ++ List.repeat a n2 = List.repeat a (n1 + n2).
+Proof.
+  induction n1; trivial. 
+  intros. simpl. 
+  rewrite IHn1.
+  reflexivity.
+Qed.
 
+Lemma rev_repeat : forall A (a : A) n, rev (repeat a n) = repeat a n.
+Proof.
+  induction n; simpl; trivial.
+  rewrite IHn.
+  rewrite (repeat_combine A n 1).
+  rewrite Nat.add_1_r.
+  reflexivity.
+Qed.
+
+Lemma firstn_repeat_le : forall A (a : A) m n, (m <= n)%nat -> firstn m (repeat a n) = repeat a m.  
+Proof.
+  induction m; trivial.
+  intros n L.
+  destruct n; [inversion L|].  
+  simpl.
+  rewrite IHm by omega.
+  reflexivity.
+Qed.
+
+Lemma firstn_repeat_ge : forall A (a : A) m n, (m >= n)%nat -> firstn m (repeat a n) = repeat a n.  
+Proof.
+  intros A a m n H.
+  generalize dependent m.
+  induction n; intros m L; simpl.
+  - apply firstn_nil.
+  - destruct m; [inversion L|].
+    simpl.
+    rewrite IHn by omega.
+    reflexivity.
+Qed.
+
+Lemma firstn_repeat : forall A (a : A) m n, firstn m (repeat a n) = repeat a (min m n).  
+Proof.
+  intros.
+  bdestruct (m <=? n).
+  - rewrite firstn_repeat_le, Min.min_l; easy.
+  - rewrite firstn_repeat_ge, Min.min_r; try omega; easy.
+Qed.
+
+Lemma skipn_repeat : forall A (a : A) m n, skipn m (repeat a n) = repeat a (n-m).
+Proof.  
+  induction m; intros n; simpl.
+  - rewrite Nat.sub_0_r. reflexivity.
+  - destruct n; trivial.
+    simpl.
+    apply IHm.
+Qed.
+
+Lemma skipn_length : forall {A} (l : list A) n, length (skipn n l) = (length l - n)%nat. 
+Proof.
+  Transparent skipn.
+  intros A l.
+  induction l.
+  intros [|n]; easy.
+  intros [|n].
+  easy.
+  simpl.
+  rewrite IHl.
+  easy.
+  Opaque skipn.
+Qed.
+
+
+(* option type *)
 
 Definition maybe {A} (o : option A) (default : A) : A :=
   match o with
