@@ -38,7 +38,7 @@ Definition print_unaryop (u : unaryop) : string :=
   end.
 Fixpoint print_exp (e : exp) : string :=
   match e with
-  | e_real r => "" (* To implement *)
+  | e_real r => "(Real number : To implement)" (* To implement *)
   | e_nat n => writeNat n
   | e_pi => "pi"
   | e_id name => name
@@ -124,7 +124,9 @@ Fixpoint print_statement (s : statement) : string :=
                                           ++ print_idlist names ++ ";" ++ newline
   | s_qop q => print_qop q
   | s_if x n q => "if(" ++ x ++ "==" ++ writeNat n ++ ") " ++ print_qop q
+(*
   | s_ifcall bx q => "if(call(" ++ (print_bexp bx) ++ ")) " ++ print_qop q
+*)
   | s_barrier args => "barrier " ++ print_anylist args ++ ";" ++ newline
   | s_output args => ""
   | s_error msg => "Compile Error : " ++ msg ++ newline

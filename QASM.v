@@ -106,8 +106,6 @@ Close Scope qasm_scope.
 Require Import HOASCircuits.
 Require Import HOASExamples.
 Require Import DBCircuits.
-Require Import Monad.
-Require Import Contexts.
 Require Import Arith.
 Require Import Reals.
 Require Import List.
