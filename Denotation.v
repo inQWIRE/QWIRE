@@ -947,6 +947,17 @@ Proof.
   apply pure1.
 Qed.
 
+Lemma apply_meas_correct : forall n k, (k < n)%nat ->
+    WF_Superoperator (@apply_meas n k). 
+Proof.
+  intros n k L ρ Mρ.
+  unfold apply_meas.
+  unfold Splus, super.
+  Msimpl.
+  eapply Mix_S.
+Abort.
+
+
   
 Lemma apply_discard_correct : forall n k, (k < n)%nat ->
     WF_Superoperator (@apply_discard n k). 
@@ -954,6 +965,8 @@ Proof.
   intros n k L ρ Mρ.
   unfold apply_discard.
   unfold Splus, super.
+  Msimpl.
+  eapply Mix_S.
 Abort.
 
 Lemma apply_gate_correct : forall W1 W2 n (g : Gate W1 W2) l,

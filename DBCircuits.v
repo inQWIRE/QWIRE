@@ -199,7 +199,6 @@ Inductive Types_DB {w} (Γ : OCtx) : DeBruijn_Circuit w -> Prop :=
                     Types_DB (process_gate_state g p Γ) c ->
                     Γ == Γ1 ∙ Γ2 ->
                     Types_DB Γ (db_gate g p c)
-                             
 | types_db_lift   : forall Γ1 Γ2 Γ' p f,
                     Types_Pat Γ1 p ->
                     (forall b, Types_DB Γ' (f b)) ->
