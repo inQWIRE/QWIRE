@@ -1696,7 +1696,11 @@ Proof.
 
     destruct U. rewrite pf_merge in *.
     rewrite size_octx_merge with (Γ1 := Γ1) (Γ2 := Γ2) by easy.
-    destruct RM. rewrite pf_merge0 in *.
+    replace (Valid (flatten_ctx (update_at Γ v None)))
+       with (flatten_octx (Valid (update_at Γ v None))) by easy.
+    destruct RM. rewrite pf_merge0 in *.  
+    rewrite size_flatten_octx.
+
     rewrite size_octx_merge with (Γ1 := Valid (update_at Γ1 v None)) 
                                  (Γ2 := Valid (update_at Γ2 v None)) by easy.    
     simpl.
@@ -1716,9 +1720,14 @@ Proof.
     destruct Γ2 as [|Γ2]. destruct U. simpl in pf_merge. rewrite pf_merge in *. 
       apply not_valid in pf_valid. contradiction.
     specialize (update_none_merge _ _ _ v U) as RM.
+
     destruct U. rewrite pf_merge in *.
     rewrite size_octx_merge with (Γ1 := Γ1) (Γ2 := Γ2) by easy.
-    destruct RM. rewrite pf_merge0 in *.
+    replace (Valid (flatten_ctx (update_at Γ v None)))
+       with (flatten_octx (Valid (update_at Γ v None))) by easy.
+    destruct RM. rewrite pf_merge0 in *.  
+    rewrite size_flatten_octx.
+
     rewrite size_octx_merge with (Γ1 := Valid (update_at Γ1 v None)) 
                                  (Γ2 := Valid (update_at Γ2 v None)) by easy.    
     simpl.
@@ -1738,9 +1747,14 @@ Proof.
     destruct Γ2 as [|Γ2]. destruct U. simpl in pf_merge. rewrite pf_merge in *. 
       apply not_valid in pf_valid. contradiction.
     specialize (update_none_merge _ _ _ v U) as RM.
+
     destruct U. rewrite pf_merge in *.
     rewrite size_octx_merge with (Γ1 := Γ1) (Γ2 := Γ2) by easy.
-    destruct RM. rewrite pf_merge0 in *.
+    replace (Valid (flatten_ctx (update_at Γ v None)))
+       with (flatten_octx (Valid (update_at Γ v None))) by easy.
+    destruct RM. rewrite pf_merge0 in *.  
+    rewrite size_flatten_octx.
+
     rewrite size_octx_merge with (Γ1 := Valid (update_at Γ1 v None)) 
                                  (Γ2 := Valid (update_at Γ2 v None)) by easy.    
     simpl.

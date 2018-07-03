@@ -160,6 +160,20 @@ Definition flatten_octx Γ :=
   | Invalid  => Invalid
   end.
 
+
+Lemma size_flatten_ctx : forall Γ, size_ctx (flatten_ctx Γ) = size_ctx Γ.
+Proof.
+  induction Γ as [ | [w | ] Γ]; auto. 
+  simpl. rewrite IHΓ. auto.
+Qed.
+Lemma size_flatten_octx : forall Γ,
+    size_octx (flatten_octx Γ) = size_octx Γ.
+Proof.
+  destruct Γ as [ | Γ].
+  - reflexivity.
+  - simpl.
+    rewrite size_flatten_ctx. reflexivity.
+Qed.
   
 (* Define only for contexts? *)
 (* Ctx's and OCtx's can be used as state *)
