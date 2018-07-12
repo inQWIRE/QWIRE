@@ -1108,11 +1108,12 @@ Qed.
 Hint Resolve WF_ctx_to_matrix : wf_db.
 *)
 
+(*
 Eval simpl in (ctx_to_matrix [Some Qubit; None; None; Some Qubit; Some Qubit] 
                (fun v => if v =? 3 then true else false)).
 Eval simpl in (ctx_to_matrix [Some Qubit; None; None; Some Qubit; Some Qubit] 
                (fun v => if v =? 2 then true else false)).
-
+*)
 
 Lemma is_valid_singleton_merge : forall W (Γ : Ctx) n, (length Γ <= n)%nat ->
                                                   is_valid (Γ ⋓ singleton n W).

@@ -177,11 +177,6 @@ Definition teleport :=
 Lemma teleport_WT : Typed_Box teleport.
 Proof. type_check. Defined.
 
-(* Now simplification is quick! *)
-Eval cbv in teleport.
-Eval cbn in teleport.
-Eval simpl in teleport.
-
 Definition bob_lift : Box (Bit ⊗ Bit ⊗ Qubit) Qubit :=
   box_ (x,y,b) ⇒
     lift_ (u,v)  ← (x,y);
@@ -190,10 +185,6 @@ Definition bob_lift : Box (Bit ⊗ Bit ⊗ Qubit) Qubit :=
     b.
 Lemma bob_lift_WT : Typed_Box bob_lift.
 Proof. type_check. Defined. 
-
-Print bob_lift.
-Eval compute in bob_lift.
-
 
 Program Definition bob_lift' : Box (Bit ⊗ Bit ⊗ Qubit) Qubit := 
   box_ (x,y,b) ⇒

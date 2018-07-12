@@ -179,9 +179,9 @@ Qed.
 (* Ctx's and OCtx's can be used as state *)
 Instance Ctx_State : Gate_State Ctx :=
   { get_fresh w  := do Γ ← get;
-                    do _ ← put (Γ ++ [Some w]); (* don't like this *)
+                    do _ ← put (Γ ++ [Some w]); 
                     return_ (length Γ)
-  ; remove_var x Γ := flatten_ctx (update_at Γ x None)
+  ; remove_var x Γ := trim (update_at Γ x None)
   ; change_type x w Γ := update_at Γ x (Some w)
   ; maps_to x Γ := maps_in_Ctx x Γ
   }.
@@ -251,8 +251,6 @@ Record subst_state := Mk_subst_state
   ; fresh : nat }. 
 
 (* This should be used for HOAS *)
-Print Gate_State.
-
 Fixpoint lookup_maybe (x : nat) (ls : list nat) : option nat :=
   match ls with
   | [] => None

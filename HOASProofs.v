@@ -579,28 +579,6 @@ Definition M_bob (ρ : Density 8) : Density 2 :=
 
 Lemma bob_spec : forall (ρ : Density 8), Mixed_State ρ -> ⟦bob⟧ ρ = M_bob ρ.
 Proof.
-
-  intros; simpl.
-  unfold denote_box; simpl.
-  unfold get_fresh_var; simpl.
-  unfold hoas_to_db_pat; simpl.
-  unfold subst_var; simpl.
-  unfold pad; simpl.
-  unfold denote_pat; simpl.
-  unfold swap_list; simpl.
-  unfold swap_two; simpl.
-  unfold compose_super.
-  unfold process_gate_state; simpl.
-  unfold denote_ctrls; simpl.
-  (* apply discard 0 then 1 ??? *)
-  unfold apply_discard; simpl.
-  Msimpl.
-  (* It's first throwing out the 2nd qubit (1), then the third (orig. 2, now 1) *)
-  
-
-
-
-
   intros.
   matrix_denote.
   repeat (simpl; autounfold with den_db). 
@@ -622,10 +600,6 @@ Proof.
   Msimpl.
   solve_matrix.
   idtac.
-  (* well, this is wrong. Mistake in the teleport circuit or in the new denotation?
-     (I think this was working with the new denotation...) *)
-Abort.
-(*
   all: rewrite (Cmult_assoc (/ √2));
        autorewrite with C_db;
        rewrite (Cmult_comm _ (/2));
@@ -634,7 +608,7 @@ Abort.
        rewrite (Cmult_assoc 2 (/2));
        autorewrite with C_db;
        reflexivity.
-Qed.    *)
+Qed.
 
 (* Teleport with Dynamic Lifting *)
 
@@ -661,55 +635,12 @@ Qed.
 Definition teleport_distant_eq : teleport_distant ≡ id_circ.
 Proof. 
   intros ρ safe Mρ.
-
-  unfold teleport_distant; simpl.
-  unfold denote_box; simpl.
-  unfold get_fresh_var; simpl.
-  unfold hoas_to_db_pat; simpl.
-  unfold subst_var; simpl.
-  unfold pad; simpl.
-  unfold denote_pat; simpl.
-  unfold swap_list; simpl.
-  unfold swap_two; simpl.
-  unfold compose_super.
-  unfold apply_qubit_unitary; simpl.
-  unfold process_gate_state; simpl.
-  unfold apply_new0; simpl.
-  unfold apply_meas; simpl.
-  unfold denote_ctrls; simpl.
-  simpl in *.
-  Msimpl.
-  
-  Notation k0 := |0⟩.
-  Notation k1 := |1⟩.
-  Notation b0 := ⟨0|.
-  Notation b1 := ⟨1|.
-  Notation m0 := |0⟩⟨0|.
-  Notation m1 := |1⟩⟨1|.
-                  
-
-  idtac.
-  Locate "∘".
-  unfold dot.
-  unfold Basics.compose.
-  simpl.
-
-
-  Unset Printing Notations.
-
-
-  Msimpl.
-  unfold 
-  
-
-  repeat (autounfold with ket_den_db; simpl).
-
   matrix_denote.
   specialize (WF_Mixed _ Mρ). intros WFρ.
   Msimpl.
   solve_matrix.
   idtac.
-  1: rewrite (Cmult_assoc (/ √2));
+  all: rewrite (Cmult_assoc (/ √2));
        autorewrite with C_db;
        rewrite (Cmult_comm _ (/2));
        rewrite (Cmult_assoc 2 (/2));
@@ -717,34 +648,7 @@ Proof.
        rewrite (Cmult_assoc 2 (/2));
        autorewrite with C_db;
        reflexivity.
-  3: rewrite (Cmult_assoc (/ √2));
-       autorewrite with C_db;
-       rewrite (Cmult_comm _ (/2));
-       rewrite (Cmult_assoc 2 (/2));
-       autorewrite with C_db;
-       rewrite (Cmult_assoc 2 (/2));
-       autorewrite with C_db;
-       reflexivity.
-(* also borked. Which is weird, because bell00, alice, and bob_distant are all fine... *)
-Abort.
-
-Lemma teleport_test : exists c, c = teleport.
-Proof.
-  unfold teleport.
-  unfold bob.
-  unfold apply_box.
-  simpl.
-  simpl.
-
-  unfold comp.
-  simpl.
-
-  cbv. 
-  unfold comp.
-  unfold wproj.
-  simpl.
-
-Eval (unfold teleport; simpl) in teleport.
+Qed.
 
 (* Lemmas out of date
 Lemma boxed_gate_correct : forall W1 W2 (g : Gate W1 W2) (ρ : Density (2^⟦W1⟧)) ,

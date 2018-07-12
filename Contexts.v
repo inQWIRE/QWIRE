@@ -762,6 +762,19 @@ Proof.
   rewrite IHempty_ctx; auto.
 Qed.
 
+Lemma size_ctx_trim : forall Γ, size_ctx (trim Γ) = size_ctx Γ.
+Proof.
+  induction Γ; auto.
+  destruct a; simpl.
+  rewrite IHΓ; easy.
+  simpl.
+  destruct (trim Γ); easy.
+Qed.  
+
+Lemma size_octx_trim : forall Γ, size_octx (trim Γ) = size_octx Γ.
+Proof. apply size_ctx_trim. Qed.
+
+
 (* length is the actual length of the underlying list, as opposed to size, which
  * is the number of Some entries in the list 
  *)

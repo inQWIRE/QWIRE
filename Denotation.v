@@ -1082,7 +1082,6 @@ Definition denote_pat {w} (p : Pat w) : Matrix (2^⟦w⟧) (2^⟦w⟧) :=
 Instance Denote_Pat {w} : Denote (Pat w) (Matrix (2^⟦w⟧) (2^⟦w⟧)) :=
   { denote := denote_pat }.
 
-Print Gate_State.
 (* here, the state represents the number of qubits in a system. *)
 Instance nat_gate_state : Gate_State nat :=
   { get_fresh := fun _ n => (n,S n)
@@ -1709,11 +1708,35 @@ Proof.
 
     destruct U. rewrite pf_merge in *.
     rewrite size_octx_merge with (Γ1 := Γ1) (Γ2 := Γ2) by easy.
-    replace (Valid (flatten_ctx (update_at Γ v None)))
-       with (flatten_octx (Valid (update_at Γ v None))) by easy.
-    destruct RM. rewrite pf_merge0 in *.  
-    rewrite size_flatten_octx.
+    destruct RM.
+    (* Need lemma about size_ctx trim x *)
+    rewrite size_octx_trim.    
+    rewrite pf_merge0 in *.
+    rewrite size_octx_merge with (Γ1 := Valid (update_at Γ1 v None)) 
+                                 (Γ2 := Valid (update_at Γ2 v None)) by easy.    
+    simpl.
+    specialize (update_none_singleton _ _ _ H1) as E. simpl in E.
+    apply size_empty_ctx in E. simpl in E. rewrite E.
+    specialize (Singleton_size _ _ _ H1) as SS. simpl in SS. rewrite SS.
+    erewrite update_none_collision.
+    omega.
+    apply H1.    
+    rewrite <- pf_merge in pf_valid.
+    constructor; [apply pf_valid| apply pf_merge].
+  + dependent destruction p; simpl.
+    inversion TP; subst. rename Γ0 into Γ1.
+    unfold remove_pat.
+    simpl.
+    destruct Γ as [|Γ]. destruct U. apply not_valid in pf_valid. contradiction.
+    destruct Γ2 as [|Γ2]. destruct U. simpl in pf_merge. rewrite pf_merge in *. 
+      apply not_valid in pf_valid. contradiction.
+    specialize (update_none_merge _ _ _ v U) as RM.
 
+    destruct U. rewrite pf_merge in *.
+    rewrite size_octx_merge with (Γ1 := Γ1) (Γ2 := Γ2) by easy.
+    destruct RM. 
+    rewrite size_octx_trim.
+    rewrite pf_merge0 in *.      
     rewrite size_octx_merge with (Γ1 := Valid (update_at Γ1 v None)) 
                                  (Γ2 := Valid (update_at Γ2 v None)) by easy.    
     simpl.
@@ -1738,36 +1761,9 @@ Proof.
     rewrite size_octx_merge with (Γ1 := Γ1) (Γ2 := Γ2) by easy.
     replace (Valid (flatten_ctx (update_at Γ v None)))
        with (flatten_octx (Valid (update_at Γ v None))) by easy.
-    destruct RM. rewrite pf_merge0 in *.  
-    rewrite size_flatten_octx.
-
-    rewrite size_octx_merge with (Γ1 := Valid (update_at Γ1 v None)) 
-                                 (Γ2 := Valid (update_at Γ2 v None)) by easy.    
-    simpl.
-    specialize (update_none_singleton _ _ _ H1) as E. simpl in E.
-    apply size_empty_ctx in E. simpl in E. rewrite E.
-    specialize (Singleton_size _ _ _ H1) as SS. simpl in SS. rewrite SS.
-    erewrite update_none_collision.
-    omega.
-    apply H1.    
-    rewrite <- pf_merge in pf_valid.
-    constructor; [apply pf_valid| apply pf_merge].
-  + dependent destruction p; simpl.
-    inversion TP; subst. rename Γ0 into Γ1.
-    unfold remove_pat.
-    simpl.
-    destruct Γ as [|Γ]. destruct U. apply not_valid in pf_valid. contradiction.
-    destruct Γ2 as [|Γ2]. destruct U. simpl in pf_merge. rewrite pf_merge in *. 
-      apply not_valid in pf_valid. contradiction.
-    specialize (update_none_merge _ _ _ v U) as RM.
-
-    destruct U. rewrite pf_merge in *.
-    rewrite size_octx_merge with (Γ1 := Γ1) (Γ2 := Γ2) by easy.
-    replace (Valid (flatten_ctx (update_at Γ v None)))
-       with (flatten_octx (Valid (update_at Γ v None))) by easy.
-    destruct RM. rewrite pf_merge0 in *.  
-    rewrite size_flatten_octx.
-
+    destruct RM.
+    rewrite size_octx_trim.
+    rewrite pf_merge0 in *.  
     rewrite size_octx_merge with (Γ1 := Valid (update_at Γ1 v None)) 
                                  (Γ2 := Valid (update_at Γ2 v None)) by easy.    
     simpl.
