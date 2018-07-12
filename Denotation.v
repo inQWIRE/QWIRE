@@ -52,7 +52,7 @@ Proof.
 Qed.
 Hint Resolve WF_unitary : wf_db.
 
-Lemma unitary_gate_unitary : forall {W} (U : Unitary W), is_unitary (⟦U⟧).
+Lemma unitary_gate_unitary : forall {W} (U : Unitary W), WF_Unitary (⟦U⟧).
 Proof.
   induction U.
   + apply H_unitary.
@@ -75,7 +75,7 @@ Qed.
 (* Hint Resolve unitary_gate_unitary. Do we need this? Where? *)
 Instance Denote_Unitary_Correct W : Denote_Correct (Denote_Unitary W) :=
 {|
-    correctness := fun A => is_unitary A;
+    correctness := fun A => WF_Unitary A;
     denote_correct := fun U => unitary_gate_unitary U
 |}.
 
@@ -417,6 +417,10 @@ Fixpoint ctrl_list_to_unitary (l r : list bool) (u : Square 2) :
   | []          => ctrl_list_to_unitary_r r u
   end.
 
+
+Eval simpl in (ctrl_list_to_unitary_r [true; false; false] σz).
+Eval simpl in (ctrl_list_to_unitary [true; false; true; false] [true; false; false] σz).
+
 Definition denote_ctrls {W} (n : nat) (g : Unitary W) (l : list nat) : Matrix (2^n) (2^n) := 
   let (res, u) := ctrls_to_list (repeat false n) l g in
   let (k, lb) := res in
@@ -513,17 +517,17 @@ Proof.
   1-2: inversion HeqW.
 Qed.
 
-Lemma ctrl_list_to_unitary_r_unitary : forall r (u : Square 2), is_unitary u -> 
-                                                           is_unitary (ctrl_list_to_unitary_r r u).
+Lemma ctrl_list_to_unitary_r_unitary : forall r (u : Square 2), WF_Unitary u -> 
+                                                           WF_Unitary (ctrl_list_to_unitary_r r u).
 Proof.
   intros r u Uu.
   induction r; auto.
   simpl.
   destruct a.
   - simpl.
-    assert (H : forall n (U : Square n), is_unitary U -> is_unitary (U ⊗ |1⟩⟨1| .+ 'I_n ⊗ |0⟩⟨0|)).
+    assert (H : forall n (U : Square n), WF_Unitary U -> WF_Unitary (U ⊗ |1⟩⟨1| .+ 'I_n ⊗ |0⟩⟨0|)).
     intros n U [WFU UU].
-    unfold is_unitary.
+    unfold WF_Unitary.
     split; auto with wf_db.
     Msimpl.
     rewrite Mmult_plus_distr_r, Mmult_plus_distr_l.
@@ -548,8 +552,8 @@ Proof.
     apply id_unitary. 
 Qed.
 
-Lemma ctrl_list_to_unitary_unitary : forall l r (u : Square 2), is_unitary u ->
-                                                           is_unitary (ctrl_list_to_unitary l r u).
+Lemma ctrl_list_to_unitary_unitary : forall l r (u : Square 2), WF_Unitary u ->
+                                                           WF_Unitary (ctrl_list_to_unitary l r u).
 Proof.
   intros l r u Uu.
   induction l.
@@ -557,9 +561,9 @@ Proof.
   - simpl.
     destruct a.
     + simpl.
-      assert (H : forall n (U : Square n), is_unitary U -> is_unitary (|1⟩⟨1| ⊗ U .+ |0⟩⟨0| ⊗ ('I_n))).
+      assert (H : forall n (U : Square n), WF_Unitary U -> WF_Unitary (|1⟩⟨1| ⊗ U .+ |0⟩⟨0| ⊗ ('I_n))).
       intros n U [WFU UU].
-      unfold is_unitary.
+      unfold WF_Unitary.
       split; auto with wf_db.
       Msimpl.
       rewrite Mmult_plus_distr_l, Mmult_plus_distr_r.
@@ -586,7 +590,7 @@ Qed.
 Lemma ctrls_to_list_spec : forall W l (g : Unitary W) k lb lb' u, 
   (length l = ⟦W⟧)%nat ->
   ctrls_to_list lb l g = (k, lb', u) ->
-  @is_unitary 2 u /\ length lb' = length lb /\ In k l.
+  @WF_Unitary 2 u /\ length lb' = length lb /\ In k l.
 Proof.
   intros W l g.
   gen l.
@@ -620,7 +624,7 @@ Qed.
 Lemma denote_ctrls_unitary : forall W n (g : Unitary W) l, 
     (forallb (fun x => x <? n) l = true) -> 
     (length l = ⟦W⟧)%nat ->
-    is_unitary (denote_ctrls n g l).
+    WF_Unitary (denote_ctrls n g l).
 Proof.
   intros W n g l H H0.
   unfold denote_ctrls. simpl.
@@ -803,7 +807,7 @@ Definition apply_U {m n} (U : Square (2^m)) (l : list nat)
 *)
 
 Lemma apply_to_first_correct : forall k n (u : Square 2), 
-  is_unitary u ->
+  WF_Unitary u ->
   (k < n)%nat ->                             
   WF_Superoperator (apply_to_first (@apply_qubit_unitary n u) [k]).                  
 Proof.
@@ -954,10 +958,7 @@ Proof.
   unfold apply_meas.
   unfold Splus, super.
   Msimpl.
-  eapply Mix_S.
 Abort.
-
-
   
 Lemma apply_discard_correct : forall n k, (k < n)%nat ->
     WF_Superoperator (@apply_discard n k). 
@@ -966,7 +967,6 @@ Proof.
   unfold apply_discard.
   unfold Splus, super.
   Msimpl.
-  eapply Mix_S.
 Abort.
 
 Lemma apply_gate_correct : forall W1 W2 n (g : Gate W1 W2) l,

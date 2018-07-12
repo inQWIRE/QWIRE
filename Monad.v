@@ -4,7 +4,7 @@ Require Import List.
 
 (** * The Functor Type Class *)
 
-Notation "f ∘ g" := (fun x => f (g x)) (at level 40, left associativity).
+Local Notation "f ∘ g" := (fun x => f (g x)) (at level 40, left associativity).
 
 Class Functor (f : Type -> Type) : Type :=
 { fmap         : forall {A B}, (A -> B) -> f A -> f B }. 

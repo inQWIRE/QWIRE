@@ -285,15 +285,15 @@ Hint Extern 2 (WF_Matrix 2 2 (control _)) => apply WF_control : wf_db.
 (** Unitaries are unitary **)
 (***************************)
 
-Definition is_unitary {n: nat} (U : Matrix n n): Prop :=
+Definition WF_Unitary {n: nat} (U : Matrix n n): Prop :=
   WF_Matrix n n U /\ U † × U = Id n.
 
-Hint Unfold is_unitary : M_db.
+Hint Unfold WF_Unitary : M_db.
 
 (* More precise *)
 (* Definition unitary_matrix' {n: nat} (A : Matrix n n): Prop := Minv A A†. *)
 
-Lemma H_unitary : is_unitary hadamard.
+Lemma H_unitary : WF_Unitary hadamard.
 Proof.
   split.
   show_wf.
@@ -307,7 +307,7 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma σx_unitary : is_unitary σx.
+Lemma σx_unitary : WF_Unitary σx.
 Proof. 
   split.
   show_wf.
@@ -320,7 +320,7 @@ Proof.
   clra.
 Qed.
 
-Lemma σy_unitary : is_unitary σy.
+Lemma σy_unitary : WF_Unitary σy.
 Proof.
   split.
   show_wf.
@@ -333,7 +333,7 @@ Proof.
   clra.
 Qed.
 
-Lemma σz_unitary : is_unitary σz.
+Lemma σz_unitary : WF_Unitary σz.
 Proof.
   split.
   show_wf.
@@ -346,7 +346,7 @@ Proof.
   clra.
 Qed.
 
-Lemma phase_unitary : forall ϕ, @is_unitary 2 (phase_shift ϕ).
+Lemma phase_unitary : forall ϕ, @WF_Unitary 2 (phase_shift ϕ).
 Proof.
   intros ϕ.
   split; [show_wf|].
@@ -372,7 +372,7 @@ Proof.
 Qed.
 
 Lemma control_unitary : forall n (A : Matrix n n), 
-                          is_unitary A -> is_unitary (control A). 
+                          WF_Unitary A -> WF_Unitary (control A). 
 Proof.
   intros n A H.
   destruct H as [WF U].
@@ -499,19 +499,19 @@ Proof.
         destruct ((n <=? z) && (n <=? y)); clra.
 Qed.
 
-Lemma transpose_unitary : forall n (A : Matrix n n), is_unitary A -> is_unitary (A†).
+Lemma transpose_unitary : forall n (A : Matrix n n), WF_Unitary A -> WF_Unitary (A†).
   intros. 
   simpl.
   split.
   + destruct H; auto with wf_db.
-  + unfold is_unitary in *.
+  + unfold WF_Unitary in *.
     rewrite adjoint_involutive.
     destruct H as [_ H].
     apply Minv_left in H as [_ S]. (* NB: Admitted lemma *)
     assumption.
 Qed.
 
-Lemma cnot_unitary : is_unitary cnot.
+Lemma cnot_unitary : WF_Unitary cnot.
 Proof.
   split. 
   apply WF_cnot.
@@ -523,21 +523,21 @@ Proof.
   clra.
 Qed.
 
-Lemma id_unitary : forall n, is_unitary (Id n). 
+Lemma id_unitary : forall n, WF_Unitary (Id n). 
 Proof.
   split.
   apply WF_Id.
-  unfold is_unitary.
+  unfold WF_Unitary.
   rewrite id_adjoint_eq.
   apply Mmult_1_l.
   apply WF_Id.
 Qed.
 
-Lemma swap_unitary : is_unitary swap.
+Lemma swap_unitary : WF_Unitary swap.
 Proof. 
   split.
   apply WF_swap.
-  unfold is_unitary, Mmult, Id.
+  unfold WF_Unitary, Mmult, Id.
   prep_matrix_equality.
   do 4 (try destruct x; try destruct y; try clra).
   replace ((S (S (S (S x))) <? 4)) with (false) by reflexivity.
@@ -547,10 +547,10 @@ Qed.
 
 
 Lemma kron_unitary : forall {m n} (A : Matrix m m) (B : Matrix n n),
-  is_unitary A -> is_unitary B -> is_unitary (A ⊗ B).
+  WF_Unitary A -> WF_Unitary B -> WF_Unitary (A ⊗ B).
 Proof.
   intros m n A B [WFA UA] [WFB UB].
-  unfold is_unitary in *.
+  unfold WF_Unitary in *.
   split.
   auto with wf_db.
   rewrite kron_adjoint.
@@ -561,11 +561,11 @@ Proof.
 Qed.
 
 (*
-Lemma unitary_swap_to_0 : forall n i, (i < n)%nat -> is_unitary (swap_to_0 n i).
+Lemma unitary_swap_to_0 : forall n i, (i < n)%nat -> WF_Unitary (swap_to_0 n i).
 Proof.
   intros n i.
   generalize dependent n.
-  unfold is_unitary; split.
+  unfold WF_Unitary; split.
   + (* well-formedness *)
     induction i. 
     simpl. auto with wf_db.     
@@ -597,8 +597,8 @@ Proof.
 (*    rewrite (kron_mixed_product B† A† B A). *)
 
         specialize (kron_mixed_product _ _ _ _ _ _ B† A† B A); intros H'.
-        assert (is_unitary B). subst. apply swap_unitary.
-        assert (is_unitary A). subst. apply id_unitary.
+        assert (WF_Unitary B). subst. apply swap_unitary.
+        assert (WF_Unitary A). subst. apply id_unitary.
         destruct H0 as [_ H0], H1 as [_ H1].
         rewrite H0 in H'.
         rewrite H1 in H'.
@@ -617,10 +617,10 @@ Proof.
 Admitted.
 
 Lemma unitary_swap_two : forall n i j, (i < n)%nat -> (j < n)%nat ->
-                                  is_unitary (swap_two n i j).
+                                  WF_Unitary (swap_two n i j).
 Proof.
   intros n i j P1 P2.
-  unfold is_unitary.
+  unfold WF_Unitary.
   unfold swap_two.
   destruct (lt_eq_lt_dec i j) as [[ltij | eq] | ltji].
   + induction i.
@@ -1082,7 +1082,7 @@ Definition meas_op : Superoperator 2 2 := Splus (super |0⟩⟨0|) (super |1⟩�
 Definition discard_op : Superoperator 2 1 := Splus (super ⟨0|) (super ⟨1|).
 
 Lemma pure_unitary : forall {n} (U ρ : Matrix n n), 
-  is_unitary U -> Pure_State ρ -> Pure_State (super U ρ).
+  WF_Unitary U -> Pure_State ρ -> Pure_State (super U ρ).
 Proof.
   intros n U ρ [WFU H] [φ [[WFφ IP1] Eρ]].
   rewrite Eρ.
@@ -1100,13 +1100,13 @@ Proof.
 Qed.    
 
 Lemma mixed_unitary : forall {n} (U ρ : Matrix n n), 
-  is_unitary U -> Mixed_State ρ -> Mixed_State (super U ρ).
+  WF_Unitary U -> Mixed_State ρ -> Mixed_State (super U ρ).
 Proof.
   intros n U ρ H M.
   induction M.
   + apply Pure_S.
     apply pure_unitary; trivial.
-  + unfold is_unitary, super in *.
+  + unfold WF_Unitary, super in *.
     rewrite Mmult_plus_distr_l.
     rewrite Mmult_plus_distr_r.
     rewrite 2 Mscale_mult_dist_r.
@@ -1115,7 +1115,7 @@ Proof.
 Qed.
 
 Lemma WF_Superoperator_unitary : forall {n} (U : Matrix n n), 
-  is_unitary U -> WF_Superoperator (super U).
+  WF_Unitary U -> WF_Superoperator (super U).
 Proof.
   intros n U H ρ Mρ.
   apply mixed_unitary; easy.

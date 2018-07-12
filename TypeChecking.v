@@ -64,7 +64,8 @@ Notation "'box_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ⇒ C" := (box (fun x =>
 
 (* Notations for patterns *)
 Notation "()" := unit : circ_scope.
-(*Notation "( x , y , .. , z )" := (pair .. (pair x y) .. z) (at level 0) : circ_scope.*)
+(* Now a bit ugly, since we tend to use (a,b) with the newer $ notation *)
+Notation "( x ,, y ,, .. ,, z )" := (pair .. (pair x y) .. z) (at level 0) : circ_scope.
 
 
 (* Notations for circuits *)
