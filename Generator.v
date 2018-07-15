@@ -197,14 +197,13 @@ Check Pat_to_GeneralPat.
 
 (* Unitary
   Inductive Unitary : WType -> Set := 
-  | H         : Unitary Qubit 
-  | X         : Unitary Qubit
-  | Y         : Unitary Qubit
-  | Z         : Unitary Qubit
-  | R_        : R -> Unitary Qubit 
+  | _H         : Unitary Qubit 
+  | _X         : Unitary Qubit
+  | _Y         : Unitary Qubit
+  | _Z         : Unitary Qubit
+  | _R_        : R -> Unitary Qubit 
   | ctrl      : forall {W} (U : Unitary W), Unitary (Qubit ⊗ W) 
   | bit_ctrl  : forall {W} (U : Unitary W), Unitary (Bit ⊗ W) 
-  | trans     : forall {W} (U : Unitary W), Unitary W.
 *)
 
 Inductive UnitaryWType :=
@@ -252,71 +251,36 @@ Instance showUnitary {w : WType} : Show (Unitary w) :=
   {| show := 
        let fix aux {w} t :=
          match t with
-           | H => "H"
-           | X => "X"
-           | Y => "Y"
-           | Z => "Z"
-           | R_ r => "R_ " ++ (print_real r)
+           | _H => "_H"
+           | _X => "_X"
+           | _Y => "_Y"
+           | _Z => "_Z"
+           | _R_ r => "_R_ " ++ (print_real r)
            | ctrl w u => "ctrl (" ++ (aux u) ++ ")"
            | bit_ctrl w u => "bit_ctrl (" ++ (aux u) ++ ")"
-           | trans w u => "trans (" ++ (aux u) ++ ")"
          end
        in aux
   |}.
 
-Eval compute in (show (trans (bit_ctrl (ctrl H)))).
+Eval compute in (show (trans (bit_ctrl (ctrl _H)))).
 
 Check frequency.
 
-Fixpoint genUnitaryWTypedWithoutTrans (uw : UnitaryWType) : G (Unitary (UnitaryWType_to_WType uw)) :=
+Fixpoint genUnitaryWTyped (uw : UnitaryWType) : G (Unitary (UnitaryWType_to_WType uw)) :=
   match uw with
-  | Unitary_Qubit => oneOf [ returnGen H ;
-                               returnGen X ;
-                               returnGen Y ;
-                               returnGen Z
+  | Unitary_Qubit => oneOf [ returnGen _H ;
+                               returnGen _X ;
+                               returnGen _Y ;
+                               returnGen _Z
 (*
                                ; liftGen R_ (returnGen 1%R)
 *)
                            ]
-  | Unitary_bit_ctrl uw' => liftGen bit_ctrl (genUnitaryWTypedWithoutTrans uw')
-  | Unitary_ctrl uw' => liftGen ctrl (genUnitaryWTypedWithoutTrans uw')
+  | Unitary_bit_ctrl uw' => liftGen bit_ctrl (genUnitaryWTyped uw')
+  | Unitary_ctrl uw' => liftGen ctrl (genUnitaryWTyped uw')
   end.
 
-Sample (genUnitaryWTypedWithoutTrans (Unitary_bit_ctrl (Unitary_ctrl Unitary_Qubit))).
-
-(* genUnitaryWTyped
-Inputs
-  tn : parameter regarding the probability of [trans] constructor to be appeared
-  uw : UnitaryWType of the unitary gate to be generated
-Output
-  G monad for unitary gate of type [w = UnitaryWType_to_WType uw]
- *)
-Fixpoint genUnitaryWTyped (tn : nat) (uw : UnitaryWType) : G (Unitary (UnitaryWType_to_WType uw)) :=
-  match tn with
-  | O => genUnitaryWTypedWithoutTrans uw
-  | S tn' =>
-    match uw with
-    | Unitary_Qubit => freq [ (1, returnGen H) ;
-                                (1, returnGen X) ;
-                                (1, returnGen Y) ;
-                                (1, returnGen Z) ;
-                                (*                                
-                                (1, liftGen R_ (returnGen 1%R)) ;
-                                 *)
-                                (5*tn, liftGen trans (genUnitaryWTyped tn' Unitary_Qubit))
-                            ]
-    | Unitary_bit_ctrl uw' =>
-      freq [ (1, liftGen bit_ctrl (genUnitaryWTyped tn' uw')) ;
-               (tn, liftGen trans (genUnitaryWTyped tn' (Unitary_bit_ctrl uw')))
-           ]
-    | Unitary_ctrl uw' =>
-      freq [ (1, liftGen ctrl (genUnitaryWTyped tn' uw')) ;
-               (tn, liftGen trans (genUnitaryWTyped tn' (Unitary_ctrl uw')))
-           ]
-    end
-  end.
-
-Sample (genUnitaryWTyped 3 (Unitary_bit_ctrl (Unitary_ctrl Unitary_Qubit))).
+Sample (genUnitaryWTyped (Unitary_bit_ctrl (Unitary_ctrl Unitary_Qubit))).
 
 Inductive GeneralUnitary :=
 | general_H : GeneralUnitary
@@ -325,8 +289,7 @@ Inductive GeneralUnitary :=
 | general_Z : GeneralUnitary
 | general_R_ : R -> GeneralUnitary
 | general_ctrl : GeneralUnitary -> GeneralUnitary
-| general_bit_ctrl : GeneralUnitary -> GeneralUnitary
-| general_trans : GeneralUnitary -> GeneralUnitary.
+| general_bit_ctrl : GeneralUnitary -> GeneralUnitary.
 
 Instance showGeneralUnitary : Show (GeneralUnitary) :=
   {| show := 
@@ -339,14 +302,16 @@ Instance showGeneralUnitary : Show (GeneralUnitary) :=
            | general_R_ r => "general_R_ (" ++ (print_real r) ++ ")"
            | general_ctrl u => "general_ctrl (" ++ (aux u) ++ ")"
            | general_bit_ctrl u => "general_bit_ctrl (" ++ (aux u) ++ ")"
-           | general_trans u => "general_trans (" ++ (aux u) ++ ")"
            end
        in aux
   |}.
 
+Eval compute in (show (general_ctrl (general_H))).
+(*
 Eval compute in (show (general_trans (general_ctrl (general_H)))).
+ *)
 
-Fixpoint genGeneralUnitaryWTypedWithoutTrans
+Fixpoint genGeneralUnitaryWTyped
          (uw : UnitaryWType) : G GeneralUnitary :=
   match uw with
   | Unitary_Qubit => oneOf [ returnGen general_H ;
@@ -358,50 +323,16 @@ Fixpoint genGeneralUnitaryWTypedWithoutTrans
 *)
                            ]
   | Unitary_bit_ctrl uw' =>
-    liftGen general_bit_ctrl (genGeneralUnitaryWTypedWithoutTrans uw')
+    liftGen general_bit_ctrl (genGeneralUnitaryWTyped uw')
   | Unitary_ctrl uw' =>
-    liftGen general_ctrl (genGeneralUnitaryWTypedWithoutTrans uw')
-  end.
-
-Sample (genGeneralUnitaryWTypedWithoutTrans
-          (Unitary_bit_ctrl (Unitary_ctrl Unitary_Qubit))).
-
-Fixpoint genGeneralUnitaryWTyped
-         (tn : nat) (uw : UnitaryWType) : G GeneralUnitary :=
-  match tn with
-  | O => genGeneralUnitaryWTypedWithoutTrans uw
-  | S tn' =>
-    match uw with
-    | Unitary_Qubit => freq [ (1, returnGen general_H) ;
-                                (1, returnGen general_X) ;
-                                (1, returnGen general_Y) ;
-                                (1, returnGen general_Z) ;
-                                (*
-                                (1, liftGen general_R_ (returnGen 1%R)) ;
-*)
-                                (5*tn, liftGen general_trans
-                                               (genGeneralUnitaryWTyped tn' Unitary_Qubit))
-                            ]
-    | Unitary_bit_ctrl uw' =>
-      freq [ (1, liftGen general_bit_ctrl
-                         (genGeneralUnitaryWTyped tn' uw')) ;
-               (tn, liftGen general_trans
-                            (genGeneralUnitaryWTyped tn' (Unitary_bit_ctrl uw')))
-           ]
-    | Unitary_ctrl uw' =>
-      freq [ (1, liftGen general_ctrl
-                         (genGeneralUnitaryWTyped tn' uw')) ;
-               (tn, liftGen general_trans
-                            (genGeneralUnitaryWTyped tn' (Unitary_ctrl uw')))
-           ]
-    end
+    liftGen general_ctrl (genGeneralUnitaryWTyped uw')
   end.
 
 Sample (genGeneralUnitaryWTyped
-          3 (Unitary_bit_ctrl (Unitary_ctrl Unitary_Qubit))).
+          (Unitary_bit_ctrl (Unitary_ctrl Unitary_Qubit))).
 
 Definition genGeneralUnitary (tn : nat) : G GeneralUnitary :=
-  bindGen genUnitaryWType (genGeneralUnitaryWTyped tn).
+  bindGen genUnitaryWType genGeneralUnitaryWTyped.
 
 Sample (genGeneralUnitary 3).
 
@@ -414,20 +345,18 @@ Fixpoint GeneralUnitary_to_WType (gu : GeneralUnitary) : WType :=
   | general_R_ r => Qubit
   | general_ctrl gu' => Tensor Qubit (GeneralUnitary_to_WType gu')
   | general_bit_ctrl gu' => Tensor Bit (GeneralUnitary_to_WType gu')
-  | general_trans gu' => GeneralUnitary_to_WType gu'
   end.
 Check GeneralUnitary_to_WType.
 Fixpoint GeneralUnitary_to_Unitary
          (gu : GeneralUnitary) : Unitary (GeneralUnitary_to_WType gu) :=
   match gu with
-  | general_H => H
-  | general_X => X
-  | general_Y => Y
-  | general_Z => Z
-  | general_R_ r => R_ r
+  | general_H => _H
+  | general_X => _X
+  | general_Y => _Y
+  | general_Z => _Z
+  | general_R_ r => _R_ r
   | general_ctrl gu' => ctrl (GeneralUnitary_to_Unitary gu')
   | general_bit_ctrl gu' => bit_ctrl (GeneralUnitary_to_Unitary gu')
-  | general_trans gu' => trans (GeneralUnitary_to_Unitary gu')
   end.
 Check GeneralUnitary_to_Unitary.
 
@@ -465,7 +394,7 @@ Instance showGate {w1 w2 : WType} : Show (Gate w1 w2) :=
        in aux
   |}.
 
-Eval compute in (show (U (trans (bit_ctrl (ctrl H))))).
+Eval compute in (show (U (trans (bit_ctrl (ctrl _H))))).
 Eval compute in (show (measQ)).
 
 Inductive GeneralGate :=
@@ -501,7 +430,7 @@ Instance showGeneralGate : Show (GeneralGate) :=
   |}.
 
 Eval compute in
-    (show (general_U (general_trans (general_bit_ctrl (general_ctrl general_H))))).
+    (show (general_U (general_bit_ctrl (general_ctrl general_H)))).
 Eval compute in (show (general_measQ)).
 
 Definition genGeneralGate (tn : nat) : G (GeneralGate) :=

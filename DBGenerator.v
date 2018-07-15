@@ -595,7 +595,9 @@ Sample genGeneralDBCircuit.
  *)
 
 (* Properties on the random db_circuits *)
+
 (* compare the denotation semantic with qasm simulator *)
+(*
 Require Import Denotation.
 Check denote_db_circuit.
 
@@ -668,5 +670,6 @@ Definition eq_denotation_qasm_simulator (gdb : GeneralDBCircuit) :=
 QuickChick (forAll (genGeneralDBCircuitWTyped Qubit) eq_denotation_qasm_simulator).
   type_check (GeneralDBCircuit_to_DBCircuit gdb).
 
-QuickChick QASMP*)
+QuickChick QASMP
+*)
 Close Scope circ_scope.

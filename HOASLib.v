@@ -176,7 +176,7 @@ Lemma inParMany_WT : forall n W W' (c : Box W W'), Typed_Box c  ->
 Proof. intros. induction n as [ | n']; type_check. Qed.       
 
 (* Parallel binds more closely than sequence *)
-Notation "b1 ∥ b2" := (inPar b1 b2) (at level 52, right associativity) : circ_scope.
+Notation "b1 ∥ b2" := (inPar b1 b2) (at level 51, right associativity) : circ_scope.
 Notation "b' · b" := (inSeq b b') (at level 60, right associativity) : circ_scope.
 Notation "c1 ;; c2" := (inSeq c1 c2) (at level 60, right associativity) : circ_scope.
 

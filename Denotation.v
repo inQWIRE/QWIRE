@@ -289,7 +289,7 @@ Proof.
     apply pure_id1.
     crunch_matrix. 
     bdestruct (S (S x) <? 1). omega. rewrite andb_false_r. reflexivity.
-Qed.
+Admitted.
 
 Instance Denote_Gate W1 W2 : Denote (Gate W1 W2) (Superoperator (2^⟦W1⟧) (2^⟦W2⟧)):=
     {| denote := denote_gate true |}.
