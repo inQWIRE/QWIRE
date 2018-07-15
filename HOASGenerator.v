@@ -1783,6 +1783,7 @@ Definition box_example_1 : (Box One Qubit) := box (fun (unit : Pat One) => (gate
 Lemma WT_box_example_1 : Typed_Box box_example_1.
 Proof. type_check. Qed.
 
+(*
 Require Import Denotation.
 
 Check Superoperator.
@@ -1806,7 +1807,7 @@ Definition WT_RandomBox (w1 w2 : WType) (b : Box w1 w2) :=
 
 QuickChick (forAll (genBoxWTypedSized One Qubit 2) (WT_RandomBox One Qubit)).
   type_check (GeneralDBCircuit_to_DBCircuit gdb).
-
+*)
 
 (* --------------------------------- Repository ------------------------------------ *)
 
@@ -1926,73 +1927,10 @@ Instance showAuxiliaryBox : Show (AuxiliaryBox) :=
            end
        in aux_box
   |}.
-Eval compute in (show (auxiliary_box One One (fun (x : GeneralPat) => output x))).
 
 Fixpoint AuxiliaryBox_to_WType (ab : AuxiliaryBox) : WType * WType :=
   match ab with
   | auxiliary_box w1 w2 b => Datatypes.pair w1 w2
   end.
 Check AuxiliaryBox_to_WType.
-Fixpoint AuxiliaryBox_to_Box (ab : AuxiliaryBox) :
-  Box (fst (AuxiliaryBox_to_WType ab)) (snd (AuxiliaryBox_to_WType ab)) :=
-  match ab with
-  | auxiliary_box w1 w2 b =>
-    (fun (p : Pat w1) => (GeneralCircuit_to_Circuit (b (Pat_to_GeneralPat p))))
-  end.
-Check AuxiliaryBox_to_Box.
-
-(* GeneralBox *)
-Inductive GeneralBox :=
-| general_box : (GeneralPat -> GeneralCircuit) -> GeneralBox.
-
-Check GeneralBox.
-
-Instance showGeneralBox : Show (GeneralBox) :=
-  {| show := 
-       let fix aux_box t := 
-           match t with
-           | general_box b => "box (" ++ "fun (input : GeneralPat) => ("
-                              ++ (show aux_circ sv (c (get_new_pat_of w1 0)))
-                               ++ "))"
-           end
-       in aux_box
-  |}.
-Instance showBox {w1 w2} : Show (Box w1 w2) :=
-  {| show :=
-       let fix aux_circ v t :=
-           match t with
-           | output p => "output (" ++ (show p) ++ ")"
-           | gate w1 w2 g p t' => let nv := (v + (size_wtype w2)) in
-                                  "gate (" ++ (show g) ++ ") (" ++ (show p) ++ ") ("
-                                           ++ "fun (" ++ (show (get_new_pat_of w2 v))
-                                           ++ ") => (" ++ (aux_circ nv (t' (get_new_pat_of w2 v)))
-                                           ++ "))"
-           | lift b f =>
-             "lift (" ++ (show b) ++ ") ("
-                      ++ (aux_circ v (f true)) ++ ") ("
-                      ++ (aux_circ v (f true)) ++ ")"
-           end
-       in 
-       let fix aux_box t :=
-           match t with
-           | box c => let sv := (size_wtype w1) in
-                      "box (" ++ "fun (" ++ (show (get_new_pat_of w1 0)) ++ ") => ("
-                              ++ (aux_circ sv (c (get_new_pat_of w1 0)))
-                               ++ "))"
-           end
-       in aux_box
-  |}.
-Eval compute in (show (general_box One One (box (fun (x : Pat One) => output x)))).
-
-Fixpoint GeneralBox_to_WType (gb : GeneralBox) : WType * WType :=
-  match gb with
-  | general_box w1 w2 b => Datatypes.pair w1 w2
-  end.
-Check GeneralBox_to_WType.
-Fixpoint GeneralBox_to_Box (gb : GeneralBox) :
-  Box (fst (GeneralBox_to_WType gb)) (snd (GeneralBox_to_WType gb)) :=
-  match gb with
-  | general_box w1 w2 b => b
-  end.
-Check GeneralBox_to_Box.
 

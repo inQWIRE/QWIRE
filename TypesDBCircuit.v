@@ -53,10 +53,10 @@ Proof.
       }
     }
     { type_check. rewrite merge_merge'. unfold merge'. simpl. reflexivity. }
-    { admit. }
+    { unfold remove_pat. reflexivity. }
   }
   { type_check. }
-  Admitted.
+Qed.
   
 Definition test_circ_4 : Box One Qubit :=
   box_ () ⇒ 
@@ -114,10 +114,10 @@ Proof.
       { type_check. }
     }
     { type_check. rewrite merge_merge'. unfold merge'. simpl. reflexivity. }
-    { unfold remove_pat. simpl. admit. }
+    { unfold remove_pat. reflexivity. }
   }
   { type_check. }
-Admitted.
+Qed.
 
 Definition test_circ_6 : Box One Qubit :=
   box_ () ⇒ 
@@ -142,15 +142,15 @@ Proof.
     eapply (types_db_gate (Valid [Some Bit]) (Valid [Some Bit]) ∅).
     { type_check. unfold subst_var. simpl. apply SingletonHere. }
     { unfold process_gate_state. simpl. unfold remove_pat. simpl.
-      eapply (types_db_gate (Valid [None]) ∅ (Valid [None])).
+      eapply (types_db_gate ∅ ∅ ∅).
       { unfold hoas_to_db_pat. simpl. type_check. }
       { unfold process_gate_state. simpl.
         unfold hoas_to_db_pat. simpl.
         eapply types_db_output. type_check.
-        unfold subst_var. simpl. admit. }
+        unfold subst_var. simpl. apply SingletonHere. }
       { type_check. }
     }
     { type_check. }
   }
   { type_check. }
-  Admitted.
+Qed.
