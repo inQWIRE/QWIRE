@@ -62,6 +62,7 @@ Definition octx_dom (Γ : OCtx) : list nat :=
   | Invalid => []
   end.
 
+
 Definition remove_ctx {A} `{Gate_State A} (Γ : Ctx) (a : A) : A :=
   fold_left (fun a x => remove_var x a) (ctx_dom Γ) a.
 Definition remove_octx {A} `{Gate_State A} (Γ : OCtx) (a : A) : A :=
@@ -149,14 +150,41 @@ Fixpoint maps_in_Ctx (x : nat) (Γ : Ctx) : option nat :=
   | S x', Some _ :: Γ' => fmap S (maps_in_Ctx x' Γ')
   | S x', None   :: Γ' => maps_in_Ctx x' Γ'
   end.
+
+Fixpoint flatten_ctx (Γ : Ctx) :=
+  match Γ with
+  | []           => []
+  | Some w :: Γ' => Some w :: flatten_ctx Γ'
+  | None   :: Γ' => flatten_ctx Γ'
+  end.
+Definition flatten_octx Γ :=
+  match Γ with
+  | Valid Γ' => Valid (flatten_ctx Γ')
+  | Invalid  => Invalid
+  end.
+
+
+Lemma size_flatten_ctx : forall Γ, size_ctx (flatten_ctx Γ) = size_ctx Γ.
+Proof.
+  induction Γ as [ | [w | ] Γ]; auto. 
+  simpl. rewrite IHΓ. auto.
+Qed.
+Lemma size_flatten_octx : forall Γ,
+    size_octx (flatten_octx Γ) = size_octx Γ.
+Proof.
+  destruct Γ as [ | Γ].
+  - reflexivity.
+  - simpl.
+    rewrite size_flatten_ctx. reflexivity.
+Qed.
   
 (* Define only for contexts? *)
 (* Ctx's and OCtx's can be used as state *)
 Instance Ctx_State : Gate_State Ctx :=
   { get_fresh w  := do Γ ← get;
-                    do _ ← put (Γ ++ [Some w]); (* don't like this *)
+                    do _ ← put (Γ ++ [Some w]); 
                     return_ (length Γ)
-  ; remove_var x Γ := update_at Γ x None (* should be trim_nones (update_at) *)
+  ; remove_var x Γ := trim (update_at Γ x None)
   ; change_type x w Γ := update_at Γ x (Some w)
   ; maps_to x Γ := maps_in_Ctx x Γ
   }.
@@ -202,7 +230,6 @@ Inductive Types_DB {w} (Γ : OCtx) : DeBruijn_Circuit w -> Prop :=
                     Types_DB (process_gate_state g p Γ) c ->
                     Γ == Γ1 ∙ Γ2 ->
                     Types_DB Γ (db_gate g p c)
-                             
 | types_db_lift   : forall Γ1 Γ2 Γ' p f,
                     Types_Pat Γ1 p ->
                     (forall b, Types_DB Γ' (f b)) ->
@@ -227,8 +254,6 @@ Record subst_state := Mk_subst_state
   ; fresh : nat }. 
 
 (* This should be used for HOAS *)
-Print Gate_State.
-
 Fixpoint lookup_maybe (x : nat) (ls : list nat) : option nat :=
   match ls with
   | [] => None
@@ -1174,17 +1199,6 @@ Transparent fmap.
 
 Definition hoas_to_db_pat Γ {w} (p : Pat w) : Pat w := 
   subst_pat (octx_dom Γ) p.
-Fixpoint flatten_ctx (Γ : Ctx) :=
-  match Γ with
-  | []           => []
-  | Some w :: Γ' => Some w :: flatten_ctx Γ'
-  | None   :: Γ' => flatten_ctx Γ'
-  end.
-Definition flatten_octx Γ :=
-  match Γ with
-  | Valid Γ' => Valid (flatten_ctx Γ')
-  | Invalid  => Invalid
-  end.
 
 
 Lemma SingletonCtx_dom : forall x w Γ,

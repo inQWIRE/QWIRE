@@ -148,8 +148,6 @@ Definition valid_ancillae_box' {W1 W2} (c : Box W1 W2) : Prop := forall ρ,
   Mixed_State ρ ->
   trace (denote_box false c ρ) = 1.
 
-Print valid_ancillae_box'.
-
 Lemma valid_ancillae_equal : forall W (c : Circuit W), 
   valid_ancillae c <-> valid_ancillae' c.
 Proof.

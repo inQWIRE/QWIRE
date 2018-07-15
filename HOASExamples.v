@@ -63,27 +63,69 @@ Definition lift_deutsch (U__f : Square_Box (Qubit ⊗ Qubit)) : Box One Bit :=
 Lemma lift_deutsch_WT : forall U__f, Typed_Box U__f -> Typed_Box (lift_deutsch U__f).
 Proof. type_check. Qed.
 
+(* basic notation *)
+Definition deutsch_basic (U__f : Square_Box (Qubit ⊗ Qubit)) : Box One Bit :=
+  box_ () ⇒ 
+    gate_ x    ← init0   @ ();
+    gate_ x    ← _H      @ x;
+    gate_ y    ← init1   @ ();
+    gate_ y    ← _H      @ y;
+    let_ (x,y) ← unbox U__f (x,,y);
+    gate_ y    ← meas    @ y;
+    gate_ ()   ← discard @ y;
+    gate_ x    ← _H      @ x;
+    gate_ x    ← meas    @ x;
+    output x.
+
 Definition deutsch (U__f : Square_Box (Qubit ⊗ Qubit)) : Box One Bit :=
   box_ () ⇒ 
     let_ x     ← _H $ init0 $ ();
     let_ y     ← _H $ init1 $ ();
     let_ (x,y) ← U__f $ (x,y);
-    let_ _     ← discard $ meas $ y;
+    let_ ()    ← discard $ meas $ y;
     meas $ _H $ x.
 Lemma deutsch_WF : forall U__f, Typed_Box U__f -> Typed_Box (deutsch U__f).
 Proof. type_check. Qed.
 
+Lemma deutsch_basic_eq : forall U__f, deutsch_basic U__f = deutsch U__f.
+Proof.
+  intros U__f.
+  unfold deutsch, deutsch_basic. 
+  unfold apply_box. 
+  simpl.
+  easy.
+Qed.
 
 
 Definition Deutsch_Jozsa (n : nat) (U : Box (S n ⨂ Qubit) (S n ⨂ Qubit)) : Box One (n ⨂ Bit) := 
   box_ () ⇒
+    let_ qs     ← _H #n $ init0 #n $ (());
     let_ q      ← _H $ init1 $ (); 
-    let_ qs     ← ((_H · init0) #n) $ (());
     let_ (q,qs) ← U $ (q,qs);   
-    let_ qs     ← meas #n $ _H #n $ qs;
-    let_ _      ← discard $ meas $q; 
-    qs. 
+    let_ ()      ← discard $ meas $q; 
+    meas #n $ _H #n $ qs.
 Lemma Deutsch_Jozsa_WT : forall n U__f, Typed_Box U__f -> Typed_Box (Deutsch_Jozsa n U__f).
+Proof.
+  intros n U__f U_WT.
+  induction n.
+  + type_check.
+  + specialize (inParMany_WT) as WT_Par.
+    specialize types_units as WT_units.
+    type_check.
+    apply WT_Par. 
+    all: try apply WT_Par. 
+    all: type_check.
+    apply types_units.
+Qed.
+
+Definition Deutsch_Jozsa' (n : nat) (U : Box ((n ⨂ Qubit) ⊗ Qubit) ((n ⨂ Qubit) ⊗ Qubit)) : Box One (n ⨂ Bit) := 
+  box_ () ⇒
+    let_ qs     ← _H #n $ init0 #n $ (());
+    let_ q      ← _H $ init1 $ (); 
+    let_ (qs,q) ← U $ (qs,q);   
+    let_ ()      ← discard $ meas $q; 
+    meas #n $ _H #n $ qs.
+Lemma Deutsch_Jozsa_WT' : forall n U__f, Typed_Box U__f -> Typed_Box (Deutsch_Jozsa n U__f).
 Proof.
   intros n U__f U_WT.
   induction n.
@@ -136,11 +178,6 @@ Definition teleport :=
 Lemma teleport_WT : Typed_Box teleport.
 Proof. type_check. Defined.
 
-(* Now simplification is quick! *)
-Eval cbv in teleport.
-Eval cbn in teleport.
-Eval simpl in teleport.
-
 Definition bob_lift : Box (Bit ⊗ Bit ⊗ Qubit) Qubit :=
   box_ (x,y,b) ⇒
     lift_ (u,v)  ← (x,y);
@@ -149,10 +186,6 @@ Definition bob_lift : Box (Bit ⊗ Bit ⊗ Qubit) Qubit :=
     b.
 Lemma bob_lift_WT : Typed_Box bob_lift.
 Proof. type_check. Defined. 
-
-Print bob_lift.
-Eval compute in bob_lift.
-
 
 Program Definition bob_lift' : Box (Bit ⊗ Bit ⊗ Qubit) Qubit := 
   box_ (x,y,b) ⇒
@@ -290,12 +323,12 @@ Fixpoint coin_flips_lift (n : nat) : Box One Bit :=
 Lemma coin_flips_lift_WT : forall n, Typed_Box (coin_flips_lift n).
 Proof. intros. induction n; type_check. Qed.
 
-Definition n_coins (n : nat) : Box (n ⨂ One) (n ⨂ Bit) := inParMany n coin_flip.
+Definition n_coins (n : nat) : Box (n ⨂ One) (n ⨂ Bit) := coin_flip #n.
 Lemma n_coins_WT : forall n, Typed_Box (n_coins n).
 Proof. intros. apply inParMany_WT. apply coin_flip_WT. Qed.
 
 Definition n_coins' (n : nat) : Box One (n ⨂ Bit) := 
-  box_ () ⇒ inParMany n coin_flip $ (units n).
+  box_ () ⇒ coin_flip #n $ (()).
 Lemma n_coins_WT' : forall n, Typed_Box (n_coins' n).
 Proof. intros. type_check; try apply types_units; type_check.
   apply inParMany_WT. apply coin_flip_WT. auto.

@@ -52,7 +52,7 @@ Proof.
 Qed.
 Hint Resolve WF_unitary : wf_db.
 
-Lemma unitary_gate_unitary : forall {W} (U : Unitary W), is_unitary (⟦U⟧).
+Lemma unitary_gate_unitary : forall {W} (U : Unitary W), WF_Unitary (⟦U⟧).
 Proof.
   induction U.
   + apply H_unitary.
@@ -75,7 +75,7 @@ Qed.
 (* Hint Resolve unitary_gate_unitary. Do we need this? Where? *)
 Instance Denote_Unitary_Correct W : Denote_Correct (Denote_Unitary W) :=
 {|
-    correctness := fun A => is_unitary A;
+    correctness := fun A => WF_Unitary A;
     denote_correct := fun U => unitary_gate_unitary U
 |}.
 
@@ -437,6 +437,10 @@ Fixpoint ctrl_list_to_unitary (l r : list bool) (u : Square 2) :
   | []          => ctrl_list_to_unitary_r r u
   end.
 
+
+Eval simpl in (ctrl_list_to_unitary_r [true; false; false] σz).
+Eval simpl in (ctrl_list_to_unitary [true; false; true; false] [true; false; false] σz).
+
 Definition denote_ctrls {W} (n : nat) (g : Unitary W) (l : list nat) : Matrix (2^n) (2^n) := 
   let (res, u) := ctrls_to_list (repeat false n) l g in
   let (k, lb) := res in
@@ -533,17 +537,17 @@ Proof.
   1-2: inversion HeqW.
 Qed.
 
-Lemma ctrl_list_to_unitary_r_unitary : forall r (u : Square 2), is_unitary u -> 
-                                                           is_unitary (ctrl_list_to_unitary_r r u).
+Lemma ctrl_list_to_unitary_r_unitary : forall r (u : Square 2), WF_Unitary u -> 
+                                                           WF_Unitary (ctrl_list_to_unitary_r r u).
 Proof.
   intros r u Uu.
   induction r; auto.
   simpl.
   destruct a.
   - simpl.
-    assert (H : forall n (U : Square n), is_unitary U -> is_unitary (U ⊗ |1⟩⟨1| .+ 'I_n ⊗ |0⟩⟨0|)).
+    assert (H : forall n (U : Square n), WF_Unitary U -> WF_Unitary (U ⊗ |1⟩⟨1| .+ 'I_n ⊗ |0⟩⟨0|)).
     intros n U [WFU UU].
-    unfold is_unitary.
+    unfold WF_Unitary.
     split; auto with wf_db.
     Msimpl.
     rewrite Mmult_plus_distr_r, Mmult_plus_distr_l.
@@ -568,8 +572,8 @@ Proof.
     apply id_unitary. 
 Qed.
 
-Lemma ctrl_list_to_unitary_unitary : forall l r (u : Square 2), is_unitary u ->
-                                                           is_unitary (ctrl_list_to_unitary l r u).
+Lemma ctrl_list_to_unitary_unitary : forall l r (u : Square 2), WF_Unitary u ->
+                                                           WF_Unitary (ctrl_list_to_unitary l r u).
 Proof.
   intros l r u Uu.
   induction l.
@@ -577,9 +581,9 @@ Proof.
   - simpl.
     destruct a.
     + simpl.
-      assert (H : forall n (U : Square n), is_unitary U -> is_unitary (|1⟩⟨1| ⊗ U .+ |0⟩⟨0| ⊗ ('I_n))).
+      assert (H : forall n (U : Square n), WF_Unitary U -> WF_Unitary (|1⟩⟨1| ⊗ U .+ |0⟩⟨0| ⊗ ('I_n))).
       intros n U [WFU UU].
-      unfold is_unitary.
+      unfold WF_Unitary.
       split; auto with wf_db.
       Msimpl.
       rewrite Mmult_plus_distr_l, Mmult_plus_distr_r.
@@ -606,7 +610,7 @@ Qed.
 Lemma ctrls_to_list_spec : forall W l (g : Unitary W) k lb lb' u, 
   (length l = ⟦W⟧)%nat ->
   ctrls_to_list lb l g = (k, lb', u) ->
-  @is_unitary 2 u /\ length lb' = length lb /\ In k l.
+  @WF_Unitary 2 u /\ length lb' = length lb /\ In k l.
 Proof.
   intros W l g.
   gen l.
@@ -640,7 +644,7 @@ Qed.
 Lemma denote_ctrls_unitary : forall W n (g : Unitary W) l, 
     (forallb (fun x => x <? n) l = true) -> 
     (length l = ⟦W⟧)%nat ->
-    is_unitary (denote_ctrls n g l).
+    WF_Unitary (denote_ctrls n g l).
 Proof.
   intros W n g l H H0.
   unfold denote_ctrls. simpl.
@@ -823,7 +827,7 @@ Definition apply_U {m n} (U : Square (2^m)) (l : list nat)
 *)
 
 Lemma apply_to_first_correct : forall k n (u : Square 2), 
-  is_unitary u ->
+  WF_Unitary u ->
   (k < n)%nat ->                             
   WF_Superoperator (apply_to_first (@apply_qubit_unitary n u) [k]).                  
 Proof.
@@ -972,6 +976,14 @@ Proof.
   apply pure1.
 Qed.
 
+Lemma apply_meas_correct : forall n k, (k < n)%nat ->
+    WF_Superoperator (@apply_meas n k). 
+Proof.
+  intros n k L ρ Mρ.
+  unfold apply_meas.
+  unfold Splus, super.
+  Msimpl.
+Abort.
   
 Lemma apply_discard_correct : forall n k, (k < n)%nat ->
     WF_Superoperator (@apply_discard n k). 
@@ -979,6 +991,7 @@ Proof.
   intros n k L ρ Mρ.
   unfold apply_discard.
   unfold Splus, super.
+  Msimpl.
 Abort.
 
 Lemma apply_gate_correct : forall W1 W2 n (g : Gate W1 W2) l,
@@ -1094,7 +1107,6 @@ Definition denote_pat {w} (p : Pat w) : Matrix (2^⟦w⟧) (2^⟦w⟧) :=
 Instance Denote_Pat {w} : Denote (Pat w) (Matrix (2^⟦w⟧) (2^⟦w⟧)) :=
   { denote := denote_pat }.
 
-Print Gate_State.
 (* here, the state represents the number of qubits in a system. *)
 Instance nat_gate_state : Gate_State nat :=
   { get_fresh := fun _ n => (n,S n)
@@ -1721,7 +1733,10 @@ Proof.
 
     destruct U. rewrite pf_merge in *.
     rewrite size_octx_merge with (Γ1 := Γ1) (Γ2 := Γ2) by easy.
-    destruct RM. rewrite pf_merge0 in *.
+    destruct RM.
+    (* Need lemma about size_ctx trim x *)
+    rewrite size_octx_trim.    
+    rewrite pf_merge0 in *.
     rewrite size_octx_merge with (Γ1 := Valid (update_at Γ1 v None)) 
                                  (Γ2 := Valid (update_at Γ2 v None)) by easy.    
     simpl.
@@ -1741,9 +1756,12 @@ Proof.
     destruct Γ2 as [|Γ2]. destruct U. simpl in pf_merge. rewrite pf_merge in *. 
       apply not_valid in pf_valid. contradiction.
     specialize (update_none_merge _ _ _ v U) as RM.
+
     destruct U. rewrite pf_merge in *.
     rewrite size_octx_merge with (Γ1 := Γ1) (Γ2 := Γ2) by easy.
-    destruct RM. rewrite pf_merge0 in *.
+    destruct RM. 
+    rewrite size_octx_trim.
+    rewrite pf_merge0 in *.      
     rewrite size_octx_merge with (Γ1 := Valid (update_at Γ1 v None)) 
                                  (Γ2 := Valid (update_at Γ2 v None)) by easy.    
     simpl.
@@ -1763,9 +1781,14 @@ Proof.
     destruct Γ2 as [|Γ2]. destruct U. simpl in pf_merge. rewrite pf_merge in *. 
       apply not_valid in pf_valid. contradiction.
     specialize (update_none_merge _ _ _ v U) as RM.
+
     destruct U. rewrite pf_merge in *.
     rewrite size_octx_merge with (Γ1 := Γ1) (Γ2 := Γ2) by easy.
-    destruct RM. rewrite pf_merge0 in *.
+    replace (Valid (flatten_ctx (update_at Γ v None)))
+       with (flatten_octx (Valid (update_at Γ v None))) by easy.
+    destruct RM.
+    rewrite size_octx_trim.
+    rewrite pf_merge0 in *.  
     rewrite size_octx_merge with (Γ1 := Valid (update_at Γ1 v None)) 
                                  (Γ2 := Valid (update_at Γ2 v None)) by easy.    
     simpl.

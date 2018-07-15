@@ -72,10 +72,10 @@ Definition toUnitary (f : bool -> bool) : Matrix 4 4 :=
   | false, true  => (* balanced flip *) M_balanced_neg
   end.
 
-Lemma toUnitary_unitary : forall f, is_unitary (toUnitary f).
+Lemma toUnitary_unitary : forall f, WF_Unitary (toUnitary f).
 Proof.
   intros. 
-  unfold toUnitary, is_unitary.
+  unfold toUnitary, WF_Unitary.
   destruct (f true), (f false); Msimpl.
   all: split; auto with wf_db.
   replace (σx × σx) with ('I_2) by solve_matrix. rewrite id_kron. reflexivity.
@@ -140,7 +140,7 @@ Proof.
      subst. unfold toUnitary.
      solve_matrix.
       (* Arithmetic: 2 * 2 * 1/√2 * 2 * 1/2 * 1/2 * 1/√2 = 1 *)
-      apply arithmetic_fact.
+     apply arithmetic_fact.
   Qed.
 
 

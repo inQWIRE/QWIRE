@@ -152,8 +152,8 @@ Proof.
       reflexivity.
 Qed.
 
-(* The following uses a lemma (HDUB) that is probably worth proving, but not yet proven *)
-(* Also uses a claim about "hoas_to_db [None]" which shouldn't appear. *)
+(* The following uses a lemma (scale_safe) that is worth proving, but not yet proven *)
+(* We abort this lemma and prove a more general version below *)
 Lemma flips_lift_correct : forall n, ⟦coin_flips_lift n⟧ I1 = biased_coin (1/(2^n)).
 Proof.
   induction n.
@@ -169,13 +169,11 @@ Proof.
     replace (⟨1| × (|0⟩⟨0| × (hadamard × |0⟩⟨0| × hadamard) × |0⟩⟨0| .+ 
                     |1⟩⟨1| × (hadamard × |0⟩⟨0| × hadamard) × |1⟩⟨1|) × |1⟩)
       with ((1/2) .* 'I_1) by solve_matrix. 
-    (* seems truthy. almost certainly true where ρ = I_1, as in this case  *)
+    (* almost certainly true where ρ = I_1, as in this case  *)
     assert (scale_safe : forall safe w i j (c : DeBruijn_Circuit w) a ρ, 
                denote_db_circuit safe i j c (a .* ρ) = a .* denote_db_circuit safe i j c ρ). admit.
     (* there should never be [None] contexts *)
-    assert (HDUB: forall W, @hoas_to_db W (Valid [None]) = @hoas_to_db W ∅). admit.
     rewrite scale_safe.
-    rewrite HDUB.    
     setoid_rewrite IHn.
     solve_matrix.
     - rewrite Cmult_plus_distr_l.
@@ -189,8 +187,8 @@ Proof.
       easy.
 Abort.
 
-(* This generalizes the theorem to avoid the lemma *)
-Lemma flips_lift_correct : forall n a, ⟦coin_flips_lift n⟧ (a .* I1) = a .* biased_coin (1/(2^n)).
+(* This generalizes the theorem to get around the lemma *)
+Lemma flips_lift_correct_gen : forall n a, ⟦coin_flips_lift n⟧ (a .* I1) = a .* biased_coin (1/(2^n)).
 Proof.
   induction n.
   + matrix_denote. Msimpl. solve_matrix.
@@ -207,9 +205,6 @@ Proof.
     [|- _ .+ ?f ?ρ = _] => replace ρ with ((a/2 .* 'I_1))
     end.
     2: solve_matrix; rewrite (Cmult_comm (/√2)), <- Cmult_assoc; autorewrite with C_db; easy.
-    (* there should never be [None] contexts *)
-    assert (HDUB: forall W, @hoas_to_db W (Valid [None]) = @hoas_to_db W ∅). admit.
-    rewrite HDUB.    
     setoid_rewrite (IHn (a / 2)).
     solve_matrix.
     - rewrite (Cmult_comm _ a).
@@ -225,7 +220,14 @@ Proof.
     - rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
       rewrite Cmult_assoc.
       easy.
-Admitted.
+Qed.
+
+Lemma flips_lift_correct : forall n, ⟦coin_flips_lift n⟧ I1 = biased_coin (1/(2^n)).
+Proof.
+  intros n.
+  rewrite <- Mscale_1, <- (Mscale_1 _ _ I1).
+  apply flips_lift_correct_gen.
+Qed.
 
 
 (***********)
@@ -374,7 +376,7 @@ Close Scope matrix_scope.
 Open Scope circ_scope.  
 (* Set Ltac Profiling. *)
 
-(* New approach no longer epxlicitly calls denote_unitary. 
+(* New approach no longer explicitly calls denote_unitary. 
    And, unfortunately, we don't have a unitary corresponding to f0, f2 or f3.
    Should use the circuit where U_f is a boxed_circuit instead 
 
@@ -565,7 +567,7 @@ Proof.
     clra.
 Qed.    
 
-(* Spec computed rather than reasoned about *)
+(* Spec computed rather than reasoned about - should confirm correct *)
 Definition M_bob (ρ : Density 8) : Density 2 := 
   fun x y => match x, y with
           | 0, 0 => ρ 0%nat 0%nat + ρ 3%nat 3%nat + ρ 4%nat 4%nat + ρ 7%nat 7%nat
@@ -578,11 +580,13 @@ Definition M_bob (ρ : Density 8) : Density 2 :=
 Lemma bob_spec : forall (ρ : Density 8), Mixed_State ρ -> ⟦bob⟧ ρ = M_bob ρ.
 Proof.
   intros.
+  matrix_denote.
   repeat (simpl; autounfold with den_db). 
   specialize (WF_Mixed ρ H). intros WFρ.
   Msimpl.
   solve_matrix.
 Qed.  
+
 
 (* We convert the matrices back to functional representation for 
    unification. Simply comparing the matrices may be more efficient,
@@ -595,6 +599,7 @@ Proof.
   specialize (WF_Mixed _ Mρ). intros WFρ.
   Msimpl.
   solve_matrix.
+  idtac.
   all: rewrite (Cmult_assoc (/ √2));
        autorewrite with C_db;
        rewrite (Cmult_comm _ (/2));
@@ -603,7 +608,7 @@ Proof.
        rewrite (Cmult_assoc 2 (/2));
        autorewrite with C_db;
        reflexivity.
-Qed.    
+Qed.
 
 (* Teleport with Dynamic Lifting *)
 
@@ -624,7 +629,7 @@ Proof.
   intros.
   specialize (WF_Mixed ρ H). intros WFρ.
   destruct b1, b2;
-  repeat (simpl; autounfold with den_db); Msimpl; solve_matrix.
+  matrix_denote; Msimpl; solve_matrix.
 Qed.
 
 Definition teleport_distant_eq : teleport_distant ≡ id_circ.
@@ -634,6 +639,7 @@ Proof.
   specialize (WF_Mixed _ Mρ). intros WFρ.
   Msimpl.
   solve_matrix.
+  idtac.
   all: rewrite (Cmult_assoc (/ √2));
        autorewrite with C_db;
        rewrite (Cmult_comm _ (/2));
@@ -642,7 +648,7 @@ Proof.
        rewrite (Cmult_assoc 2 (/2));
        autorewrite with C_db;
        reflexivity.
-Qed.  
+Qed.
 
 (* Lemmas out of date
 Lemma boxed_gate_correct : forall W1 W2 (g : Gate W1 W2) (ρ : Density (2^⟦W1⟧)) ,
