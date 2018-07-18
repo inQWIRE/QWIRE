@@ -1174,6 +1174,7 @@ Inductive Gate : WType -> WType -> Set :=
   | new0    : Gate One Bit
   | new1    : Gate One Bit
   | meas    : Gate Qubit Bit
+  | measQ   : Gate Qubit Qubit
   | discard : Gate Bit One
   | assert0 : Gate Qubit One
   | assert1 : Gate Qubit One.

@@ -91,6 +91,7 @@ Definition denote_gate' (safe : bool) n {w1 w2} (g : Gate w1 w2)
   | new0    => super (|0⟩ ⊗ Id (2^n))
   | new1    => super (|1⟩ ⊗ Id (2^n))
   | meas    => Splus (super (|0⟩⟨0| ⊗ Id (2^n))) (super (|1⟩⟨1| ⊗ Id (2^n)))
+  | measQ   => Splus (super (|0⟩⟨0| ⊗ Id (2^n))) (super (|1⟩⟨1| ⊗ Id (2^n)))
   | discard => Splus (super (⟨0| ⊗ Id (2^n))) (super (⟨1| ⊗ Id (2^n)))
   (* Safe performs a standard measure-discard, unsafe takes for granted that the 
      qubit to be removed is in the desired state. *)
@@ -227,19 +228,24 @@ Proof.
         apply mixed_state_diag_real; easy.
       lra.
   + simpl in *.
-    unfold super, Splus.
+    rewrite kron_1_r.
+    unfold super.
     Msimpl.
     specialize (WF_Mixed _ H) as WF.
-    repeat reduce_matrices.
-    constructor.
-    apply mixed_state_trace_1 in H.
-    unfold trace in H. simpl in H. rewrite Cplus_0_l in H.
-    rewrite H.
-    specialize (@WF_Id 1%nat) as WFI. 
-    replace (list2D_to_matrix [[C1]]) with ('I_ 1).     
-    apply pure_id1.
-    crunch_matrix. 
-    bdestruct (S (S x) <? 1). omega. rewrite andb_false_r. reflexivity.
+    unfold Splus.
+    replace (|0⟩⟨0| × ρ × |0⟩⟨0|) with (ρ 0%nat 0%nat .* |0⟩⟨0|) by solve_matrix.
+    replace (|1⟩⟨1| × ρ × |1⟩⟨1|) with (ρ 1%nat 1%nat .* |1⟩⟨1|) by solve_matrix.
+    specialize (mixed_state_trace_1 _ H) as TR1. unfold trace in TR1. simpl in TR1.
+    replace (ρ 1%nat 1%nat) with (1 - ρ O O) by (rewrite <- TR1; clra).
+    replace (ρ O O) with ((fst (ρ O O)), snd (ρ O O)) by clra. 
+    rewrite mixed_state_diag_real by assumption.
+    replace (1 - (fst (ρ O O), 0)) with (RtoC (1 - fst (ρ O O))) by clra.
+    replace (fst (ρ O O), 0) with (RtoC (fst (ρ O O))) by reflexivity.
+    apply Mix_S.
+    (* here's probably where we need positive semidefiniteness *)
+    admit.
+    constructor; apply pure0.
+    constructor; apply pure1.
   + simpl in *.
     unfold super, Splus.
     Msimpl.
@@ -268,7 +274,21 @@ Proof.
     apply pure_id1.
     crunch_matrix. 
     bdestruct (S (S x) <? 1). omega. rewrite andb_false_r. reflexivity.
-Qed.
+  + simpl in *.
+    unfold super, Splus.
+    Msimpl.
+    specialize (WF_Mixed _ H) as WF.
+    repeat reduce_matrices.
+    constructor.
+    apply mixed_state_trace_1 in H.
+    unfold trace in H. simpl in H. rewrite Cplus_0_l in H.
+    rewrite H.
+    specialize (@WF_Id 1%nat) as WFI. 
+    replace (list2D_to_matrix [[C1]]) with ('I_ 1).     
+    apply pure_id1.
+    crunch_matrix. 
+    bdestruct (S (S x) <? 1). omega. rewrite andb_false_r. reflexivity.
+Admitted.
 
 Instance Denote_Gate W1 W2 : Denote (Gate W1 W2) (Superoperator (2^⟦W1⟧) (2^⟦W2⟧)):=
     {| denote := denote_gate true |}.
@@ -910,6 +930,10 @@ Definition apply_meas {n} (k : nat) : Superoperator (2^n) (2^n) :=
   Splus (super (Id (2^k) ⊗ |0⟩⟨0| ⊗ Id (2^(n-k-1)))) 
         (super (Id (2^k) ⊗ |1⟩⟨1| ⊗ Id (2^(n-k-1)))).
 
+Definition apply_measQ {n} (k : nat) : Superoperator (2^n) (2^n) :=
+  Splus (super (Id (2^k) ⊗ |0⟩⟨0| ⊗ Id (2^(n-k-1)))) 
+        (super (Id (2^k) ⊗ |1⟩⟨1| ⊗ Id (2^(n-k-1)))).
+
 Definition apply_gate {n w1 w2} (safe : bool) (g : Gate w1 w2) (l : list nat) 
            : Superoperator (2^n) (2^(n+⟦w2⟧-⟦w1⟧)) :=
   match g with 
@@ -918,6 +942,7 @@ Definition apply_gate {n w1 w2} (safe : bool) (g : Gate w1 w2) (l : list nat)
   | init0 | new0 => apply_new0 
   | init1 | new1 => apply_new1 
   | meas         => apply_to_first apply_meas l       
+  | measQ        => apply_to_first apply_meas l       
   | discard      => apply_to_first apply_discard l
   | assert0      => apply_to_first (if safe then apply_discard else apply_assert0) l
   | assert1      => apply_to_first (if safe then apply_discard else apply_assert1) l

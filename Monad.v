@@ -341,7 +341,6 @@ Ltac fold_evalState :=
                                                        by reflexivity
   end.
 
-
 Arguments get {S}.
 Arguments put {S}.
 

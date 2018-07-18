@@ -6,6 +6,7 @@ Open Scope list_scope.
 
 Open Scope circ_scope.
 
+
 (* Example circuits *)
 
 Definition new_discard : Box One One := 
