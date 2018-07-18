@@ -241,16 +241,6 @@ Proof.
   reflexivity.
 Qed.
 
-(* Also in Reversible.v *)
-Lemma merge_singleton_append : forall W (Γ : Ctx), 
-        Γ ⋓ (singleton (length Γ) W) = Valid (Γ ++ [Some W]). 
-Proof. 
-  induction Γ.
-  - simpl. rewrite merge_nil_l. reflexivity.
-  - unlock_merge. simpl in *.
-    destruct a; simpl; rewrite IHΓ; reflexivity.
-Qed.
-
 Lemma add_fresh_merge : forall Γ W, 
   is_valid Γ ->
   add_fresh_state W Γ == singleton (get_fresh_var W Γ) W ∙ Γ. 
@@ -334,59 +324,6 @@ Proof.
       easy.
 Qed.
 
-(*
-remove_pat (qubit 4) [None; None; None; None; Qubit] = [None; None; None; None]. !
-*)
-
-Lemma remove_bit_merge : forall (Γ Γ' : OCtx) v, Γ' == singleton v Bit ∙ Γ ->
-                                            remove_pat (bit v)  Γ' = Γ.
-Proof.      
-  intros Γ Γ' v H.
-  apply merge_fun_ind in H.
-  dependent induction H.
-  - destruct v; inversion x.
-  - induction v.
-    + simpl. unfold remove_pat. simpl. admit. (* Now this case isn't true either? *)
-    + simpl. 
-      unfold remove_pat in *.
-      simpl in *.
-      inversion IHv.
-      (* Bah! 
-         This needs to be true: The definition of remove_pat might
-         need to be changed to trim trailing Nones. *)
-Admitted.
-
-Lemma remove_pat_valid : forall W Γ (p : Pat W), is_valid Γ -> is_valid (remove_pat p Γ).
-Proof.
-  intros W Γ p H.
-  change(exists Γ', (remove_pat p Γ) = Valid Γ').  
-  destruct Γ as [|Γ].
-  apply not_valid in H. contradiction.
-  clear H.
-  generalize dependent Γ.
-  induction p.
-  - unfold remove_pat. simpl. eauto.
-  - unfold remove_pat. simpl. eauto.
-  - unfold remove_pat. simpl. eauto.
-  - intros. 
-    unfold remove_pat in *.
-    simpl.
-    rewrite fold_left_app.
-    edestruct IHp1 as [Γ1 H1]. rewrite H1.
-    apply IHp2.
-Qed.
-
-Lemma remove_bit_pred : forall Γ Γ' v, Γ' == (singleton v Bit) ∙ Γ ->
-                        size_octx (remove_pat (bit v) Γ') = (size_octx Γ' - 1)%nat.
-Proof.
-  intros Γ Γ' v H.
-  remember H as H'. clear HeqH'. apply remove_bit_merge in H'.
-  destruct H. rewrite pf_merge in *. rewrite size_octx_merge by easy. 
-  erewrite remove_bit_merge.
-  2: constructor; trivial.
-  unfold size_octx at 2. rewrite singleton_size. omega.
-Qed.
-
 Lemma ancilla_free_valid : forall W (c : Circuit W), 
                            ancilla_free c -> 
                            valid_ancillae c.
@@ -466,7 +403,11 @@ Proof.
       constructor.
       apply remove_pat_valid. destruct pf1. assumption.
       rewrite merge_nil_l.
-      apply remove_bit_merge.
+      assert (t' : Γ ⊢ c () :Circ). apply (t0 ∅). split. 
+        destruct Γ. invalid_contradiction. validate. rewrite merge_nil_l. easy.
+        constructor.
+      specialize (types_circ_types_pat w Γ (c ()) t') as [w' [p' TP]].      
+      apply (remove_bit_merge _ _ w' p'); trivial. 
       apply singleton_equiv in s. subst.
       assumption.
     - dependent destruction AF. inversion H.
@@ -486,20 +427,20 @@ Proof.
       dependent destruction p.
       dependent destruction t.
       apply singleton_equiv in s. subst.
-      apply remove_bit_merge in pf. subst.
-      apply t0.
+      specialize (types_circ_types_pat w Γ2 (c true) (t0 true)) as [w' [p' TP]].      
+      rewrite (remove_bit_merge Γ2 Γ w' p'); easy. 
     * dependent destruction WT.
       dependent destruction p.
       dependent destruction t.
       apply singleton_equiv in s. subst.
-      apply remove_bit_merge in pf. subst.
-      apply t0.
+      specialize (types_circ_types_pat w Γ2 (c false) (t0 false)) as [w' [p' TP]].   
+      rewrite (remove_bit_merge Γ2 Γ w' p'); easy. 
     * dependent destruction WT.
       dependent destruction p.
       dependent destruction t.
       apply singleton_equiv in s. subst.
-      eapply remove_bit_pred.
-      apply pf.
+      specialize (types_circ_types_pat w Γ2 (c true) (t0 true)) as [w' [p' TP]].      
+      rewrite (remove_bit_pred Γ2 Γ); easy.
 Qed.
 
 Lemma ancilla_free_box_valid : forall W W' (c : Box W W'), 

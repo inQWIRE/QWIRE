@@ -334,6 +334,14 @@ Ltac simpl_rewrite lem :=
   let H := fresh "H" in 
   specialize lem as H; simpl in H; rewrite H; clear H.
 
+Ltac simpl_rewrite' lem := 
+  let H := fresh "H" in
+  specialize lem as H; simpl in H; rewrite <- H; clear H.
+
+Ltac simpl_rewrite_h lem hyp := 
+  let H := fresh "H" in
+  specialize lem as H; simpl in H; rewrite <- H in hyp; clear H.
+
 (* From SF *)
 Tactic Notation "gen" ident(X1) :=
   generalize dependent X1.

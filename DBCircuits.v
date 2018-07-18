@@ -1211,46 +1211,34 @@ Lemma SingletonCtx_flatten : forall x w Γ,
       flatten_ctx Γ = [Some w].
 Proof. induction 1; auto. Qed.
 
-Lemma subst_singleton : forall x, subst_var [x] x = 0.
+Lemma subst_var_singleton_list : forall x, subst_var [x] x = 0.
 Proof. induction 0; auto. Qed.
+
+Lemma subst_var_singleton : forall v W, subst_var (singleton v W) v = 0%nat.
+Proof. induction v; auto. Qed.
+
+(* 
+(* These are, sadly, false in their current form *)
+
+Lemma subst_qubit_superset : forall Γ Γ' Γ0 v, 
+  Γ ⊢ (qubit v) :Pat -> 
+  Γ' == Γ ∙ Γ0 ->
+  subst_var (octx_dom Γ) v = subst_var (octx_dom Γ') v.
+
+Eval compute in (subst_var (ctx_dom [Some Qubit; None; Some Bit; Some Qubit]) 3%nat). 
+Eval compute in (subst_var (ctx_dom [None;       None; Some Bit; Some Qubit]) 3%nat). 
+Eval compute in (subst_var (ctx_dom [None;       None; None; Some Qubit]) 3%nat). 
 
 Lemma subst_pat_superset : forall Γ Γ' Γ0 W (p : Pat W), 
   Γ ⊢ p :Pat -> 
   Γ' == Γ ∙ Γ0 ->
   subst_pat (octx_dom Γ) p = subst_pat (octx_dom Γ') p.
-Proof.
-  intros Γ Γ' Γ0 W p.
-  gen Γ Γ' Γ0.
-  induction p; intros.
-  - reflexivity.
-  - simpl.
-    admit.
-  (*
-    induction v; intros.
-    + destruct Γ as [|Γ]. invalid_contradiction.
-    destruct Γ. inversion H. inversion H3.
-    apply merge_fun_ind in H0.
-    inversion H0; subst.
-    reflexivity.
-    inversion H3; subst.
-    inversion H. inversion H4.
-    reflexivity.
-    inversion H. inversion H4.
-    + 
-   *)
-  - admit.
-  - simpl.
-    dependent destruction H.
-    specialize (IHp1 Γ1).
-    specialize (IHp2 Γ2).
-    erewrite <- (IHp1 (Γ1 ⋓ Γ2) Γ2); [| |split]; trivial. 
-    erewrite <- (IHp2 (Γ1 ⋓ Γ2) Γ1); [| |split; [|rewrite merge_comm]]; trivial.
-    destruct H1.
-    erewrite <- (IHp1 Γ' (Γ2 ⋓ Γ0)); trivial.
-    erewrite <- (IHp2 Γ' (Γ1 ⋓ Γ0)); trivial.
-    split; trivial. rewrite pf_merge. monoid.
-    split; trivial. rewrite pf_merge. monoid.
-Admitted.
+
+Eval compute in (subst_pat (ctx_dom [Some Qubit; None; Some Bit; Some Qubit]) (qubit 3%nat)). 
+Eval compute in (subst_pat (ctx_dom [None;       None; Some Bit; Some Qubit]) (qubit 3%nat)). 
+Eval compute in (subst_pat (ctx_dom [None;       None; None; Some Qubit]) (qubit 3%nat)). 
+
+*)
 
 (* assumes idxs is sorted *)
 Fixpoint remove_indices (Γ : Ctx) (idxs : list nat) : Ctx :=
@@ -1346,7 +1334,8 @@ Proof.
     apply SingletonCtx_dom in H2.
     simpl.
     rewrite H2.
-    rewrite subst_singleton.
+    idtac.
+    rewrite subst_var_singleton_list. 
     constructor.
   - intros.
     unfold hoas_to_db_pat. simpl.
@@ -1357,7 +1346,7 @@ Proof.
     apply SingletonCtx_dom in H2.
     simpl.
     rewrite H2.
-    rewrite subst_singleton.
+    rewrite subst_var_singleton_list.
     constructor.
   - intros.
     unfold hoas_to_db_pat in *. 
@@ -1379,7 +1368,6 @@ Proof.
       apply IHp2.
       assumption. *)
 Admitted.
-
 
 Fixpoint hoas_to_db {w} Γ (c : Circuit w) : DeBruijn_Circuit w :=
   match c with
@@ -1595,9 +1583,33 @@ Proof.
     admit (* lemma *).
 Admitted.
 
+(* needed for denote_circuit_correct *)
+Lemma singleton_dom : forall x w Γ, SingletonCtx x w Γ -> ctx_dom Γ = [x].
+Proof.
+  induction 1; simpl; auto.
+  rewrite IHSingletonCtx. auto.
+Qed.
+
+(* Probably not true - used flase lemmas
+Lemma subst_dom : forall w (p : Pat w) Γ, Types_Pat Γ p -> 
+      subst_pat (octx_dom Γ) p = fresh_pat w (st_{0}).
+Proof.
+  induction 1; simpl; auto.
+  * unfold fresh_pat. simpl. erewrite singleton_dom; [ | eauto].
+    simpl. unfold get_fresh_var. simpl. unfold subst_var.  simpl. rewrite Nat.eqb_refl. easy. 
+  * unfold fresh_pat. simpl. erewrite singleton_dom; [ | eauto].
+    simpl. unfold get_fresh_var. simpl. unfold subst_var.  simpl. rewrite Nat.eqb_refl. easy. 
+  * rewrite <- (subst_pat_superset Γ1 Γ Γ2); [|easy| split; easy].
+    rewrite IHTypes_Pat1.
+    rewrite <- (subst_pat_superset Γ2 Γ Γ1); [|easy| split; trivial].
+    2: rewrite merge_comm; easy.
+    rewrite IHTypes_Pat2.
+Abort.
+*)
+
 
 (*
-(* consequence of previous lemma *)
+(* consequence of earlier lemma *)
 Lemma subst_fresh_id : forall {w},
     subst_pat (σ_{size_WType w}) (fresh_pat w (st_{0}))
     = fresh_pat w (st_{0}).
@@ -1627,11 +1639,6 @@ Lemma hoas_to_db_compose_correct : forall {w w'}
 Admitted.
 
 
-Lemma singleton_dom : forall x w Γ, SingletonCtx x w Γ -> Ctx_dom Γ = [x].
-Proof.
-  induction 1; simpl; auto.
-  rewrite IHSingletonCtx. auto.
-Qed.
 
 Definition process_pat {w} (p : Pat w) (σ : substitution) : substitution :=
   σ ++ pat_to_list p.
@@ -1646,19 +1653,6 @@ Lemma subst_process_pat : forall w (p : Pat w),
   * unfold fresh_pat. simpl. autounfold with monad_db.
 *)
 Admitted.
-
-Lemma subst_dom : forall w (p : Pat w) Γ, Types_Pat Γ p -> 
-      subst_pat (OCtx_dom Γ) p = fresh_pat w (st_{0}).
-Proof.
-  induction 1; simpl; auto.
-  * unfold fresh_pat. simpl. erewrite singleton_dom; [ | eauto].
-    simpl. rewrite Nat.eqb_refl. auto.
-  * unfold fresh_pat. simpl. erewrite singleton_dom; [ | eauto].
-    simpl. rewrite Nat.eqb_refl. auto.
-  * 
-admit.
-Admitted.
-
 
 
 (*

@@ -505,6 +505,7 @@ Proof.
       reflexivity.
 Qed.
 
+(* This proof needs updating for in_place unitary application (if we want this proof):
 Lemma share_to_spec : forall (t b : bool) (k n : nat) (l1 l2 : list (Square 2)),
   (k < n)%nat ->
   length l1 = k ->
@@ -587,6 +588,10 @@ Proof.
                            = (bool_to_matrix b ⊗ bool_to_matrix (xorb b t)))
     by (ket_denote; destruct b, t; unfold bool_to_ket; simpl; Msimpl; solve_matrix).  
     assert ((0 + length l2 + 0 + 2)%nat = S n)%nat as E. omega.
+    
+    (* breaks here *)
+
+
     specialize (apply_U_spec_2 (S n) O (length l2) O (Id 1) (⨂ l2) (Id 1) 
                              _ _ _ _ _ E CS). simpl; Msimpl.
     intros H. 
@@ -749,6 +754,8 @@ Proof.
       Msimpl.
       reflexivity.
 Qed.
+*)
+
 
 (* Strong sematics for init and assert
 Open Scope matrix_scope.
@@ -1014,46 +1021,27 @@ Hint Resolve WF_ctx_to_matrix WF_ctx_to_mat_list : wf_db.
 Lemma pure_bool_to_matrix : forall b, Pure_State (bool_to_matrix b).
 Proof. destruct b. apply pure1. apply pure0. Qed.
 
-Lemma pure_kron : forall m n (A : Square m) (B : Square n),
-    Pure_State A -> Pure_State B -> Pure_State (A ⊗ B).
-Proof.
-  intros.
-  unfold Pure_State in *.
-  repeat split.
-  apply WF_kron; easy.
-  destruct H. unfold kron, trace. 
-  admit.
-  rewrite kron_adjoint.
-  destruct H as [_ [_ [SAA _]]], H0 as [_ [_ [SAB _]]].
-  rewrite <- SAA, <- SAB.
-  reflexivity.
-  destruct H as [_ [_ [_ AAA]]], H0 as [_ [_ [_ BBB]]].
-  rewrite kron_mixed_product.
-  rewrite <- AAA, <- BBB; easy.
-Admitted.
+Search big_kron.
 
+(* Belongs in Quantum.v *)
 Lemma pure_big_kron : forall (n : nat) (l : list (Square n)) (A : Square n),
   (forall i : nat, Pure_State (nth i l A)) -> 
   Pure_State (⨂ l).
 Proof.
   induction l;  intros A H.
   - simpl. apply pure_id1.
-  - simpl. apply pure_kron. apply (H 0).
+  - simpl. apply pure_state_kron. apply (H 0).
     apply (IHl A).    
     intros i.
     apply (H (S i)).
 Qed.
-
-Lemma mixed_kron : forall m n (A : Square m) (B : Square n),
-    Mixed_State A -> Mixed_State B -> Mixed_State (A ⊗ B).
-Admitted.
 
 Lemma mixed_big_kron : forall (n : nat) (l : list (Square n)) (A : Square n),
 (forall i : nat, Mixed_State (nth i l A)) -> Mixed_State (⨂ l).
 Proof.
   induction l;  intros A H.
   - simpl. constructor. apply pure_id1.
-  - simpl. apply mixed_kron. apply (H 0).
+  - simpl. apply mixed_state_kron. apply (H 0).
     eapply IHl.
     intros i.
     apply (H (S i)).
@@ -1176,7 +1164,7 @@ Ltac show_pure :=
     end; clear H
   | [|- @Pure_State ?W (@kron ?a ?b ?c ?d ?A ?B) ] => 
     let H := fresh "H" in 
-    specialize (pure_kron a c A B) as H;
+    specialize (pure_state_kron a c A B) as H;
     match type of H with
     | ?H1 -> ?H2 -> @Pure_State ?W' (@kron ?a' ?b' ?c' ?d' ?A ?B) => 
         replace W with W' by dim_solve;
@@ -1201,8 +1189,9 @@ Ltac show_mixed :=
     unfold WF_Superoperator in H;
     assert (T : Typed_Box c) by (compile_typing (compile_WT); type_check);
     specialize (H T ρ);
+    simpl in H;
     match type of H with
-    | _ -> ?Mixed_State ?W' (denote_box true ?c' ?ρ') => 
+    | _ -> @Mixed_State ?W' (denote_box true ?c' ?ρ') => 
       replace ρ with ρ' by easy;
       replace W with W' by dim_solve;
       try apply H
@@ -1357,7 +1346,7 @@ Proof.
     simpl.
     apply WF_Mixed. apply (M1 0).
     apply WF_Mixed. apply (M1 0).
-    specialize (mixed_kron) as M.
+    specialize (mixed_state_kron) as M.
     specialize (M _ _ (@big_kron (S (S O)) (S (S O)) l1) 
                       (@big_kron (S (S O)) (S (S O)) l2)).
     rewrite <- Nat.pow_add_r in M.
@@ -1373,7 +1362,7 @@ Proof.
 Qed.    
 
 (* Currently simplifies all init_at and assert_ats. 
-   Proof could be simplified by making these opaque and using lemma *)
+   Proof could be simplified by making these opaque and using lemmas *)
 Theorem compile_correct : forall (b : bexp) (Γ : Ctx) (f : Var -> bool) (t : bool),
   get_context b ⊂ Γ -> 
   ⟦compile b Γ⟧ ((bool_to_matrix t) ⊗ (ctx_to_matrix Γ f)) = 

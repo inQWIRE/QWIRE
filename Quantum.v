@@ -1044,9 +1044,11 @@ Qed.
 Definition compose_super {m n p} (g : Superoperator n p) (f : Superoperator m n)
                       : Superoperator m p :=
   fun ρ => g (f ρ).
+
 Lemma compose_super_correct : forall {m n p} 
                               (g : Superoperator n p) (f : Superoperator m n),
-      WF_Superoperator g -> WF_Superoperator f ->
+      WF_Superoperator g -> 
+      WF_Superoperator f ->
       WF_Superoperator (compose_super g f).
 Proof.
   intros m n p g f pf_g pf_f.
@@ -1059,7 +1061,7 @@ Qed.
 Definition sum_super {m n} (f g : Superoperator m n) : Superoperator m n :=
   fun ρ => (1/2)%R .* f ρ .+ (1 - 1/2)%R .* g ρ.
 
-Lemma WF_sum_super : forall m n (f g : Superoperator m n),
+Lemma sum_super_correct : forall m n (f g : Superoperator m n),
       WF_Superoperator f -> WF_Superoperator g -> WF_Superoperator (sum_super f g).
 Proof.
   intros m n f g wf_f wf_g ρ pf_ρ.
@@ -1114,12 +1116,34 @@ Proof.
     apply Mix_S; trivial.
 Qed.
 
-Lemma WF_Superoperator_unitary : forall {n} (U : Matrix n n), 
+Lemma super_unitary_correct : forall {n} (U : Matrix n n), 
   WF_Unitary U -> WF_Superoperator (super U).
 Proof.
   intros n U H ρ Mρ.
   apply mixed_unitary; easy.
 Qed.
+
+Lemma compose_super_assoc : forall {m n p q}
+      (f : Superoperator m n) (g : Superoperator n p) (h : Superoperator p q), 
+      compose_super (compose_super f g) h
+    = compose_super f (compose_super g h).
+Proof. easy. Qed.
+
+
+(* This is compose_super_correct 
+Lemma WF_Superoperator_compose : forall m n p (s : Superoperator n p) (s' : Superoperator m n),
+    WF_Superoperator s ->
+    WF_Superoperator s' ->
+    WF_Superoperator (compose_super s s').
+Proof.
+  unfold WF_Superoperator.
+  intros m n p s s' H H0 ρ H1.
+  unfold compose_super.
+  apply H.
+  apply H0.
+  easy.
+Qed.
+*)
 
 (****************************************)
 (* Tests and Lemmas about swap matrices *)

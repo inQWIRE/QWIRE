@@ -247,7 +247,7 @@ Proof.
   matrix_denote.
   Msimpl.
   apply WF_Mixed in Mρ.
-  specialize (WF_unitary U) as WFU. simpl in WFU.
+  specialize (WF_Matrix_U U) as WFU. simpl in WFU.
   solve_matrix.
 Qed.  
   
@@ -259,7 +259,7 @@ Proof.
   matrix_denote.
   Msimpl.
   apply WF_Mixed in Mρ.
-  specialize (WF_unitary V) as WFV. simpl in WFV.
+  specialize (WF_Matrix_U V) as WFV. simpl in WFV.
   solve_matrix.
 Qed.  
 
@@ -274,8 +274,8 @@ Proof.
     match goal with 
     | [|- context[let (res, u) := ?exp in _]] => replace exp with (0%nat, [false; true], ⟦U⟧)%core
     end; [| dependent destruction U; easy]. 
-    specialize (WF_unitary U) as WFU. 
-    specialize (WF_unitary V) as WFV.
+    specialize (WF_Matrix_U U) as WFU. 
+    specialize (WF_Matrix_U V) as WFV.
     simpl in *.
     Msimpl.
     solve_matrix.
@@ -287,8 +287,8 @@ Proof.
     match goal with 
     | [|- context[let (res, u) := ?exp in _]] => replace exp with (0%nat, [false; true], ⟦U⟧)%core
     end; [| dependent destruction U; easy]. 
-    specialize (WF_unitary U) as WFU. 
-    specialize (WF_unitary V) as WFV.
+    specialize (WF_Matrix_U U) as WFU. 
+    specialize (WF_Matrix_U V) as WFV.
     simpl in *.
     Msimpl.
     solve_matrix.
@@ -426,8 +426,8 @@ Proof.
   repeat (autounfold with ket_den_db; simpl).
   repeat rewrite super_super.
   apply WF_Mixed in Mρ.
-  specialize (WF_unitary _S) as WFS.
-  specialize (WF_unitary (trans _S)) as WFSd.
+  specialize (WF_Matrix_U _S) as WFS.
+  specialize (WF_Matrix_U (trans _S)) as WFSd.
 
 (*
   apply super_eq; trivial.

@@ -69,6 +69,14 @@ Definition size_octx (Γ : OCtx) : nat :=
   | Valid Γ' => size_ctx Γ'
   end.
 
+Lemma size_ctx_app : forall (Γ1 Γ2 : Ctx),
+      size_ctx (Γ1 ++ Γ2) = (size_ctx Γ1 + size_ctx Γ2)%nat.
+Proof.
+  induction Γ1; intros; simpl; auto.
+  destruct a; trivial.
+  rewrite IHΓ1; easy.
+Qed.
+
 Lemma ctx_octx : forall Γ Γ', Valid Γ = Valid Γ' <-> Γ = Γ'.
 Proof. intuition; congruence. Defined.
 
@@ -417,6 +425,12 @@ Defined.
 
 Definition is_valid (Γ : OCtx) : Prop := exists Γ', Γ = Valid Γ'.
 
+Record valid_merge Γ1 Γ2 Γ :=
+  { pf_valid : is_valid Γ
+  ; pf_merge : Γ = Γ1 ⋓ Γ2 }.
+
+Notation "Γ == Γ1 ∙ Γ2" := (valid_merge Γ1 Γ2 Γ) (at level 20).
+
 Lemma valid_valid : forall Γ, is_valid (Valid Γ). Proof. intros. exists Γ. reflexivity. Defined.
 
 Lemma valid_empty : is_valid ∅. Proof. unfold is_valid; eauto. Defined.
@@ -508,18 +522,13 @@ Proof.
     destruct (Γ2 ⋓ Γ3); [rewrite merge_I_r in V; inversion V | eauto]. 
 Defined. 
 
-Ltac valid_invalid_absurd := try (absurd (is_valid Invalid); 
-                                  [apply not_valid | auto]; fail).
-
 Lemma size_octx_merge : forall (Γ1 Γ2 : OCtx), is_valid (Γ1 ⋓ Γ2) ->
                        size_octx (Γ1 ⋓ Γ2) = (size_octx Γ1 + size_octx Γ2)%nat.
 Proof.
-  intros Γ1 Γ2 valid.
-  destruct Γ1 as [ | Γ1];
-  destruct Γ2 as [ | Γ2];
-    valid_invalid_absurd.
-  revert Γ2 valid.
-  induction Γ1 as [ | [W1 | ] Γ1]; intros Γ2 valid; 
+  intros Γ1 Γ2 V.
+  destruct Γ1 as [ | Γ1], Γ2 as [ | Γ2]; try apply not_valid in V; try easy.
+  revert Γ2 V.
+  induction Γ1 as [ | [W1 | ] Γ1]; intros Γ2 V; 
     [rewrite merge_nil_l; auto | | ];
   (destruct Γ2 as [ | [W2 | ] Γ2]; [rewrite merge_nil_r; auto | |]);
   [ absurd (is_valid Invalid); auto; apply not_valid | | |].
@@ -540,356 +549,9 @@ Proof.
     simpl in *. rewrite IHΓ1; auto. apply valid_valid.
 Defined.
 
-Lemma size_ctx_app : forall (Γ1 Γ2 : Ctx),
-      size_ctx (Γ1 ++ Γ2) = (size_ctx Γ1 + size_ctx Γ2)%nat.
-Proof.
-  induction Γ1; intros; simpl; auto.
-  destruct a; trivial.
-  rewrite IHΓ1; easy.
-Qed.
-
-
-
-(*** Disjointness ***)
-
-
-Definition Disjoint Γ1 Γ2 : Prop := 
-  match Γ1, Γ2 with
-  | Invalid, _ => True
-  | _, Invalid => True
-  | Valid _, Valid _ => is_valid (Γ1 ⋓ Γ2)
-  end.
-Lemma disjoint_nil_r : forall Γ, Disjoint Γ ∅.
-Proof.
-  destruct Γ as [ | Γ]; [exact I | ].
-  unfold Disjoint. rewrite merge_nil_r. exists Γ. reflexivity.
-Defined.
-
-
-Lemma disjoint_valid : forall Γ1 Γ2, Disjoint Γ1 Γ2 -> is_valid Γ1 -> is_valid Γ2 -> is_valid (Γ1 ⋓ Γ2).
-Proof.
-  intros Γ1 Γ2 disj [Γ1' valid1] [Γ2' valid2].
-  rewrite valid1 in *; rewrite valid2 in *; auto. 
-Defined.
-
-Lemma disjoint_merge : forall Γ Γ1 Γ2,
-                       Disjoint Γ Γ1 -> Disjoint Γ Γ2 -> Disjoint Γ (Γ1 ⋓ Γ2).
-Proof.
-  intros Γ Γ1 Γ2 disj1 disj2.
-  remember (Γ1 ⋓ Γ2) as Γ'.
-  destruct Γ as [ | Γ]; [exact I | ].
-  destruct Γ' as [ | Γ']; [exact I | ].
-  assert (valid0 : is_valid Γ). { apply valid_valid. }
-  assert (valid1 : is_valid Γ1). 
-    { destruct Γ1 as [ | Γ1]; [inversion HeqΓ' | ]. apply valid_valid. }
-  assert (valid2 : is_valid Γ2).
-    { destruct Γ2 as [ | Γ2]; [rewrite merge_I_r in *; inversion HeqΓ' | ]. apply valid_valid. }
-  assert (valid1' : is_valid (Γ ⋓ Γ1)). { apply disjoint_valid; auto. }
-  assert (valid2' : is_valid (Γ ⋓ Γ2)). { apply disjoint_valid; auto. }
-  unfold Disjoint.
-  rewrite HeqΓ'.
-  rewrite merge_assoc.
-  apply valid_join; auto.
-  exists Γ'; auto.
-Defined.
-
-
-Lemma disjoint_split : forall Γ1 Γ2 Γ, is_valid Γ1 -> is_valid Γ2 -> 
-                                  Disjoint Γ1 Γ2 -> Disjoint (Γ1 ⋓ Γ2) Γ 
-                                  -> Disjoint Γ1 Γ /\ Disjoint Γ2 Γ.
-Proof.
-  intros Γ1 Γ2 Γ [Γ1' valid1] [Γ2' valid2] disj disj'.
-  subst. unfold Disjoint in disj.
-  destruct Γ as [ | Γ]; [split; exact I | ].
-  unfold Disjoint.
-  destruct disj as [Γ' is_valid].
-  rewrite is_valid in disj'.
-  unfold Disjoint in disj'.
-  rewrite <- is_valid in disj'.
-  apply valid_split in disj'.
-  destruct disj' as [H1 [H2 H3]]; split; auto.
-Defined.
-
-
-
-
-Record valid_merge Γ1 Γ2 Γ :=
-  { pf_valid : is_valid Γ
-  ; pf_merge : Γ = Γ1 ⋓ Γ2 }.
-(* pretty bad notation *)
-Notation "Γ == Γ1 ∙ Γ2" := (valid_merge Γ1 Γ2 Γ) (at level 20).
-
-
-(*** Automation ***)
-
-(* Local check for multiple evars *)
-Ltac has_evars term := 
-  match term with
-    | ?L = ?R         => has_evars (L ⋓ R)
-    | ?L == ?R1 ∙ ?R2 => has_evars (L ⋓ R1 ⋓ R2)
-    | ?Γ1 ⋓ ?Γ2       => has_evar Γ1; has_evar Γ2
-    | ?Γ1 ⋓ ?Γ2       => has_evars Γ1
-    | ?Γ1 ⋓ ?Γ2       => has_evars Γ2
-  end.
-
-(* Assumes at most one evar *)
-Ltac monoid := 
-  try match goal with
-  | [ |- ?Γ1 = ?Γ2 ] => has_evar Γ1; symmetry
-  end; 
-  repeat match goal with
-  (* reassociate *)
-  | [ |- context[?Γ1 ⋓ ?Γ2 ⋓ ?Γ3 ]] => rewrite <- (merge_assoc Γ1 Γ2 Γ3)
-  (* solve *)                                            
-  | [ |- ?Γ = ?Γ ]                  => reflexivity
-  | [ |- ?Γ1 = ?Γ2 ]                => is_evar Γ2; reflexivity
-  (* remove nils *)
-  | [ |- context[?Γ ⋓ ∅] ]          => rewrite (merge_nil_r Γ)
-  | [ |- context[∅ ⋓ ?Γ] ]          => rewrite (merge_nil_l Γ)
-  (* move evar to far right *)
-  | [ |- _ = ?Γ ⋓ ?Γ' ]             => is_evar Γ; rewrite (merge_comm Γ Γ')
-  (* solve nil evars *)
-  | [ |- ?Γ = ?Γ ⋓ _ ]              => rewrite merge_nil_r; reflexivity  
-  (* cycle and apply merge_cancel_l *)
-  | [ |- ?Γ ⋓ _ = ?Γ ⋓ _ ]          => apply merge_cancel_l
-  | [ |- ?Γ1 ⋓ ?Γ1' = ?Γ ⋓ _ ]      => rewrite (merge_comm Γ1 Γ1')
-(*| [ |- context[?Γ] = ?Γ ⋓ _ ]     => move_left Γ *)
-  end.
-
-
-
-Lemma test1 : forall x y z, x ⋓ y ⋓ z = z ⋓ x ⋓ y.
-Proof. intros. monoid. Qed.
-
-Lemma test2 : forall x, x ⋓ ∅ = x.
-Proof. intros. monoid. Qed.
-
-Lemma test21 : forall x, x ⋓ ∅ = x ⋓ ∅.
-Proof. intros. monoid. Qed.
-
-Lemma test3 : forall w x y z, x ⋓ (y ⋓ z) ⋓ w = w ⋓ z ⋓ (x ⋓ y).
-Proof. intros. monoid. Qed.
-
-Lemma test4 : forall w x y z, x ⋓ (y ⋓ ∅ ⋓ z) ⋓ w = w ⋓ z ⋓ (x ⋓ y).
-Proof. intros. monoid. Qed.
-
-Inductive Eqq {A} : A -> A -> Prop := 
-| eqq : forall x, Eqq x x.
-
-Lemma create_evar : forall A (x x' y z : A) f, Eqq x x' -> f y x = z -> f y x' = z.
-Proof. intros. inversion H; subst. reflexivity. Qed.
-
-Lemma test_evar_ctx : forall x y z, x ⋓ y ⋓ z = z ⋓ x ⋓ y.
-Proof. intros. eapply create_evar. 2: monoid. constructor. Qed.
-
 (**************************)
-(* Extra helper functions *)
+(* Basic validity Tactics *)
 (**************************)
-
-Definition xor_option {a} (o1 : option a) (o2 : option a) : option a :=
-  match o1, o2 with
-  | Some a1, None => Some a1
-  | None, Some a2 => Some a2
-  | _   , _       => None
-  end.
-
-(* index into an OCtx *)
-Fixpoint index (Γ : OCtx) (i : nat) : option WType :=
-  match Γ with
-  | Invalid => None
-  | Valid Γ' => maybe (Γ' !! i) None
-  end.
-
-
-Lemma index_invalid : forall i, index Invalid i = None.
-Proof.
-  auto.
-Qed.
-Lemma index_empty : forall i, index ∅ i = None.
-Proof.
-  intros.
-  simpl. 
-  rewrite nth_nil.
-  auto.
-Qed.
-
-Lemma singleton_index : forall x w Γ,
-      SingletonCtx x w Γ ->
-      index Γ x = Some w.
-Proof.
-  induction 1; simpl; auto.
-Qed.
-
-
-(* trim the None's from the end of a Ctx *)
-Fixpoint trim (Γ : Ctx) : Ctx :=
-  match Γ with
-  | [] => []
-  | None :: Γ' => match trim Γ' with
-                  | [] => []
-                  | Γ''  => None :: Γ''
-                  end
-  | Some w :: Γ' => Some w :: trim Γ'
-  end.
-
-Lemma index_trim : forall Γ i,    
-    index (trim Γ) i = index Γ i.
-Proof.
-  induction Γ as [ | [w | ] Γ]; intros i.
-  * simpl. auto.
-  * simpl. destruct i; simpl; auto.
-    apply IHΓ.
-  * simpl. remember (trim Γ) as Γ'.
-    destruct Γ' as [ | o Γ']; auto.
-    + rewrite nth_nil.
-      destruct i; simpl; auto. 
-      simpl in IHΓ. 
-      rewrite <- IHΓ.
-      rewrite nth_nil.
-      auto.
-    + destruct i; simpl; auto.
-      apply IHΓ.
-Qed.
-
-(* empty context *)
-Inductive empty_ctx : Ctx -> Prop :=
-| empty_nil : empty_ctx []
-| empty_cons : forall Γ, empty_ctx Γ -> empty_ctx (None :: Γ)
-.
-Lemma trim_empty : forall Γ, empty_ctx Γ -> trim Γ = [].
-Proof.
-  induction 1; simpl; auto.
-  rewrite IHempty_ctx; auto.
-Qed.
-
-Lemma size_ctx_trim : forall Γ, size_ctx (trim Γ) = size_ctx Γ.
-Proof.
-  induction Γ; auto.
-  destruct a; simpl.
-  rewrite IHΓ; easy.
-  simpl.
-  destruct (trim Γ); easy.
-Qed.  
-
-Lemma size_octx_trim : forall Γ, size_octx (trim Γ) = size_octx Γ.
-Proof. apply size_ctx_trim. Qed.
-
-
-(* length is the actual length of the underlying list, as opposed to size, which
- * is the number of Some entries in the list 
- *)
-Definition octx_length (Γ : OCtx) : nat :=
-  match Γ with
-  | Invalid => O
-  | Valid ls => length ls
-  end.
-
-
-(* property of merge *)
-
-Lemma merge_dec Γ1 Γ2 : is_valid (Γ1 ⋓ Γ2) + {Γ1 ⋓ Γ2 = Invalid}.
-Proof.
-  induction Γ1 as [ | Γ1]; [ right; auto | ].
-  destruct  Γ2 as [ | Γ2]; [ right; auto | ].
-  revert Γ2; induction Γ1 as [ | o1 Γ1]; intros Γ2.
-  { simpl. left. apply valid_valid. }
-  destruct Γ2 as [ | o2 Γ2]. 
-  { simpl. left. apply valid_valid. }
-  destruct (IHΓ1 Γ2) as [IH | IH].
-  - destruct o1 as [ | W1]; destruct o2 as [ | W2]; simpl in *. 
-    { right; auto. }
-    { left; destruct (merge' Γ1 Γ2); auto. apply valid_valid. }
-    { left; destruct (merge' Γ1 Γ2); auto. apply valid_valid. }
-    { left; destruct (merge' Γ1 Γ2); auto. apply valid_valid. }    
-  - right. simpl in *. rewrite IH. destruct (merge_wire o1 o2); auto.
-Defined.
-
-(* Patterns and Gates *)
-
-Open Scope circ_scope.
-Inductive Pat : WType ->  Set :=
-| unit : Pat One
-| qubit : Var -> Pat Qubit
-| bit : Var -> Pat Bit
-| pair : forall {W1 W2}, Pat W1 -> Pat W2 -> Pat (W1 ⊗ W2).
-
-
-Fixpoint pat_to_list {w} (p : Pat w) : list Var :=
-  match p with
-  | unit => []
-  | qubit x => [x]
-  | bit x => [x]
-  | pair p1 p2 => pat_to_list p1 ++ pat_to_list p2
-  end.
-
-
-Fixpoint pat_map {w} (f : Var -> Var) (p : Pat w) : Pat w :=
-  match p with
-  | unit => unit
-  | qubit x => qubit (f x)
-  | bit x => bit (f x)
-  | pair p1 p2 => pair (pat_map f p1) (pat_map f p2)
-  end.
-
-
-Reserved Notation "Γ ⊢ p ':Pat'" (at level 30).
-
-Inductive Types_Pat : OCtx -> forall {W : WType}, Pat W -> Set :=
-| types_unit : ∅ ⊢ unit :Pat
-| types_qubit : forall x Γ, SingletonCtx x Qubit Γ ->  Γ ⊢ qubit x :Pat
-| types_bit : forall x Γ, SingletonCtx x Bit Γ -> Γ ⊢ bit x :Pat
-| types_pair : forall Γ1 Γ2 Γ w1 w2 (p1 : Pat w1) (p2 : Pat w2),
-        is_valid Γ 
-      -> Γ = Γ1 ⋓ Γ2
-      -> Γ1 ⊢ p1 :Pat
-      -> Γ2 ⊢ p2 :Pat
-      -> Γ  ⊢ pair p1 p2 :Pat
-where "Γ ⊢ p ':Pat'" := (@Types_Pat Γ _ p).
-
-Lemma pat_ctx_valid : forall Γ W (p : Pat W), Γ ⊢ p :Pat -> is_valid Γ.
-Proof. intros Γ W p TP. unfold is_valid. inversion TP; eauto. Qed.
-
-Open Scope circ_scope.
-Inductive Unitary : WType -> Set := 
-  | _H         : Unitary Qubit 
-  | _X         : Unitary Qubit
-  | _Y         : Unitary Qubit
-  | _Z         : Unitary Qubit
-  | _R_        : R -> Unitary Qubit 
-  | ctrl      : forall {W} (U : Unitary W), Unitary (Qubit ⊗ W) 
-  | bit_ctrl  : forall {W} (U : Unitary W), Unitary (Bit ⊗ W).
-
-(* Additional gate notations *)
-Notation CNOT := (ctrl _X).
-Notation CCNOT := (ctrl (ctrl _X)).
-
-Notation _S := (_R_ (PI / 2)). 
-Notation _T := (_R_ (PI / 4)). (* π / 8 gate *)
-
-Fixpoint trans {W} (U : Unitary W) : Unitary W :=
-  match U with
-  | _R_ ϕ       => _R_ (- ϕ)
-  | ctrl U'     => ctrl (trans U')
-  | bit_ctrl U' => bit_ctrl (trans U')
-  | U'          => U' (* our other unitaries are their own adjoints *)
-  end.
-
-Inductive Gate : WType -> WType -> Set := 
-  | U : forall {W} (u : Unitary W), Gate W W
-  | BNOT     : Gate Bit Bit
-  | init0   : Gate One Qubit
-  | init1   : Gate One Qubit
-  | new0    : Gate One Bit
-  | new1    : Gate One Bit
-  | meas    : Gate Qubit Bit
-  | discard : Gate Bit One
-  | assert0 : Gate Qubit One
-  | assert1 : Gate Qubit One.
-
-Coercion U : Unitary >-> Gate.
-Close Scope circ_scope.
-
-
 
 Ltac simplify_invalid := repeat rewrite merge_I_l in *;
                          repeat rewrite merge_I_r in *.
@@ -904,8 +566,11 @@ Ltac invalid_contradiction :=
   match goal with
   | [ H : is_valid Invalid  |- _ ] => apply (False_rect _ (not_valid H))
   | [ H : Valid _ = Invalid |- _ ] => inversion H
-  end.
+  end.      
 
+(**********************************)
+(* Inductive predicate for proofs *)
+(**********************************)
 
 Inductive merge_o {A : Set} : option A -> option A -> option A -> Set :=
 | merge_None : merge_o None None None
@@ -1078,7 +743,443 @@ Proof.
         rewrite <- M3; reflexivity.
         rewrite <- M4; reflexivity.
 Qed.        
-      
+
+
+
+(*** Disjointness ***)
+
+(* I don't think we use these. If not we should get rid of them *)
+
+Definition Disjoint Γ1 Γ2 : Prop := 
+  match Γ1, Γ2 with
+  | Invalid, _ => True
+  | _, Invalid => True
+  | Valid _, Valid _ => is_valid (Γ1 ⋓ Γ2)
+  end.
+Lemma disjoint_nil_r : forall Γ, Disjoint Γ ∅.
+Proof.
+  destruct Γ as [ | Γ]; [exact I | ].
+  unfold Disjoint. rewrite merge_nil_r. exists Γ. reflexivity.
+Defined.
+
+
+Lemma disjoint_valid : forall Γ1 Γ2, Disjoint Γ1 Γ2 -> is_valid Γ1 -> is_valid Γ2 -> is_valid (Γ1 ⋓ Γ2).
+Proof.
+  intros Γ1 Γ2 disj [Γ1' valid1] [Γ2' valid2].
+  rewrite valid1 in *; rewrite valid2 in *; auto. 
+Defined.
+
+Lemma disjoint_merge : forall Γ Γ1 Γ2,
+                       Disjoint Γ Γ1 -> Disjoint Γ Γ2 -> Disjoint Γ (Γ1 ⋓ Γ2).
+Proof.
+  intros Γ Γ1 Γ2 disj1 disj2.
+  remember (Γ1 ⋓ Γ2) as Γ'.
+  destruct Γ as [ | Γ]; [exact I | ].
+  destruct Γ' as [ | Γ']; [exact I | ].
+  assert (valid0 : is_valid Γ). { apply valid_valid. }
+  assert (valid1 : is_valid Γ1). 
+    { destruct Γ1 as [ | Γ1]; [inversion HeqΓ' | ]. apply valid_valid. }
+  assert (valid2 : is_valid Γ2).
+    { destruct Γ2 as [ | Γ2]; [rewrite merge_I_r in *; inversion HeqΓ' | ]. apply valid_valid. }
+  assert (valid1' : is_valid (Γ ⋓ Γ1)). { apply disjoint_valid; auto. }
+  assert (valid2' : is_valid (Γ ⋓ Γ2)). { apply disjoint_valid; auto. }
+  unfold Disjoint.
+  rewrite HeqΓ'.
+  rewrite merge_assoc.
+  apply valid_join; auto.
+  exists Γ'; auto.
+Defined.
+
+
+Lemma disjoint_split : forall Γ1 Γ2 Γ, is_valid Γ1 -> is_valid Γ2 -> 
+                                  Disjoint Γ1 Γ2 -> Disjoint (Γ1 ⋓ Γ2) Γ 
+                                  -> Disjoint Γ1 Γ /\ Disjoint Γ2 Γ.
+Proof.
+  intros Γ1 Γ2 Γ [Γ1' valid1] [Γ2' valid2] disj disj'.
+  subst. unfold Disjoint in disj.
+  destruct Γ as [ | Γ]; [split; exact I | ].
+  unfold Disjoint.
+  destruct disj as [Γ' is_valid].
+  rewrite is_valid in disj'.
+  unfold Disjoint in disj'.
+  rewrite <- is_valid in disj'.
+  apply valid_split in disj'.
+  destruct disj' as [H1 [H2 H3]]; split; auto.
+Defined.
+
+
+(*** Automation ***)
+
+(* Local check for multiple evars *)
+Ltac has_evars term := 
+  match term with
+    | ?L = ?R         => has_evars (L ⋓ R)
+    | ?L == ?R1 ∙ ?R2 => has_evars (L ⋓ R1 ⋓ R2)
+    | ?Γ1 ⋓ ?Γ2       => has_evar Γ1; has_evar Γ2
+    | ?Γ1 ⋓ ?Γ2       => has_evars Γ1
+    | ?Γ1 ⋓ ?Γ2       => has_evars Γ2
+  end.
+
+(* Assumes at most one evar *)
+Ltac monoid := 
+  try match goal with
+  | [ |- ?Γ1 = ?Γ2 ] => has_evar Γ1; symmetry
+  end; 
+  repeat match goal with
+  (* reassociate *)
+  | [ |- context[?Γ1 ⋓ ?Γ2 ⋓ ?Γ3 ]] => rewrite <- (merge_assoc Γ1 Γ2 Γ3)
+  (* solve *)                                            
+  | [ |- ?Γ = ?Γ ]                  => reflexivity
+  | [ |- ?Γ1 = ?Γ2 ]                => is_evar Γ2; reflexivity
+  (* remove nils *)
+  | [ |- context[?Γ ⋓ ∅] ]          => rewrite (merge_nil_r Γ)
+  | [ |- context[∅ ⋓ ?Γ] ]          => rewrite (merge_nil_l Γ)
+  (* move evar to far right *)
+  | [ |- _ = ?Γ ⋓ ?Γ' ]             => is_evar Γ; rewrite (merge_comm Γ Γ')
+  (* solve nil evars *)
+  | [ |- ?Γ = ?Γ ⋓ _ ]              => rewrite merge_nil_r; reflexivity  
+  (* cycle and apply merge_cancel_l *)
+  | [ |- ?Γ ⋓ _ = ?Γ ⋓ _ ]          => apply merge_cancel_l
+  | [ |- ?Γ1 ⋓ ?Γ1' = ?Γ ⋓ _ ]      => rewrite (merge_comm Γ1 Γ1')
+(*| [ |- context[?Γ] = ?Γ ⋓ _ ]     => move_left Γ *)
+  end.
+
+
+
+Lemma test1 : forall x y z, x ⋓ y ⋓ z = z ⋓ x ⋓ y.
+Proof. intros. monoid. Qed.
+
+Lemma test2 : forall x, x ⋓ ∅ = x.
+Proof. intros. monoid. Qed.
+
+Lemma test21 : forall x, x ⋓ ∅ = x ⋓ ∅.
+Proof. intros. monoid. Qed.
+
+Lemma test3 : forall w x y z, x ⋓ (y ⋓ z) ⋓ w = w ⋓ z ⋓ (x ⋓ y).
+Proof. intros. monoid. Qed.
+
+Lemma test4 : forall w x y z, x ⋓ (y ⋓ ∅ ⋓ z) ⋓ w = w ⋓ z ⋓ (x ⋓ y).
+Proof. intros. monoid. Qed.
+
+Inductive Eqq {A} : A -> A -> Prop := 
+| eqq : forall x, Eqq x x.
+
+Lemma create_evar : forall A (x x' y z : A) f, Eqq x x' -> f y x = z -> f y x' = z.
+Proof. intros. inversion H; subst. reflexivity. Qed.
+
+Lemma test_evar_ctx : forall x y z, x ⋓ y ⋓ z = z ⋓ x ⋓ y.
+Proof. intros. eapply create_evar. 2: monoid. constructor. Qed.
+
+(**************************)
+(* Extra helper functions *)
+(**************************)
+
+Definition xor_option {a} (o1 : option a) (o2 : option a) : option a :=
+  match o1, o2 with
+  | Some a1, None => Some a1
+  | None, Some a2 => Some a2
+  | _   , _       => None
+  end.
+
+(* index into an OCtx *)
+Fixpoint index (Γ : OCtx) (i : nat) : option WType :=
+  match Γ with
+  | Invalid => None
+  | Valid Γ' => maybe (Γ' !! i) None
+  end.
+
+
+Lemma index_invalid : forall i, index Invalid i = None.
+Proof.
+  auto.
+Qed.
+Lemma index_empty : forall i, index ∅ i = None.
+Proof.
+  intros.
+  simpl. 
+  rewrite nth_nil.
+  auto.
+Qed.
+
+Lemma singleton_index : forall x w Γ,
+      SingletonCtx x w Γ ->
+      index Γ x = Some w.
+Proof.
+  induction 1; simpl; auto.
+Qed.
+
+(********************)
+(* Empty Contexts *)
+(********************)
+
+Inductive empty_ctx : Ctx -> Prop :=
+| empty_nil : empty_ctx []
+| empty_cons : forall Γ, empty_ctx Γ -> empty_ctx (None :: Γ)
+.
+
+Lemma eq_dec_empty_ctx : forall Γ, {empty_ctx Γ} + {~empty_ctx Γ}.
+Proof.
+  intros.
+  induction Γ.
+  - left; constructor.
+  - destruct a.
+    + right. easy.
+    + destruct IHΓ.
+      * left; constructor; easy.
+      * right. intros F. apply n. inversion F. easy.
+Qed.
+
+Lemma merge_empty : forall (Γ Γ1 Γ2 : Ctx),
+  Γ == Γ1 ∙ Γ2 ->
+  empty_ctx Γ ->
+  empty_ctx Γ1 /\ empty_ctx Γ2.
+Proof.
+  intros Γ Γ1 Γ2 M E.
+  apply merge_fun_ind in M.
+  dependent induction M.
+  - split; trivial; constructor.
+  - split; trivial; constructor.
+  - inversion E; subst.
+    inversion m; subst.
+    specialize (IHM Γ0 Γ3 Γ4 eq_refl eq_refl eq_refl H0) as [EΓ3 EΓ4].
+    split; constructor; easy.
+Qed.
+
+
+
+(********************)
+(* Trimmed Contexts *)
+(********************)
+
+(* Removes Nones from end *)
+Fixpoint trim (Γ : Ctx) : Ctx :=
+  match Γ with
+  | [] => []
+  | None :: Γ' => match trim Γ' with
+                  | [] => []
+                  | Γ''  => None :: Γ''
+                  end
+  | Some w :: Γ' => Some w :: trim Γ'
+  end.
+
+Definition otrim (Γ : OCtx) :=
+  match Γ with
+  | Invalid => Invalid
+  | Valid Γ => Valid (trim Γ)
+  end.
+
+Lemma size_ctx_trim : forall Γ, size_ctx (trim Γ) = size_ctx Γ.
+Proof.
+  induction Γ; auto.
+  destruct a; simpl.
+  rewrite IHΓ; easy.
+  simpl.
+  destruct (trim Γ); easy.
+Qed.  
+
+Lemma size_octx_trim : forall Γ, size_octx (trim Γ) = size_octx Γ.
+Proof. apply size_ctx_trim. Qed.
+
+
+Lemma index_trim : forall Γ i,    
+    index (trim Γ) i = index Γ i.
+Proof.
+  induction Γ as [ | [w | ] Γ]; intros i.
+  * simpl. auto.
+  * simpl. destruct i; simpl; auto.
+    apply IHΓ.
+  * simpl. remember (trim Γ) as Γ'.
+    destruct Γ' as [ | o Γ']; auto.
+    + rewrite nth_nil.
+      destruct i; simpl; auto. 
+      simpl in IHΓ. 
+      rewrite <- IHΓ.
+      rewrite nth_nil.
+      auto.
+    + destruct i; simpl; auto.
+      apply IHΓ.
+Qed.
+
+Lemma trim_empty : forall Γ, empty_ctx Γ -> trim Γ = [].
+Proof.
+  induction 1; simpl; auto.
+  rewrite IHempty_ctx; auto.
+Qed.
+
+Lemma trim_non_empty : forall Γ, ~ empty_ctx Γ -> trim Γ <> [].
+Proof.
+  intros Γ NE.
+  induction Γ.
+  - contradict NE. constructor.
+  - destruct a. 
+    + simpl. easy. 
+    + simpl. 
+      destruct (trim Γ).
+      * apply IHΓ.
+        intros F.
+        apply NE.
+        constructor; easy.
+      * easy. 
+Qed.
+
+Lemma trim_cons_non_empty : forall o Γ, ~ empty_ctx Γ ->
+                              trim (o :: Γ) = o :: trim Γ.
+Proof.
+  intros o Γ H.  
+  destruct o; trivial.
+  simpl.
+  apply trim_non_empty in H.
+  destruct (trim Γ); easy. 
+Qed.
+
+Lemma trim_merge : forall Γ Γ1 Γ2, Γ == Γ1 ∙ Γ2 ->
+                            otrim Γ = otrim Γ1 ⋓ otrim Γ2.
+  intros Γ Γ1 Γ2 M.
+  apply merge_fun_ind in M.
+  induction M.
+  - rewrite merge_nil_l; easy.
+  - rewrite merge_nil_r; easy.
+  - destruct (eq_dec_empty_ctx Γ).
+    + apply merge_ind_fun in M.
+      specialize (merge_empty _ _ _ M e) as [E1 E2]. 
+      inversion m; subst; simpl.
+      * repeat rewrite trim_empty; easy.
+      * repeat rewrite trim_empty; easy.
+      * repeat rewrite trim_empty; easy.
+    + apply trim_non_empty in n.
+      inversion m; subst; simpl in *.
+      * destruct (trim Γ) eqn:E. easy.
+        destruct (trim Γ1) eqn:E1, (trim Γ2) eqn:E2. 
+        -- inversion IHM.
+        -- simpl in *. inversion IHM; easy.
+        -- simpl in *. inversion IHM; easy.        
+        -- simpl in *. inversion IHM; easy.
+      * destruct (trim Γ1) eqn:E1, (trim Γ2) eqn:E2. 
+        -- simpl in *. inversion IHM; easy.
+        -- simpl in *. inversion IHM; easy.
+        -- simpl in *. inversion IHM; easy.
+        -- simpl in *. inversion IHM; easy.
+      * destruct (trim Γ1) eqn:E1, (trim Γ2) eqn:E2. 
+        -- simpl in *. inversion IHM; easy.
+        -- simpl in *. inversion IHM; easy.
+        -- simpl in *. inversion IHM; easy.
+        -- simpl in *. inversion IHM; easy.
+Qed.        
+
+
+(* length is the actual length of the underlying list, as opposed to size, which
+ * is the number of Some entries in the list 
+ *)
+Definition octx_length (Γ : OCtx) : nat :=
+  match Γ with
+  | Invalid => O
+  | Valid ls => length ls
+  end.
+
+
+(* property of merge *)
+
+Lemma merge_dec Γ1 Γ2 : is_valid (Γ1 ⋓ Γ2) + {Γ1 ⋓ Γ2 = Invalid}.
+Proof.
+  induction Γ1 as [ | Γ1]; [ right; auto | ].
+  destruct  Γ2 as [ | Γ2]; [ right; auto | ].
+  revert Γ2; induction Γ1 as [ | o1 Γ1]; intros Γ2.
+  { simpl. left. apply valid_valid. }
+  destruct Γ2 as [ | o2 Γ2]. 
+  { simpl. left. apply valid_valid. }
+  destruct (IHΓ1 Γ2) as [IH | IH].
+  - destruct o1 as [ | W1]; destruct o2 as [ | W2]; simpl in *. 
+    { right; auto. }
+    { left; destruct (merge' Γ1 Γ2); auto. apply valid_valid. }
+    { left; destruct (merge' Γ1 Γ2); auto. apply valid_valid. }
+    { left; destruct (merge' Γ1 Γ2); auto. apply valid_valid. }    
+  - right. simpl in *. rewrite IH. destruct (merge_wire o1 o2); auto.
+Defined.
+
+(* Patterns and Gates *)
+
+Open Scope circ_scope.
+Inductive Pat : WType ->  Set :=
+| unit : Pat One
+| qubit : Var -> Pat Qubit
+| bit : Var -> Pat Bit
+| pair : forall {W1 W2}, Pat W1 -> Pat W2 -> Pat (W1 ⊗ W2).
+
+
+Fixpoint pat_to_list {w} (p : Pat w) : list Var :=
+  match p with
+  | unit => []
+  | qubit x => [x]
+  | bit x => [x]
+  | pair p1 p2 => pat_to_list p1 ++ pat_to_list p2
+  end.
+
+
+Fixpoint pat_map {w} (f : Var -> Var) (p : Pat w) : Pat w :=
+  match p with
+  | unit => unit
+  | qubit x => qubit (f x)
+  | bit x => bit (f x)
+  | pair p1 p2 => pair (pat_map f p1) (pat_map f p2)
+  end.
+
+
+Reserved Notation "Γ ⊢ p ':Pat'" (at level 30).
+
+Inductive Types_Pat : OCtx -> forall {W : WType}, Pat W -> Set :=
+| types_unit : ∅ ⊢ unit :Pat
+| types_qubit : forall x Γ, SingletonCtx x Qubit Γ ->  Γ ⊢ qubit x :Pat
+| types_bit : forall x Γ, SingletonCtx x Bit Γ -> Γ ⊢ bit x :Pat
+| types_pair : forall Γ1 Γ2 Γ w1 w2 (p1 : Pat w1) (p2 : Pat w2),
+        is_valid Γ 
+      -> Γ = Γ1 ⋓ Γ2
+      -> Γ1 ⊢ p1 :Pat
+      -> Γ2 ⊢ p2 :Pat
+      -> Γ  ⊢ pair p1 p2 :Pat
+where "Γ ⊢ p ':Pat'" := (@Types_Pat Γ _ p).
+
+Lemma pat_ctx_valid : forall Γ W (p : Pat W), Γ ⊢ p :Pat -> is_valid Γ.
+Proof. intros Γ W p TP. unfold is_valid. inversion TP; eauto. Qed.
+
+Open Scope circ_scope.
+Inductive Unitary : WType -> Set := 
+  | _H         : Unitary Qubit 
+  | _X         : Unitary Qubit
+  | _Y         : Unitary Qubit
+  | _Z         : Unitary Qubit
+  | _R_        : R -> Unitary Qubit 
+  | ctrl      : forall {W} (U : Unitary W), Unitary (Qubit ⊗ W) 
+  | bit_ctrl  : forall {W} (U : Unitary W), Unitary (Bit ⊗ W).
+
+(* Additional gate notations *)
+Notation CNOT := (ctrl _X).
+Notation CCNOT := (ctrl (ctrl _X)).
+
+Notation _S := (_R_ (PI / 2)). 
+Notation _T := (_R_ (PI / 4)). (* π / 8 gate *)
+
+Fixpoint trans {W} (U : Unitary W) : Unitary W :=
+  match U with
+  | _R_ ϕ       => _R_ (- ϕ)
+  | ctrl U'     => ctrl (trans U')
+  | bit_ctrl U' => bit_ctrl (trans U')
+  | U'          => U' (* our other unitaries are their own adjoints *)
+  end.
+
+Inductive Gate : WType -> WType -> Set := 
+  | U : forall {W} (u : Unitary W), Gate W W
+  | BNOT     : Gate Bit Bit
+  | init0   : Gate One Qubit
+  | init1   : Gate One Qubit
+  | new0    : Gate One Bit
+  | new1    : Gate One Bit
+  | meas    : Gate Qubit Bit
+  | discard : Gate Bit One
+  | assert0 : Gate Qubit One
+  | assert1 : Gate Qubit One.
+
+Coercion U : Unitary >-> Gate.
+Close Scope circ_scope.
 
 (* Validate tactic *)
 
@@ -1124,3 +1225,198 @@ Ltac solve_merge :=
     | [ |- _ = _ ] => monoid
     end
   end.
+
+(*** Constructing Typed Patterns ***)
+
+Fixpoint mk_typed_bit (Γ : Ctx) : Ctx * Pat Bit :=
+  match Γ with 
+  | []           => ([Some Bit], bit O)
+  | None :: Γ'   => ([Some Bit], bit O)
+  | Some W :: Γ' => let (Γ'', p) := mk_typed_bit Γ' in
+                   match p with
+                   | bit n => (None :: Γ'', bit (S n))
+                   end
+  end.
+
+Fixpoint mk_typed_qubit (Γ : Ctx) : Ctx * Pat Qubit :=
+  match Γ with 
+  | []           => ([Some Qubit], qubit O)
+  | None :: Γ'   => ([Some Qubit], qubit O)
+  | Some W :: Γ' => let (Γ'', p) := mk_typed_qubit Γ' in
+                   match p with
+                   | qubit n => (None :: Γ'', qubit (S n))
+                   end
+  end.
+  
+Parameter dummy_pat : forall W, Pat W.
+
+Fixpoint mk_typed_pat (Γ : Ctx) (W : WType) {struct W} : Ctx * Pat W :=
+  match W with
+  | One   => ([], unit)
+  | Bit   => mk_typed_bit Γ                             
+  | Qubit   => mk_typed_qubit Γ                             
+  | Tensor W1 W2 => let (Γ1,p1) := mk_typed_pat Γ W1 in
+              let Γ1' := (Γ ⋓ Γ1) in 
+              let (Γ2,p2) := match Γ1' with 
+                             | Invalid => ([], dummy_pat W2 )
+                             | Valid Γ1'' => mk_typed_pat Γ1'' W2
+                             end in
+              match Valid Γ1 ⋓ Valid Γ2 with
+              | Invalid    => ([], dummy_pat (Tensor W1 W2))
+              | Valid Γ12  => (Γ12, (pair p1 p2))
+              end
+  end.
+
+Lemma typed_pat_merge_valid : forall Γ W Γ' (p : Pat W),
+  (Γ', p) = mk_typed_pat Γ W ->
+  is_valid (Γ ⋓ Γ').
+Proof.
+  intros Γ W.
+  gen Γ.
+  induction W.
+  - induction Γ; intros Γ' p H.
+    simpl. validate.
+    destruct a.
+    + simpl in H.
+      dependent destruction p.
+      destruct (mk_typed_qubit Γ) as [Γ1 p1] eqn:E1.
+      dependent destruction p1.
+      inversion H; subst.
+      symmetry in E1.
+      simpl in IHΓ.
+      specialize (IHΓ _ _ E1). 
+      simpl in *.
+      destruct (merge' Γ Γ1). invalid_contradiction.      
+      validate.
+    + simpl in *.
+      inversion H; subst.
+      replace (merge' Γ []) with (Valid Γ ⋓ ∅) by easy.
+      rewrite merge_nil_r.
+      validate.
+  - induction Γ; intros Γ' p H.
+    simpl. validate.
+    destruct a.
+    + simpl in H.
+      dependent destruction p.
+      destruct (mk_typed_bit Γ) as [Γ1 p1] eqn:E1.
+      dependent destruction p1.
+      inversion H; subst.
+      symmetry in E1.
+      simpl in IHΓ.
+      specialize (IHΓ _ _ E1). 
+      simpl.
+      destruct (merge' Γ Γ1). invalid_contradiction.
+      validate.
+    + simpl in H.
+      inversion H; subst.
+      simpl.
+      replace (merge' Γ []) with (Valid Γ ⋓ ∅) by easy.
+      rewrite merge_nil_r.
+      validate.
+  - intros Γ Γ' p H.
+    simpl in H.
+    inversion H.
+    rewrite merge_nil_r.
+    validate.
+  - intros Γ Γ' p H.
+    simpl in H.
+    destruct (mk_typed_pat Γ W1) as [Γ1 p1] eqn:E1.
+    symmetry in E1.    
+    destruct (IHW1 _ _ _ E1) as [Γ1' M1].
+    simpl in M1. rewrite M1 in H.
+    destruct (mk_typed_pat Γ1' W2) as [Γ2 p2] eqn:E2.
+    symmetry in E2.    
+    destruct (IHW2 _ _ _ E2) as [Γ2' M2].
+    simpl in M2. 
+    replace (merge' Γ Γ1) with (Γ ⋓ Γ1) in M1 by easy.
+    replace (merge' Γ1' Γ2) with (Γ1' ⋓ Γ2) in M2 by easy.
+    assert (V2 : is_valid (Γ1' ⋓ Γ2)). rewrite M2; validate.    
+    assert (V12 : is_valid (Γ1 ⋓ Γ2)). rewrite <- M1 in V2; validate.
+    simpl in V12.
+    destruct (merge' Γ1 Γ2) as [|Γ12] eqn:E12. invalid_contradiction.
+    inversion H; subst.
+    replace (merge' Γ1 Γ2) with (Γ1 ⋓ Γ2) in E12 by easy.
+    symmetry in M1, M2, E12.
+    rewrite M1, E12 in *.
+    validate.
+Qed.  
+
+Lemma typed_bit_typed : forall Γ Γ' p, (Γ', p) = mk_typed_bit Γ ->
+                                   Γ' ⊢ p:Pat.
+Proof.
+  induction Γ as [|o Γ].
+  - intros Γ' p H. simpl in H. inversion H; subst. constructor.
+    apply singleton_singleton.
+  - intros Γ' p H.
+    destruct o.
+    + dependent destruction p.
+      simpl in H. destruct (mk_typed_bit Γ) as [Γ'' p]. 
+      dependent destruction p. inversion H. subst.
+      specialize (IHΓ Γ'' (bit v) eq_refl). 
+      inversion IHΓ; subst.
+      constructor.
+      constructor.
+      easy.
+    + simpl in H.
+      inversion H; subst.
+      constructor.
+      constructor.
+Qed.
+
+Lemma typed_qubit_typed : forall Γ Γ' p, (Γ', p) = mk_typed_qubit Γ ->
+                                               Γ' ⊢ p:Pat.
+Proof.
+  induction Γ as [|o Γ].
+  - intros Γ' p H. simpl in H. inversion H; subst. constructor.
+    apply singleton_singleton.
+  - intros Γ' p H.
+    destruct o.
+    + dependent destruction p.
+      simpl in H. destruct (mk_typed_qubit Γ) as [Γ'' p]. 
+      dependent destruction p. inversion H. subst.
+      specialize (IHΓ Γ'' (qubit v) eq_refl). 
+      inversion IHΓ; subst.
+      constructor.
+      constructor.
+      easy.
+    + simpl in H.
+      inversion H; subst.
+      constructor.
+      constructor.
+Qed.
+
+
+Lemma typed_pat_typed : forall Γ W Γ' (p : Pat W), 
+  (Γ', p) = mk_typed_pat Γ W ->
+  Γ' ⊢ p:Pat.
+Proof.
+  intros Γ W.
+  gen Γ.
+  induction W; intros Γ Γ' p H.
+  - eapply (typed_qubit_typed Γ); easy. 
+  - eapply (typed_bit_typed Γ); easy. 
+  - dependent destruction p.
+    simpl in H. inversion H; subst.
+    constructor.
+  - simpl in H.
+    destruct (mk_typed_pat Γ W1) as [Γ1 p1] eqn:E1.
+    symmetry in E1.
+    destruct (merge' Γ Γ1) as [|Γ1'] eqn:M1. 
+      apply typed_pat_merge_valid in E1. 
+      simpl in E1. rewrite M1 in E1. invalid_contradiction.
+    destruct (mk_typed_pat Γ1' W2) as [Γ2 p2] eqn:E2.
+    symmetry in E2.
+    destruct (merge' Γ1 Γ2) as [|Γ12] eqn:M2. 
+      apply typed_pat_merge_valid in E2. 
+      rewrite <- M1 in E2. replace (merge' Γ Γ1) with (Γ ⋓ Γ1) in E2 by easy.
+      validate. simpl in H2. rewrite M2 in H2. invalid_contradiction.
+    inversion H.
+    rewrite <- M2.
+    replace (merge' Γ1 Γ2) with (Γ1 ⋓ Γ2) in * by easy.
+    econstructor.
+    rewrite M2. validate.
+    reflexivity.
+    eapply IHW1. apply E1.
+    eapply IHW2. apply E2.
+Qed.
+

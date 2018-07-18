@@ -728,7 +728,7 @@ Proof.
   induction n.
   - intros. simpl. show_mixed.
   - intros. simpl.
-    specialize (mixed_kron 2) as H. apply H.
+    specialize (mixed_state_kron 2) as H. apply H.
     + show_mixed.
     + apply IHn.
 Qed.
@@ -1928,7 +1928,7 @@ Proof.
   induction n.
   - intros. simpl. show_mixed.
   - intros. simpl.
-    specialize (mixed_kron 2) as H. apply H.
+    specialize (mixed_state_kron 2) as H. apply H.
     + show_mixed.
     + apply IHn.
 Qed.
@@ -2281,7 +2281,7 @@ Proof.
                                   | S _ => f (S (S (S x)))
                                   end) as f'.
     all: repeat (try unfold list_of_Qubits; try rewrite dim_eq_lemma_2; simpl).
-    all: repeat (try apply (mixed_kron 2); try apply mixed_big_kron; try show_mixed).
+    all: repeat (try apply (mixed_state_kron 2); try apply mixed_big_kron; try show_mixed).
     all: specialize (mixed_state_big_kron_ctx_to_mat_list
                   (n+n+n) (fun v : Var => f (S (S (S (S (S v))))))) as Hmixed1.
     all: specialize (mixed_state_big_kron_ctx_to_mat_list
