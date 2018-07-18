@@ -1,4 +1,4 @@
-all: HOASExamples.vo SemanticLib.vo
+all: Oracles.vo
 
 everything: HOASProofs.vo Equations.vo Deutsch.vo Arithmetic.vo
 
@@ -44,21 +44,16 @@ SemanticLib.vo : SemanticLib.v Ancilla.vo
 HOASExamples.vo: HOASExamples.v HOASLib.vo
 	coqc HOASExamples.v
 
-# not yet built by `make`
-
-# Reversible.vo: Reversible.v HOASExamples.vo Denotation.vo
-#	coqc Reversible.v
-
 Symmetric.vo : Symmetric.v Ancilla.vo SemanticLib.vo
 	coqc Symmetric.v
 
 Oracles.vo: Oracles.v Symmetric.vo HOASExamples.vo 
 	coqc Oracles.v
 
+# Built by "make everything"
+
 Arithmetic.vo: Arithmetic.v Oracles.vo
 	coqc Arithmetic.v
-
-# not built by `make`
 
 HOASProofs.vo: HOASProofs.v HOASExamples.vo SemanticLib.vo
 	coqc HOASProofs.v
@@ -74,7 +69,6 @@ Equations.vo: Equations.v SemanticLib.vo
 FlatCircuits.vo: FlatCircuits.v HOASCircuits.vo Monad.vo
 	coqc FlatCircuits.v
 
-
 #MachineProofs.vo: MachineProofs.v MachineExamples.vo Denotation.vo
 #	coqc MachineProofs.v
 
@@ -86,7 +80,6 @@ FlatCircuits.vo: FlatCircuits.v HOASCircuits.vo Monad.vo
 
 #FlatProofs.vo: FlatProofs.v FlatExamples.vo Denotation.vo
 #	coqc FlatProofs.v
-
 
 clean:
 	rm *.vo

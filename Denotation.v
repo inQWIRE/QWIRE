@@ -1038,6 +1038,14 @@ Proof.
   - simpl in *. 
     destruct l; simpl.
     inversion L1.
+    rewrite Nat.add_sub.
+    apply apply_meas_correct.
+    simpl in Lt.
+    bdestruct (n0 <? n); trivial.
+    inversion Lt.
+  - simpl in *. 
+    destruct l; simpl.
+    inversion L1.
     rewrite Nat.add_0_r.
     apply apply_discard_correct.
     simpl in Lt.
@@ -2717,6 +2725,20 @@ Proof.
         eapply IH; [|constructor; apply singleton_singleton|easy].
         inversion t; subst.
         eapply update_at_merge; [apply H1| apply singleton_singleton| easy].
+      * apply apply_meas_correct.
+        apply Nat.lt_lt_add_l.
+        replace (ctx_dom Γ1') with (octx_dom Γ1') by reflexivity.
+        eapply subst_qubit_bounded; [apply t | apply pf1].
+    + simpl.
+      dependent destruction p1.
+      destruct Γ1' as [|Γ1'].
+      inversion pf1. invalid_contradiction. 
+      simpl.
+      apply compose_super_correct.
+      * unfold denote_circuit in IH.
+        unfold process_gate_state. simpl.
+        replace (size_ctx Γ1') with (size_octx Γ1') by easy.
+        eapply IH; [apply pf1|easy|easy].
       * apply apply_meas_correct.
         apply Nat.lt_lt_add_l.
         replace (ctx_dom Γ1') with (octx_dom Γ1') by reflexivity.
