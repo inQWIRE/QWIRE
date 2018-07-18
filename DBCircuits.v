@@ -1315,7 +1315,7 @@ Qed.
 (* flatten_octx is too precise. 
 Γ == Γ1 ∙ Γ2 doesn't imply 
 flatten_octx Γ = flatten_octx Γ1 ∙ flatten_octx Γ2.
-We rephrase this in terms of remove_indices but still don't get what we  *)
+We rephrase this in terms of remove_indices but still don't get what we need *)
 Lemma hoas_to_db_pat_typed : forall Γ w (p : Pat w),
       Γ ⊢ p :Pat ->
       flatten_octx Γ ⊢ hoas_to_db_pat Γ p :Pat.
@@ -1362,15 +1362,9 @@ Proof.
     + apply remove_indices_merge. 
       split. easy. 
       apply e.
-(* Unfortunately, the contexts still don't quite line up with the IH
-    + rewrite <- (subst_pat_superset Γ1 Γ Γ2); trivial. 2: split; easy.
-      apply IHp1.
-      assumption.
-    + rewrite <- (subst_pat_superset Γ2 Γ Γ1); trivial. 
-      2: split; subst; validate; monoid.
-      apply IHp2.
-      assumption. *)
-Admitted.
+(* Unfortunately, the contexts still don't quite line up with the IH *)
+    + specialize (IHp1 _ H).
+Abort.
 
 Fixpoint hoas_to_db {w} Γ (c : Circuit w) : DeBruijn_Circuit w :=
   match c with
@@ -1390,10 +1384,10 @@ Lemma hoas_to_db_typed : forall Γ w (c : Circuit w),
       Types_DB (flatten_octx Γ) (hoas_to_db Γ c).
 Proof.
   induction 1.
-  * simpl. constructor. apply hoas_to_db_pat_typed. subst. auto.
+  * simpl. constructor. (* apply hoas_to_db_pat_typed. subst. auto. *) admit.
   * simpl. admit.
   * simpl. admit.
-Admitted.
+Abort.
 
 (*
 Fixpoint hoas_to_db {w} (c : Circuit w) (σ : subst_state) : DeBruijn_Circuit w :=
@@ -1485,37 +1479,68 @@ Qed.
 
 Lemma subst_var_seq : forall len start x, x < len ->
                                          subst_var (seq start len) (start + x) = x.
-Admitted.
-(*
 Proof.
   induction len as [ | len]; intros start x pf; [inversion pf | ].
-  * unfold subst_var in *. simpl.
-    destruct x; auto.
-    + rewrite Nat.add_0_r. 
-      rewrite Nat.eqb_refl.
-      auto.
-    + replace (start + S x =? start) with false.
-      - replace (start + S x) with (S start + x) by omega.
-        rewrite IHlen; auto.
-        apply lt_S_n; auto.
-      - apply eq_sym.
-        apply Nat.eqb_neq.
-        omega.
+  unfold subst_var in *. simpl.
+  destruct x; auto.
+  - rewrite Nat.add_0_r. 
+    rewrite Nat.eqb_refl.
+    auto.
+  - replace (start + S x =? start) with false.
+    + rewrite Nat.add_succ_r.
+      apply lt_S_n in pf.
+      specialize (IHlen (S start) _ pf).
+      destruct len. omega.
+      simpl in *.
+      destruct x.
+      * rewrite Nat.add_0_r in *.
+        rewrite Nat.eqb_refl in *.        
+        simpl.
+        easy.
+      * bdestructΩ  (start + S x =? start).
+        destruct (option_fmap S (lookup_maybe (S (start + S x)) (seq (S (S start)) len))).
+        simpl; auto. 
+        inversion IHlen.
+    + apply eq_sym.
+      apply Nat.eqb_neq.
+      omega.
 Qed.
-*)
+
 Lemma subst_var_σ_n : forall n x, x < n ->
-                                  subst_var (σ_{n}) x = x.
+                             subst_var (σ_{n}) x = x.
 Proof.
   intros.
   replace x with (0 + x) at 1 by auto.
   apply subst_var_seq; auto.
 Qed.
 
-
-
+(* Bidirectional version is also true *)
 Lemma in_seq_S : forall len start x,
-    In x (seq (S start) len) -> In x (seq start len).
-Admitted.
+    In (S x) (seq (S start) len) -> In x (seq start len).
+Proof.
+  induction len; auto.
+  intros start x H.
+  simpl in *.
+  destruct H as [E|IN].
+  left; omega.
+  right.
+  apply IHlen.
+  easy.
+Qed.
+
+Lemma lt_not_in_seq : forall x start len, x < start -> ~ In x (seq start len).
+Proof.
+  intros x start len H.
+  gen start.
+  induction len; try easy.
+  intros start H.
+  simpl in *.
+  intros [E|IN].
+  omega.
+  apply (IHlen (S start)).
+  omega.
+  easy.
+Qed.  
 
 Lemma in_seq_lt : forall len start x, In x (seq start len) -> x < start + len.    
 Proof.
@@ -1523,10 +1548,11 @@ Proof.
   * contradiction.
   * destruct pf.
     + subst. omega.
-    + apply lt_trans with (start + len); [ | omega].
-      apply IHlen.
-      apply in_seq_S.
-      auto.
+    + destruct x.
+      apply lt_not_in_seq in H. easy. omega.
+      rewrite Nat.add_succ_r.
+      assert (x < start + len); try apply IHlen; try omega.
+      apply in_seq_S. easy.
 Qed.
 
 Lemma in_σ_n_lt : forall n x, In x (σ_{n}) -> x < n.
@@ -1584,7 +1610,7 @@ Proof.
                   [ | reflexivity].
     simpl.
     admit (* lemma *).
-Admitted.
+Abort.
 
 (* needed for denote_circuit_correct *)
 Lemma singleton_dom : forall x w Γ, SingletonCtx x w Γ -> ctx_dom Γ = [x].
@@ -1593,7 +1619,7 @@ Proof.
   rewrite IHSingletonCtx. auto.
 Qed.
 
-(* Probably not true - used flase lemmas
+(* Probably not true - used false lemmas
 Lemma subst_dom : forall w (p : Pat w) Γ, Types_Pat Γ p -> 
       subst_pat (octx_dom Γ) p = fresh_pat w (st_{0}).
 Proof.

@@ -1074,20 +1074,22 @@ Proof.
   assumption.
 Qed.
 
-(*
 Lemma kron_assoc : forall (m n o p q r : nat) (A : Matrix m n) (B : Matrix o p) 
   (C : Matrix q r), (A ⊗ B ⊗ C) = A ⊗ (B ⊗ C).
 Proof.
+Admitted.
+(*
   intros m n o p q r A B C.
   unfold kron.
   prep_matrix_equality.
-  Search (_ / _ / _)%nat.
   repeat rewrite Nat.div_div.
   rewrite (mult_comm q o).
   rewrite (mult_comm r p).
   Search Nat.modulo.
   Search (_ mod (_ * _))%nat.
+*)
 
+(*
 Lemma mod_product : forall x y z, y <> 0 -> x mod (y * z) mod z = x mod z.
 Proof.  
   induction z.

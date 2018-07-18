@@ -84,7 +84,7 @@ Proof.
   simpl.
   unfold Splus.
 (*  Msimpl.*)
-Admitted.  
+Abort.
 
 (** Equality 3: U; meas-discard = meas-discard **)
 
@@ -299,7 +299,7 @@ Proof.
   destruct b; simpl.
   - repeat (autounfold with den_db; intros; simpl).
     specialize (WF_Mixed _ H); intros WFρ.
-Admitted.  
+Abort.
 
 (** Equality 6: init b; X b = init ~b **) 
 

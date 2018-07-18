@@ -138,12 +138,15 @@ Abort.
 (** ** The list monad *)
 
 Open Scope list_scope. 
+(*
 Definition list_fmap {A B} (f : A -> B) := 
   fix map (l : list A) : list B :=
   match l with
   | nil => nil
   | a :: t => f a :: map t
   end.
+*)
+Definition list_fmap := map.
 Hint Unfold list_fmap : monad_db.
 (*
 Fixpoint list_fmap {A B} (f : A -> B) (ls : list A) : list B :=
@@ -152,11 +155,13 @@ Fixpoint list_fmap {A B} (f : A -> B) (ls : list A) : list B :=
   | a :: ls' => f a :: list_fmap f ls'
   end.  *)
 
+(*
 Fixpoint concat {A} (xs : list (list A)) : list A :=
   match xs with
   | nil => nil
   | ys :: xs' => ys ++ concat xs'
   end.
+*)
 
 Definition list_liftA {A B} (fs : list (A -> B)) (xs : list A) : list B :=
   let g := fun a => list_fmap (fun f => f a) fs
@@ -189,7 +194,14 @@ Proof.
     auto.
 Qed.
 Instance listA_correct : Applicative_Correct list.
+Proof.
+  constructor.
+  * intros. simpl. apply functional_extensionality; intros l.
+    induction l; simpl; auto.
+    unfold list_liftA in *. simpl in *.
+    rewrite IHl; easy.
 Admitted.
+
 Instance listM_correct : Monad_Correct list.
 Admitted.
 

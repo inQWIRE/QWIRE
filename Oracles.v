@@ -402,8 +402,6 @@ Proof.
   - simpl. econstructor. 3: apply IHp1. 3: apply IHp2. 2: reflexivity.
     *)
 
-Ltac unlock_merge := rewrite merge_shadow in *.
-
 Lemma merge_singleton_append : forall W (Γ : Ctx), 
         Γ ⋓ (singleton (length Γ) W) = Valid (Γ ++ [Some W]). 
 Proof. 

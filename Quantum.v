@@ -1173,10 +1173,6 @@ Proof.
     clra.
 Qed.  
 
-Lemma kron_assoc : forall (m n o p q r : nat) (A : Matrix m n) (B : Matrix o p) 
-  (C : Matrix q r), (A ⊗ B ⊗ C) = A ⊗ (B ⊗ C).
-Admitted.
-
 Lemma swap_to_0_test_24 : forall (q0 q1 q2 q3 : Matrix 2 1), 
   WF_Matrix 2 1 q0 -> WF_Matrix 2 1 q1 -> WF_Matrix 2 1 q2 -> WF_Matrix 2 1 q3 ->
   swap_to_0 4 2 × (q0 ⊗ q1 ⊗ q2 ⊗ q3) = (q2 ⊗ q1 ⊗ q0 ⊗ q3). 
@@ -1207,13 +1203,6 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma swap_to_0_spec : forall (q q0 : Matrix 2 1) (n k : nat) (l1 l2 : list (Matrix 2 1)), 
-   length l1 = (k - 1)%nat ->
-   length l2 = (n - k - 2)%nat ->   
-   @Mmult (2^n) (2^n) 1 (swap_to_0 n k) (⨂ ([q0] ++ l1 ++ [q] ++ l2)) = 
-     ⨂ ([q] ++ l1 ++ [q0] ++ l2).
-Admitted.
-
 Lemma swap_two_base : swap_two 2 1 0 = swap.
 Proof. unfold swap_two. simpl. apply kron_1_r. Qed.
 
@@ -1232,6 +1221,13 @@ Proof.
   reflexivity.
 Qed.
 
+(*
+Lemma swap_to_0_spec : forall (q q0 : Matrix 2 1) (n k : nat) (l1 l2 : list (Matrix 2 1)), 
+   length l1 = (k - 1)%nat ->
+   length l2 = (n - k - 2)%nat ->   
+   @Mmult (2^n) (2^n) 1 (swap_to_0 n k) (⨂ ([q0] ++ l1 ++ [q] ++ l2)) = 
+     ⨂ ([q] ++ l1 ++ [q0] ++ l2).
+
 Lemma swap_two_spec : forall (q q0 : Matrix 2 1) (n0 n1 n2 n k : nat) (l0 l1 l2 : list (Matrix 2 1)), 
    length l0 = n0 ->
    length l1 = n1 ->
@@ -1241,6 +1237,7 @@ Lemma swap_two_spec : forall (q q0 : Matrix 2 1) (n0 n1 n2 n k : nat) (l0 l1 l2 
      (swap_two n n0 (n0+n1+1)) (⨂ (l0 ++ [q0] ++ l1 ++ [q] ++ l2)) = 
      ⨂ (l0 ++ [q] ++ l1 ++ [q0] ++ l2).
 Admitted.
+*)
 
 Lemma move_to_0_test_24 : forall (q0 q1 q2 q3 : Matrix 2 1), 
   WF_Matrix 2 1 q0 -> WF_Matrix 2 1 q1 -> WF_Matrix 2 1 q2 -> WF_Matrix 2 1 q3 ->
