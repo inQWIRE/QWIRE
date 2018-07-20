@@ -19,7 +19,8 @@ Files in this repository
 
 *Preliminaries*
 - Monad.v : An implementation of some basic monads
-- Prelim.v : A variety of general purpose definitions and tactics.
+- Monoid.v : A typeclass and solver for commutative monoids 
+- Prelim.v : A variety of general purpose definitions and tactics
 
 *Underlying mathematical libraries*
 - Complex.v : Complex number library, modified from [Coquelicot][6]
