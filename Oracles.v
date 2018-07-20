@@ -484,10 +484,15 @@ Proof.
   - simpl. contradiction. 
   - simpl.
     destruct n.
-    + simpl.
-      econstructor; type_check.
-      2: apply singleton_singleton.
-      rewrite singleton_repeat. reflexivity.
+    + simpl. clear.
+      econstructor. 
+      4: type_check.
+      3: type_check.
+      validate.
+      rewrite merge_nil_r.
+      reflexivity.
+      simpl_rewrite' (singleton_repeat (length Γ)). 
+      apply singleton_singleton.
     + simpl.
       econstructor.
       validate.

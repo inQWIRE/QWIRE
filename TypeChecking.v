@@ -208,6 +208,8 @@ Ltac type_check_once :=
      need to choose bit or qubit as appropriate *)
   | [ b : bool |- _ ]              => destruct b 
   | [ H : _ == _ ∙ _ |- _ ]     => destruct H
+    | H: @Types_Circuit _ _ ?c |- @Types_Circuit _ _ ?c 
+                               => exact H
   | [ |- @Types_Circuit _ _ _ ] => econstructor; type_check_once
 
   | [ |- @Types_Circuit _ _ (if ?b then _ else _) ]
@@ -238,6 +240,7 @@ Ltac type_check_once :=
                         then (idtac (*"can't monoid"; print_goal*))
                         else (idtac (*"monoid"; print_goal*); monoid)
   end.
+
 
 (* Useful for debugging *)
 Ltac type_check_num := 

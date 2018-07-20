@@ -8,7 +8,7 @@ Monad.vo: Monad.v
 Prelim.vo: Prelim.v Monad.vo
 	coqc Prelim.v
 
-Complex.vo: Complex.v Prelim.vo
+Complex.vo: Complex.v Prelim.vo 
 	coqc Complex.v
 
 Matrix.vo: Matrix.v Complex.vo 
@@ -17,7 +17,10 @@ Matrix.vo: Matrix.v Complex.vo
 Quantum.vo: Quantum.v Matrix.vo
 	coqc Quantum.v
 
-Contexts.vo: Contexts.v Prelim.vo
+Monoid.vo : Monoid.v Monad.vo
+	coqc Monoid.v
+
+Contexts.vo: Contexts.v Prelim.vo Monoid.vo
 	coqc Contexts.v 
 
 HOASCircuits.vo: HOASCircuits.v Contexts.vo

@@ -2489,7 +2489,7 @@ Proof.
     assert (T2 : trim Γ2' = Γ2'). 
       eapply H; trivial.
       split. validate. rewrite <- M. monoid.
-      eapply typed_pat_typed. apply E.
+      rewrite merge_nil_r. eapply typed_pat_typed. apply E.
     clear H.
     destruct Γ1 as [|Γ1]. invalid_contradiction.
     apply types_pat_no_trail in t.
@@ -3249,7 +3249,7 @@ Proof.
   * apply types_f. apply fresh_state_empty_types_fresh_pat. 
   * unfold Typed_Box in types_g. intros Γ Γ' p pf wf_p.
     solve_merge.
-    apply types_g. monoid. auto.
+    apply types_g. monoid. rewrite merge_nil_r. auto.
   * solve_merge.
     apply is_valid_fresh. validate.
 Qed.

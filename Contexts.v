@@ -1,5 +1,5 @@
 Require Export Prelim.
-
+Require Export Monoid.
 Open Scope list_scope.
 
 (*** Context Definitions ***)
@@ -421,6 +421,25 @@ Proof.
     inversion H1; subst; auto.
 Defined.
 
+(*** OContexts are a PCM ***)
+
+(* Partial Commutative Monoids *)
+Instance PCM_OCtx : PCM OCtx :=
+  { one := ∅;
+    zero := Invalid;
+    m := merge
+  }.
+
+Instance PCM_Laws_OCtx : PCM_Laws OCtx :=
+  { M_unit   := merge_nil_r
+  ; M_assoc  := merge_assoc
+  ; M_comm   := merge_comm
+  ; M_absorb := merge_I_r
+  }.
+
+Hint Resolve PCM_OCtx.
+Hint Resolve PCM_Laws_OCtx.
+
 (*** Validity ***)
 
 Definition is_valid (Γ : OCtx) : Prop := exists Γ', Γ = Valid Γ'.
@@ -555,7 +574,7 @@ Defined.
 
 Ltac simplify_invalid := repeat rewrite merge_I_l in *;
                          repeat rewrite merge_I_r in *.
-  
+
 Ltac invalid_contradiction :=
   (* don't want any of the proofs to be used in conclusion *)
   absurd False; [ inversion 1 | ]; 
@@ -807,68 +826,6 @@ Proof.
   destruct disj' as [H1 [H2 H3]]; split; auto.
 Defined.
 
-
-(*** Automation ***)
-
-(* Local check for multiple evars *)
-Ltac has_evars term := 
-  match term with
-    | ?L = ?R         => has_evars (L ⋓ R)
-    | ?L == ?R1 ∙ ?R2 => has_evars (L ⋓ R1 ⋓ R2)
-    | ?Γ1 ⋓ ?Γ2       => has_evar Γ1; has_evar Γ2
-    | ?Γ1 ⋓ ?Γ2       => has_evars Γ1
-    | ?Γ1 ⋓ ?Γ2       => has_evars Γ2
-  end.
-
-(* Assumes at most one evar *)
-Ltac monoid := 
-  try match goal with
-  | [ |- ?Γ1 = ?Γ2 ] => has_evar Γ1; symmetry
-  end; 
-  repeat match goal with
-  (* reassociate *)
-  | [ |- context[?Γ1 ⋓ ?Γ2 ⋓ ?Γ3 ]] => rewrite <- (merge_assoc Γ1 Γ2 Γ3)
-  (* solve *)                                            
-  | [ |- ?Γ = ?Γ ]                  => reflexivity
-  | [ |- ?Γ1 = ?Γ2 ]                => is_evar Γ2; reflexivity
-  (* remove nils *)
-  | [ |- context[?Γ ⋓ ∅] ]          => rewrite (merge_nil_r Γ)
-  | [ |- context[∅ ⋓ ?Γ] ]          => rewrite (merge_nil_l Γ)
-  (* move evar to far right *)
-  | [ |- _ = ?Γ ⋓ ?Γ' ]             => is_evar Γ; rewrite (merge_comm Γ Γ')
-  (* solve nil evars *)
-  | [ |- ?Γ = ?Γ ⋓ _ ]              => rewrite merge_nil_r; reflexivity  
-  (* cycle and apply merge_cancel_l *)
-  | [ |- ?Γ ⋓ _ = ?Γ ⋓ _ ]          => apply merge_cancel_l
-  | [ |- ?Γ1 ⋓ ?Γ1' = ?Γ ⋓ _ ]      => rewrite (merge_comm Γ1 Γ1')
-(*| [ |- context[?Γ] = ?Γ ⋓ _ ]     => move_left Γ *)
-  end.
-
-
-
-Lemma test1 : forall x y z, x ⋓ y ⋓ z = z ⋓ x ⋓ y.
-Proof. intros. monoid. Qed.
-
-Lemma test2 : forall x, x ⋓ ∅ = x.
-Proof. intros. monoid. Qed.
-
-Lemma test21 : forall x, x ⋓ ∅ = x ⋓ ∅.
-Proof. intros. monoid. Qed.
-
-Lemma test3 : forall w x y z, x ⋓ (y ⋓ z) ⋓ w = w ⋓ z ⋓ (x ⋓ y).
-Proof. intros. monoid. Qed.
-
-Lemma test4 : forall w x y z, x ⋓ (y ⋓ ∅ ⋓ z) ⋓ w = w ⋓ z ⋓ (x ⋓ y).
-Proof. intros. monoid. Qed.
-
-Inductive Eqq {A} : A -> A -> Prop := 
-| eqq : forall x, Eqq x x.
-
-Lemma create_evar : forall A (x x' y z : A) f, Eqq x x' -> f y x = z -> f y x' = z.
-Proof. intros. inversion H; subst. reflexivity. Qed.
-
-Lemma test_evar_ctx : forall x y z, x ⋓ y ⋓ z = z ⋓ x ⋓ y.
-Proof. intros. eapply create_evar. 2: monoid. constructor. Qed.
 
 (**************************)
 (* Extra helper functions *)
@@ -1182,10 +1139,27 @@ Inductive Gate : WType -> WType -> Set :=
 Coercion U : Unitary >-> Gate.
 Close Scope circ_scope.
 
+
+(*** Automation ***)
+
+Ltac PCMize := 
+  simpl translate in *;
+  try replace merge with m by auto;
+  try replace ∅ with ⊤ by auto;
+  try replace Invalid with ⊥ by auto.
+
+Ltac unPCMize := 
+  simpl translate in *;
+  simpl m in *;
+  simpl ⊤ in *;
+  simpl ⊥ in *.
+
+(* Port of the monoid tactic to OCtxs *)
+Ltac monoid := PCMize; try Monoid.monoid.
+
 (* Validate tactic *)
-
-
 Ltac validate :=
+  unPCMize;
   repeat ((*idtac "validate";*) match goal with
   (* Pattern contexts are valid *)
   | [H : Types_Pat _ _ |- _ ]    => apply pat_ctx_valid in H
@@ -1204,12 +1178,19 @@ Ltac validate :=
   | [|- is_valid (?Γ1 ⋓ ?Γ2 ⋓ ?Γ3) ]   => apply valid_join; validate
   end).
 
+Ltac has_evars term := 
+  match term with
+    | ?L = ?R         => has_evars (L ⋓ R)
+    | ?L == ?R1 ∙ ?R2 => has_evars (L ⋓ R1 ⋓ R2)
+    | ?Γ1 ⋓ ?Γ2       => has_evar Γ1; has_evar Γ2
+    | ?Γ1 ⋓ ?Γ2       => has_evars Γ1
+    | ?Γ1 ⋓ ?Γ2       => has_evars Γ2
+  end.
 
 Ltac goal_evars :=
   match goal with
   | [ |- ?g ] => has_evars g
   end.
-
 
 (* Proofs about merge relation *)
 Ltac solve_merge :=

@@ -331,7 +331,7 @@ Definition n_coins' (n : nat) : Box One (n ⨂ Bit) :=
   box_ () ⇒ coin_flip #n $ (()).
 Lemma n_coins_WT' : forall n, Typed_Box (n_coins' n).
 Proof. intros. type_check; try apply types_units; type_check.
-  apply inParMany_WT. apply coin_flip_WT. auto.
+  rewrite merge_nil_r. apply inParMany_WT. apply coin_flip_WT. easy.
 Qed.
 
 
