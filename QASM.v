@@ -319,27 +319,27 @@ Open Scope type_scope.
 Close Scope circ_scope.
 Program Fixpoint unitary_to_qasm {W} (li : list string) (v : nat) (u : Unitary W) (p : Pat W) : (program * nat) :=
   match u with
-  | H =>
+  | _H =>
     match p with
     | qubit x => ([s_qop (q_uop (u_U [pi/2;0;pi] (a_id (get_var_name li x))))], v)
     | unit | bit _ | pair _ _ => ([s_error "db_gate Unitary H error"], v)
     end
-  | X =>
+  | _X =>
     match p with
     | qubit x => ([s_qop (q_uop (u_U [pi;0;pi] (a_id (get_var_name li x))))], v)
     | unit | bit _ | pair _ _ => ([s_error "db_gate Unitary X error"], v)
     end
-  | Y =>
+  | _Y =>
     match p with
     | qubit x => ([s_qop (q_uop (u_U [pi;pi/2;pi/2] (a_id (get_var_name li x))))], v)
     | unit | bit _ | pair _ _ => ([s_error "db_gate Unitary Y error"], v)
     end
-  | Z =>
+  | _Z =>
     match p with
     | qubit x => ([s_qop (q_uop (u_U [0;0;pi] (a_id (get_var_name li x))))], v)
     | unit | bit _ | pair _ _ => ([s_error "db_gate Unitary Z error"], v)
     end
-  | R_ phi =>
+  | _R_ phi =>
     match p with
     | qubit x => ([s_qop (q_uop (u_U [0;0;e_real phi] (a_id (get_var_name li x))))], v)
     | unit | bit _ | pair _ _ => ([s_error "db_gate Unitary R error"], v)
@@ -369,9 +369,6 @@ Program Fixpoint unitary_to_qasm {W} (li : list string) (v : nat) (u : Unitary W
       end
     | unit | bit _ | qubit _ => ([s_error "db_gate Unitary bit_ctrl error"], v)
     end
-  | trans u' =>
-    let (qasm_unitary, v') := (unitary_to_qasm li v u' p) in
-    ((process_transpose qasm_unitary), v')
   end.
 
 Fixpoint pat_to_anylist {w} (li : list string) (p : Pat w) : anylist :=

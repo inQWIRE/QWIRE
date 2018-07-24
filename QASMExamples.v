@@ -13,13 +13,13 @@ Definition bell00 : Box One (Qubit ⊗ Qubit) :=
   box_ () ⇒  
     gate_ a ← init0 @();
     gate_ b ← init0 @();
-    gate_ a ← H @a;
+    gate_ a ← _H @a;
     CNOT $(a,b).
 
 Definition alice : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) :=
   box_ qa ⇒ 
     gate_ (q,a) ← CNOT @qa;
-    gate_ q     ← H @q;
+    gate_ q     ← _H @q;
     gate_ x     ← measQ @q;
     gate_ y     ← measQ @a;
     (x,y).
@@ -27,8 +27,8 @@ Definition alice : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) :=
 Definition bob : Box (Qubit ⊗ Qubit ⊗ Qubit) (Qubit) :=
   box_ xyb ⇒ 
     let_ ((x,y),b) ← output xyb ; 
-    let_ (y,b)  ← ctrl X $(y,b);
-    let_ (x,b)  ← ctrl Z $(x,b);
+    let_ (y,b)  ← ctrl _X $(y,b);
+    let_ (x,b)  ← ctrl _Z $(x,b);
     gate_ x' ← meas @x;
     gate_ y' ← meas @y;
     gate_ _ ← discard @x';
@@ -38,7 +38,7 @@ Definition bob : Box (Qubit ⊗ Qubit ⊗ Qubit) (Qubit) :=
 Definition teleport : Box One Bit :=
   box_ () ⇒
     gate_ q    ← init0 @();
-    gate_ q    ← H @q;
+    gate_ q    ← _H @q;
     let_ (a,b) ← unbox bell00 () ;
     let_ (x,y) ← alice $(q,a) ;
     let_ p     ← bob $(x,y,b) ;
@@ -88,5 +88,6 @@ Proof.
   unfold adder_1_example. unfold adder_1_circ. unfold adder_circ_n.
   compute_compile. simpl_eq.
   compute_compile.
+Abort.
 
 Close Scope circ_scope.
