@@ -1,6 +1,6 @@
-all: Oracles.vo
-
-everything: Oracles.vo HOASProofs.vo Equations.vo Deutsch.vo Arithmetic.vo
+core: Oracles.vo
+all: Oracles.vo HOASProofs.vo Equations.vo Deutsch.vo Arithmetic.vo
+qasm: QASMExamples.vo
 
 Monad.vo: Monad.v
 	coqc Monad.v
@@ -35,6 +35,9 @@ TypeChecking.vo: TypeChecking.v HOASCircuits.vo
 HOASLib.vo: HOASLib.v TypeChecking.vo
 	coqc HOASLib.v
 
+HOASExamples.vo: HOASExamples.v HOASLib.vo
+	coqc HOASExamples.v
+
 Denotation.vo: Denotation.v Quantum.vo DBCircuits.vo HOASLib.vo
 	coqc Denotation.v
 
@@ -44,16 +47,13 @@ Ancilla.vo : Ancilla.v Denotation.vo TypeChecking.vo
 SemanticLib.vo : SemanticLib.v Ancilla.vo 
 	coqc SemanticLib.v
 
-HOASExamples.vo: HOASExamples.v HOASLib.vo
-	coqc HOASExamples.v
-
 Symmetric.vo : Symmetric.v Ancilla.vo SemanticLib.vo
 	coqc Symmetric.v
 
 Oracles.vo: Oracles.v Symmetric.vo HOASExamples.vo 
 	coqc Oracles.v
 
-# Built by "make everything"
+# Built by "make all"
 
 Arithmetic.vo: Arithmetic.v Oracles.vo
 	coqc Arithmetic.v
@@ -68,6 +68,15 @@ Equations.vo: Equations.v SemanticLib.vo
 	coqc Equations.v
 
 # Not built at all
+
+QASM.vo : QASM.v DBCircuits.vo HOASExamples.vo
+	coqc QASM.v
+
+QASMPrinter.vo : QASMPrinter.v QASM.vo
+	coqc QASMPrinter.v
+
+QASMExamples.vo : QASMExamples.v QASMPrinter.vo Arithmetic.vo
+	coqc QASMExamples.v
 
 FlatCircuits.vo: FlatCircuits.v HOASCircuits.vo Monad.vo
 	coqc FlatCircuits.v

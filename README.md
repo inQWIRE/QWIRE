@@ -11,7 +11,7 @@ semantics for QWIRE.
 
 QWIRE is compatible with Coq 8.5 - 8.7.
 
-This version of the project has no dependencies. Run `make` to compile the main (implementation and preliminary) files and `make everything` to compile the whole project.
+This version of the project has no dependencies. Run `make` to compile the core (preliminary and implementation) files and `make all` to compile the whole project.
 
 
 Files in this repository
@@ -19,7 +19,7 @@ Files in this repository
 
 *Preliminaries*
 - Monad.v : An implementation of some basic monads
-- Monoid.v : A typeclass and solver for commutative monoids 
+- Monoid.v : A typeclass and solver for commutative monoids, modified from [LinearTypingContexts][8]
 - Prelim.v : A variety of general purpose definitions and tactics
 
 *Underlying mathematical libraries*
@@ -48,8 +48,8 @@ Files in this repository
 
 *Compilation to [QASM][7]*
 - QASM.v : Compilation from QWIRE to QASM
-- QASMExamples.v : Examples of circuit compilation
 - QASMPrinter.v : A printer for compiled circuits, for execution on a quantum computer/simulator
+- QASMExamples.v : Examples of circuit compilation
 
 
 [1]: http://dl.acm.org/citation.cfm?id=3009894
@@ -59,3 +59,4 @@ Files in this repository
 [5]: https://arxiv.org/pdf/1711.05159.pdf
 [6]: http://coquelicot.saclay.inria.fr/html/Coquelicot.Complex.html
 [7]: https://developer.ibm.com/code/open/projects/qiskit/qiskit-openqasm/
+[8]: https://github.com/jpaykin/LinearTypingContexts
