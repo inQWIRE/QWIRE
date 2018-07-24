@@ -129,7 +129,7 @@ Proof.
     simpl.
 *)
 
-Definition valid_ancillae {W} (c : Circuit W) : Prop := forall Γ Γ0, 
+Definition valid_ancillae {W} (c : Circuit W) : Prop := forall (Γ Γ0 : Ctx), 
   (* Γ' == Γ0 ∙ Γ -> *) (* necessary? *)
   Γ ⊢ c:Circ -> (* <- is this right? *)
   ⟨ Γ0 | Γ ⊩ c ⟩ = ⟨! Γ0 | Γ ⊩ c !⟩.
@@ -138,7 +138,7 @@ Definition valid_ancillae_box {W1 W2} (c : Box W1 W2) :=
   Typed_Box c -> 
   denote_box true c = denote_box false c.
 
-Definition valid_ancillae' {W} (c : Circuit W) := forall Γ Γ0 ρ, 
+Definition valid_ancillae' {W} (c : Circuit W) := forall (Γ Γ0 : Ctx) ρ, 
   Γ ⊢ c:Circ -> (* <- is this right? *)
   Mixed_State ρ ->
   trace (⟨! Γ0 | Γ ⊩ c !⟩ ρ) = 1.
@@ -166,28 +166,6 @@ Proof.
   destruct c.
 Admitted.
 
-Lemma size_fresh_state : forall W (Γ : Ctx), 
-  size_ctx (fresh_state W Γ) = (size_ctx Γ + size_wtype W)%nat.
-Proof.
-  induction W; trivial.
-  - intros. simpl. unfold add_fresh_state. simpl. rewrite size_ctx_app. reflexivity.
-  - intros. simpl. unfold add_fresh_state. simpl. rewrite size_ctx_app. reflexivity.
-  - intros. simpl. rewrite IHW2, IHW1. omega.
-Qed.
-
-Lemma size_fresh_state_o : forall W (Γ : OCtx), 
-  is_valid Γ ->
-  size_octx (fresh_state W Γ) = (size_octx Γ + size_wtype W)%nat.
-Proof.
-  induction W; trivial.
-  - intros. simpl. destruct Γ. invalid_contradiction. simpl. 
-    rewrite size_ctx_app. reflexivity.
-  - intros. simpl. destruct Γ. invalid_contradiction. simpl. 
-    rewrite size_ctx_app. reflexivity.
-  - intros. simpl. rewrite IHW2, IHW1; trivial. omega.
-    apply is_valid_fresh; easy.
-Qed.
-
 (* This relationship should be easy to prove. 
    Alternatively, we could just define one in terms of the other *)
 Lemma valid_ancillae_unbox : forall W W' (c : Pat W -> Circuit W'),
@@ -200,22 +178,20 @@ Proof.
   unfold hoas_to_db_box.  
   split.
   - intros H T.
-    specialize (H (fresh_pat W ∅) (fresh_state W ∅) ∅).
+    specialize (H (add_fresh_pat W []) (add_fresh_state W []) []).
     simpl in *.
-    rewrite size_fresh_state_o in H; [| apply valid_empty].
-    simpl in H. rewrite H. easy.
+    rewrite size_fresh_ctx in H.
+    simpl in H. 
+    unfold add_fresh_state, add_fresh_pat in *.
+    destruct (add_fresh W []) as [p Γ] eqn:E.
+    simpl in *.
+    rewrite H. 
+    easy.
     unfold Typed_Box in T. simpl in T. apply T.
-    apply fresh_state_pat.
+    (* Lemma to add to DBCircuits *)
+    admit.
   - intros H p Γ Γ0 T.
     simpl in *.
-    Search fresh_state fresh_pat.
-
-    Search fresh_state.
-
-    specialize (is_valid_fresh ∅ W valid_empty) as V.
-    destruct (fresh_state W ∅). invalid_contradiction. 
-    simpl in H.
-
 Admitted.
 
 Lemma valid_ancillae_unbox' : forall W W' (c : Box W W') (p : Pat W),
@@ -239,31 +215,6 @@ Proof.
   intros W p.
   unfold valid_ancillae.
   reflexivity.
-Qed.
-
-Lemma add_fresh_merge : forall Γ W, 
-  is_valid Γ ->
-  add_fresh_state W Γ == singleton (get_fresh_var W Γ) W ∙ Γ. 
-Proof.
-  intros Γ W V.
-  constructor.
-  unfold add_fresh_state.
-  simpl.
-  destruct Γ.
-  apply not_valid in V. contradiction.
-  simpl.
-  apply valid_valid.
-  induction Γ.
-  + simpl.
-    unfold add_fresh_state.
-    reflexivity.
-  + unfold add_fresh_state.
-    simpl.
-    unfold get_fresh_var.
-    simpl.
-    rewrite <- merge_singleton_append.
-    rewrite merge_comm.
-    reflexivity.
 Qed.
 
 Lemma update_merge : forall (Γ Γ' :Ctx) W W' v, Γ' == singleton v W ∙ Γ ->
@@ -340,7 +291,11 @@ Proof.
     unfold valid_ancillae in *. 
     intros Γ0 Γ1 WT.
     dependent destruction WT.
+    destruct Γ as [|Γ], Γ2 as [|Γ2]; try invalid_contradiction.
     erewrite denote_gate_circuit; [|apply pf1|apply t]. 
+(* TODO: Bring up to date. *)
+Admitted.
+(*
     erewrite denote_gate_circuit_unsafe; [|apply pf1|apply t].
     destruct Γ1' as [|Γ1']. invalid_contradiction.
     destruct g.
@@ -443,6 +398,7 @@ Proof.
       specialize (types_circ_types_pat w Γ2 (c true) (t0 true)) as [w' [p' TP]].      
       rewrite (remove_bit_pred Γ2 Γ); easy.
 Qed.
+*)
 
 Lemma ancilla_free_box_valid : forall W W' (c : Box W W'), 
     ancilla_free_box c -> 

@@ -458,6 +458,7 @@ Proof.
   unfold unbox. unfold denote_db_box.
   destruct c.
   simpl.
+  rewrite add_fresh_split.
   reflexivity.
 Qed.
 
@@ -475,6 +476,8 @@ Proof.
   unfold unbox. unfold denote_db_box.
   destruct c.
   simpl.
+  rewrite add_fresh_split.
+  simpl.
 Admitted.
 
 Definition strip_one_r_in {W W' : WType} (c : Box (W ⊗ One) W') : Box W W' :=
@@ -491,6 +494,7 @@ Proof.
   unfold unbox. unfold denote_db_box.
   destruct c.
   simpl. rewrite Nat.add_0_r.
+  rewrite add_fresh_split.
   reflexivity.
 Qed.
 
@@ -508,6 +512,7 @@ Proof.
   unfold unbox. unfold denote_db_box.
   destruct c.
   simpl.
+  rewrite add_fresh_split.
 Admitted.
 
 Fixpoint assert_at (b : bool) (n i : nat) {struct i}: Box (S n ⨂ Qubit) (n ⨂ Qubit) :=
@@ -660,12 +665,15 @@ Proof.
 Admitted.
 
 (* Move to DBCircuits *)
-Lemma fresh_state_ntensor : forall n (Γ : Ctx), fresh_state (n ⨂ Qubit) (Valid Γ) = 
-                                           Valid (Γ ++ List.repeat (Some Qubit) n).
+Lemma fresh_state_ntensor : forall n (Γ : Ctx), add_fresh_state (n ⨂ Qubit) Γ = 
+                                           Γ ++ List.repeat (Some Qubit) n.
 Proof.                            
   induction n. 
   - intros. simpl. rewrite app_nil_r; reflexivity.
-  - intros. simpl. unfold add_fresh_state. simpl. rewrite IHn. rewrite <- app_assoc. reflexivity.
+  - intros. simpl. unfold add_fresh_state in *. simpl. 
+    specialize (IHn (Γ ++ [Some Qubit])).
+    rewrite add_fresh_split in *. simpl in *.
+    rewrite IHn. rewrite <- app_assoc. reflexivity.
 Qed.
 
 (* Currently working on these in Oracles.v *)
@@ -889,6 +897,7 @@ Proof.
   intros b w ρ.
   simpl. autounfold with den_db. simpl.
   Search hoas_to_db_pat.
+  rewrite add_fresh_split; simpl.
   rewrite hoas_to_db_pat_fresh_empty.
   rewrite denote_pat_fresh_id.
   rewrite pad_nothing.

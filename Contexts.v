@@ -86,10 +86,13 @@ Proof. intuition; congruence. Defined.
 
 Inductive SingletonCtx : Var -> WType -> Ctx -> Prop :=
 | SingletonHere : forall w, SingletonCtx 0 w [Some w]
-| SingletonLater : forall x w Γ, SingletonCtx x w Γ -> SingletonCtx (S x) w (None::Γ)
-.
+| SingletonLater : forall x w Γ, SingletonCtx x w Γ -> SingletonCtx (S x) w (None::Γ).
+
 Inductive SingletonOCtx x w : OCtx -> Prop :=
 | SingletonValid : forall Γ, SingletonCtx x w Γ -> SingletonOCtx x w (Valid Γ).
+
+Lemma Singleton_size : forall x w Γ, SingletonCtx x w Γ -> size_ctx Γ = 1%nat.
+Proof. induction 1; auto. Qed.
 
 Fixpoint singleton (x : Var) (W : WType) : Ctx :=
   match x with
@@ -111,6 +114,9 @@ Proof.
   induction 1; trivial.
   simpl. rewrite IHSingletonCtx. reflexivity.
 Defined.
+
+Lemma singleton_size : forall x w, size_ctx (singleton x w) = 1%nat.
+Proof. induction x; auto. Qed.
 
 (***********)
 (* Merging *)
@@ -420,6 +426,16 @@ Proof.
     simpl in H1.
     inversion H1; subst; auto.
 Defined.
+
+Lemma merge_singleton_append : forall W (Γ : Ctx), 
+        Γ ⋓ (singleton (length Γ) W) = Valid (Γ ++ [Some W]). 
+Proof. 
+  induction Γ.
+  - simpl. reflexivity. 
+  - simpl in *.
+    destruct a; simpl; rewrite IHΓ; reflexivity.
+Qed.
+
 
 (*** OContexts are a PCM ***)
 
@@ -874,6 +890,10 @@ Inductive empty_ctx : Ctx -> Prop :=
 | empty_cons : forall Γ, empty_ctx Γ -> empty_ctx (None :: Γ)
 .
 
+Lemma empty_ctx_size : forall Γ, empty_ctx Γ -> size_ctx Γ = 0%nat.
+Proof. induction 1; auto. Qed.
+
+
 Lemma eq_dec_empty_ctx : forall Γ, {empty_ctx Γ} + {~empty_ctx Γ}.
 Proof.
   intros.
@@ -1098,6 +1118,25 @@ where "Γ ⊢ p ':Pat'" := (@Types_Pat Γ _ p).
 Lemma pat_ctx_valid : forall Γ W (p : Pat W), Γ ⊢ p :Pat -> is_valid Γ.
 Proof. intros Γ W p TP. unfold is_valid. inversion TP; eauto. Qed.
 
+Lemma octx_wtype_size : forall w (p : Pat w) (Γ : OCtx),
+      Γ ⊢ p:Pat -> size_wtype w = size_octx Γ.
+Proof.
+  intros w p Γ H.
+  dependent induction H; simpl; auto.
+  * apply Singleton_size in s. easy. 
+  * apply Singleton_size in s. easy. 
+  * subst.
+    rewrite size_octx_merge; auto.
+Qed.
+
+Lemma ctx_wtype_size : forall w (p : Pat w) (Γ : Ctx),
+      Γ ⊢ p:Pat -> size_wtype w = size_ctx Γ.
+Proof.
+  intros w p Γ H.
+  replace (size_ctx Γ) with (size_octx Γ) by easy.
+  eapply octx_wtype_size; apply H.
+Qed.
+
 Open Scope circ_scope.
 Inductive Unitary : WType -> Set := 
   | _H         : Unitary Qubit 
@@ -1210,58 +1249,58 @@ Ltac solve_merge :=
 
 (*** Constructing Typed Patterns ***)
 
-Fixpoint mk_typed_bit (Γ : Ctx) : Ctx * Pat Bit :=
+Fixpoint mk_typed_bit (Γ : Ctx) : Pat Bit * Ctx :=
   match Γ with 
-  | []           => ([Some Bit], bit O)
-  | None :: Γ'   => ([Some Bit], bit O)
-  | Some W :: Γ' => let (Γ'', p) := mk_typed_bit Γ' in
+  | []           => (bit O, [Some Bit])
+  | None :: Γ'   => (bit O, [Some Bit])
+  | Some W :: Γ' => let (p,Γ'') := mk_typed_bit Γ' in
                    match p with
-                   | bit n => (None :: Γ'', bit (S n))
+                   | bit n => (bit (S n), None :: Γ'')
                    end
   end.
 
-Fixpoint mk_typed_qubit (Γ : Ctx) : Ctx * Pat Qubit :=
+Fixpoint mk_typed_qubit (Γ : Ctx) : Pat Qubit * Ctx :=
   match Γ with 
-  | []           => ([Some Qubit], qubit O)
-  | None :: Γ'   => ([Some Qubit], qubit O)
-  | Some W :: Γ' => let (Γ'', p) := mk_typed_qubit Γ' in
+  | []           => (qubit O, [Some Qubit])
+  | None :: Γ'   => (qubit O, [Some Qubit])
+  | Some W :: Γ' => let (p,Γ'') := mk_typed_qubit Γ' in
                    match p with
-                   | qubit n => (None :: Γ'', qubit (S n))
+                   | qubit n => (qubit (S n), None :: Γ'')
                    end
   end.
   
+(* Is there a preferred way to do this? *)
 Parameter dummy_pat : forall W, Pat W.
+Parameter dummy_ctx : Ctx.
 
-Fixpoint mk_typed_pat (Γ : Ctx) (W : WType) {struct W} : Ctx * Pat W :=
+Fixpoint mk_typed_pat (W : WType) (Γ : Ctx) {struct W} : Pat W * Ctx :=
   match W with
-  | One   => ([], unit)
+  | One   => (unit, [])
   | Bit   => mk_typed_bit Γ                             
   | Qubit   => mk_typed_qubit Γ                             
-  | Tensor W1 W2 => let (Γ1,p1) := mk_typed_pat Γ W1 in
+  | Tensor W1 W2 => let (p1,Γ1) := mk_typed_pat W1 Γ in
               let Γ1' := (Γ ⋓ Γ1) in 
-              let (Γ2,p2) := match Γ1' with 
-                             | Invalid => ([], dummy_pat W2 )
-                             | Valid Γ1'' => mk_typed_pat Γ1'' W2
+              let (p2,Γ2) := match Γ1' with 
+                             | Invalid => (dummy_pat _, dummy_ctx)
+                             | Valid Γ1'' => mk_typed_pat W2 Γ1''
                              end in
               match Valid Γ1 ⋓ Valid Γ2 with
-              | Invalid    => ([], dummy_pat (Tensor W1 W2))
-              | Valid Γ12  => (Γ12, (pair p1 p2))
+              | Invalid    => (dummy_pat _, dummy_ctx)
+              | Valid Γ12  => ((pair p1 p2), Γ12)
               end
   end.
 
-Lemma typed_pat_merge_valid : forall Γ W Γ' (p : Pat W),
-  (Γ', p) = mk_typed_pat Γ W ->
+Lemma typed_pat_merge_valid : forall W Γ Γ' (p : Pat W),
+  (p, Γ') = mk_typed_pat W Γ ->
   is_valid (Γ ⋓ Γ').
 Proof.
-  intros Γ W.
-  gen Γ.
   induction W.
   - induction Γ; intros Γ' p H.
     simpl. validate.
     destruct a.
     + simpl in H.
       dependent destruction p.
-      destruct (mk_typed_qubit Γ) as [Γ1 p1] eqn:E1.
+      destruct (mk_typed_qubit Γ) as [p1 Γ1] eqn:E1.
       dependent destruction p1.
       inversion H; subst.
       symmetry in E1.
@@ -1280,7 +1319,7 @@ Proof.
     destruct a.
     + simpl in H.
       dependent destruction p.
-      destruct (mk_typed_bit Γ) as [Γ1 p1] eqn:E1.
+      destruct (mk_typed_bit Γ) as [p1 Γ1] eqn:E1.
       dependent destruction p1.
       inversion H; subst.
       symmetry in E1.
@@ -1302,11 +1341,11 @@ Proof.
     validate.
   - intros Γ Γ' p H.
     simpl in H.
-    destruct (mk_typed_pat Γ W1) as [Γ1 p1] eqn:E1.
+    destruct (mk_typed_pat W1 Γ) as [p1 Γ1] eqn:E1.
     symmetry in E1.    
     destruct (IHW1 _ _ _ E1) as [Γ1' M1].
     simpl in M1. rewrite M1 in H.
-    destruct (mk_typed_pat Γ1' W2) as [Γ2 p2] eqn:E2.
+    destruct (mk_typed_pat W2 Γ1') as [p2 Γ2] eqn:E2.
     symmetry in E2.    
     destruct (IHW2 _ _ _ E2) as [Γ2' M2].
     simpl in M2. 
@@ -1323,18 +1362,18 @@ Proof.
     validate.
 Qed.  
 
-Lemma typed_bit_typed : forall Γ Γ' p, (Γ', p) = mk_typed_bit Γ ->
+Lemma typed_bit_typed : forall Γ p Γ', (p, Γ') = mk_typed_bit Γ ->
                                    Γ' ⊢ p:Pat.
 Proof.
   induction Γ as [|o Γ].
-  - intros Γ' p H. simpl in H. inversion H; subst. constructor.
+  - intros p Γ' H. simpl in H. inversion H; subst. constructor.
     apply singleton_singleton.
-  - intros Γ' p H.
+  - intros p Γ' H.
     destruct o.
     + dependent destruction p.
-      simpl in H. destruct (mk_typed_bit Γ) as [Γ'' p]. 
+      simpl in H. destruct (mk_typed_bit Γ) as [p Γ'']. 
       dependent destruction p. inversion H. subst.
-      specialize (IHΓ Γ'' (bit v) eq_refl). 
+      specialize (IHΓ (bit v) Γ'' eq_refl). 
       inversion IHΓ; subst.
       constructor.
       constructor.
@@ -1345,18 +1384,18 @@ Proof.
       constructor.
 Qed.
 
-Lemma typed_qubit_typed : forall Γ Γ' p, (Γ', p) = mk_typed_qubit Γ ->
-                                               Γ' ⊢ p:Pat.
+Lemma typed_qubit_typed : forall Γ p Γ', (p, Γ') = mk_typed_qubit Γ ->
+                                              Γ' ⊢ p:Pat.
 Proof.
   induction Γ as [|o Γ].
-  - intros Γ' p H. simpl in H. inversion H; subst. constructor.
+  - intros p Γ' H. simpl in H. inversion H; subst. constructor.
     apply singleton_singleton.
-  - intros Γ' p H.
+  - intros p Γ' H.
     destruct o.
     + dependent destruction p.
-      simpl in H. destruct (mk_typed_qubit Γ) as [Γ'' p]. 
+      simpl in H. destruct (mk_typed_qubit Γ) as [p Γ'']. 
       dependent destruction p. inversion H. subst.
-      specialize (IHΓ Γ'' (qubit v) eq_refl). 
+      specialize (IHΓ (qubit v) Γ'' eq_refl). 
       inversion IHΓ; subst.
       constructor.
       constructor.
@@ -1367,26 +1406,23 @@ Proof.
       constructor.
 Qed.
 
-
-Lemma typed_pat_typed : forall Γ W Γ' (p : Pat W), 
-  (Γ', p) = mk_typed_pat Γ W ->
+Lemma typed_pat_typed : forall W Γ (p : Pat W) Γ', 
+  (p, Γ') = mk_typed_pat W Γ ->
   Γ' ⊢ p:Pat.
 Proof.
-  intros Γ W.
-  gen Γ.
-  induction W; intros Γ Γ' p H.
+  induction W; intros Γ p Γ' H.
   - eapply (typed_qubit_typed Γ); easy. 
   - eapply (typed_bit_typed Γ); easy. 
   - dependent destruction p.
     simpl in H. inversion H; subst.
     constructor.
   - simpl in H.
-    destruct (mk_typed_pat Γ W1) as [Γ1 p1] eqn:E1.
+    destruct (mk_typed_pat W1 Γ) as [p1 Γ1] eqn:E1.
     symmetry in E1.
     destruct (merge' Γ Γ1) as [|Γ1'] eqn:M1. 
       apply typed_pat_merge_valid in E1. 
       simpl in E1. rewrite M1 in E1. invalid_contradiction.
-    destruct (mk_typed_pat Γ1' W2) as [Γ2 p2] eqn:E2.
+    destruct (mk_typed_pat W2 Γ1') as [p2 Γ2] eqn:E2.
     symmetry in E2.
     destruct (merge' Γ1 Γ2) as [|Γ12] eqn:M2. 
       apply typed_pat_merge_valid in E2. 

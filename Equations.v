@@ -75,15 +75,7 @@ Proof. type_check. Qed.
 Lemma lift_alternate_eq : forall W (U V : Unitary W), lift_UV U V ≡ alt_UV U V.
 Proof.
   intros W U V.
-  repeat (autounfold with den_db; intros; simpl).
-  simpl.
-  rewrite plus_0_r.
-  rewrite Nat.sub_0_r.
-  rewrite Nat.leb_refl.
-  rewrite Nat.sub_diag.
-  simpl.
-  unfold Splus.
-(*  Msimpl.*)
+  matrix_denote.  
 Abort.
 
 (** Equality 3: U; meas-discard = meas-discard **)

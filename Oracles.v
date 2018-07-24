@@ -313,16 +313,31 @@ Fixpoint pat_max {W} (p : Pat W) : nat :=
   | pair p1 p2 => Nat.max (pat_max p1) (pat_max p2)
   end.
 
+(* For DBCircuits *)
+
+Lemma maps_to_repeat : forall v n W, v < n ->
+                                maps_to v (repeat (Some W) n) = Some v.
+Proof.
+  induction v; intros n W L; auto.
+  - destruct n; try omega. easy.
+  - destruct n; try omega.
+    simpl. rewrite IHv by omega. easy.
+Qed.
+  
 (* Does it make sense to have a shifted version of this too? *)
-Lemma subst_pat_σ_n: forall W n (p : Pat W), (pat_max p < n)%nat -> subst_pat (σ_{ n}) p = p.
+Lemma subst_pat_σ_n: forall W W' n (p : Pat W), (pat_max p < n)%nat -> 
+                                           subst_pat (repeat (Some W') n) p = p.
 Proof.
   intros.
-  induction p.
+  gen W'.
+  induction p; intros W'.
   - simpl; reflexivity.
   - simpl in *.
-    rewrite subst_var_σ_n; easy.
+    unfold subst_var.
+    rewrite maps_to_repeat; easy.
   - simpl in *.
-    rewrite subst_var_σ_n; easy.
+    unfold subst_var.
+    rewrite maps_to_repeat; easy.
   - simpl in *.
     apply Nat.max_lub_lt_iff in H as [L1 L2].
     rewrite IHp1, IHp2; easy. 
@@ -330,7 +345,7 @@ Qed.
 
 Lemma ntensor_pat_to_list_shifted : forall (m n o : nat),
   (m + n < o)%nat ->
-  pat_to_list (subst_pat (σ_{o}) (fresh_pat (n ⨂ Qubit) 
+  pat_to_list (subst_pat (σ_{o}) (add_fresh_pat (n ⨂ Qubit) 
                                  (Valid (repeat (Some Qubit) m )))) = seq m n. 
 Proof.
   intros m n. revert m.

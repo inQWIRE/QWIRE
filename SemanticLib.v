@@ -44,15 +44,21 @@ Ltac case_unsafe := apply valid_denote_false;
 (*--------- Boxed Circuit Specs ----------*)
 (* ---------------------------------------*)
 
+(* TODO: add lemmas to proof_db *)
 Lemma id_circ_spec : forall W ρ safe, WF_Matrix (2^⟦W⟧) (2^⟦W⟧) ρ -> 
   denote_box safe  (@id_circ W) ρ = ρ.
 Proof.
   intros W ρ safe H.
   simpl. unfold denote_box. simpl.
   autorewrite with proof_db.
+  rewrite add_fresh_split.
+  simpl.
   unfold pad.
+  simpl.
   rewrite Nat.sub_diag.
   rewrite kron_1_r.
+  rewrite hoas_to_db_pat_fresh_empty.
+  rewrite denote_pat_fresh_id.
   rewrite super_I; auto.
 Qed.
 

@@ -115,19 +115,18 @@ Proof.
   + matrix_denote. Msimpl. solve_matrix.
   + simpl.
     repeat (simpl; autounfold with den_db). 
-    replace 0%nat with (⟦∅⟧) by auto.
+    replace 0%nat with (⟦[]:Ctx⟧) by auto.
     specialize denote_compose as DC. unfold denote_circuit in DC.
 
-    rewrite DC with (Γ := ∅) (Γ1 := ∅) (Γ1' := ∅);
+    rewrite DC with (Γ := []) (Γ1 := []) (Γ1' := []);
     [ | apply unbox_typing; [type_check | apply coin_flips_WT]
     | type_check
-    | solve_merge ].
+    | solve_merge | solve_merge].
 
        (* Apply IH *)
        rewrite denote_db_unbox in IHn.
-       unfold fresh_pat in IHn.
-       unfold fresh_state in IHn.
-       rewrite merge_nil_r.
+       unfold add_fresh_pat in IHn.
+       unfold add_fresh_state in IHn.
        unfold compose_super.
        unfold denote_circuit in IHn.
        setoid_rewrite IHn.
@@ -299,34 +298,33 @@ Proof.
     setoid_rewrite kron_adjoint.
     autorewrite with M_db. 
 
-    remember (singleton 1%nat Qubit) as Γ_1.
-    remember (singleton 0%nat Qubit) as Γ_2.
-    remember (Γ_1 ⋓ Γ_2) as Γ_1'.
+    remember (singleton 1%nat Qubit) as Γ1.
+    remember (singleton 0%nat Qubit) as Γ2.
+    remember (Γ1 ⋓ Γ2) as Γ1'.
 
-    assert (size_Γ_1_2 : ⟦Γ_1'⟧ = 2%nat).
+    assert (size_Γ1' : ⟦Γ1'⟧ = 2%nat).
     { subst. auto. }
     
-    assert (Γ_2 ⊢ qubit 0%nat :Pat).
+    assert (Γ2 ⊢ qubit 0%nat :Pat).
     { constructor. subst. constructor. }
 
     unfold add_fresh_state. simpl.
-    unfold DBCircuits.get_fresh_var. simpl.
    
-    replace 2%nat with (⟦Γ_1'⟧) by auto.
-    replace (0%nat) with (⟦∅⟧) by auto. 
+    replace 2%nat with (⟦Γ1'⟧) by auto.
+    replace (0%nat) with (⟦[]:Ctx⟧) by auto. 
     replace (S (⟦∅⟧)) with 1%nat by auto.
-    replace (Valid [Some Qubit; Some Qubit]) with Γ_1' by (subst; auto).
+    destruct Γ1' as [|Γ1']. inversion size_Γ1'.
+    replace ([Some Qubit; Some Qubit]) with Γ1'. 
+    2: subst; unlock_merge; simpl in *; inversion HeqΓ1'; easy. 
     
     unfold process_gate_state. simpl.
     specialize denote_compose as DC. unfold denote_circuit in DC.
-    rewrite DC with (Γ0 := ∅) (Γ := Γ_1) (Γ1 := Γ_2) (Γ1' := Γ_1');
+    rewrite DC with (Γ0 := []) (Γ := Γ1) (Γ1 := Γ2) (Γ1' := Γ1') (Γ01 := Γ2);
     [ | apply share_WT; type_check; repeat constructor
     | intros; simpl; type_check
-    | type_check ].
-    Focus 2. Transparent merge. simpl. Opaque merge. validate.
+    | rewrite HeqΓ1'; solve_merge | solve_merge].
+    2: unlock_merge; simpl; validate.
     
-
-    rewrite merge_nil_l.
     admit (* need padding lemma *).
 Admitted.
 

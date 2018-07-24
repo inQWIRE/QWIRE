@@ -32,6 +32,37 @@ Proof.
   reflexivity.
 Qed.
 
+(* With edge cases that break monoid *)
+Ltac solve_merge' :=
+  match goal with
+  | [ |- ?Γ == ∅ ∙ ?Γ2] => split; [validate|rewrite merge_nil_l; easy]
+  | [ |- ?Γ == ?Γ1 ∙ ∅] => split; [validate|rewrite merge_nil_r; easy]
+  | _                  => solve_merge
+  end.
+
+Ltac compose_denotations :=
+  match goal with
+  | [ |- context[denote_db_circuit ?safe ?n_Γ0 ?n_Γ1' (hoas_to_db ?Γ1' (compose ?c ?f))] ]  
+         => let Γ1 := fresh "Γ1" in evar (Γ1 : Ctx);
+            (* instantiate Γ1 *)
+            assert (pf_f : Γ1 ⊢ f :Fun) by (unfold Γ1; type_check);
+            let Γ := fresh "Γ" in evar (Γ : Ctx);
+            (* instantiate Γ *)
+            assert (pf_merge : Valid Γ1' == Γ1 ∙ Γ) by (unfold Γ, Γ1; solve_merge');
+            let pf_c := fresh "pf_c" in
+            assert (pf_c : Γ ⊢ c :Circ); [ | 
+            let Γ0 := fresh "Γ0" in evar (Γ0 : Ctx);
+            let Γ01 := fresh "Γ01" in evar (Γ01 : Ctx);
+            let DC := fresh "DC" in
+            specialize (@denote_compose safe _ c Γ pf_c _ f Γ0 Γ1 Γ1' Γ01 
+                                        pf_f pf_merge) as DC;
+            unfold denote_circuit in DC;
+            assert (size_Γ0 : size_ctx Γ0 = n_Γ0);
+            unfold Γ1, Γ, Γ0 in *
+            ]
+  end.
+
+(*
 Ltac compose_denotations :=
   match goal with
   | [ |- context[denote_db_circuit ?safe ?n_Γ0 ?n_Γ1' (hoas_to_db ?Γ1' (compose ?c ?f))] ]  
@@ -52,6 +83,7 @@ Ltac compose_denotations :=
             unfold Γ1, Γ, Γ0 in *
             ]
   end.
+*)
 
 (* U (|x⟩⊗|y⟩) = |x⟩⊗|f x ⊕ y⟩ 
   If f is constant, deutsch U returns 0 
@@ -101,8 +133,8 @@ Proof.
   intros f U pf_U pf_constant H_U.
 
    (* simplify definition of deutsch U *)
-    repeat (simpl; autounfold with den_db).
-    Msimpl.
+  repeat (simpl; autounfold with den_db).
+  Msimpl.
 
   compose_denotations.
   - unfold Γ. apply pf_U.
@@ -112,11 +144,11 @@ Proof.
     | type_check; constructor 
     | type_check; repeat constructor 
     ].
-  - apply size_octx_0. reflexivity.
+  - instantiate (1:=[]). easy.
   - simpl in DC. rewrite DC. clear DC.
     repeat (simpl; autounfold with den_db).
-    rewrite merge_nil_r. simpl.
-    
+    2: unfold Γ01; solve_merge'. 
+    unfold Γ01. simpl.
 
     (* rewrite by the semantics of U *)
     rewrite denote_db_unbox in H_U. simpl in H_U.
@@ -141,7 +173,7 @@ Proof.
      solve_matrix.
       (* Arithmetic: 2 * 2 * 1/√2 * 2 * 1/2 * 1/2 * 1/√2 = 1 *)
      apply arithmetic_fact.
-  Qed.
+Qed.
 
 
 
@@ -165,12 +197,12 @@ Proof.
     | type_check; constructor 
     | type_check; repeat constructor 
     ].
-  - apply size_octx_0. reflexivity.
+  - instantiate (1:=[]). easy.
   - simpl in DC. rewrite DC. clear DC.
     repeat (simpl; autounfold with den_db).
-    rewrite merge_nil_r. simpl.
+    2: unfold Γ01; solve_merge'. 
+    unfold Γ01. simpl.
     
-
     (* rewrite by the semantics of U *)
     rewrite denote_db_unbox in H_U. simpl in H_U.
 
@@ -194,8 +226,6 @@ Proof.
      solve_matrix.
       (* Arithmetic: 2 * 2 * 1/√2 * 2 * 1/2 * 1/2 * 1/√2 = 1 *)
       apply arithmetic_fact.
-  Qed.
-
-        
+Qed.        
 
 End Deutsch.

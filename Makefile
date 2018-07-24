@@ -1,6 +1,6 @@
 all: Oracles.vo
 
-everything: HOASProofs.vo Equations.vo Deutsch.vo Arithmetic.vo
+everything: Oracles.vo HOASProofs.vo Equations.vo Deutsch.vo Arithmetic.vo
 
 Monad.vo: Monad.v
 	coqc Monad.v
