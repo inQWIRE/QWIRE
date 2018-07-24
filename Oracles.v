@@ -12,7 +12,6 @@ Require Import List.
 Set Bullet Behavior "Strict Subproofs".
 Global Unset Asymmetric Patterns.
 
-
 (* --------------------------------*)
 (* Reversible bexps with variables *)
 (* --------------------------------*)
@@ -343,17 +342,17 @@ Proof.
     rewrite IHp1, IHp2; easy. 
 Qed.
 
+(* We'll see if we need this
 Lemma ntensor_pat_to_list_shifted : forall (m n o : nat),
   (m + n < o)%nat ->
-  pat_to_list (subst_pat (σ_{o}) (add_fresh_pat (n ⨂ Qubit) 
-                                 (Valid (repeat (Some Qubit) m )))) = seq m n. 
+  pat_to_list (subst_pat (repeat (Some Qubit) n) (add_fresh_pat (n ⨂ Qubit) 
+                                 (repeat (Some Qubit) m ))) = seq m n. 
 Proof.
   intros m n. revert m.
   induction n; trivial.
   intros.
+  rewrite subst_pat_σ_n.
   simpl.
-  unfold add_fresh_state; simpl.
-  unfold get_fresh_var; simpl.
   rewrite repeat_length.
   rewrite subst_var_σ_n by omega.
   replace ([Some Qubit]) with (repeat (Some Qubit) 1) by reflexivity.
@@ -362,26 +361,23 @@ Proof.
   rewrite Nat.add_1_r.
   reflexivity.
 Qed.
+*)
 
-Transparent add_fresh_state.
 Lemma pat_max_fresh : forall m n, 
-    (pat_max (@fresh_pat OCtx OCtx_State (n ⨂ Qubit) (Valid (repeat (Some Qubit) m))) < S (m + n))%nat.
+    (pat_max (add_fresh_pat (n ⨂ Qubit) (repeat (Some Qubit) m)) < S (m + n))%nat.
 Proof.
   intros. 
   generalize dependent m.
   induction n.
   - intros; simpl; omega.
   - intros.
-    simpl.
-    unfold add_fresh_state; simpl.
-    unfold get_fresh_var; simpl.
-    rewrite repeat_length.
-    apply Nat.max_lub_lt. omega.
-    simpl. 
-    specialize (IHn (S m)).
-    rewrite <- Nat.add_1_r in IHn.
-    rewrite <- (repeat_combine _ m 1%nat) in IHn.
-    simpl in IHn.
+    simpl.    
+    unfold add_fresh_pat; simpl.
+    rewrite add_fresh_split; simpl.
+    apply Nat.max_lub_lt. 
+    rewrite repeat_length. omega.
+    rewrite (repeat_combine (option WType) m 1%nat). 
+    specialize (IHn (m + 1)).
     omega.
 Qed.      
 
@@ -417,15 +413,7 @@ Proof.
   - simpl. econstructor. 3: apply IHp1. 3: apply IHp2. 2: reflexivity.
     *)
 
-Lemma merge_singleton_append : forall W (Γ : Ctx), 
-        Γ ⋓ (singleton (length Γ) W) = Valid (Γ ++ [Some W]). 
-Proof. 
-  induction Γ.
-  - simpl. rewrite merge_nil_l. reflexivity.
-  - unlock_merge. simpl in *.
-    destruct a; simpl; rewrite IHΓ; reflexivity.
-Qed.
-
+(* This should already by in DBCircuits 
 Lemma fresh_pat_disjoint : forall W Γ, is_valid Γ ->
                                   is_valid (Γ ⋓ pat_to_ctx (fresh_pat W Γ)).
 Proof.
@@ -442,7 +430,9 @@ Proof.
     apply IHW1; assumption.
     (* 2: apply IHW2. fresh_pat and fresh_state ? *)
 Admitted.
+*)
 
+(*
 Lemma fresh_pat_typed' :forall (w : WType) (p : Pat w) (Γ : OCtx),
   p = fresh_pat w Γ -> pat_to_ctx p ⊢ p :Pat.
 Proof.
@@ -458,6 +448,7 @@ Proof.
     2: eapply IHp1; reflexivity.
     2: eapply IHp2; reflexivity.
 Admitted.    
+*)
 
 Lemma singleton_repeat : forall n W, singleton n W = repeat None n ++ repeat (Some W) 1%nat.
 Proof.
@@ -476,6 +467,7 @@ Qed.
 Lemma size_repeat_none : forall (n : nat), size_ctx (repeat None n) = 0%nat.
 Proof. induction n; trivial. Qed.
 
+(* For Contexts.v ? *)
 Lemma merge_offset : forall (n : nat) (Γ1 Γ2 Γ : Ctx), Valid Γ = Γ1 ⋓ Γ2 ->
   Valid (repeat None n ++ Γ1) ⋓ Valid (repeat None n ++ Γ2) = 
   Valid (repeat None n ++ Γ).
@@ -492,15 +484,14 @@ Qed.
 
 Lemma types_pat_fresh_ntensor : forall (Γ : Ctx) (n : nat), n <> 0%nat ->
 Valid (repeat None (length Γ) ++ repeat (Some Qubit) n) ⊢ 
-      @fresh_pat OCtx OCtx_State (n ⨂ Qubit)%qc Γ :Pat.
+      add_fresh_pat (n ⨂ Qubit)%qc Γ :Pat.
 Proof.
   intros Γ n nz. revert Γ.
   induction n; intros Γ.
   - simpl. contradiction. 
-  - simpl.
-    destruct n.
+  - destruct n. 
     + simpl. clear.
-      econstructor. 
+      econstructor.
       4: type_check.
       3: type_check.
       validate.
@@ -508,10 +499,13 @@ Proof.
       reflexivity.
       simpl_rewrite' (singleton_repeat (length Γ)). 
       apply singleton_singleton.
-    + simpl.
+    + remember (S n) as n'.
+      simpl.
+      unfold add_fresh_pat; simpl.
+      rewrite add_fresh_split; simpl.
       econstructor.
       validate.
-      2: econstructor; apply singleton_singleton.
+      2: constructor; apply singleton_singleton.
       2: apply IHn; omega.
       rewrite singleton_repeat.
       rewrite app_length. simpl.
