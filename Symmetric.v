@@ -896,9 +896,9 @@ Lemma denote_box_id_circ : forall b w ρ, WF_Matrix _ _ ρ ->
 Proof.
   intros b w ρ.
   simpl. autounfold with den_db. simpl.
-  Search hoas_to_db_pat.
+  Search subst_pat.
   rewrite add_fresh_split; simpl.
-  rewrite hoas_to_db_pat_fresh_empty.
+  rewrite subst_pat_fresh_empty.
   rewrite denote_pat_fresh_id.
   rewrite pad_nothing.
   apply super_I.

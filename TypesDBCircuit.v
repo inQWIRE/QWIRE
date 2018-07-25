@@ -143,9 +143,9 @@ Proof.
     { type_check. unfold subst_var. simpl. apply SingletonHere. }
     { unfold process_gate_state. simpl. unfold remove_pat. simpl.
       eapply (types_db_gate ∅ ∅ ∅).
-      { unfold hoas_to_db_pat. simpl. type_check. }
+      { unfold subst_pat. simpl. type_check. }
       { unfold process_gate_state. simpl.
-        unfold hoas_to_db_pat. simpl.
+        unfold subst_pat. simpl.
         eapply types_db_output. type_check.
         unfold subst_var. simpl. apply SingletonHere. }
       { type_check. }

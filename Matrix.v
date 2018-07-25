@@ -153,29 +153,29 @@ Definition trace {n : nat} (A : Square n) :=
   Csum (fun x => A x x) n.
 
 Definition scale {m n : nat} (r : C) (A : Matrix m n) : Matrix m n := 
-  (fun x y => (r * A x y)%C).
+  fun x y => (r * A x y)%C.
 
 Definition dot {n : nat} (A : Matrix 1 n) (B : Matrix n 1) : C :=
   Csum (fun x => A O x  * B x O)%C n.
 
 Definition Mplus {m n : nat} (A B : Matrix m n) : Matrix m n :=
-  (fun x y => (A x y + B x y)%C).
+  fun x y => (A x y + B x y)%C.
 
 
 Definition Mmult {m n o : nat} (A : Matrix m n) (B : Matrix n o) : Matrix m o := 
-  (fun x z => Csum (fun y => A x y * B y z)%C n).
+  fun x z => Csum (fun y => A x y * B y z)%C n.
 
 
 (* Only well-defined when o and p are non-zero *)
 Definition kron {m n o p : nat} (A : Matrix m n) (B : Matrix o p) : 
   Matrix (m*o) (n*p) :=
-  (fun x y => Cmult (A (x / o) (y / p)) (B (x mod o) (y mod p))).
+  fun x y => Cmult (A (x / o) (y / p)) (B (x mod o) (y mod p)).
 
 Definition transpose {m n} (A : Matrix m n) : Matrix n m := 
-    (fun x y => A y x).
+  fun x y => A y x.
 
 Definition adjoint {m n} (A : Matrix m n) : Matrix n m := 
-  (fun x y => Cconj (A y x)).
+  fun x y => (A y x)^*.
 
 Definition outer_product {m} (v : Matrix m 1) : Square m := 
   Mmult v (adjoint v).

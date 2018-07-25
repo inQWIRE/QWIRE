@@ -86,8 +86,8 @@ Check AuxiliaryDBCircuit_to_DBCircuit.
 
 Check fresh_pat.
 Check substitution.
-Check hoas_to_db_pat.
-Print hoas_to_db_pat.
+Check subst_pat.
+Print subst_pat.
 Check  hoas_to_db.
 Check process_gate_state.
 Print process_gate_state.
@@ -373,7 +373,7 @@ Fixpoint genAuxiliaryDBOutput {w : WType} (Γ : OCtx) : G (AuxiliaryDBCircuit w)
              ((countBitsInWType w) - (countBitsInOCtx Γ))
              (fun (Γ : OCtx) =>
                 liftGen aux_db_output
-                        (fmap (fun (p : Pat w) => hoas_to_db_pat Γ p)
+                        (fmap (fun (p : Pat w) => subst_pat Γ p)
                               (fmap (fun (pΓ : ChoiceInOCtx (Pat w)) => let (p, Γ) := pΓ in p)
                                     (genPatWTypedFromOCtx Γ w))
                         )
@@ -395,7 +395,7 @@ Fixpoint genAuxiliaryDBLift {w : WType} (Γ : OCtx) (gen : OCtx -> G (AuxiliaryD
        bindGen (fmap (fun (pΓ : ChoiceInOCtx (Pat Bit)) => let (p, Γ) := pΓ in p)
                      (genPatWTypedFromOCtx Γ Bit))
                (fun (p : Pat Bit) =>
-                  let p0 := hoas_to_db_pat Γ p in
+                  let p0 := subst_pat Γ p in
                   let Γ' := remove_pat p Γ in
                   (fmap (aux_db_lift p0)
                         (liftGen2 (fun (c1 c2 : AuxiliaryDBCircuit w) =>
@@ -460,7 +460,7 @@ Fixpoint genAuxiliaryDBGate
                               (fun (p : Pat (fst (GeneralGate_to_WType g))) =>
                                  let g' := GeneralGate_to_Gate g in
                                  let p' := process_gate_pat g' p Γ in
-                                 let p0 := hoas_to_db_pat Γ p in
+                                 let p0 := subst_pat Γ p in
                                  let Γ' := process_gate_state g' p Γ in
                                  (liftGen (aux_db_gate g p0) (gen Γ'))
                               )

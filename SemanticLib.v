@@ -57,7 +57,7 @@ Proof.
   simpl.
   rewrite Nat.sub_diag.
   rewrite kron_1_r.
-  rewrite hoas_to_db_pat_fresh_empty.
+  rewrite subst_pat_fresh_empty.
   rewrite denote_pat_fresh_id.
   rewrite super_I; auto.
 Qed.

@@ -26,41 +26,7 @@ Arguments db_box w1 {w2}.
 (* De Bruijn Contexts *)
 (**********************)
 
-(* Mk_typed_pat approach:
-Definition get_fresh := mk_typed_pat.
-Definition get_fresh_pat w Γ : Pat w := fst (get_fresh w Γ).
-Definition get_fresh_state w Γ : Ctx := snd (get_fresh w Γ).
-
-(* Creates a state that is the union of get_fresh_state and the input *)
-Definition add_fresh w (Γ : Ctx) : Pat w * Ctx := 
-  let (p, Γ') := get_fresh w Γ in  
-  match Γ ⋓ Γ' with
-  | Invalid => (dummy_pat _, dummy_ctx) (* inaccessible branch *)
-  | Valid Γ'' => (p, Γ'')
-  end.
-
-Definition add_fresh_pat w (Γ : Ctx) : Pat w := fst (add_fresh w Γ).
-Definition add_fresh_state w (Γ : Ctx) : Ctx := snd (add_fresh w Γ).
-
-Lemma add_fresh_state_merge : forall w (Γ Γ' : Ctx), 
-    Γ' = add_fresh_state w Γ ->
-    Valid Γ' == Γ ∙ get_fresh_state w Γ.
-Proof.
-  intros w Γ Γ' H.
-  unfold add_fresh_state, get_fresh_state in *.
-  unfold add_fresh, get_fresh in *.
-  destruct (mk_typed_pat w Γ) as [p Γ''] eqn:E.
-  simpl.
-  assert (V : is_valid (Γ ⋓ Γ'')).
-  eapply typed_pat_merge_valid.
-  symmetry. apply E.
-  destruct (Γ ⋓ Γ'') as [|Γ'''] eqn:M.
-  invalid_contradiction.
-  split. validate. simpl in *. subst. easy.
-Qed.
-*)
-
-(* like mk_typed_pat but adds patterns to the end *)
+(* Produces a p and Γ such that Γ ⊢ p:Pat *)
 Fixpoint get_fresh w (Γ : Ctx) : Pat w * Ctx:= 
   match w with
   | One   => (unit, [])
@@ -80,6 +46,67 @@ Fixpoint get_fresh w (Γ : Ctx) : Pat w * Ctx:=
 Definition get_fresh_pat w Γ : Pat w := fst (get_fresh w Γ).
 Definition get_fresh_state w Γ : Ctx := snd (get_fresh w Γ).
 
+Lemma get_fresh_split : forall w Γ, 
+  get_fresh w Γ = (get_fresh_pat w Γ, get_fresh_state w Γ).
+Proof. intros. rewrite (surjective_pairing (get_fresh w Γ)). easy. Qed.
+
+Lemma get_fresh_merge_valid : forall w Γ Γ0 (p : Pat w),
+  (p, Γ) = get_fresh w Γ0 ->
+  is_valid (Γ0 ⋓ Γ).
+Proof.
+  induction w.
+  - intros Γ Γ0 p H.
+    simpl in H.
+    inversion H.
+    rewrite merge_singleton_append.
+    validate.
+  - intros Γ Γ0 p H.
+    simpl in H.
+    inversion H.
+    rewrite merge_singleton_append.
+    validate.
+  - intros Γ Γ0 p H.
+    simpl in H.
+    inversion H.
+    rewrite merge_nil_r.
+    validate.
+  - intros Γ Γ0 p H.
+    simpl in H.
+    destruct (get_fresh w1 Γ0) as [p1 Γ1] eqn:E1.
+    symmetry in E1. specialize (IHw1 _ _ _ E1).
+    destruct (Γ0 ⋓ Γ1) as [|Γ01] eqn:EΓ01; try invalid_contradiction.
+    destruct (get_fresh w2 Γ01) as [p2 Γ2] eqn:E2.
+    symmetry in E2. specialize (IHw2 _ _ _ E2).
+    rewrite <- EΓ01 in IHw2. rewrite <- merge_assoc in IHw2.
+    destruct (Γ1 ⋓ Γ2) as [|Γ12] eqn:EΓ12; try invalid_contradiction.
+    inversion H; subst.
+    easy.
+Qed.
+    
+Lemma get_fresh_typed : forall w Γ0 p Γ,
+  (p, Γ) = get_fresh w Γ0 ->
+  Γ ⊢ p:Pat.
+Proof.
+  induction w; intros Γ0 p Γ E.
+  - simpl in E. inversion E. econstructor. apply singleton_singleton.
+  - simpl in E. inversion E. econstructor. apply singleton_singleton.
+  - simpl in E. inversion E. constructor.
+  - simpl in E.
+    destruct (get_fresh w1 Γ0) as [p1 Γ1] eqn:E1.
+    symmetry in E1. specialize (get_fresh_merge_valid _ _ _ _ E1) as V1.
+    destruct (Γ0 ⋓ Γ1) as [|Γ01] eqn:EΓ01; try invalid_contradiction.
+    destruct (get_fresh w2 Γ01) as [p2 Γ2] eqn:E2.
+    symmetry in E2. specialize (get_fresh_merge_valid _ _ _ _ E2) as V2.
+    rewrite <- EΓ01 in V2. rewrite <- merge_assoc in V2.
+    destruct (Γ1 ⋓ Γ2) as [|Γ12] eqn:EΓ12; try invalid_contradiction.
+    inversion E; subst.
+    rewrite <- EΓ12 in *.
+    econstructor; try reflexivity.
+    validate.
+    eapply IHw1. apply E1.
+    eapply IHw2. apply E2.
+Qed.
+    
 (* Creates the same pattern as get_fresh, but returns Γ ⋓ get_fresh_state Γ *)
 
 (* Approach using get_fresh:
@@ -105,27 +132,28 @@ Fixpoint add_fresh w (Γ : Ctx) : Pat w * Ctx:=
 Definition add_fresh_pat w (Γ : Ctx) : Pat w := fst (add_fresh w Γ).
 Definition add_fresh_state w (Γ : Ctx) : Ctx := snd (add_fresh w Γ).
 
+Lemma add_fresh_split : forall w Γ, 
+  add_fresh w Γ = (add_fresh_pat w Γ, add_fresh_state w Γ).
+Proof. intros. rewrite (surjective_pairing (add_fresh w Γ)). easy. Qed.
+
 Lemma add_fresh_state_merge : forall w (Γ Γ' : Ctx), 
     Γ' = add_fresh_state w Γ ->
-    Valid Γ' == Γ ∙ get_fresh_state w Γ.
+    Valid Γ' = Γ ⋓ get_fresh_state w Γ.
 Proof.
   induction w; intros Γ Γ' H.
   - unfold add_fresh_state, get_fresh_state in *.
     unfold add_fresh, get_fresh in *.
     simpl in *.
-    split. validate.
     rewrite merge_singleton_append.
     subst. easy.
   - unfold add_fresh_state, get_fresh_state in *.
     unfold add_fresh, get_fresh in *.
     simpl in *.
-    split. validate.
     rewrite merge_singleton_append.
     subst. easy.
   - unfold add_fresh_state, get_fresh_state in *.
     unfold add_fresh, get_fresh in *.
     simpl in *.
-    split. validate.
     rewrite merge_nil_r.
     subst; easy.
   - unfold add_fresh_state, get_fresh_state in *.
@@ -133,28 +161,84 @@ Proof.
     simpl in *.
     destruct (get_fresh w1 Γ) as [p1 Γ1] eqn:E1.
     simpl in *.
-    destruct IHw1.
-    rewrite pf_merge in pf_valid. simpl in pf_valid.
     destruct (Γ ⋓ Γ1) as [|Γ1'] eqn:E1'. invalid_contradiction.
     specialize (IHw2 Γ1' (snd (add_fresh w2 Γ1')) eq_refl).
     simpl in *.
     destruct (get_fresh w2 Γ1') as [p2 Γ2] eqn:E2.
     simpl in *.
-    destruct IHw2.
-    rewrite pf_merge0 in pf_valid0. simpl in pf_valid0.
-    rewrite <- E1' in pf_valid0. rewrite <- merge_assoc in pf_valid0.
+    rewrite <- E1' in IHw2. rewrite <- merge_assoc in IHw2.
     destruct (Γ1 ⋓ Γ2) as [|Γ2'] eqn:E12. invalid_contradiction.
     simpl in *.
-    split. validate.
     rewrite H.
+    simpl in *. inversion IHw1. subst.
     destruct (add_fresh w1 Γ) as [p1' Γ1''] eqn:A1.
     destruct (add_fresh w2 Γ1'') as [p2' Γ2''] eqn:A2.
-    simpl in *. subst.
-    inversion pf_merge; subst. clear pf_merge.
-    rewrite A2 in pf_merge0. simpl in *. rewrite pf_merge0.
-    rewrite <- E1'. rewrite <- E12.
-    monoid.
+    rewrite add_fresh_split in A2. inversion A2.
+    simpl in *.
+    rewrite <- IHw2.
+    easy.
 Qed.    
+
+
+Lemma add_fresh_pat_eq : forall w Γ, add_fresh_pat w Γ = get_fresh_pat w Γ.
+Proof.
+  induction w; intros Γ; trivial.
+  unfold add_fresh_pat, get_fresh_pat in *; simpl.
+  
+  destruct (add_fresh w1 Γ) as [pa1 Γa1] eqn:Ea1.
+  destruct (add_fresh w2 Γa1) as [pa2 Γa2] eqn:Ea2.
+  destruct (get_fresh w1 Γ) as [pg1 Γg1] eqn:Eg1.
+  specialize (get_fresh_merge_valid _ _ _ _ (eq_sym Eg1)) as V1.
+  destruct V1 as [Γ1' M1]. rewrite M1.
+  destruct (get_fresh w2 Γ1') as [pg2 Γg2] eqn:Eg2.
+  specialize (get_fresh_merge_valid _ _ _ _ (eq_sym Eg2)) as V2.
+  rewrite <- M1 in V2. rewrite <- merge_assoc in V2.
+  destruct (Γg1 ⋓ Γg2) as [|Γ2']; try invalid_contradiction.
+  simpl.
+  rewrite add_fresh_split, get_fresh_split in *.
+  inversion Ea1. inversion Ea2.
+  inversion Eg1. inversion Eg2.
+  unfold get_fresh_pat, add_fresh_pat in *.
+  rewrite IHw1 in *.
+  rewrite IHw2 in *.
+  apply f_equal2; trivial.
+  symmetry in H1, H3.
+  apply add_fresh_state_merge in H1.
+  apply add_fresh_state_merge in H3.
+  congruence.
+Qed.
+
+Lemma add_fresh_typed : forall w w0 (p : Pat w) (p0 : Pat w0) Γ Γ0,
+  (p, Γ) = add_fresh w Γ0 ->
+  Γ0 ⊢ p0:Pat ->
+  Γ ⊢ (pair p0 p):Pat.
+Proof.
+  intros w w0 p p0 Γ Γ0 H H0.
+  rewrite add_fresh_split in H.
+  inversion H.
+  erewrite add_fresh_state_merge; [|reflexivity].
+  econstructor.
+  3: apply H0.
+  2: reflexivity.
+  eapply get_fresh_merge_valid. 
+  rewrite get_fresh_split. reflexivity.
+  rewrite add_fresh_pat_eq.
+  eapply get_fresh_typed.
+  rewrite get_fresh_split. reflexivity.
+Qed.
+
+Lemma add_fresh_typed_empty : forall w (p : Pat w) Γ,
+  (p, Γ) = add_fresh w [] ->
+  Γ ⊢ p:Pat.
+Proof.
+  (* I'm sure the direct route is easy, but let's use our general case *)
+  intros w p Γ H.
+  specialize (add_fresh_typed _ _ _ _ _ _ H types_unit) as TP.
+  dependent destruction TP.
+  inversion TP1; subst.
+  rewrite merge_nil_l in e. subst.
+  easy.
+Qed.
 
 Definition remove_var (v : Var) (Γ : Ctx) : Ctx := trim (update_at Γ v None).  
 
@@ -236,6 +320,9 @@ Fixpoint maps_to (x : nat) (Γ : Ctx) : option nat :=
   | S x', None   :: Γ' => maps_to x' Γ'
   end.
 
+Lemma maps_to_singleton : forall v W, maps_to v (singleton v W) = Some O.
+Proof. induction v; auto. Qed.
+
 Definition subst_var (Γ : Ctx) (x : Var) : Var :=
   match maps_to x Γ with
   | Some y => y
@@ -264,10 +351,6 @@ Fixpoint subst_db (Γ : Ctx) {w} (c : DeBruijn_Circuit w)
 
 
 (* Mapping relation *)
-
-(* Don't know if this needs changing *)
-Definition hoas_to_db_pat Γ {w} (p : Pat w) : Pat w := 
-  subst_pat Γ p.
 
 (* Not sure if we need things from here on *)
 Fixpoint flatten_ctx (Γ : Ctx) :=
@@ -371,9 +454,9 @@ Qed.
 flatten_octx Γ = flatten_octx Γ1 ∙ flatten_octx Γ2.
 We rephrase this in terms of remove_indices but still don't get what we  *)
 (* Broken by changes to octx_dom: 
-Lemma hoas_to_db_pat_typed : forall (Γ : Ctx) w (p : Pat w),
+Lemma subst_pat_typed : forall (Γ : Ctx) w (p : Pat w),
       Γ ⊢ p :Pat ->
-      flatten_octx Γ ⊢ hoas_to_db_pat Γ p :Pat.
+      flatten_octx Γ ⊢ subst_pat Γ p :Pat.
 Proof.
   intros.
   simpl. rewrite <- remove_flatten.
@@ -383,7 +466,7 @@ Proof.
     inversion H; subst.
     constructor.
   - intros.
-    unfold hoas_to_db_pat. simpl.
+    unfold subst_pat. simpl.
     inversion H; subst.
     constructor. 
     rewrite remove_flatten.
@@ -394,7 +477,7 @@ Proof.
     rewrite subst_singleton.
     constructor.
   - intros.
-    unfold hoas_to_db_pat. simpl.
+    unfold subst_pat. simpl.
     inversion H; subst.
     constructor. 
     rewrite remove_flatten.
@@ -405,7 +488,7 @@ Proof.
     rewrite subst_singleton.
     constructor.
   - intros.
-    unfold hoas_to_db_pat in *. 
+    unfold subst_pat in *. 
     simpl.
     dependent destruction H.
     destruct Γ1 as [|Γ1]. invalid_contradiction.
@@ -429,13 +512,13 @@ Admitted.
 
 Fixpoint hoas_to_db {w} Γ (c : Circuit w) : DeBruijn_Circuit w :=
   match c with
-  | output p   => db_output (hoas_to_db_pat Γ p)
+  | output p   => db_output (subst_pat Γ p)
   | gate g p f =>  (* p0 is the db-pat corresponding to p *)
-                  let p0 := hoas_to_db_pat Γ p in
+                  let p0 := subst_pat Γ p in
                   (* p' and Γ' are the updated DB pattern and context *)
                   let (p',Γ') := process_gate g p Γ in
                   db_gate g p0 (hoas_to_db Γ' (f p'))
-  | lift p f   =>  let p0 := hoas_to_db_pat Γ p in
+  | lift p f   =>  let p0 := subst_pat Γ p in
                   let Γ' := remove_pat p Γ in
                   db_lift p0 (fun b => hoas_to_db Γ' (f b))
   end.
@@ -445,7 +528,7 @@ Lemma hoas_to_db_typed : forall (Γ : Ctx) w (c : Circuit w),
       Types_DB (flatten_ctx Γ) (hoas_to_db Γ c).
 Proof.
   induction 1.
-  * simpl. constructor. (* apply hoas_to_db_pat_typed. subst. auto. *) admit.
+  * simpl. constructor. (* apply subst_pat_typed. subst. auto. *) admit.
   * simpl. admit.
   * simpl. admit.
 Admitted.
