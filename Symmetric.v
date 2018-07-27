@@ -403,16 +403,14 @@ Proof.
   * omega.
 Qed.
 
-Definition Toffoli_at' n (i j k : Var) (pf_i : i < n) (pf_j : j < n) (pf_k : k < n)
-                                      (pf_i_j : i <> j) (pf_i_k : i <> k) (pf_j_k : j <> k)
-         : Box (n ⨂ Qubit) (n ⨂ Qubit).
-Admitted.
+(* TODO: Fill in *)
+Parameter Toffoli_at' : forall (n : nat) (i j k : Var) (pf_i : i < n) (pf_j : j < n) (pf_k : k < n)
+                                      (pf_i_j : i <> j) (pf_i_k : i <> k) (pf_j_k : j <> k),
+         Box (n ⨂ Qubit) (n ⨂ Qubit).
 
-Lemma Toffoli_at'_WT : forall n (i j k : Var) (pf_i : i < n) (pf_j : j < n) (pf_k : k < n)
+Axiom Toffoli_at'_WT : forall n (i j k : Var) (pf_i : i < n) (pf_j : j < n) (pf_k : k < n)
                              (pf_i_j : i <> j) (pf_i_k : i <> k) (pf_j_k : j <> k),
       Typed_Box (Toffoli_at' n i j k pf_i pf_j pf_k pf_i_j pf_i_k pf_j_k).
-Admitted.
-
 
 Definition Toffoli_at n (i j k : Var) : Box (n ⨂ Qubit) (n ⨂ Qubit).
   destruct (lt_dec i n) as [H_i_lt_n | H_i_ge_n];
@@ -467,7 +465,7 @@ Definition strip_one_l_out {W W' : WType} (c : Box W (One ⊗ W')) : Box W W' :=
 Lemma strip_one_l_out_WT : forall W W' (c : Box W (One ⊗ W')), 
     Typed_Box c -> Typed_Box (strip_one_l_out c).
 Proof. type_check. Qed.
-Lemma strip_one_l_out_eq : forall W W' (c : Box W (One ⊗ W')) (ρ : Matrix (2^⟦W⟧)%nat (2^⟦W'⟧)%nat),
+Fact strip_one_l_out_eq : forall W W' (c : Box W (One ⊗ W')) (ρ : Matrix (2^⟦W⟧)%nat (2^⟦W'⟧)%nat),
   denote_box true (strip_one_l_out c) ρ = denote_box true c ρ.
 Proof.
   intros.
@@ -503,7 +501,7 @@ Definition strip_one_r_out {W W' : WType} (c : Box W (W' ⊗ One)) : Box W W' :=
 Lemma strip_one_r_out_WT : forall W W' (c : Box W (W' ⊗ One)), 
     Typed_Box c -> Typed_Box (strip_one_r_out c).
 Proof. type_check. Qed.
-Lemma strip_one_r_out_eq : forall W W' (c : Box W (W' ⊗ One)) (ρ : Matrix (2^⟦W⟧)%nat (2^⟦W'⟧)%nat),
+Fact strip_one_r_out_eq : forall W W' (c : Box W (W' ⊗ One)) (ρ : Matrix (2^⟦W⟧)%nat (2^⟦W'⟧)%nat),
   denote_box true (strip_one_r_out c) ρ = denote_box true c ρ.
 Proof.
   intros.
@@ -652,7 +650,7 @@ Definition noop_source (n t : nat) : (Square_Box ((n+t) ⨂ Qubit)) -> Prop :=
             forall i, i < S n' -> noop_on _ i c
   end.
 
-Lemma gate_acts_on_noop_at : forall m g k i,
+Fact gate_acts_on_noop_at : forall m g k i,
       @gate_acts_on (S m) k g -> 
       i <> k -> i < S m ->
       noop_on m i g.
@@ -680,16 +678,15 @@ Qed.
 (* Strong sematics for init and assert *)
 Open Scope matrix_scope.
 
-Lemma init_at_spec_strong : forall b n i (ρ : Square (2^n)) (safe : bool), 
+Fact init_at_spec_strong : forall b n i (ρ : Square (2^n)) (safe : bool), 
   i <= n ->
   denote_box safe (init_at b n i) ρ = 
   ('I_ (2^i) ⊗ bool_to_ket b ⊗ 'I_ (2^ (n-i))) × ρ × 
   ('I_ (2^i) ⊗ (bool_to_ket b)† ⊗ 'I_ (2^ (n-i))).
-Proof. 
 Admitted.
 
 (* Safe semantics *)
-Lemma assert_at_spec_safe : forall b n i (ρ : Square (2^n)), 
+Fact assert_at_spec_safe : forall b n i (ρ : Square (2^n)), 
   i <= n ->
   denote_box true (assert_at b n i) ρ = 
   ('I_ (2^i) ⊗ ⟨0| ⊗ 'I_ (2^ (n-i))) × ρ × ('I_ (2^i) ⊗ |0⟩ ⊗ 'I_ (2^ (n-i))) .+ 
@@ -697,7 +694,7 @@ Lemma assert_at_spec_safe : forall b n i (ρ : Square (2^n)),
 Admitted.
 
 (* unsafe semantics *)
-Lemma assert_at_spec_unsafe : forall b n i (ρ : Square (2^n)), 
+Fact assert_at_spec_unsafe : forall b n i (ρ : Square (2^n)), 
   i <= n ->
   denote_box false (assert_at b n i) ρ = 
   ('I_ (2^i) ⊗ (bool_to_ket b)† ⊗ 'I_ (2^ (n-i))) × ρ × ('I_ (2^i) ⊗ bool_to_ket b ⊗ 'I_ (2^ (n-i))).
@@ -707,7 +704,7 @@ Admitted.
 (* Jumping the gun:
    A ∥ B ;; C ∥ D = (A ;; C) ∥ (B ;; D) would make this trivial *)
 (*
-Lemma valid_init_assert : forall b n i, 
+Proposition valid_init_assert : forall b n i, 
     valid_ancillae_box (assert_at b n i · init_at b n i).
 Proof.
   intros b. 
@@ -717,6 +714,7 @@ Proof.
     matrix_denote.
     unfold unbox, init_at, assert_at.
     simpl.
+Abort.
 *)    
 
 
@@ -810,19 +808,18 @@ Qed.
 Close Scope matrix_scope.
 Open Scope circ_scope.
 
-Lemma init_assert_at_valid : forall b m i W1 (c : Box W1 (S m ⨂ Qubit)), 
+Fact init_assert_at_valid : forall b m i W1 (c : Box W1 (S m ⨂ Qubit)), 
     i < S m ->
     valid_ancillae_box' (assert_at b m i · c) ->
     init_at b m i · assert_at b m i · c ≡ c.
 Admitted.
 
-(* does equivalence talk only about safe equivalence, or equivalence at either semantics? *)
-Lemma valid_ancillae_box'_equiv : forall W1 W2 (b1 b2 : Box W1 W2), b1 ≡ b2 ->
+Fact valid_ancillae_box'_equiv : forall W1 W2 (b1 b2 : Box W1 W2), b1 ≡ b2 ->
       valid_ancillae_box' b1 <-> valid_ancillae_box' b2.
 Admitted.
 
 (* Follows from uniformly decreasing trace *)
-Lemma valid_inSeq : forall w1 w2 w3 (c1 : Box w1 w2) (c2 : Box w2 w3),
+Fact valid_inSeq : forall w1 w2 w3 (c1 : Box w1 w2) (c2 : Box w2 w3),
       Typed_Box c1 -> Typed_Box c2 ->
       valid_ancillae_box' c1 -> valid_ancillae_box' c2 ->
       valid_ancillae_box' (c2 · c1).
@@ -913,25 +910,25 @@ Proof.
 Qed.
 
 (* unsure how to prove - may need a stronger notion of noop *)
-Lemma symmetric_gate_noop_source : forall n t k g c,
+Fact symmetric_gate_noop_source : forall n t k g c,
     gate_acts_on k g ->
     noop_source n t c ->
     noop_source n t (g · c · g).
-Admitted.
+Proof. Admitted.
 
-Lemma init_at_noop : forall b m i j,
+Fact init_at_noop : forall b m i j,
     valid_ancillae_box' (assert_at b (S m) i · init_at b (S m) j · init_at b m i).
-Admitted.  
+Proof. Admitted.  
 
 (* not sure how to prove this *)
 (* must generalize source_symmetric_noop IH to account for 
    multiple valid ancilla at a time *)
 
-Lemma symmetric_ancilla_noop_source : forall n t k c b,
+Fact symmetric_ancilla_noop_source : forall n t k c b,
       k < S n ->
       noop_source (S n) t c ->
       noop_source n t (assert_at b (n+t) k · c · init_at b (n+t) k).
-Admitted.
+Proof. Admitted.
 
 
 Lemma source_symmetric_noop : forall n t c,
@@ -969,16 +966,16 @@ Proof.
 Qed.
 
 (* trivial lemmas *)
-Lemma  ancilla_free_X_at : forall n k pf_k, ancilla_free_box (X_at n k pf_k).
+Fact ancilla_free_X_at : forall n k pf_k, ancilla_free_box (X_at n k pf_k).
 Admitted.
 
-Lemma  ancilla_free_CNOT_at : forall n a b, ancilla_free_box (CNOT_at n a b).
+Fact ancilla_free_CNOT_at : forall n a b, ancilla_free_box (CNOT_at n a b).
 Admitted.
 
-Lemma ancilla_free_Toffoli_at : forall n a b c, ancilla_free_box (Toffoli_at n a b c).
+Fact ancilla_free_Toffoli_at : forall n a b c, ancilla_free_box (Toffoli_at n a b c).
 Admitted.
 
-Lemma ancilla_free_seq : forall W W' W'' (c1 : Box W W') (c2 : Box W' W''), 
+Fact ancilla_free_seq : forall W W' W'' (c1 : Box W W') (c2 : Box W' W''), 
   ancilla_free_box c1 ->
   ancilla_free_box c2 ->
   ancilla_free_box (c1 ;; c2).
@@ -1090,19 +1087,18 @@ Qed.
 
 (* The noop property implies actual reversibility *)
 
-
 Definition reversible {W1 W2} (c : Box W1 W2) : Prop :=
   exists c', c · c' ≡ id_circ.
 
 Definition self_inverse {W} (c : Box W W) : Prop :=
   c · c ≡ id_circ. 
 
-Lemma gate_acts_on_reversible : forall m g k (pf_g : @gate_acts_on m k g),
+Fact gate_acts_on_reversible : forall m g k (pf_g : @gate_acts_on m k g),
       g · g ≡ id_circ.
 Admitted.
 
 (* Version without typing restrictions *)
-Lemma HOAS_Equiv_inSeq' :
+Fact HOAS_Equiv_inSeq' :
 forall (w1 w2 w3 : WType) (b1 b1' : Box w1 w2) (b2 b2' : Box w2 w3),
   b1 ≡ b1' -> b2 ≡ b2' -> b1;; b2 ≡ b1';; b2'.
 Admitted.

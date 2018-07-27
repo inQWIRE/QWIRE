@@ -40,7 +40,7 @@ Proof.
 Qed.
 
 (* General form *)
-(* Needs updating for new apply_U 
+(* TODO: update for new apply_U 
 Lemma unitary_transpose_id : forall W (U : Unitary W),
   unitary_transpose U ≡ id_circ.
 Proof.
@@ -234,7 +234,7 @@ Qed.
 (***********)
 
 (*
-Lemma denote_circuit_subst : forall w (c : Circuit w) Γ, Types_Circuit Γ c ->
+Proposition denote_circuit_subst : forall w (c : Circuit w) Γ, Types_Circuit Γ c ->
       forall pad n σ, 
       WF_σ Γ (get_σ σ) ->
       ⟨ 
@@ -247,10 +247,9 @@ Proof.
     erewrite subst_id; eauto.
     admit. admit.
   * simpl. erewrite H; eauto. admit.
+Abort.
 
-Admitted.
-
-Lemma denote_unbox : forall n w1 w2 (b : Box w1 w2) Γ1 p σ, 
+Proposition denote_unbox : forall n w1 w2 (b : Box w1 w2) Γ1 p σ, 
       Typed_Box b -> Types_Pat Γ1 p ->
       n = ⟦w1⟧ ->  WF_σ Γ1 (get_σ σ) ->
 
@@ -264,7 +263,7 @@ Proof.
   subst.
  admit (* not quite *).
 
-Admitted.
+Abort.
 *)
   
 Hint Unfold apply_box : den_db.
@@ -285,7 +284,7 @@ Qed.
 Hint Unfold pure : den_db.
 Close Scope matrix_scope.
 
-Lemma share_correct : forall n α β, 
+Proposition share_correct : forall n α β, 
       (@denote _ _ (@Denote_Box _ _) (share n) (pure (α.*|0⟩ .+ β.*|1⟩))
     = pure (α.*(S n ⨂ |0⟩) .+ β.*(S n ⨂ |1⟩)))%M.
 Proof.
@@ -326,7 +325,7 @@ Proof.
     2: unlock_merge; simpl; validate.
     
     admit (* need padding lemma *).
-Admitted.
+Abort.
 
 (* Can we multiply 16 x 16 matrices? Yes, we can!
 Lemma test : ((swap ⊗ swap) × (swap ⊗ swap) = 'I_16)%M.
@@ -649,7 +648,7 @@ Proof.
 Qed.
 
 (* Lemmas out of date
-Lemma boxed_gate_correct : forall W1 W2 (g : Gate W1 W2) (ρ : Density (2^⟦W1⟧)) ,
+Proposition boxed_gate_correct : forall W1 W2 (g : Gate W1 W2) (ρ : Density (2^⟦W1⟧)) ,
       Mixed_State ρ -> ⟦boxed_gate g⟧ ρ = ⟦g⟧ ρ.
 Proof.
   intros W1 W2 g ρ wf_ρ. simpl.
@@ -666,9 +665,9 @@ Proof.
     simpl in *. repeat rewrite mult_1_r in *. unfold denote_gate. apply (H wf_ρ).
   Msimpl.
   reflexivity.
-Qed.
+Abort.
 
-Lemma lift_meas_correct : lift_meas ≡ boxed_gate meas.
+Proposition lift_meas_correct : lift_meas ≡ boxed_gate meas.
 Proof.
   intros ρ wf_ρ.
   simpl.
@@ -681,9 +680,9 @@ Proof.
   unfold Mplus, Mmult, Id, adjoint, Zero. simpl.
   autorewrite with C_db.
   rewrite Cplus_comm. reflexivity.
-Qed.
+Abort.
 
-Lemma lift_eta_correct : forall (ρ : Density 2), WF_Matrix 2 2 ρ
+Proposition lift_eta_correct : forall (ρ : Density 2), WF_Matrix 2 2 ρ
       -> ⟦lift_eta Bit⟧ ρ = ⟦@id_circ Bit⟧ ρ.
 Abort (* This is only true if ρ is a classical state *).
 (* Proof.

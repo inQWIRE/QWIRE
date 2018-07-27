@@ -507,7 +507,7 @@ Lemma transpose_unitary : forall n (A : Matrix n n), WF_Unitary A -> WF_Unitary 
   + unfold WF_Unitary in *.
     rewrite adjoint_involutive.
     destruct H as [_ H].
-    apply Minv_left in H as [_ S]. (* NB: Admitted lemma *)
+    apply Minv_left in H as [_ S]. (* NB: admitted lemma *)
     assumption.
 Qed.
 
@@ -561,7 +561,7 @@ Proof.
 Qed.
 
 (*
-Lemma unitary_swap_to_0 : forall n i, (i < n)%nat -> WF_Unitary (swap_to_0 n i).
+Proposition unitary_swap_to_0 : forall n i, (i < n)%nat -> WF_Unitary (swap_to_0 n i).
 Proof.
   intros n i.
   generalize dependent n.
@@ -614,9 +614,9 @@ Proof.
         rewrite id_kron.
         reflexivity.
       * simpl.
-Admitted.
+Abort.
 
-Lemma unitary_swap_two : forall n i j, (i < n)%nat -> (j < n)%nat ->
+Proposition unitary_swap_two : forall n i j, (i < n)%nat -> (j < n)%nat ->
                                   WF_Unitary (swap_two n i j).
 Proof.
   intros n i j P1 P2.
@@ -625,7 +625,7 @@ Proof.
   destruct (lt_eq_lt_dec i j) as [[ltij | eq] | ltji].
   + induction i.
     simpl.
-Admitted.
+Abort.
 *)
 
 (********************)
@@ -1222,13 +1222,13 @@ Proof.
 Qed.
 
 (*
-Lemma swap_to_0_spec : forall (q q0 : Matrix 2 1) (n k : nat) (l1 l2 : list (Matrix 2 1)), 
+Proposition swap_to_0_spec : forall (q q0 : Matrix 2 1) (n k : nat) (l1 l2 : list (Matrix 2 1)), 
    length l1 = (k - 1)%nat ->
    length l2 = (n - k - 2)%nat ->   
    @Mmult (2^n) (2^n) 1 (swap_to_0 n k) (⨂ ([q0] ++ l1 ++ [q] ++ l2)) = 
      ⨂ ([q] ++ l1 ++ [q0] ++ l2).
 
-Lemma swap_two_spec : forall (q q0 : Matrix 2 1) (n0 n1 n2 n k : nat) (l0 l1 l2 : list (Matrix 2 1)), 
+Proposition swap_two_spec : forall (q q0 : Matrix 2 1) (n0 n1 n2 n k : nat) (l0 l1 l2 : list (Matrix 2 1)), 
    length l0 = n0 ->
    length l1 = n1 ->
    length l2 = n2 ->   
@@ -1236,7 +1236,6 @@ Lemma swap_two_spec : forall (q q0 : Matrix 2 1) (n0 n1 n2 n k : nat) (l0 l1 l2 
    @Mmult (2^n) (2^n) 1 
      (swap_two n n0 (n0+n1+1)) (⨂ (l0 ++ [q0] ++ l1 ++ [q] ++ l2)) = 
      ⨂ (l0 ++ [q] ++ l1 ++ [q0] ++ l2).
-Admitted.
 *)
 
 Lemma move_to_0_test_24 : forall (q0 q1 q2 q3 : Matrix 2 1), 

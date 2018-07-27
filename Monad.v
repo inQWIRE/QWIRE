@@ -126,7 +126,7 @@ Ltac simpl_m :=
   [ |- bind ?a _ = bind ?a _ ] => apply bind_eq; [ reflexivity | intros ]
   end; simplify_monad).
 
-Lemma test : forall {m} `{Monad m} `{Monad_Correct m} (a b c : m unit),
+Proposition test : forall {m} `{Monad m} `{Monad_Correct m} (a b c : m unit),
         do x ← a; do y ← b;  c
       = do y ← (do x ← a; b); c.
 Proof. intros.

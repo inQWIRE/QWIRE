@@ -1794,7 +1794,7 @@ Check (Id 1).
 Check (denote box_example_1).
 Check (denote box_example_1) (Id 1).
 Check (denote box_example_1) (Id 1) O O.
-Lemma test : forall {b : Box One Qubit}, (denote b) (Id 1) O O = C0. Abort.
+Proposition test : forall {b : Box One Qubit}, (denote b) (Id 1) O O = C0. Abort.
 Check C1.
 Check (Id (2 ^ ⟦ One ⟧)).
 Fixpoint eq_denotation_qasm_simulator (b : Box One Qubit) :=

@@ -28,107 +28,6 @@ Inductive ancilla_free {W} : Circuit W -> Prop :=
 Inductive ancilla_free_box {W1 W2} : Box W1 W2 -> Prop :=
   | af_box : forall c, (forall p, ancilla_free (c p)) -> ancilla_free_box (box c).
 
-(*
-(* Replace given ancilla with an if statement to be filled with a dummy *)
-Fixpoint swap_ancilla (loc : nat)  {W} (c dummy : Circuit W) := 
-  match loc with 
-  (* replace here *)
-  | O => match c with 
-        | gate assert0 p c' => gate meas p (fun p' => lift p' 
-                                             (fun b => if b then dummy else c' unit ))
-        | gate assert1 p c' => gate meas p (fun p' => lift p' 
-                                             (fun b => if b then c' unit else dummy))
-        | c''               => c''
-        end
-  (* replace later *)
-  | S n' => match c with 
-           | output p  => output p (* index does not exist *)
-           | gate g p c' => gate g p (fun p' => swap_ancilla n' (c' p') dummy)
-           | lift p c' => lift p (fun b => swap_ancilla n' (c' b) dummy)
-           end
-  end.
-
-Definition swap_box_ancilla loc {W1 W2} (b : Box W1 W2) dummy :=
-  match b with
-  | box c => box (fun p => swap_ancilla loc (c p) dummy)
-  end.
-
-Definition Assertion_Correct {W1 W2} (c : Box W1 W2) := forall loc dummy, 
-    c ≡ swap_box_ancilla loc c dummy.
-
-Lemma id_correct : forall W, Assertion_Correct (box (fun (p : Pat W) => output p)).
-Proof.
-  intros W n dummy ρ Mρ.
-  induction n; simpl; reflexivity.
-Qed.
-
-Lemma ancilla_free_correct : forall W (c : Circuit W), ancilla_free c -> 
-                             Assertion_Correct (box (fun (p : Pat W) => c)).
-Proof.
-  intros W c AF n dummy ρ Mρ.
-  induction AF as [|g p c' a0 a1 AF IH].
-  + simpl. destruct n; reflexivity.
-  + simpl.
-    destruct n.
-    - replace (swap_ancilla 0 (gate g p c') dummy) with (gate g p c').
-      reflexivity.
-      dependent destruction g.
-      contradiction.
-      contradiction.
-    - (* true for the continuation from IH *)
-      simpl in *.    
-      unfold denote_box in *.
-      simpl in *.
-      unfold compose_super.
-Admitted.
-
-Definition init_assert0 :=
-  box (fun (_ : Pat One) => 
-    gate_ p  ← init0 @();
-    gate_ () ← assert0 @p;
-    output ()).
-
-Lemma init_assert_correct0 :  Assertion_Correct init_assert0. 
-Proof.  
-  intros loc dummy ρ Mρ.
-  simpl.
-  unfold init_assert0.
-  destruct loc.
-  + simpl. reflexivity.
-  + destruct loc. simpl.
-    repeat (simpl; autounfold with den_db).
-    apply mixed_state_id1 in Mρ. subst.
-    Msimpl.
-    repeat match goal with 
-    | [ |- context[?A : Matrix ?m ?n]] => reduce_aux A
-    | [e := _ : C |- _] => unfold e; clear e 
-    end.
-    unfold Splus.
-    cbn.
-
-Arguments Zero {m n}.
-
-Lemma denote_zero : forall W pad input c, @denote_db_circuit W pad input c Zero = Zero.
-Proof.
-  intros W pad input c.
-  induction c.
-  + unfold denote_db_circuit.
-    repeat (simpl; autounfold with den_db).
-    Msimpl.
-    rewrite Mmult_0_r.
-    rewrite Mmult_0_l.
-    reflexivity.
-  + unfold denote_db_circuit.
-    repeat (simpl; autounfold with den_db).
-    Msimpl.
-    rewrite Mmult_0_r.
-    rewrite Mmult_0_l.
-    reflexivity.
-    
-    Msimpl.
-    simpl.
-*)
-
 Definition valid_ancillae {W} (c : Circuit W) : Prop := forall (Γ Γ0 : Ctx), 
   (* Γ' == Γ0 ∙ Γ -> *) (* necessary? *)
   Γ ⊢ c:Circ -> (* <- is this right? *)
@@ -148,7 +47,7 @@ Definition valid_ancillae_box' {W1 W2} (c : Box W1 W2) : Prop := forall ρ,
   Mixed_State ρ ->
   trace (denote_box false c ρ) = 1.
 
-Lemma valid_ancillae_equal : forall W (c : Circuit W), 
+Fact valid_ancillae_equal : forall W (c : Circuit W), 
   valid_ancillae c <-> valid_ancillae' c.
 Proof.
   intros.
@@ -159,7 +58,7 @@ Proof.
   induction c.
 Admitted.
 
-Lemma valid_ancillae_box_equal : forall W1 W2 (c : Box W1 W2), 
+Fact valid_ancillae_box_equal : forall W1 W2 (c : Box W1 W2), 
   valid_ancillae_box c <-> valid_ancillae_box' c.
 Proof.
   intros.
@@ -168,7 +67,7 @@ Admitted.
 
 (* This relationship should be easy to prove. 
    Alternatively, we could just define one in terms of the other *)
-Lemma valid_ancillae_unbox : forall W W' (c : Pat W -> Circuit W'),
+Fact valid_ancillae_unbox : forall W W' (c : Pat W -> Circuit W'),
   (forall p, valid_ancillae (c p)) <-> valid_ancillae_box (box (fun p => c p)).
 Proof.
   intros.
@@ -194,7 +93,7 @@ Proof.
     simpl in *.
 Admitted.
 
-Lemma valid_ancillae_unbox' : forall W W' (c : Box W W') (p : Pat W),
+Fact valid_ancillae_unbox' : forall W W' (c : Box W W') (p : Pat W),
   valid_ancillae (unbox c p) <-> valid_ancillae_box c.
 Proof.
   intros W W' c p.
@@ -275,7 +174,7 @@ Proof.
       easy.
 Qed.
 
-Lemma ancilla_free_valid : forall W (c : Circuit W), 
+Fact ancilla_free_valid : forall W (c : Circuit W), 
                            ancilla_free c -> 
                            valid_ancillae c.
 Proof.
@@ -413,97 +312,3 @@ Proof.
 Qed.
 
 (* *)
-
-            
-(* Subsequent stuff doesn't work - not sure what it was supposed to do.
-
-Lemma add_fresh_union_l : forall W (Γ : Ctx) Γ0 Γ1,
-          Γ == Γ0 ∙ Γ1 ->
-          add_fresh_state W Γ == (Γ0 ⋓ (singleton (length Γ) W)) ∙ Γ1.
-Proof.
-      type_check.
-
-(* Not sure how this was supposed to go:
- eapply t0; [apply pf1|apply t].
-    - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
-    - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
-    - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
-    - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
-    - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
-Search (_ ⊢ _ :Circ).
-
-
-type_check. apply M. eapply t0. apply pf1. apply t.
-    - simpl. erewrite VA. reflexivity. apply M. eapply t0. apply pf1. apply t.
-    - simpl. erewrite VA. reflexivity.
-
-
-    erewrite VA.
-    Focus 2.
-    
-    Search process_gate_state process_gate_pat.
-*)
-
-Lemma process_gate_typing : forall W W' g p (c : Circuit W) Γ Γ0 Γ', Γ' == Γ0 ∙ Γ ->
-                                           Γ ⊢ c :Circ ->
-                                           Γ0 ⊢ p :Pat ->
-  process_gate_state g p Γ' ⊢ c (process_gate_pat g p Γ') :Circ.
-
-    apply DBCircuits.types_db_gate.
-
-
-    destruct g.
-    - simpl. erewrite VA. reflexivity. apply M. eapply t0. apply pf1. apply t.
-    - simpl. erewrite VA. reflexivity. apply M. eapply t0. apply pf1. apply t.
-    - simpl. erewrite VA. reflexivity.
-      unfold DBCircuits.add_fresh_state.
-
-      
-      
-
- type_check.
-      simpl.
-
-apply M. eapply t0. apply pf1. apply t.
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - dependent destruction H. inversion H.
-    - dependent destruction H. inversion H.
-
-
-    erewrite H.
-    Focus 2.
-    unfold DBCircuits.process_gate_pat.
-    simpl.
-    unfold denote_circuit in *.
-    simpl in *.
-    erewrite VA. 2: admit.
-    destruct g eqn:gE.
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - simpl. reflexivity. 
-    - dependent destruction H. inversion H.
-    - dependent destruction H. inversion H.
-  + dependent destruction H.
-    unfold valid_ancillae in *.      
-    intros Γ0 Γ Γ' H1.
-    unfold denote_circuit in *.
-    simpl in *.
-    replace (size_octx Γ - 1)%nat with (size_octx (DBCircuits.remove_pat p Γ)).
-    erewrite H0.
-    erewrite H0.
-    reflexivity.
-    apply H.
-Admitted.    
-
-*)

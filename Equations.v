@@ -72,7 +72,7 @@ Lemma alt_UV_WT : forall W (U V : Unitary W), Typed_Box (alt_UV U V).
 Proof. type_check. Qed.
 
 (* Probably want a lemma about alternate's behavior *)
-Lemma lift_alternate_eq : forall W (U V : Unitary W), lift_UV U V ≡ alt_UV U V.
+Proposition lift_alternate_eq : forall W (U V : Unitary W), lift_UV U V ≡ alt_UV U V.
 Proof.
   intros W U V.
   matrix_denote.  
@@ -286,7 +286,7 @@ Proof.
     solve_matrix.
 Qed.
 
-Lemma init_alt_if : forall W b (U V : Unitary W), init_alt b U V ≡ init_if b U V.
+Proposition init_alt_if : forall W b (U V : Unitary W), init_alt b U V ≡ init_if b U V.
 Proof.
   destruct b; simpl.
   - repeat (autounfold with den_db; intros; simpl).
@@ -412,7 +412,7 @@ Definition HSH := box_ q ⇒ _H $ _S $ _H $ q.
 
 Definition SdHSd := box_ q ⇒ trans _S $ _H $ trans _S $ q. 
 
-Lemma HSH_SdHSd_eq : HSH ≡ SdHSd.
+Proposition HSH_SdHSd_eq : HSH ≡ SdHSd.
 Proof.
   intros ρ safe Mρ.
   repeat (autounfold with ket_den_db; simpl).

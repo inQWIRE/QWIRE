@@ -449,67 +449,6 @@ Proof.
     easy.
 Qed.
 
-(* flatten_octx is too precise. 
-Γ == Γ1 ∙ Γ2 doesn't imply 
-flatten_octx Γ = flatten_octx Γ1 ∙ flatten_octx Γ2.
-We rephrase this in terms of remove_indices but still don't get what we  *)
-(* Broken by changes to octx_dom: 
-Lemma subst_pat_typed : forall (Γ : Ctx) w (p : Pat w),
-      Γ ⊢ p :Pat ->
-      flatten_octx Γ ⊢ subst_pat Γ p :Pat.
-Proof.
-  intros.
-  simpl. rewrite <- remove_flatten.
-  gen Γ.
-  induction p.
-  - intros.
-    inversion H; subst.
-    constructor.
-  - intros.
-    unfold subst_pat. simpl.
-    inversion H; subst.
-    constructor. 
-    rewrite remove_flatten.
-    erewrite SingletonCtx_flatten; eauto.
-    apply SingletonCtx_dom in H2.
-    simpl.
-    rewrite H2.
-    rewrite subst_singleton.
-    constructor.
-  - intros.
-    unfold subst_pat. simpl.
-    inversion H; subst.
-    constructor. 
-    rewrite remove_flatten.
-    erewrite SingletonCtx_flatten; eauto.
-    apply SingletonCtx_dom in H2.
-    simpl.
-    rewrite H2.
-    rewrite subst_singleton.
-    constructor.
-  - intros.
-    unfold subst_pat in *. 
-    simpl.
-    dependent destruction H.
-    destruct Γ1 as [|Γ1]. invalid_contradiction.
-    destruct Γ2 as [|Γ2]. invalid_contradiction.
-    econstructor.
-    + simpl; validate.
-    + apply remove_indices_merge. 
-      split. easy. 
-      apply e.
-(* Unfortunately, the contexts still don't quite line up with the IH
-    + rewrite <- (subst_pat_superset Γ1 Γ Γ2); trivial. 2: split; easy.
-      apply IHp1.
-      assumption.
-    + rewrite <- (subst_pat_superset Γ2 Γ Γ1); trivial. 
-      2: split; subst; validate; monoid.
-      apply IHp2.
-      assumption. *)
-Admitted.
-*)
-
-
 Fixpoint hoas_to_db {w} Γ (c : Circuit w) : DeBruijn_Circuit w :=
   match c with
   | output p   => db_output (subst_pat Γ p)
@@ -523,7 +462,7 @@ Fixpoint hoas_to_db {w} Γ (c : Circuit w) : DeBruijn_Circuit w :=
                   db_lift p0 (fun b => hoas_to_db Γ' (f b))
   end.
 
-Lemma hoas_to_db_typed : forall (Γ : Ctx) w (c : Circuit w),
+Proposition hoas_to_db_typed : forall (Γ : Ctx) w (c : Circuit w),
       Γ ⊢ c :Circ ->
       Types_DB (flatten_ctx Γ) (hoas_to_db Γ c).
 Proof.
@@ -531,8 +470,7 @@ Proof.
   * simpl. constructor. (* apply subst_pat_typed. subst. auto. *) admit.
   * simpl. admit.
   * simpl. admit.
-Admitted.
-
+Abort.
 
 Definition hoas_to_db_box {w1 w2} (B : Box w1 w2) : DeBruijn_Box w1 w2 :=
   match B with

@@ -436,6 +436,18 @@ Proof.
     destruct a; simpl; rewrite IHΓ; reflexivity.
 Qed.
 
+Lemma merge_offset : forall (n : nat) (Γ1 Γ2 Γ : Ctx), Valid Γ = Γ1 ⋓ Γ2 ->
+  Valid (repeat None n ++ Γ1) ⋓ Valid (repeat None n ++ Γ2) = 
+  Valid (repeat None n ++ Γ).
+Proof.
+  intros n Γ1 Γ2 Γ H.
+  induction n.
+  - simpl. auto.
+  - simpl in *.
+    rewrite IHn.
+    reflexivity.
+Qed.
+
 
 (*** OContexts are a PCM ***)
 

@@ -402,54 +402,6 @@ Qed.
 
 Open Scope matrix_scope.
 
-(*
-Lemma pat_to_ctx_typing :forall W (p : Pat W), pat_to_ctx p ⊢ p :Pat.
-Proof.
-  intros w p.
-  induction p.
-  - simpl. constructor.
-  - simpl. constructor. apply singleton_singleton. 
-  - simpl. constructor. apply singleton_singleton. 
-  - simpl. econstructor. 3: apply IHp1. 3: apply IHp2. 2: reflexivity.
-    *)
-
-(* This should already by in DBCircuits 
-Lemma fresh_pat_disjoint : forall W Γ, is_valid Γ ->
-                                  is_valid (Γ ⋓ pat_to_ctx (fresh_pat W Γ)).
-Proof.
-  induction W; simpl; intros.
-  - destruct Γ as [|Γ]. invalid_contradiction.
-    simpl. 
-    rewrite merge_singleton_append.
-    apply valid_valid.
-  - destruct Γ as [|Γ]. invalid_contradiction.
-    simpl.
-    rewrite merge_singleton_append. apply valid_valid.
-  - validate.
-  - validate.
-    apply IHW1; assumption.
-    (* 2: apply IHW2. fresh_pat and fresh_state ? *)
-Admitted.
-*)
-
-(*
-Lemma fresh_pat_typed' :forall (w : WType) (p : Pat w) (Γ : OCtx),
-  p = fresh_pat w Γ -> pat_to_ctx p ⊢ p :Pat.
-Proof.
-  intros w p.
-  induction p; intros Γ H.
-  - simpl. constructor.
-  - simpl. constructor. apply singleton_singleton. 
-  - simpl. constructor. apply singleton_singleton. 
-  - simpl in *. 
-    dependent destruction H.
-    econstructor.
-    2: reflexivity.
-    2: eapply IHp1; reflexivity.
-    2: eapply IHp2; reflexivity.
-Admitted.    
-*)
-
 Lemma singleton_repeat : forall n W, singleton n W = repeat None n ++ repeat (Some W) 1%nat.
 Proof.
   induction n; intros W; trivial. 
@@ -466,21 +418,6 @@ Qed.
 
 Lemma size_repeat_none : forall (n : nat), size_ctx (repeat None n) = 0%nat.
 Proof. induction n; trivial. Qed.
-
-(* For Contexts.v ? *)
-Lemma merge_offset : forall (n : nat) (Γ1 Γ2 Γ : Ctx), Valid Γ = Γ1 ⋓ Γ2 ->
-  Valid (repeat None n ++ Γ1) ⋓ Valid (repeat None n ++ Γ2) = 
-  Valid (repeat None n ++ Γ).
-Proof.
-  intros n Γ1 Γ2 Γ H.
-  induction n.
-  - simpl. auto.
-  - simpl.
-    unlock_merge.
-    simpl.
-    rewrite IHn.
-    reflexivity.
-Qed.
 
 Lemma types_pat_fresh_ntensor : forall (Γ : Ctx) (n : nat), n <> 0%nat ->
 Valid (repeat None (length Γ) ++ repeat (Some Qubit) n) ⊢ 
@@ -518,7 +455,7 @@ Proof.
 Qed.
 
 (* This proof needs updating for in_place unitary application (if we want this proof):
-Lemma share_to_spec : forall (t b : bool) (k n : nat) (l1 l2 : list (Square 2)),
+Proposition share_to_spec : forall (t b : bool) (k n : nat) (l1 l2 : list (Square 2)),
   (k < n)%nat ->
   length l1 = k ->
   length l2 = (n - k - 1)%nat ->
@@ -765,14 +702,14 @@ Proof.
       specialize (WF1 O). rename WF1 into WFm. rename WF1' into WF1.
       Msimpl.
       reflexivity.
-Qed.
+Abort.
 *)
 
 
 (* Strong sematics for init and assert
 Open Scope matrix_scope.
 
-Lemma init_at_spec_strong : forall b n i (ρ : Square (2^n)), 
+Proposition init_at_spec_strong : forall b n i (ρ : Square (2^n)), 
   i <= n ->
   WF_Matrix (2^n) (2^n) ρ ->
   ⟦init_at b n i⟧ ρ = ('I_ (2^i) ⊗ bool_to_ket b ⊗ 'I_ (2^ (n-i))) × ρ × 
@@ -828,51 +765,11 @@ Proof.
       rewrite size_ntensor, Nat.mul_1_r.
       rewrite fresh_state_ntensor. simpl.
       setoid_rewrite (repeat_combine (option WType) 1 n).      
-Admitted.
+Abort.
 
 Close Scope matrix_scope.
 *)
 
-(* old:
-(* Target is the extra qubit *)
-Fixpoint compile (b : bexp) (Γ : Ctx) : Square_Box (((⟦Γ⟧) ⨂ Qubit) ⊗ Qubit) :=
-  box_ qst ⇒
-  let_ (qs,t) ← output qst;
-  match b with
-  | rb_t          => let_ t ← unbox R_TRUE t;
-                    output (qs,t)
-  | rb_f          => let_ t ← unbox R_FALSE t;
-                    output (qs,t)
-  | rb_var v      => let n := position_of v Γ in
-                    unbox (share_to (⟦Γ⟧) v) (qs,t)
-  | rb_not b      => gate_ q             ← init0 @();
-                    let_ (qs,q)         ← unbox (compile b Γ) (qs,q);
-                    let_ (q,t)          ← unbox R_NOT (q,t);
-                    let_ (qs,q)         ← unbox (compile b Γ) (qs,q);
-                    gate_ ()            ← assert0 @q;                    
-                    output (qs,t)
-  | rb_and b1 b2  => gate_ q1            ← init0 @();
-                    let_ (qs,q1)        ← unbox (compile b1 Γ) (qs,q1);
-                    gate_ q2            ← init0 @();
-                    let_ (qs,q2)        ← unbox (compile b2 Γ) (qs,q2);
-                    let_ (q1,q2,t)      ← unbox R_AND (q1,q2,t);
-                    let_ (qs,q2)        ← unbox (compile b2 Γ) (qs,q2);
-                    gate_ ()            ← assert0 @q2;
-                    let_ (qs,q1)        ← unbox (compile b1 Γ) (qs,q1);
-                    gate_ ()            ← assert0 @q1;
-                    output (qs,t)
-  | rb_xor b1 b2  => gate_ q1            ← init0 @();
-                    let_ (qs,q1)        ← unbox (compile b1 Γ) (qs,q1);
-                    gate_ q2            ← init0 @();
-                    let_ (qs,q2)        ← unbox (compile b2 Γ) (qs,q2);
-                    let_ (q1,q2,t)      ← unbox R_XOR (q1,q2,t);
-                    let_ (qs,q2)        ← unbox (compile b2 Γ) (qs,q2);
-                    gate_ ()            ← assert0 @q2;
-                    let_ (qs,q1)        ← unbox (compile b1 Γ) (qs,q1);
-                    gate_ ()            ← assert0 @q1;
-                    output (qs,t)
-  end.
-*)
 
 (* Can probably use an existing list function *)
 Fixpoint qubit_at (v : Var) (Γ : Ctx) := 
@@ -931,6 +828,7 @@ Fixpoint compile (b : bexp) (Γ : Ctx) : Square_Box (S (⟦Γ⟧) ⨂ Qubit) :=
                      (id_circ ∥ compile b2 Γ) ;;
                      (id_circ ∥ (strip_one_l_out (assert0 ∥ id_circ)))              
   end. *)
+
 Open Scope circ_scope.
 Fixpoint compile (b : bexp) (Γ : Ctx) : Square_Box (S (⟦Γ⟧) ⨂ Qubit) :=
   match b with
@@ -1099,12 +997,12 @@ Fixpoint ctx_to_matrix (Γ : Ctx) (f : Var -> bool) {struct Γ} : Square (2^⟦�
   | None :: Γ' => ctx_to_matrix Γ' (fun v => f (S v))
   | Some W :: Γ' => bool_to_matrix (f O) ⊗ ctx_to_matrix Γ' (fun v => f (S v))
   end.
-Lemma WF_ctx_to_matrix : forall Γ f, WF_Matrix (2^⟦Γ⟧) (2^⟦Γ⟧) (ctx_to_matrix Γ f).
+Proposition WF_ctx_to_matrix : forall Γ f, WF_Matrix (2^⟦Γ⟧) (2^⟦Γ⟧) (ctx_to_matrix Γ f).
 Proof.
   induction Γ; intros f.
   - auto with wf_db.
   - destruct a; simpl; auto with wf_db. 
-Qed.
+Abort.
 Hint Resolve WF_ctx_to_matrix : wf_db.
 *)
 

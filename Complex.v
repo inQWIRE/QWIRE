@@ -660,47 +660,6 @@ Ltac Csimpl :=
   | _ => rewrite Cconj_R
   end.
 
-(*
-(* deprecated in favor of autorewrite *)
-Ltac Csimpl := 
-  simpl;
-  repeat (
-    try rewrite Cconj_R;
-    try rewrite Cplus_0_l;
-    try rewrite Cplus_0_r;
-    try rewrite Cmult_0_l;
-    try rewrite Cmult_0_r;
-    try rewrite Cmult_1_l;
-    try rewrite Cmult_1_r
-).
-*)
-
-(* TODO: remove
-Ltac Rsimpl := 
-  simpl;
-  unfold Rminus;
-  unfold Rdiv;
-  repeat (
-    try rewrite Ropp_0;
-    try rewrite Ropp_involutive;
-    try rewrite Rplus_0_l;
-    try rewrite Rplus_0_r;
-    try rewrite Rmult_0_l;
-    try rewrite Rmult_0_r;
-    try rewrite Rmult_1_l;
-    try rewrite Rmult_1_r;
-    try rewrite <- Ropp_mult_distr_l;
-    try rewrite <- Ropp_mult_distr_r;
-    try (rewrite Rinv_l; [|lra]);
-    try (rewrite Rinv_r; [|lra]);
-    try (rewrite sqrt_sqrt; [|lra])).
-
-Ltac Rsolve := repeat (Rsimpl; try group_radicals); lra.
-
-Ltac Csolve := eapply c_proj_eq; simpl; Rsolve.
-*)
-
-
 (* Seems like this could loop forever *)
 Ltac group_radicals := 
   repeat (

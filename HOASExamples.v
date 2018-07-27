@@ -439,7 +439,7 @@ Definition absurd_circ : Box Qubit (Bit ⊗ Qubit) :=
     let_ x  ← meas $w ;
     let_ w' ← _H $w ;
     (x,w').
-Definition absurd_fail : Typed_Box absurd_circ.
+Proposition absurd_fail : Typed_Box absurd_circ.
 Proof. type_check. Abort.
 
 Definition unmeasure : Box Qubit Qubit :=
@@ -447,7 +447,7 @@ Definition unmeasure : Box Qubit Qubit :=
     let_ q ← _H $q ;
     let_ b ← meas $q ;
     q.
-Lemma unmeasure_fail : Typed_Box unmeasure.
+Proposition unmeasure_fail : Typed_Box unmeasure.
 Proof. type_check. (* not a very useful end state; it's not clear that it's failing *)
 Abort.
 
@@ -455,11 +455,11 @@ Definition unused_qubit : Box Qubit One :=
   box_ w ⇒ 
    let_ w ← _H $w ;
    ().
-Lemma unused_qubit_fail : Typed_Box unused_qubit.
+Proposition unused_qubit_fail : Typed_Box unused_qubit.
 Proof. type_check. Abort.
 
 Definition clone : Box Qubit (Qubit ⊗ Qubit) := box_ p ⇒ (p,p).
-Lemma clone_WT : Typed_Box clone.
+Proposition clone_WT : Typed_Box clone.
 Proof. type_check. Abort.
 
 (*

@@ -650,7 +650,7 @@ Proof.
     { unfold remove_pat. simpl. reflexivity. }
   }
         { solve_merge. }
-        Abort
+        
 Qed.
 Definition random_denotation :=
   (denote_db_circuit true O O random_db_circuit).
