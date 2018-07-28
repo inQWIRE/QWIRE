@@ -519,257 +519,8 @@ Proof.
 
     simpl.
     rewrite size_ntensor. simpl.
-    rewrite Nat.add_1_r, Nat.mul_1_r.
-    rewrite swap_list_n_id.
-    rewrite pad_nothing.
-    subst.
-    rewrite ctx_dom_repeat.
-    repeat rewrite subst_var_σ_n by omega.
 
-(* Show that apply_U CNOT [0; n] has desired behavior *)
-    remember (S (length l2)) as n.
-    remember ('I_ (2 ^ S n)) as I_m.
-    replace (@Datatypes.cons Var O (@Datatypes.cons Var n (@Datatypes.nil Var)))
-          with ([0; 0 + length l2 + 1])%nat.
-    2: subst; rewrite Nat.add_1_r; reflexivity. 
-    assert (CS:
-    super (control σx) (bool_to_matrix b ⊗ bool_to_matrix t)
-                           = (bool_to_matrix b ⊗ bool_to_matrix (xorb b t)))
-    by (ket_denote; destruct b, t; unfold bool_to_ket; simpl; Msimpl; solve_matrix).  
-    assert ((0 + length l2 + 0 + 2)%nat = S n)%nat as E. omega.
-    
-    (* breaks here *)
-
-
-    specialize (apply_U_spec_2 (S n) O (length l2) O (Id 1) (⨂ l2) (Id 1) 
-                             _ _ _ _ _ E CS). simpl; Msimpl.
-    intros H. 
-    rewrite H.
-    subst.
-    unfold super.
-    apply WF_big_kron in WF2.
-    Msimpl.
-    rewrite xorb_comm.
-    reflexivity.
-  - simpl in *.
-    destruct l1. inversion L1.
-    simpl.
-
-    repeat (autounfold with den_db; simpl).
-    unfold add_fresh_state; simpl.
-    unfold get_fresh_var; simpl.
-    rewrite fresh_state_ntensor. simpl.
-    rewrite size_ntensor. simpl. rewrite Nat.add_1_r, Nat.mul_1_r.
-    replace ([Some Qubit]) with (repeat (Some Qubit) 1) by reflexivity.
-    rewrite repeat_combine.
-    replace (Some Qubit :: repeat (Some Qubit) (n'+1)) with 
-        (repeat (Some Qubit) (S (n' + 1))) by reflexivity.
-    rewrite Nat.add_1_r.
-
-    
-    specialize denote_compose as DC. simpl in DC.
-    unfold denote_circuit in DC.
-    
-    replace (S (S n')) with (⟦(Valid (repeat (Some Qubit) (S (S n'))))⟧).
-    2: simpl; rewrite size_repeat_ctx; reflexivity.
-    replace (⟦(Valid (repeat (Some Qubit) (S (S n'))))⟧) with (S (S n')) at 2.
-    2: simpl; rewrite size_repeat_ctx; reflexivity.
-    replace (O) with (⟦∅⟧) by reflexivity.
-
-    specialize (share_to_WT n' k) as WT.
-    erewrite DC with (Γ0 := ∅) (Γ1 := Valid [Some Qubit]) (Γ1':= (Valid (repeat (Some Qubit) (S (S n'))))).
-    Focus 2. apply WT. simpl. rewrite repeat_length. econstructor.
-    Focus 3.
-      replace ([Some Qubit]) with (repeat (Some Qubit) 1) by reflexivity.
-      apply types_pat_fresh_ntensor. omega.      
-    3: constructor; apply singleton_singleton.
-    2: reflexivity.
-    replace (S n') with (length ((repeat None 1) ++ repeat (Some Qubit) n')).
-    rewrite merge_singleton_append. apply valid_valid.    
-    rewrite app_length. repeat rewrite repeat_length. omega.
-    
-    Focus 3.
-      constructor. apply valid_valid.
-      replace (S n') with (length ((repeat None 1) ++ repeat (Some Qubit) n')).
-      rewrite merge_singleton_append.
-      unlock_merge. simpl. rewrite repeat_length.   
-      replace ([Some Qubit]) with (repeat (Some Qubit) 1) by reflexivity.
-      rewrite repeat_combine. rewrite Nat.add_1_r. reflexivity.
-      rewrite app_length. repeat rewrite repeat_length. omega.    
-    Focus 2.
-      intros.
-      simpl.
-      dependent destruction p0.
-      dependent destruction H0.
-      unfold wproj.
-      econstructor. 
-      reflexivity.
-      econstructor.
-      destruct H; assumption.
-      3: apply H0_0.
-      Focus 2. econstructor. 
-        4: apply H0_.
-        3: constructor; apply singleton_singleton; reflexivity.
-        2: reflexivity.
-        destruct H. type_check.
-      destruct H. simpl. rewrite <- merge_assoc. rewrite merge_comm. assumption.
-
-      unfold compose_super. simpl.
-      unfold add_fresh_state; simpl.
-      unfold get_fresh_var; simpl.
-      rewrite fresh_state_ntensor. simpl.
-      replace ([Some Qubit]) with (repeat (Some Qubit) 1) by reflexivity.
-      rewrite repeat_combine.
-      rewrite size_repeat_ctx.      
-      unfold denote_pat. simpl.
-      rewrite size_ntensor. simpl. rewrite Nat.mul_1_r, Nat.add_1_r.
-      rewrite ctx_dom_repeat.      
-      repeat rewrite seq_shift.      
-      replace (0%nat :: seq 1 (S n')) with (σ_{2+n'}) by reflexivity.
-      rewrite repeat_length.
-      rewrite subst_var_σ_n by omega.
-      rewrite subst_var_σ_n by omega.
-      rewrite merge_nil_l.
-      replace ([Some Qubit]) with (repeat (Some Qubit) 1) by reflexivity.
-      rewrite ntensor_pat_to_list_shifted by omega.
-      unfold size_octx. simpl.
-      specialize (merge_singleton_append Qubit (repeat (Some Qubit) n')) as MSA.
-      simpl in MSA. rewrite repeat_length in MSA. 
-      unlock_merge. simpl. rewrite MSA. clear MSA.
-      rewrite <- seq_S.
-      replace (@Datatypes.cons Var O (seq (S O) (S n'))) with (σ_{2+n'}) by
-          reflexivity.
-      rewrite swap_list_n_id.
-      rewrite pad_nothing.
-      remember ('I_ (2 ^ (2 + n'))) as Im. 
-      simpl. 
-      replace ([Some Qubit]) with (repeat (Some Qubit) 1) by reflexivity.
-      rewrite repeat_combine.
-      rewrite size_repeat_ctx.
-
-      specialize (IH k l1 l2).
-      specialize (denote_db_unbox (share_to n' k)) as DDU.
-      simpl in DDU. rewrite DDU in IH. clear DDU.
-      rewrite fresh_state_ntensor in IH. simpl in IH.
-
-      repeat rewrite kron_assoc.
-      setoid_rewrite kron_assoc.
-      specialize denote_db_pad_left as DDP. unfold denote_circuit in *.
-      specialize (DDP [Some Qubit] (repeat (Some Qubit) (n'+1)%nat) 1%nat (n'+1)%nat 
-                      (Tensor (NTensor n' Qubit) Qubit)). 
-      specialize (DDP (unbox (share_to n' k) (pair (@fresh_pat OCtx OCtx_State 
-        (NTensor n' Qubit) (Valid (repeat (Some Qubit) 1))) (qubit (S n'))))).
-      match goal with
-      | [|- context[?a ⊗ ?b] ] => remember b as ρ2
-      end.
-      specialize (DDP m ρ2).
-      simpl in DDP. rewrite size_repeat_ctx in DDP.
-      simpl.
-      show_dimensions.
-      rewrite Nat.add_1_r in *. simpl in *.
-      replace (2 ^ length l1 * (2 ^ length l2 * 2 + (2 ^ length l2 * 2 + 0)))%nat
-              with (2 ^ n' + (2 ^ n' + 0))%nat.
-      2: clear -L1 L2 Lt; inversion L1; subst; unify_pows_two. 
-      unfold apply_box. simpl.
-      rewrite DDP by reflexivity.
-      hide_dimensions.
-      rewrite decr_circuit_pat. simpl.
-      rewrite (decr_pat_once_qubit n' []).
-      rewrite Nat.sub_0_r.
-      rewrite (repeat_combine (option WType) n' 1) in IH.
-      rewrite size_repeat_ctx in IH.
-      subst.
-      rewrite Nat.add_1_r in IH. simpl in IH.
-      repeat rewrite kron_assoc in IH.
-      assert (k < n')%nat as Lt' by (clear -Lt; omega).
-      assert (length l1 = k)%nat as L1' by (clear -L1; omega). clear Lt L1.
-      specialize (IH Lt' L1' L2).
-      replace (2 ^ length l2 * 2 + (2 ^ length l2 * 2 + 0))%nat with 
-          (2 * (2 ^ length l2 * 2))%nat by unify_pows_two.
-      unfold add_fresh_state in IH. simpl in IH.
-      unfold get_fresh_var in IH. simpl in IH.
-      rewrite repeat_length in IH.
-      rewrite (repeat_combine (option WType) n' 1) in IH.
-      rewrite Nat.add_1_r in IH.
-      simpl in IH.
-      setoid_rewrite IH; trivial.      
-      2: intros i; apply (WF1 (S i)).
-      unfold super.
-      rewrite size_ntensor. simpl. rewrite Nat.mul_1_r, Nat.add_1_r. simpl.
-      apply WF_big_kron in WF2; trivial.
-      assert (WF1': WF_Matrix (2 ^ length l1) (2 ^ length l1) (⨂ l1)).
-      eapply WF_big_kron. intros j. apply (WF1 (S j)).
-      specialize (WF1 O). rename WF1 into WFm. rename WF1' into WF1.
-      Msimpl.
-      reflexivity.
-Abort.
 *)
-
-
-(* Strong sematics for init and assert
-Open Scope matrix_scope.
-
-Proposition init_at_spec_strong : forall b n i (ρ : Square (2^n)), 
-  i <= n ->
-  WF_Matrix (2^n) (2^n) ρ ->
-  ⟦init_at b n i⟧ ρ = ('I_ (2^i) ⊗ bool_to_ket b ⊗ 'I_ (2^ (n-i))) × ρ × 
-                     ('I_ (2^i) ⊗ (bool_to_ket b)† ⊗ 'I_ (2^ (n-i))).
-Proof. 
-  intros b n.
-  induction n.
-  - intros i ρ L WF.
-    replace i with 0 by omega.
-    simpl.    
-    rewrite strip_one_l_in_eq.
-    unfold inPar.
-    unfold denote_box. simpl.
-    unfold unbox, init. simpl.
-    destruct b; simpl.
-    + matrix_denote. Msimpl. reflexivity.
-    + matrix_denote. Msimpl. reflexivity.
-  - intros i ρ L WF. simpl. clear L.
-    destruct i; simpl.
-    + rewrite strip_one_l_in_eq.
-      unfold inPar. simpl.
-      unfold denote_box. simpl.
-      rewrite size_ntensor, Nat.mul_1_r.
-      rewrite fresh_state_ntensor. simpl.    
-      unfold unbox, init.
-      destruct b.
-      * simpl.
-        unfold compose_super.
-        unfold add_fresh_state. simpl.
-        unfold denote_pat.
-        simpl.
-        rewrite size_ntensor, Nat.mul_1_r.
-        rewrite (repeat_combine (option WType) n 1).
-        setoid_rewrite (repeat_combine (option WType) 1 n).
-        rewrite ctx_dom_repeat.
-        rewrite seq_shift. (* why do this & fmap_S_seq exist? *)
-        replace (0 :: seq 1 (n+1)) with (seq 0 (n+2))
-          by (repeat (rewrite Nat.add_comm; simpl); easy).
-        unfold get_fresh_var. simpl.
-        rewrite repeat_length.
-        rewrite subst_var_σ_n by omega. 
-        rewrite pad_nothing.
-        Search subst_pat.
-        simpl_rewrite (ntensor_pat_to_list_shifted 1 n (n+2)); [|omega].
-        rewrite (Nat.add_comm n 2). unfold subst_var. simpl.
-        (* this becomes easy if we initialize qubits at 0 *)
-        unfold apply_new1.
-        unfold super at 2.
-        admit.
-      * admit.
-    + unfold inPar; simpl.
-      unfold denote_box; simpl.
-      rewrite size_ntensor, Nat.mul_1_r.
-      rewrite fresh_state_ntensor. simpl.
-      setoid_rewrite (repeat_combine (option WType) 1 n).      
-Abort.
-
-Close Scope matrix_scope.
-*)
-
 
 (* Can probably use an existing list function *)
 Fixpoint qubit_at (v : Var) (Γ : Ctx) := 
@@ -1183,27 +934,20 @@ Qed.
 (* Specifications for components of compile *)
 
 (* very similar to share_to_spec *)
-Lemma CNOT_at_spec : forall (b1 b2 : bool) (n x y : nat) (li : list (Matrix 2 2)), 
+Fact CNOT_at_spec : forall (b1 b2 : bool) (n x y : nat) (li : list (Matrix 2 2)), 
   x < n -> y < n -> x <> y ->
   nth_error li x = Some (bool_to_matrix b1) ->
   nth_error li y = Some (bool_to_matrix b2) ->
   ⟦CNOT_at n x y⟧ (⨂ li) = ⨂ (update_at li y (bool_to_matrix (b1 ⊕ b2))).
 Admitted.
 
-Lemma Toffoli_at_spec : forall (b1 b2 b3 : bool) (n x y z : nat) (li : list (Matrix 2 2)),
+Fact Toffoli_at_spec : forall (b1 b2 b3 : bool) (n x y z : nat) (li : list (Matrix 2 2)),
   x < n -> y < n -> z < n -> x <> y -> x <> z -> y <> z -> 
   nth_error li x = Some (bool_to_matrix b1) ->
   nth_error li y = Some (bool_to_matrix b2) ->
   nth_error li z = Some (bool_to_matrix b3) ->
  ⟦Toffoli_at n x y z⟧ (⨂ li) = ⨂ (update_at li z (bool_to_matrix ((b1 && b2) ⊕ b3))).
 Admitted.
-
-(* Most general form, hard to prove 
-Lemma init_at_spec : forall (b : bool) (i n : nat) (ρ : Square (2^n)),
-  Mixed_State ρ ->
-  i < n -> 
-  ⟦init_at b n i⟧ ρ = super (Id (2^i) ⊗ bool_to_ket b  ⊗ Id (2^(n-i)))%M ρ .
-*)
 
 Lemma init_at_spec : forall (b : bool) (n i : nat) (l1 l2 : list (Square 2)) (A B : Square 2), 
   length l1 = i ->

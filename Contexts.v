@@ -163,7 +163,7 @@ Notation "∅" := (Valid []).
 Infix "⋓" := merge (left associativity, at level 50).
 Coercion Valid : Ctx >-> OCtx.
 
-(*** Facts about ⋓ ***)
+(*** Properties of ⋓ ***)
 
 
 Lemma merge_merge' : forall (Γ1 Γ2 : Ctx), Γ1 ⋓ Γ2 = (merge' Γ1 Γ2).
@@ -1023,6 +1023,7 @@ Qed.
 
 Lemma trim_merge : forall Γ Γ1 Γ2, Γ == Γ1 ∙ Γ2 ->
                             otrim Γ = otrim Γ1 ⋓ otrim Γ2.
+Proof.
   intros Γ Γ1 Γ2 M.
   apply merge_fun_ind in M.
   induction M.

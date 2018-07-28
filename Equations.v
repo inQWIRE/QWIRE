@@ -401,13 +401,6 @@ Lemma super_eq : forall m n (U U' : Matrix m n) (ρ ρ' : Square n),
   super U ρ = super U' ρ'.
 Proof. intros; subst; easy. Qed.
 
-Lemma eulers_identity : Cexp PI = -1.
-Proof. unfold Cexp. rewrite cos_PI, sin_PI. easy. Qed.
-
-Lemma eulers_identity2 : Cexp (PI/2) = Ci.
-Proof. unfold Cexp. rewrite cos_PI2, sin_PI2. easy. Qed.
-
-
 Definition HSH := box_ q ⇒ _H $ _S $ _H $ q.
 
 Definition SdHSd := box_ q ⇒ trans _S $ _H $ trans _S $ q. 

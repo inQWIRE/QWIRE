@@ -224,95 +224,72 @@ Qed.
 
 (** ** C is a field *)
 
-Lemma RtoC_plus (x y : R) :
-  RtoC (x + y) = RtoC x + RtoC y.
+Lemma RtoC_plus (x y : R) : RtoC (x + y) = RtoC x + RtoC y.
 Proof.
   unfold RtoC, Cplus ; simpl.
   rewrite Rplus_0_r; auto.
 Qed.
-Lemma RtoC_opp (x : R) :
-  RtoC (- x) = - RtoC x.
+
+Lemma RtoC_opp (x : R) : RtoC (- x) = - RtoC x.
 Proof.
   unfold RtoC, Copp ; simpl.
   rewrite Ropp_0; auto.
 Qed.
-Lemma RtoC_minus (x y : R) :
-  RtoC (x - y) = RtoC x - RtoC y.
-Proof.
-  unfold Cminus; rewrite <- RtoC_opp, <- RtoC_plus; auto.
-Qed.
-Lemma RtoC_mult (x y : R) :
-  RtoC (x * y) = RtoC x * RtoC y.
+
+Lemma RtoC_minus (x y : R) : RtoC (x - y) = RtoC x - RtoC y.
+Proof. unfold Cminus; rewrite <- RtoC_opp, <- RtoC_plus; auto. Qed.
+
+Lemma RtoC_mult (x y : R) : RtoC (x * y) = RtoC x * RtoC y.
 Proof.
   unfold RtoC, Cmult ; simpl.
   apply injective_projections ; simpl ; ring.
 Qed.
+
 Lemma RtoC_inv (x : R) : (x <> 0)%R -> RtoC (/ x) = / RtoC x.
-Proof.
-  intros Hx.
-  apply injective_projections ; simpl ; field ; auto.
-Qed.
+Proof. intros Hx. apply injective_projections ; simpl ; field ; auto. Qed.
+
 Lemma RtoC_div (x y : R) : (y <> 0)%R -> RtoC (x / y) = RtoC x / RtoC y.
-Proof.
-  intros Hy.
-  apply injective_projections ; simpl ; field ; auto.
-Qed.
+Proof. intros Hy. apply injective_projections ; simpl ; field ; auto. Qed.
 
 
 Lemma Cplus_comm (x y : C) : x + y = y + x.
-Proof.
-  apply injective_projections ; simpl ; apply Rplus_comm.
-Qed.
+Proof. apply injective_projections ; simpl ; apply Rplus_comm. Qed.
+
 Lemma Cplus_assoc (x y z : C) : x + (y + z) = (x + y) + z.
-Proof.
-  apply injective_projections ; simpl ; apply sym_eq, Rplus_assoc.
-Qed.
+Proof. apply injective_projections ; simpl ; apply sym_eq, Rplus_assoc. Qed.
+
 Lemma Cplus_0_r (x : C) : x + 0 = x.
-Proof.
-  apply injective_projections ; simpl ; apply Rplus_0_r.
-Qed.
+Proof. apply injective_projections ; simpl ; apply Rplus_0_r. Qed.
+
 Lemma Cplus_0_l (x : C) : 0 + x = x.
-Proof.
-  apply injective_projections ; simpl ; apply Rplus_0_l.
-Qed.
+Proof. apply injective_projections ; simpl ; apply Rplus_0_l. Qed.
+
 Lemma Cplus_opp_r (x : C) : x + -x = 0.
-Proof.
-  apply injective_projections ; simpl ; apply Rplus_opp_r.
-Qed.
+Proof. apply injective_projections ; simpl ; apply Rplus_opp_r. Qed.
 
 Lemma Copp_plus_distr (z1 z2 : C) : - (z1 + z2) = (- z1 + - z2).
-Proof.
-  apply injective_projections ; apply Ropp_plus_distr; auto.
-Qed.
+Proof. apply injective_projections ; apply Ropp_plus_distr; auto. Qed.
+
 Lemma Copp_minus_distr (z1 z2 : C) : - (z1 - z2) = z2 - z1.
-Proof.
-  apply injective_projections ; apply Ropp_minus_distr; auto.
-Qed.
+Proof. apply injective_projections ; apply Ropp_minus_distr; auto. Qed.
 
 Lemma Cmult_comm (x y : C) : x * y = y * x.
-Proof.
-  apply injective_projections ; simpl ; ring.
-Qed.
+Proof. apply injective_projections ; simpl ; ring. Qed.
+
 Lemma Cmult_assoc (x y z : C) : x * (y * z) = (x * y) * z.
-Proof.
-  apply injective_projections ; simpl ; ring.
-Qed.
+Proof. apply injective_projections ; simpl ; ring. Qed.
+
 Lemma Cmult_0_r (x : C) : x * 0 = 0.
-Proof.
-  apply injective_projections ; simpl ; ring.
-Qed.
+Proof. apply injective_projections ; simpl ; ring. Qed.
+
 Lemma Cmult_0_l (x : C) : 0 * x = 0.
-Proof.
-  apply injective_projections ; simpl ; ring.
-Qed.
+Proof. apply injective_projections ; simpl ; ring. Qed.
+
 Lemma Cmult_1_r (x : C) : x * 1 = x.
-Proof.
-  apply injective_projections ; simpl ; ring.
-Qed.
+Proof. apply injective_projections ; simpl ; ring. Qed.
+
 Lemma Cmult_1_l (x : C) : 1 * x = x.
-Proof.
-  apply injective_projections ; simpl ; ring.
-Qed.
+Proof. apply injective_projections ; simpl ; ring. Qed.
 
 Lemma Cinv_r (r : C) : r <> 0 -> r * /r = 1.
 Proof.
@@ -352,76 +329,66 @@ Canonical C_AbelianGroup :=
 *)
 
 Lemma Copp_0 : Copp 0 = 0.
+Proof. apply injective_projections; simpl ; ring. Qed.
+
+Lemma Cmod_m1 : Cmod (Copp 1) = 1.
+Proof. rewrite Cmod_opp. apply Cmod_1. Qed.
+
+Lemma Cmod_eq_0 : forall x, Cmod x = 0 -> x = 0.
 Proof.
-  apply injective_projections; simpl ; ring.
+  intros x H.
+  unfold Cmod, pow in H.
+  rewrite 2!Rmult_1_r, <- sqrt_0 in H.
+  apply sqrt_inj in H.
+  apply Rplus_sqr_eq_0 in H.
+  now apply injective_projections.
+  apply Rplus_le_le_0_compat ; apply Rle_0_sqr.
+  apply Rle_refl.
 Qed.
 
-Lemma Cmod_m1 :
-  Cmod (Copp 1) = 1.
+Lemma Cmod_ge_0 : forall x, 0 <= Cmod x.
 Proof.
-rewrite Cmod_opp.
-apply Cmod_1.
+  intros x.
+  apply sqrt_pos.
 Qed.
 
-Lemma Cmod_eq_0 :
-  forall x, Cmod x = 0 -> x = 0.
-Proof.
-intros x H.
-unfold Cmod, pow in H.
-rewrite 2!Rmult_1_r, <- sqrt_0 in H.
-apply sqrt_inj in H.
-apply Rplus_sqr_eq_0 in H.
-now apply injective_projections.
-apply Rplus_le_le_0_compat ; apply Rle_0_sqr.
-apply Rle_refl.
-Qed.
-
-Lemma Cmod_ge_0 :
-  forall x, 0 <= Cmod x.
-Proof.
-intros x.
-apply sqrt_pos.
-Qed.
 Lemma Cmod_gt_0 :
   forall (x : C), x <> 0 <-> 0 < Cmod x.
 Proof.
-intros x ; split; intro Hx.
-destruct (Cmod_ge_0 x); auto.
-apply sym_eq, Cmod_eq_0 in H. tauto.
-contradict Hx.
-apply Rle_not_lt, Req_le.
-rewrite Hx, Cmod_0; auto.
+  intros x ; split; intro Hx.
+  destruct (Cmod_ge_0 x); auto.
+  apply sym_eq, Cmod_eq_0 in H. tauto.
+  contradict Hx.
+  apply Rle_not_lt, Req_le.
+  rewrite Hx, Cmod_0; auto.
 Qed.
 
-Lemma Cmod_R :
-  forall x : R, Cmod x = Rabs x.
+Lemma Cmod_R : forall x : R, Cmod x = Rabs x.
 Proof.
-intros x.
-unfold Cmod.
-simpl.
-rewrite Rmult_0_l, Rplus_0_r, Rmult_1_r.
-apply sqrt_Rsqr_abs.
+  intros x.
+  unfold Cmod.
+  simpl.
+  rewrite Rmult_0_l, Rplus_0_r, Rmult_1_r.
+  apply sqrt_Rsqr_abs.
 Qed.
 
-Lemma Cmod_inv :
-  forall x : C, x <> 0 -> Cmod (/ x) = Rinv (Cmod x).
+Lemma Cmod_inv : forall x : C, x <> 0 -> Cmod (/ x) = Rinv (Cmod x).
 Proof.
-intros x Zx.
-apply Rmult_eq_reg_l with (Cmod x).
-rewrite <- Cmod_mult.
-rewrite Rinv_r.
-rewrite Cinv_r.
-rewrite Cmod_R.
-apply Rabs_R1.
-exact Zx.
-contradict Zx.
-now apply Cmod_eq_0.
-contradict Zx.
-now apply Cmod_eq_0.
+  intros x Zx.
+  apply Rmult_eq_reg_l with (Cmod x).
+  rewrite <- Cmod_mult.
+  rewrite Rinv_r.
+  rewrite Cinv_r.
+  rewrite Cmod_R.
+  apply Rabs_R1.
+  exact Zx.
+  contradict Zx.
+  now apply Cmod_eq_0.
+  contradict Zx.
+  now apply Cmod_eq_0.
 Qed.
 
-Lemma Cmod_div (x y : C) : y <> 0 ->
-  Cmod (x / y) = Rdiv (Cmod x) (Cmod y).
+Lemma Cmod_div (x y : C) : y <> 0 -> Cmod (x / y) = Rdiv (Cmod x) (Cmod y).
 Proof.
   intro Hy.
   unfold Cdiv.
@@ -618,6 +585,13 @@ Qed.
 (* e^(iθ) *)
 Definition Cexp (θ : R) : C := (cos θ, sin θ).
 
+Lemma eulers_identity : Cexp PI = -1.
+Proof. unfold Cexp. rewrite cos_PI, sin_PI. easy. Qed.
+
+Lemma eulers_identity2 : Cexp (PI/2) = Ci.
+Proof. unfold Cexp. rewrite cos_PI2, sin_PI2. easy. Qed.
+
+
 (*
 Definition Cexp' (θ : R) : C := cos θ + Ci * (sin θ).
 Lemma Cexp_eq : forall θ, Cexp θ = Cexp' θ. Proof. intros. clra. Qed.
@@ -659,6 +633,32 @@ Ltac Csimpl :=
   | _ => rewrite Cmult_1_r
   | _ => rewrite Cconj_R
   end.
+
+(* We might want these back at some point
+Ltac Rsimpl := 
+  simpl;
+  unfold Rminus;
+  unfold Rdiv;
+  repeat (
+    try rewrite Ropp_0;
+    try rewrite Ropp_involutive;
+    try rewrite Rplus_0_l;
+    try rewrite Rplus_0_r;
+    try rewrite Rmult_0_l;
+    try rewrite Rmult_0_r;
+    try rewrite Rmult_1_l;
+    try rewrite Rmult_1_r;
+    try rewrite <- Ropp_mult_distr_l;
+    try rewrite <- Ropp_mult_distr_r;
+    try (rewrite Rinv_l; [|lra]);
+    try (rewrite Rinv_r; [|lra]);
+    try (rewrite sqrt_sqrt; [|lra])).
+
+Ltac Rsolve := repeat (Rsimpl; try group_radicals); lra.
+
+Ltac Csolve := eapply c_proj_eq; simpl; Rsolve.
+*)
+
 
 (* Seems like this could loop forever *)
 Ltac group_radicals := 

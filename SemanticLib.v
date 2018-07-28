@@ -6,7 +6,7 @@ Require Import Ancilla.
 Open Scope matrix_scope.
 
 (* ---------------------------------------*)
-(*--------- Utility Lemmata --------------*)
+(*--------- Utility Tactics --------------*)
 (* ---------------------------------------*)
 
 (* It turns out, these generally aren't needed. *)

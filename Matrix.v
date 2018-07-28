@@ -1055,8 +1055,8 @@ Lemma Minv_symm : forall (n : nat) (A B : Square n), Minv A B -> Minv B A.
 Proof. unfold Minv; intuition. Qed.
 
 (* Important but hardish lemma *)
-Lemma Minv_flip : forall (n : nat) (A B : Square n), A × B = Id n -> B × A = Id n.
-Admitted.
+Fact Minv_flip : forall (n : nat) (A B : Square n), A × B = Id n -> B × A = Id n.
+Proof. Admitted.
   
 Lemma Minv_left : forall (n : nat) (A B : Square n), A × B = Id n -> Minv A B.
 Proof.
@@ -1074,7 +1074,7 @@ Proof.
   assumption.
 Qed.
 
-Lemma kron_assoc : forall (m n o p q r : nat) (A : Matrix m n) (B : Matrix o p) 
+Fact kron_assoc : forall (m n o p q r : nat) (A : Matrix m n) (B : Matrix o p) 
   (C : Matrix q r), (A ⊗ B ⊗ C) = A ⊗ (B ⊗ C).
 Proof.
 Admitted.
@@ -1433,10 +1433,10 @@ Ltac solve_matrix := assoc_least;
        
 (* Tactics to show implicit arguments *)
 Definition kron' := @kron.      
-Lemma kron_shadow : @kron = kron'. reflexivity. Qed.
+Lemma kron_shadow : @kron = kron'. Proof. reflexivity. Qed.
 
 Definition Mmult' := @Mmult.
-Lemma Mmult_shadow : @Mmult = Mmult'. reflexivity. Qed.
+Lemma Mmult_shadow : @Mmult = Mmult'. Proof. reflexivity. Qed.
 
 Ltac show_dimensions := try rewrite kron_shadow in *; 
                         try rewrite Mmult_shadow in *.
