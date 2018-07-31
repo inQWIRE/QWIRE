@@ -605,6 +605,7 @@ Proof.
 Qed.
 
 Lemma trace_mult_dist : forall n p (A : Square n), trace (p .* A) = (p * trace A)%C. 
+Proof.
   intros.
   unfold trace, scale.
   induction n.

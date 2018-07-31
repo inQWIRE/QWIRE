@@ -701,7 +701,7 @@ Proof.
     assert (CS:
     super (control σx) (bool_to_matrix b ⊗ bool_to_matrix t)
                            = (bool_to_matrix b ⊗ bool_to_matrix (xorb b t)))
-    by (ket_denote; destruct b, t; unfold bool_to_ket; simpl; Msimpl; solve_matrix).  
+    by (vector_denote; destruct b, t; unfold bool_to_ket; simpl; Msimpl; solve_matrix).  
     assert ((0 + length l2 + 0 + 2)%nat = S n)%nat as E. omega.
     
     (* breaks here *)

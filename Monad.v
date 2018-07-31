@@ -193,6 +193,7 @@ Proof.
     rewrite IHx.
     auto.
 Qed.
+
 Instance listA_correct : Applicative_Correct list.
 Proof.
   constructor.
@@ -200,10 +201,10 @@ Proof.
     induction l; simpl; auto.
     unfold list_liftA in *. simpl in *.
     rewrite IHl; easy.
-Admitted.
+Abort.
 
 Instance listM_correct : Monad_Correct list.
-Admitted.
+Abort.
 
 
 

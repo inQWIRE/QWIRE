@@ -64,7 +64,7 @@ Qed.
 
 Lemma X_spec : forall (b safe : bool), denote_box safe (boxed_gate _X) (bool_to_matrix b) = 
                                bool_to_matrix (¬ b).
-Proof. intros. ket_denote. destruct b; unfold bool_to_ket; simpl; Msimpl; easy. Qed.
+Proof. intros. vector_denote. destruct b; unfold bool_to_ket; simpl; Msimpl; easy. Qed.
 
 Lemma init0_spec : forall safe, denote_box safe init0 (Id (2^0)) = |0⟩⟨0|.
 Proof. intros. matrix_denote. Msimpl. reflexivity. Qed.
@@ -109,22 +109,22 @@ Lemma CNOT_spec : forall (b1 b2 safe : bool),
   denote_box safe CNOT (bool_to_matrix b1 ⊗ bool_to_matrix b2)
   = (bool_to_matrix b1 ⊗ bool_to_matrix (b1 ⊕ b2)).
 Proof.
-  ket_denote. destruct b1, b2; unfold bool_to_ket; simpl; Msimpl; solve_matrix.
+  vector_denote. destruct b1, b2; unfold bool_to_ket; simpl; Msimpl; solve_matrix.
 Qed.
 
 Lemma TRUE_spec : forall z safe, 
   denote_box safe TRUE (bool_to_matrix z) = bool_to_matrix (true ⊕ z). 
-Proof. ket_denote. destruct z; unfold bool_to_ket; simpl; Msimpl; reflexivity. Qed.
+Proof. vector_denote. destruct z; unfold bool_to_ket; simpl; Msimpl; reflexivity. Qed.
 
 Lemma FALSE_spec : forall z safe, 
     denote_box safe FALSE (bool_to_matrix z) = bool_to_matrix (false ⊕ z). 
-Proof. ket_denote. destruct z; unfold bool_to_ket; simpl; Msimpl; reflexivity. Qed.
+Proof. vector_denote. destruct z; unfold bool_to_ket; simpl; Msimpl; reflexivity. Qed.
 
 Lemma NOT_spec : forall (x z : bool), 
   forall safe, denote_box safe NOT (bool_to_matrix x ⊗ bool_to_matrix z) = 
   bool_to_matrix x ⊗ bool_to_matrix ((¬ x) ⊕ z).
 Proof.
-  ket_denote. 
+  vector_denote. 
   destruct x, z; unfold bool_to_ket; simpl; Msimpl; solve_matrix. 
 Qed.
 
@@ -132,7 +132,7 @@ Lemma XOR_spec : forall (x y z safe : bool),
     denote_box safe XOR (bool_to_matrix x ⊗ bool_to_matrix y ⊗ bool_to_matrix z)  = 
     bool_to_matrix x ⊗ bool_to_matrix y ⊗ bool_to_matrix (x ⊕ y ⊕ z).
 Proof.  
-  ket_denote. Msimpl.
+  vector_denote. Msimpl.
   destruct x, y, z; simpl; solve_matrix. 
 Qed.
 
@@ -140,7 +140,7 @@ Lemma AND_spec : forall (x y z safe : bool),
     denote_box safe AND (bool_to_matrix x ⊗ bool_to_matrix y ⊗ bool_to_matrix z)  = 
     bool_to_matrix x ⊗ bool_to_matrix y ⊗ bool_to_matrix ((x && y) ⊕ z).
 Proof. 
-  ket_denote. Msimpl.
+  vector_denote. Msimpl.
   destruct x, y, z; simpl; Msimpl; solve_matrix. 
 Qed.
 

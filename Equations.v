@@ -408,7 +408,7 @@ Definition SdHSd := box_ q ⇒ trans _S $ _H $ trans _S $ q.
 Proposition HSH_SdHSd_eq : HSH ≡ SdHSd.
 Proof.
   intros ρ safe Mρ.
-  repeat (autounfold with ket_den_db; simpl).
+  repeat (autounfold with vector_den_db; simpl).
   repeat rewrite super_super.
   apply WF_Mixed in Mρ.
   specialize (WF_Matrix_U _S) as WFS.
@@ -446,7 +446,7 @@ Definition NOTC := box_ (q1,q2) ⇒ let_ (q2, q1) ← CNOT $ (q2, q1); (q1, q2).
 Lemma HH_CNOT_HH_eq_NOTC : HH_CNOT_HH ≡ NOTC.
 Proof.
   intros ρ safe Mρ.
-  repeat (autounfold with ket_den_db; simpl).
+  repeat (autounfold with vector_den_db; simpl).
   repeat rewrite super_super.
   apply WF_Mixed in Mρ.
   Msimpl.

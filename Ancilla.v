@@ -47,7 +47,7 @@ Definition valid_ancillae_box' {W1 W2} (c : Box W1 W2) : Prop := forall ρ,
   Mixed_State ρ ->
   trace (denote_box false c ρ) = 1.
 
-Fact valid_ancillae_equal : forall W (c : Circuit W), 
+Proposition valid_ancillae_equal : forall W (c : Circuit W), 
   valid_ancillae c <-> valid_ancillae' c.
 Proof.
   intros.
@@ -56,7 +56,7 @@ Proof.
   - intros VA.
   unfold valid_ancillae, valid_ancillae'.
   induction c.
-Admitted.
+Abort.
 
 Fact valid_ancillae_box_equal : forall W1 W2 (c : Box W1 W2), 
   valid_ancillae_box c <-> valid_ancillae_box' c.
@@ -93,7 +93,7 @@ Proof.
     simpl in *.
 Admitted.
 
-Fact valid_ancillae_unbox' : forall W W' (c : Box W W') (p : Pat W),
+Proposition valid_ancillae_unbox' : forall W W' (c : Box W W') (p : Pat W),
   valid_ancillae (unbox c p) <-> valid_ancillae_box c.
 Proof.
   intros W W' c p.
@@ -107,7 +107,7 @@ Proof.
   split.
   - intros H.    
     admit.
-Admitted.
+Abort.
 
 Lemma id_correct : forall W p, valid_ancillae (@output W p).
 Proof.
@@ -174,6 +174,16 @@ Proof.
       easy.
 Qed.
 
+Lemma change_type_singleton : forall v W W', change_type v W' (singleton v W) = singleton v W'.
+Proof.
+  intros v W W'.
+  unfold change_type.
+  erewrite update_at_singleton.
+  reflexivity.
+  apply singleton_singleton.
+  apply singleton_singleton.
+Qed.
+
 Fact ancilla_free_valid : forall W (c : Circuit W), 
                            ancilla_free c -> 
                            valid_ancillae c.
@@ -192,11 +202,9 @@ Proof.
     dependent destruction WT.
     destruct Γ as [|Γ], Γ2 as [|Γ2]; try invalid_contradiction.
     erewrite denote_gate_circuit; [|apply pf1|apply t]. 
-(* TODO: Bring up to date. *)
-Admitted.
-(*
     erewrite denote_gate_circuit_unsafe; [|apply pf1|apply t].
-    destruct Γ1' as [|Γ1']. invalid_contradiction.
+
+
     destruct g.
     - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
     - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
@@ -206,47 +214,53 @@ Admitted.
       dependent destruction p.
       dependent destruction t.
       destruct pf1.
-      rewrite merge_nil_l in pf_merge. subst.
+      rewrite merge_nil_l in pf_merge. inversion pf_merge. subst.
       unfold process_gate_state. simpl.
-      apply (add_fresh_merge Γ1').
-      assumption.
+      split. validate.
+      rewrite merge_comm, merge_singleton_append.
+      easy.
     - simpl. erewrite VA. reflexivity.      
       eapply t0. 
       2: constructor; apply singleton_singleton.
       dependent destruction p.
       dependent destruction t.
       destruct pf1.
-      rewrite merge_nil_l in pf_merge. subst.
-      apply (add_fresh_merge Γ1').
-      assumption.
+      rewrite merge_nil_l in pf_merge. inversion pf_merge. subst.
+      unfold process_gate_state. simpl.
+      split. validate.
+      rewrite merge_comm, merge_singleton_append.
+      easy.
     - simpl. erewrite VA. reflexivity.      
       eapply t0. 
       2: constructor; apply singleton_singleton.
       dependent destruction p.
       dependent destruction t.
       destruct pf1.
-      rewrite merge_nil_l in pf_merge. subst.
-      apply (add_fresh_merge Γ1').
-      assumption.
+      rewrite merge_nil_l in pf_merge. inversion pf_merge. subst.
+      unfold process_gate_state. simpl.
+      split. validate.
+      rewrite merge_comm, merge_singleton_append.
+      easy.
     - simpl. erewrite VA. reflexivity.
       eapply t0. 
       2: constructor; apply singleton_singleton.
       dependent destruction p.
       dependent destruction t.
       destruct pf1.
-      rewrite merge_nil_l in pf_merge. subst.
-      apply (add_fresh_merge Γ1').
-      assumption.
+      rewrite merge_nil_l in pf_merge. inversion pf_merge. subst.
+      unfold process_gate_state. simpl.
+      split. validate.
+      rewrite merge_comm, merge_singleton_append.
+      easy.
     - dependent destruction p.
       dependent destruction t.
       simpl. erewrite VA. reflexivity.
       eapply t0.      
       2: constructor; apply singleton_singleton.
       apply singleton_equiv in s; subst.
-      destruct Γ.        
-      inversion pf1.
-      rewrite merge_I_r in pf_merge. rewrite pf_merge in pf_valid. 
-        apply not_valid in pf_valid. contradiction.
+      unfold process_gate_state. simpl.
+      split. validate. 
+      unfold change_type.
       eapply update_merge.
       apply pf1.
     - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
@@ -256,12 +270,13 @@ Admitted.
       eapply t0.
       2: constructor.
       constructor.
-      apply remove_pat_valid. destruct pf1. assumption.
+      validate.
       rewrite merge_nil_l.
       assert (t' : Γ ⊢ c () :Circ). apply (t0 ∅). split. 
-        destruct Γ. invalid_contradiction. validate. rewrite merge_nil_l. easy.
-        constructor.
-      specialize (types_circ_types_pat w Γ (c ()) t') as [w' [p' TP]].      
+        validate. rewrite merge_nil_l. easy. constructor.
+      specialize (types_circ_types_pat w Γ (c ()) t') as [w' [p' TP]].  
+      unfold process_gate_state; simpl.
+      apply ctx_octx.
       apply (remove_bit_merge _ _ w' p'); trivial. 
       apply singleton_equiv in s. subst.
       assumption.
@@ -274,7 +289,7 @@ Admitted.
     intros Γ Γ0 WT.
     unfold denote_circuit in *.
     simpl in *.
-    replace (size_octx Γ - 1)%nat with (size_octx (DBCircuits.remove_pat p Γ)).
+    replace (size_ctx Γ - 1)%nat with (size_ctx (DBCircuits.remove_pat p Γ)).
     erewrite VA.
     erewrite VA.
     reflexivity.
@@ -283,21 +298,23 @@ Admitted.
       dependent destruction t.
       apply singleton_equiv in s. subst.
       specialize (types_circ_types_pat w Γ2 (c true) (t0 true)) as [w' [p' TP]].      
+      destruct Γ2 as [|Γ2]; try invalid_contradiction.
       rewrite (remove_bit_merge Γ2 Γ w' p'); easy. 
     * dependent destruction WT.
       dependent destruction p.
       dependent destruction t.
       apply singleton_equiv in s. subst.
       specialize (types_circ_types_pat w Γ2 (c false) (t0 false)) as [w' [p' TP]].   
+      destruct Γ2 as [|Γ2]; try invalid_contradiction.
       rewrite (remove_bit_merge Γ2 Γ w' p'); easy. 
     * dependent destruction WT.
       dependent destruction p.
       dependent destruction t.
       apply singleton_equiv in s. subst.
       specialize (types_circ_types_pat w Γ2 (c true) (t0 true)) as [w' [p' TP]].      
+      destruct Γ2 as [|Γ2]; try invalid_contradiction.
       rewrite (remove_bit_pred Γ2 Γ); easy.
 Qed.
-*)
 
 Lemma ancilla_free_box_valid : forall W W' (c : Box W W'), 
     ancilla_free_box c -> 

@@ -500,6 +500,7 @@ Proof.
 Qed.
 
 Lemma transpose_unitary : forall n (A : Matrix n n), WF_Unitary A -> WF_Unitary (A†).
+Proof.
   intros. 
   simpl.
   split.
@@ -560,73 +561,22 @@ Proof.
   easy.
 Qed.
 
-(*
-Proposition unitary_swap_to_0 : forall n i, (i < n)%nat -> WF_Unitary (swap_to_0 n i).
+Lemma Mmult_unitary : forall (n : nat) (A : Square n) (B : Square n),
+  WF_Unitary A ->
+  WF_Unitary B ->
+  WF_Unitary (A × B).  
 Proof.
-  intros n i.
-  generalize dependent n.
-  unfold WF_Unitary; split.
-  + (* well-formedness *)
-    induction i. 
-    simpl. auto with wf_db.     
-    simpl in *.
-    unfold swap_to_0 in IHi.
-    destruct i; simpl in *.
-    - specialize Nat.pow_nonzero; intros NZ.
-      replace (2 ^ n)%nat with (4 * 2^(n-2))%nat by unify_pows_two.
-      auto with wf_db.
-    - specialize Nat.pow_nonzero; intros NZ.
-      replace (2^n)%nat with  (2 ^ (i+1) * 4 * 2 ^ (n - i - 3))%nat by unify_pows_two.    
-      auto with wf_db.
-      replace (2 ^ i + (2 ^ i + 0))%nat with (2 ^ (i + 1))%nat by unify_pows_two.
-      replace (n - S i - 2)%nat with (n - i - 3)%nat by omega. 
-      apply WF_mult; auto with wf_db.
-      apply WF_mult; auto with wf_db.
-      replace (2 ^ (i + 1) * 4 * 2 ^ (n - i - 3))%nat with (2^n)%nat by unify_pows_two.
-      apply IHi.
-      omega.
-  + induction i; simpl.
-    - apply id_unitary.
-    - unfold swap_to_0 in IHi. 
-      destruct i.
-      * simpl.
-        remember ( Id (2 ^ (n - 2))) as A.
-        remember swap as B.
-        setoid_rewrite (kron_adjoint _ _ _ _ B A).            
-    
-(*    rewrite (kron_mixed_product B† A† B A). *)
+  intros n A B [WFA UA] [WFB UB].
+  split.
+  auto with wf_db.
+  autorewrite with M_db.
+  rewrite Mmult_assoc.
+  rewrite <- (Mmult_assoc _ _ _ _ (A†)).
+  rewrite UA.
+  autorewrite with M_db.
+  apply UB.
+Qed.
 
-        specialize (kron_mixed_product _ _ _ _ _ _ B† A† B A); intros H'.
-        assert (WF_Unitary B). subst. apply swap_unitary.
-        assert (WF_Unitary A). subst. apply id_unitary.
-        destruct H0 as [_ H0], H1 as [_ H1].
-        rewrite H0 in H'.
-        rewrite H1 in H'.
-        replace (Id (2 ^ n)) with (Id 4 ⊗ Id (2 ^ (n - 2))).
-        (* apply H doesn't work. 
-         Surprisingly, that's the matrix types failing to line up *)
-        rewrite <- H'.
-        replace (4 * (2 ^ (n - 2)))%nat with (2 ^ n)%nat.
-        reflexivity.
-        unify_pows_two.
-        unify_pows_two.
-        replace (2^n)%nat with (2^2 * 2^(n-2))%nat by unify_pows_two.
-        rewrite id_kron.
-        reflexivity.
-      * simpl.
-Abort.
-
-Proposition unitary_swap_two : forall n i j, (i < n)%nat -> (j < n)%nat ->
-                                  WF_Unitary (swap_two n i j).
-Proof.
-  intros n i j P1 P2.
-  unfold WF_Unitary.
-  unfold swap_two.
-  destruct (lt_eq_lt_dec i j) as [[ltij | eq] | ltji].
-  + induction i.
-    simpl.
-Abort.
-*)
 
 (********************)
 (* Self-adjointness *)

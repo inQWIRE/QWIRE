@@ -98,21 +98,6 @@ Definition id_circ {W} : Box W W :=
 Lemma id_circ_WT : forall W, Typed_Box (@id_circ W).
 Proof. type_check. Qed.
 
-
-Lemma test_evar1 : forall x y, exists w, x ⋓ y = y ⋓ w.
-Proof. 
-intros. eexists.
-PCMize.
-repos_evar. prep_reification. strip_Some. reification_wrt. 
-Qed.
-
-Lemma test_evar2 : forall x y z, exists w, x ⋓ y ⋓ z = y ⋓ w.
-Proof. 
-intros. eexists.
-PCMize.
-repos_evar. prep_reification. strip_Some. reification_wrt. 
-Qed.
-
 Definition SWAP : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) := 
   box_ p ⇒ let_ (p1,p2) ← p; (p2,p1).
 Lemma WT_SWAP : Typed_Box SWAP. 
@@ -222,54 +207,6 @@ Definition CL_AND : Box (Qubit ⊗ Qubit) Qubit :=
     let_ ()        ← discard $ a;   
     let_ ()        ← discard $ b;   
     z.
-
-Lemma test : forall Γ5 Γ6 Γ7, exists Γ, Γ7 ∘ Γ = Γ6 ∘ (Γ7 ∘ (Γ5 ∘ ⊤)).
-Proof. intros. eexists. monoid. Qed.
-
-Lemma test2 : forall (Γ5 Γ6 Γ7 : Ctx), exists Γ, Valid Γ7 ∘ Γ = Valid Γ6 ∘ (Valid Γ7 ∘ (Valid Γ5 ∘ ⊤)).
-Proof. intros. eexists. monoid. Qed.
-
-Lemma test3 : forall (Γ5 Γ6 Γ7 : Ctx), exists Γ,
-@eq OCtx (@m OCtx PCM_OCtx (Valid Γ7) Γ)
-    (@m OCtx PCM_OCtx (Valid Γ6) (@m OCtx PCM_OCtx (Valid Γ7) (@m OCtx PCM_OCtx (Valid Γ5) (@one OCtx PCM_OCtx)))).
-Proof. intros. eexists. 
-repos_evar. prep_reification. strip_Some. 
-
-  let A := type_of_goal in
-  match goal with
-  | [ |- ⟨?ls1⟩ ∘ ?ev = ⟨?ls2⟩ ] =>
-    let src := append ls1 ls2 in
-    let ls2_1 := difference ls2 ls1 in
-    let idx1  := reify_wrt src ls1 in (* indices of ls1 *)
-    let idx2_1 := reify_wrt src ls2_1 in (* indices of ls2 that are not in ls1 *)
-    let idx2' := constr:(index_wrt src (idx1 ++ idx2_1)) in
-    replace (⟨ls2⟩) with (⟨idx2'⟩ : A) 
-      by (simpl_args; strip_Some; reification_wrt; solve_permutation)
-  end.
-
-    rewrite split_list; auto.
-Qed.
-
-(*
-repos_evar. prep_reification. strip_Some. 
-  let A := type_of_goal in
-  match goal with
-  | |- ⟨ ?ls1 ⟩ ∘ ?ev = ⟨ ?ls2 ⟩ =>
-        let src := append ls1 ls2 in
-        let ls2_1 := difference ls2 ls1 in
-        let idx1 := reify_wrt src ls1 in
-        let idx2_1 := reify_wrt src ls2_1 in
-        let idx2' := (Monoid.index_wrt src (idx1 ++ idx2_1)) in
-        replace ⟨ ls2 ⟩ with (⟨ idx2' ⟩ : A) by (simpl_args; strip_Some; reification_wrt; solve_permutation); rewrite split_list;
-         auto
-  end.
-
-reification_wrt. 
-apply interp_permutation. 
-
-
-monoid. Qed.
-*)
 
 Lemma CL_AND_WT : Typed_Box CL_AND.
 Proof. type_check. Qed.

@@ -250,7 +250,6 @@ Fixpoint rotations (n m : nat) {struct n}
             end
    end.
 Lemma rotations_WT : forall n m, Typed_Box (rotations n m).
-(* not sure why this used to be easier: induction n; [|destruct n]; type_check.  *)
 Proof. 
   induction n as [ | [ | n]]; type_check.
    apply IHn. 

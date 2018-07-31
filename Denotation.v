@@ -388,6 +388,135 @@ Proposition swap_list_shift' : forall (n : nat) (ρ : Square 2) (A : Square (2^n
   super (swap_list (S n) (n :: seq 0 n)) (A ⊗ ρ) = ρ ⊗ A.
 *)
 
+(* These propositions about swap_list are probably important 
+Proposition swap_to_0_aux_unitary : forall n i, 
+  (n >= 2)%nat ->
+  WF_Unitary (swap_to_0_aux n i).
+Proof.
+  intros n i H.
+  induction i; simpl.
+  - specialize (kron_unitary swap ('I_(2^(n-2))))%nat.
+    unify_pows_two. rewrite <- le_plus_minus.
+    intros KU.
+    apply KU.
+    apply swap_unitary.
+    apply id_unitary.
+    omega.
+  - unify_pows_two.
+    apply Mmult_unitary.
+
+  apply kron_unitary.
+  
+  
+
+Proposition swap_to_0_unitary : forall m n l, WF_Unitary (swap_to_0 m n l).
+Abort.
+
+Proposition swap_two_aux_unitary : forall m n l, WF_Unitary (swap_two_aux m n l).
+Abort.  
+
+Proposition swap_list_aux_unitary : forall m n l, WF_Unitary (swap_list_aux m n l).
+Proof.
+  induction m; intros n l.
+  - simpl.
+    apply id_unitary.
+  - simpl.
+    destruct l.
+    apply id_unitary.
+    destruct p.
+    apply Mmult_unitary.
+    Focus 2.
+    apply IHm.
+   
+    Search WF_Unitary swap_two.
+    specialize (IHm 1%nat 
+    apply IHm.
+    Search WF_Unitary Mmult.
+Abort.
+
+(* older attempts *)
+Proposition unitary_swap_to_0 : forall n i, (i < n)%nat -> WF_Unitary (swap_to_0 n i).
+Proof.
+  intros n i.
+  generalize dependent n.
+  unfold WF_Unitary; split.
+  + (* well-formedness *)
+    induction i. 
+    simpl. auto with wf_db.     
+    simpl in *.
+    unfold swap_to_0 in IHi.
+    destruct i; simpl in *.
+    - specialize Nat.pow_nonzero; intros NZ.
+      replace (2 ^ n)%nat with (4 * 2^(n-2))%nat by unify_pows_two.
+      auto with wf_db.
+    - specialize Nat.pow_nonzero; intros NZ.
+      replace (2^n)%nat with  (2 ^ (i+1) * 4 * 2 ^ (n - i - 3))%nat by unify_pows_two.    
+      auto with wf_db.
+      replace (2 ^ i + (2 ^ i + 0))%nat with (2 ^ (i + 1))%nat by unify_pows_two.
+      replace (n - S i - 2)%nat with (n - i - 3)%nat by omega. 
+      apply WF_mult; auto with wf_db.
+      apply WF_mult; auto with wf_db.
+      replace (2 ^ (i + 1) * 4 * 2 ^ (n - i - 3))%nat with (2^n)%nat by unify_pows_two.
+      apply IHi.
+      omega.
+  + induction i; simpl.
+    - apply id_unitary.
+    - unfold swap_to_0 in IHi. 
+      destruct i.
+      * simpl.
+        remember ( Id (2 ^ (n - 2))) as A.
+        remember swap as B.
+        setoid_rewrite (kron_adjoint _ _ _ _ B A).            
+    
+(*    rewrite (kron_mixed_product B† A† B A). *)
+
+        specialize (kron_mixed_product _ _ _ _ _ _ B† A† B A); intros H'.
+        assert (WF_Unitary B). subst. apply swap_unitary.
+        assert (WF_Unitary A). subst. apply id_unitary.
+        destruct H0 as [_ H0], H1 as [_ H1].
+        rewrite H0 in H'.
+        rewrite H1 in H'.
+        replace (Id (2 ^ n)) with (Id 4 ⊗ Id (2 ^ (n - 2))).
+        (* apply H doesn't work. 
+         Surprisingly, that's the matrix types failing to line up *)
+        rewrite <- H'.
+        replace (4 * (2 ^ (n - 2)))%nat with (2 ^ n)%nat.
+        reflexivity.
+        unify_pows_two.
+        unify_pows_two.
+        replace (2^n)%nat with (2^2 * 2^(n-2))%nat by unify_pows_two.
+        rewrite id_kron.
+        reflexivity.
+      * simpl.
+Abort.
+
+Proposition unitary_swap_two : forall n i j, (i < n)%nat -> (j < n)%nat ->
+                                  WF_Unitary (swap_two n i j).
+Proof.
+  intros n i j P1 P2.
+  unfold WF_Unitary.
+  unfold swap_two.
+  destruct (lt_eq_lt_dec i j) as [[ltij | eq] | ltji].
+  + induction i.
+    simpl.
+Abort.
+*)
+
+Fact swap_list_unitary : forall n l, WF_Unitary (swap_list n l).
+Proof.
+  intros n l.
+  unfold swap_list.
+  induction n.
+  - simpl.
+    apply id_unitary.
+  - simpl.
+    destruct (zip_to 0 (S n) l) eqn:E.
+    unify_pows_two.
+    apply id_unitary.
+    destruct p.
+Admitted.
+
+
 (*** Applying Unitaries to Sytems ***)
 
 Definition super_Zero {m n} : Superoperator m n  :=
@@ -1368,23 +1497,124 @@ Proof.
   rewrite IHΓ. easy.
 Qed.
 
+Inductive no_gaps : Ctx -> Prop :=
+| no_gaps_empty : no_gaps []
+| no_gaps_cons : forall W Γ, no_gaps Γ -> no_gaps (Some W :: Γ).
+
+Lemma no_gaps_app : forall Γ Γ',
+  no_gaps Γ ->
+  no_gaps Γ' ->
+  no_gaps (Γ ++ Γ').
+Proof.
+  intros Γ Γ' NG NG'.
+  induction Γ; trivial.
+  simpl.
+  inversion NG; subst.
+  constructor.
+  auto. 
+Qed.
+
+Lemma add_fresh_state_no_gaps : forall W Γ,
+  no_gaps Γ ->
+  no_gaps (add_fresh_state W Γ). 
+Proof.
+  induction W; intros Γ NG.
+  - unfold add_fresh_state; simpl.
+    apply no_gaps_app; trivial.
+    repeat constructor.
+  - unfold add_fresh_state; simpl.
+    apply no_gaps_app; trivial.
+    repeat constructor.
+  - unfold add_fresh_state; simpl.
+    easy.
+  - unfold add_fresh_state; simpl.
+    repeat rewrite add_fresh_split. simpl.
+    auto.
+Qed.
+
+Lemma subst_var_no_gaps : forall Γ w, 
+  no_gaps Γ ->
+  subst_var (Γ ++ [Some w]) (length Γ) = length Γ.
+Proof.
+  intros Γ w NG.
+  induction Γ; trivial.
+  inversion NG; subst.
+  unfold subst_var in *. simpl.
+  rewrite maps_to_app in *. simpl in *.
+  rewrite IHΓ; easy.
+Qed. 
+
+Lemma subst_units : forall w (p : Pat w) Γ, ∅ ⊢ p:Pat -> subst_pat Γ p = p.
+Proof.  
+  intros w p Γ H.
+  gen Γ.
+  dependent induction H.
+  - intros. reflexivity.
+  - inversion s.
+  - inversion s.
+  - intros Γ.    
+    symmetry in e.
+    apply merge_nil_inversion in e as [E1 E2].
+    simpl.
+    rewrite IHTypes_Pat1, IHTypes_Pat2; easy.
+Qed.
+
+Proposition subst_pat_no_gaps : forall w (Γ : Ctx) (p : Pat w), 
+  Γ ⊢ p:Pat ->
+  no_gaps Γ ->
+  subst_pat Γ p = p.
+Proof.
+  intros w Γ p TP.
+  dependent induction TP; trivial.
+  - intros NG.
+    inversion s; subst.
+    reflexivity.
+    inversion NG.
+  - intros NG.
+    inversion s; subst.
+    reflexivity.
+    inversion NG.
+  - intros NG.
+    destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.
+    destruct Γ1 as [|o1 Γ1], Γ2 as [|o2 Γ2].
+    + simpl. rewrite IHTP1, IHTP2; easy.
+    + rewrite merge_nil_l in e.
+      inversion e; subst.
+      simpl. rewrite IHTP2; trivial. 
+      f_equal.
+      apply subst_units; easy.
+    + rewrite merge_nil_r in e.
+      inversion e; subst.
+      simpl. rewrite IHTP1; trivial. 
+      f_equal.
+      apply subst_units; easy.
+    + destruct o1, o2.
+      unlock_merge. inversion e.
+      (* inductive hypotheses fail us *)
+Abort.
+
 Fact subst_pat_fresh : forall w Γ w',
       Γ = add_fresh_state w' [] ->
       subst_pat (add_fresh_state w Γ) (add_fresh_pat w Γ) 
     = add_fresh_pat w Γ.
 Proof.
-  induction w; intros; unfold subst_pat in *; simpl in *; auto.
-  - unfold subst_var.
-    unfold add_fresh_state, add_fresh_pat. simpl.
-    rewrite maps_to_app.
-    Search add_fresh_state.
-    apply length_fresh_state in H. rewrite H.
+  induction w; intros; auto.
+  - unfold add_fresh_state. simpl.
+    rewrite subst_var_no_gaps.
+    reflexivity.
+    rewrite H.
+    apply add_fresh_state_no_gaps.
+    constructor.
+  - unfold add_fresh_state. simpl.
+    rewrite subst_var_no_gaps.
+    reflexivity.
+    rewrite H.
+    apply add_fresh_state_no_gaps.
+    constructor.
+  - unfold add_fresh_state. simpl.
+    destruct (add_fresh w1 Γ) as [p1 Γ1] eqn:E1.
+    destruct (add_fresh w2 Γ1) as [p2 Γ2] eqn:E2.
     simpl.
-    (* easier to go the direct route here *)
-    admit. 
-  - admit. (* same as above *)
-
-  - admit.
 Admitted.
 
 Lemma subst_pat_fresh_empty : forall w,
@@ -1509,11 +1739,10 @@ Proof.
   - dependent destruction p. 
     simpl. destruct Γ. simpl. easy.
     simpl. destruct o. simpl. unfold process_gate_state. simpl.
-    Search size_ctx change_type.
-    admit. admit. (* easy lemma *)
-Abort.  
-
-
+    admit. admit.
+  - (* Need that we're discarding a valid wire *)
+Abort.
+    
 Proposition process_gate_state_merge : forall w1 w2 (g : Gate w1 w2) p Γ1 Γ2 Γ,
       Types_Pat Γ1 p ->
       Valid Γ = Γ1 ⋓ Γ2 ->
@@ -1975,16 +2204,6 @@ Proof.
   - admit.
 Admitted.
 
-Fact swap_list_unitary : forall n l, WF_Unitary (swap_list n l).
-Proof.
-  intros n l.
-  unfold swap_list.
-  induction n.
-  - simpl.
-    apply id_unitary.
-  - simpl.
-    destruct (zip_to 0 (S n) l) eqn:E.
-Admitted.
 
 (* True for any bijection f in place of S, actually *)
 Lemma lookup_maybe_S : forall x l,  lookup_maybe (S x) (map S l) = lookup_maybe x l.
@@ -2953,14 +3172,13 @@ Hint Unfold get_fresh add_fresh_state add_fresh_pat process_gate process_gate_st
 Hint Unfold apply_new0 apply_new1 apply_U apply_qubit_unitary denote_ctrls apply_meas apply_discard apply_assert0 apply_assert1 compose_super Splus swap_list swap_two pad denote_box denote_pat super: den_db.
 
 (* add_fresh *)
-Hint Unfold get_fresh add_fresh_state add_fresh_pat process_gate process_gate_state : ket_den_db.
+Hint Unfold get_fresh add_fresh_state add_fresh_pat process_gate process_gate_state : vector_den_db.
 
-Hint Unfold apply_new0 apply_new1 apply_U apply_qubit_unitary denote_ctrls apply_meas apply_discard apply_assert0 apply_assert1 compose_super Splus swap_list swap_two pad denote_box denote_pat : ket_den_db.
+Hint Unfold apply_new0 apply_new1 apply_U apply_qubit_unitary denote_ctrls apply_meas apply_discard apply_assert0 apply_assert1 compose_super Splus swap_list swap_two pad denote_box denote_pat : vector_den_db.
 
-(* This should probably be vector_denote *)
-Ltac ket_denote :=
+Ltac vector_denote :=
   intros; 
-  repeat (autounfold with ket_den_db; simpl);
+  repeat (autounfold with vector_den_db; simpl);
   repeat rewrite <- bool_to_ket_matrix_eq;
   repeat replace (|0⟩⟨0|) with (outer_product |0⟩) by reflexivity;
   repeat replace (|1⟩⟨1|) with (outer_product |1⟩) by reflexivity;
