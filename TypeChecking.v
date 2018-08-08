@@ -204,8 +204,6 @@ Ltac type_check_once :=
   subst; 
   invert_patterns;
   repeat match goal with 
-  (* Should break this down by case - in lift case, 
-     need to choose bit or qubit as appropriate *)
   | [ b : bool |- _ ]              => destruct b 
   | [ H : _ == _ ∙ _ |- _ ]     => destruct H
     | H: @Types_Circuit _ _ ?c |- @Types_Circuit _ _ ?c 
@@ -239,8 +237,8 @@ Ltac type_check_once :=
   | [|- ?G ]         => tryif (has_evars G)  
                         then (idtac (*"can't monoid"; print_goal*))
                         else (idtac (*"monoid"; print_goal*); monoid)
-  end.
 
+  end.
 
 (* Useful for debugging *)
 Ltac type_check_num := 
@@ -252,3 +250,134 @@ Ltac type_check_num :=
 (* Easiest solution *)
 
 Ltac type_check := let n := numgoals in do n [> type_check_once..].
+
+
+(** Example **)
+
+Ltac destruct_merges :=
+  repeat match goal with
+  | [ H : _ == _ ∙ _ |- _ ]  => destruct H
+  end.
+
+(* Three typing derivations for a simple circuit *)
+(* Corresponds to thesis figure 9.1 *)
+Definition cnot12 : Square_Box (Qubit ⊗ Qubit ⊗ Qubit) :=
+  box_ (p0,p1,p2) ⇒ 
+    gate_ (p3,p4) ← CNOT @(p1,,p2);
+    output (p0,,p3,,p4).
+
+(* In functional syntax 
+Definition entangle23 : Square_Box (Qubit ⊗ Qubit ⊗ Qubit) :=
+  box_ (p0,p1,p2) ⇒ 
+    let_ (p3,p4) ← CNOT $ (p1,p2);
+    (p0,p3,p4).
+*)
+
+Lemma cnot12_WT_manual : Typed_Box cnot12.
+Proof.    
+  (* manual - no evars *)
+  unfold Typed_Box, cnot12. 
+  intros Γ p TP. simpl.
+  dependent destruction TP.
+  dependent destruction TP1.
+  rename Γ0 into Γ, Γ1 into Γ0. rename Γ into Γ1.
+  rename p3 into p1.
+  rename TP1_1 into TP0, TP1_2 into TP1.  
+  apply @types_gate with (Γ := Γ0) (Γ1 := Γ1 ⋓ Γ2); try solve_merge.
+  - (* type input pattern `(p1,p2)` *)
+    apply types_pair with (Γ1 := Γ1) (Γ2 := Γ2); try solve_merge.
+    + apply TP1. (* types p1 *)
+    + apply TP2. (* types p2 *)
+  - (* types `output (p0, p3, p4)` *)
+    intros Γ Γ' p M TP.
+    dependent destruction TP.
+    apply (@types_output _ _ _ _ eq_refl).
+    (* types (p0, p3, p4) *)
+    apply types_pair with (Γ1 := Γ0 ⋓ Γ3) (Γ2 := Γ4); try solve_merge.
+    + (* types (p0, p3) *)
+      apply types_pair with (Γ1 := Γ0) (Γ2 := Γ3); try solve_merge.
+      * apply TP0. (* types p0 *)
+      * apply TP3. (* types p3 *)
+    + apply TP4. (* types p4 *)
+Qed.
+    
+Lemma cnot12_WT_evars : Typed_Box cnot12.
+Proof.    
+  (* manual with evars *)
+  unfold Typed_Box, cnot12. 
+  intros; simpl.
+  invert_patterns.
+  eapply types_gate.
+  Focus 1.  
+    eapply @types_pair. (* types (p1, p2) *)
+      4: eauto. (* types p2 *)
+      3: eauto. (* types p1 *)
+      2: monoid. (* unifies ?Γ = Γ1 ⋓ Γ2 *)
+      1: validate. (* solves is_valid (Γ1 ⋓ Γ2) *)
+  Focus 2. (* 3 *)
+    split. (* _ == _ ∙ _ *) 
+      2: monoid. (* unifies Γ0 ⋓ Γ1 ⋓ Γ2 = Γ1 ⋓ Γ2 ⋓ ?Γ *)
+      1: validate. (* solves is_valid (Γ0 ⋓ Γ1 ⋓ Γ2) *)
+  Focus 1. (* 2 *)
+    intros; simpl.
+    invert_patterns.
+    eapply @types_output.
+    Focus 1.
+      monoid.
+    Focus 1. (* 2 *) 
+      destruct_merges; subst.
+      eapply @types_pair.
+      Focus 4.
+        eauto. (* types p4 *)
+      Focus 3.
+        eapply @types_pair. (* types (p0,p3) *)
+          4: eauto. (* types p3 *)
+          3: eauto. (* types p0 *)
+          2: monoid. (* unifies ?Γ = Γ0 ⋓ Γ3 *)
+          1: validate. (* solves is_valid (Γ1 ⋓ Γ2) *)
+      Focus 2.
+        monoid. (* unifies Γ3 ⋓ Γ4 ⋓ Γ0 = Γ0 ⋓ Γ3 ⋓ Γ4 *)
+      Focus 1.   
+        validate. (* solves is_valid (Γ1 ⋓ Γ2) *)
+Qed.
+
+(* More succint, maybe less readable *)
+Lemma cnot23_WT_evars' : Typed_Box cnot12.
+Proof.    
+  unfold Typed_Box, cnot12. 
+  intros; simpl.
+  invert_patterns.
+  eapply types_gate.
+  - eapply @types_pair.
+    3: eauto.
+    3: eauto.
+    2: monoid.
+    validate.
+  - intros; simpl.
+    invert_patterns.
+    eapply @types_output.
+    + monoid.
+    + destruct_merges; subst.
+      eapply @types_pair.
+      4: eauto.
+      Focus 3.
+        econstructor.
+        3: eauto.
+        3: eauto.
+        2: monoid.
+        validate.
+      Unfocus.
+      2: monoid.
+      subst; validate.
+      subst; validate.
+  - split. 
+    validate.
+    monoid.
+Qed.  
+
+
+Lemma cnot23_WT_auto : Typed_Box cnot12.
+Proof.    
+  (* using only type_check *)
+  type_check.
+Qed.

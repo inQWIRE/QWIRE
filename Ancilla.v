@@ -184,7 +184,7 @@ Proof.
   apply singleton_singleton.
 Qed.
 
-Fact ancilla_free_valid : forall W (c : Circuit W), 
+Lemma ancilla_free_valid : forall W (c : Circuit W), 
                            ancilla_free c -> 
                            valid_ancillae c.
 Proof.

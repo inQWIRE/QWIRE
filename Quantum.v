@@ -1123,7 +1123,7 @@ Proof.
     clra.
 Qed.  
 
-Lemma swap_to_0_test_24 : forall (q0 q1 q2 q3 : Matrix 2 1), 
+Example swap_to_0_test_24 : forall (q0 q1 q2 q3 : Matrix 2 1), 
   WF_Matrix 2 1 q0 -> WF_Matrix 2 1 q1 -> WF_Matrix 2 1 q2 -> WF_Matrix 2 1 q3 ->
   swap_to_0 4 2 × (q0 ⊗ q1 ⊗ q2 ⊗ q3) = (q2 ⊗ q1 ⊗ q0 ⊗ q3). 
 Proof.
@@ -1188,7 +1188,7 @@ Proposition swap_two_spec : forall (q q0 : Matrix 2 1) (n0 n1 n2 n k : nat) (l0 
      ⨂ (l0 ++ [q] ++ l1 ++ [q0] ++ l2).
 *)
 
-Lemma move_to_0_test_24 : forall (q0 q1 q2 q3 : Matrix 2 1), 
+Example move_to_0_test_24 : forall (q0 q1 q2 q3 : Matrix 2 1), 
   WF_Matrix 2 1 q0 -> WF_Matrix 2 1 q1 -> WF_Matrix 2 1 q2 -> WF_Matrix 2 1 q3 ->
   move_to_0 4 2 × (q0 ⊗ q1 ⊗ q2 ⊗ q3) = (q2 ⊗ q0 ⊗ q1 ⊗ q3). 
 Proof.

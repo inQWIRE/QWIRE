@@ -328,7 +328,7 @@ Proof.
 Abort.
 
 (* Can we multiply 16 x 16 matrices? Yes, we can!
-Lemma test : ((swap ⊗ swap) × (swap ⊗ swap) = 'I_16)%M.
+Example test : ((swap ⊗ swap) × (swap ⊗ swap) = 'I_16)%M.
 Proof. 
   solve_matrix. 
   all: unfold Nat.ltb; simpl; rewrite andb_false_r; reflexivity.

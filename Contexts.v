@@ -398,14 +398,6 @@ Proof.
   intuition; congruence.
 Defined.
 
-(* This is false. Needs an assumption that Γ1 ≠ ∅ ≠ Γ2 
-Lemma ctx_cons_inversion : forall Γ1 Γ2 o Γ,
-      Γ1 ⋓ Γ2 = Valid (o :: Γ) ->
-      {o1 : option WType & {o2 : option WType & {Γ1' : Ctx & {Γ2' : Ctx 
-      & (Γ1 = Valid (o1 :: Γ1')) * (Γ2 = Valid (o2 :: Γ2')) * (Γ1' ⋓ Γ2' = Valid Γ)
-        * (merge_wire o1 o2 = Valid [o])}}}}%type.
-*)
-
 Lemma ctx_cons_inversion : forall (Γ Γ1 Γ2 : Ctx) o o1 o2,
       Valid (o1 :: Γ1) ⋓ Valid (o2 :: Γ2) = Valid (o :: Γ) ->
       (Γ1 ⋓ Γ2 = Valid Γ) * (merge_wire o1 o2 = Valid [o]).

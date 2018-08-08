@@ -619,7 +619,7 @@ Proof. intros. mlra. Qed.
 Lemma Mplus_0_r : forall (m n : nat) (A : Matrix m n), A .+ Zero m n = A.
 Proof. intros. mlra. Qed.
     
-Lemma Mmult_0_l : forall (m n o : nat) (A : Matrix n o), (Zero m n) × A = Zero m o.
+Lemma Mmult_0_l : forall (m n o : nat) (A : Matrix n o), Zero m n × A = Zero m o.
 Proof.
   intros m n o A. 
   unfold Mmult, Zero.
@@ -822,8 +822,9 @@ Lemma kron_1_l : forall (m n : nat) (A : Matrix m n),
 Proof.
   intros m n A WF.
   prep_matrix_equality.
+  unfold kron.
   unfold Id, kron.
-  bdestruct (m =? 0). rewrite 2 WF by omega. clra.
+  bdestruct (m =? 0). rewrite 2 WF by omega. clra. 
   bdestruct (n =? 0). rewrite 2 WF by omega. clra.
   bdestruct (x / m <? 1); rename H1 into Eq1.
   bdestruct (x / m =? y / n); rename H1 into Eq2; simpl.

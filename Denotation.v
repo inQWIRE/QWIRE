@@ -1285,8 +1285,8 @@ Definition denote_pat {w} (p : Pat w) : Matrix (2^⟦w⟧) (2^⟦w⟧) :=
 Instance Denote_Pat {w} : Denote (Pat w) (Matrix (2^⟦w⟧) (2^⟦w⟧)) :=
   { denote := denote_pat }.
 
-(* Rewrote lift to remove the bit in-place. Not sure if the corresponding variable
-   is being removed from the context, though *)
+(* I'm not convinced that "padding" needs to exist here. It would be wonderful
+   if we could remove it *)
 Fixpoint denote_db_circuit {w} safe padding input (c : DeBruijn_Circuit w)
                          : Superoperator (2^(padding+input)) (2^(padding+⟦w⟧)) :=
   match c with

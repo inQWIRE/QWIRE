@@ -224,24 +224,6 @@ Notation "ls1 ⊥ ls2" := (disjoint ls1 ls2 = true) (at level 30).
 Lemma disjoint_nil_l : forall ls, nil ⊥ ls. Proof. reflexivity. Qed.
 Lemma disjoint_nil_r : forall ls, ls ⊥ nil. Proof. induction ls; trivial. Qed.
 
-(*
-Lemma disjoint_cons : forall a ls1 ls2, (negb (inb a ls1)) = true ->
-                                   ls1 ⊥ ls2 ->
-                                   ls1 ⊥ (a :: ls2).
-Proof.
-  intros a ls1 ls2 H H0.
-  induction ls1.
-  apply disjoint_nil_l.
-  simpl in *.
-  Search ((_ =? _) = (_ =? _)).
-  rewrite Nat.eqb_sym.
-  destruct (a0 =? a). simpl in *. inversion H.
-  destruct (inb a0 ls2). simpl in *. inversion H0.
-  simpl in *.
-  apply IHls1; assumption.
-Qed.  
-*)
-
 Lemma disjoint_cons : forall a ls1 ls2, 
     ((negb (inb a ls1)) && disjoint ls1 ls2 = disjoint ls1 (a :: ls2))%bool.
 Proof.
