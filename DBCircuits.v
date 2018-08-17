@@ -34,10 +34,10 @@ Fixpoint get_fresh w (Γ : Ctx) : Pat w * Ctx:=
   | Qubit => (qubit (length Γ), singleton (length Γ) w)
   | w1 ⊗ w2 => let (p1, Γ1) := get_fresh w1 Γ in
               match Γ ⋓ Γ1 with
-              | Invalid  => (dummy_pat _, dummy_ctx)
+              | Invalid  => (dummy_pat, dummy_ctx)
               | Valid Γ' => let (p2, Γ2) := get_fresh w2 Γ' in
                            match Γ1 ⋓ Γ2 with
-                           | Invalid   => (dummy_pat _, dummy_ctx)
+                           | Invalid   => (dummy_pat, dummy_ctx)
                            | Valid Γ'' => ((pair p1 p2), Γ'')
                            end
               end

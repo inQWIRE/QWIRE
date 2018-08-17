@@ -519,6 +519,10 @@ Admitted.
 
 (*** Applying Unitaries to Sytems ***)
 
+(* Dummy matrices and superoperators *)
+Definition dummy_mat {m n} : Matrix m n. exact (Zero m n). Qed.
+Definition dummy_so {m n} : Superoperator m n. exact (fun _ => dummy_mat). Qed.
+
 Definition super_Zero {m n} : Superoperator m n  :=
   fun _ => Zero n n.
 
@@ -526,27 +530,29 @@ Definition apply_to_first {m n} (f : nat -> Superoperator m n) (l : list nat) :
   Superoperator m n :=
   match l with
   | x :: _ => f x 
-  | []     => super_Zero
+  | []     => dummy_so
   end.
 
+(* Might be nice to make this use dummy matrices at some point.
+   See ctrls_to_list_empty and denote_ctrls_empty, however *)
 Fixpoint ctrls_to_list {W} (lb : list bool) (l : list nat) (g : Unitary W) {struct g}: 
   (nat * list bool * Square 2) :=
   match g with
   | ctrl g'     => match l with 
                   | n :: l' => let (res,u) := ctrls_to_list lb l' g' in
-                              let (k,lb') := res in
-                              (k,update_at lb' n true, u)  
-                  | _       => (O,[],Zero 2 2)
+                                let (k,lb') := res in
+                                  (k,update_at lb' n true, u)  
+                  | _       => (O,[],Zero _ _)
                   end
   | bit_ctrl g' => match l with 
                   | n :: l' => let (res,u) := ctrls_to_list lb l' g' in
-                              let (k,lb') := res in
-                              (k,update_at lb' n true, u)  
-                  | _       => (O,[],Zero 2 2)
+                                let (k,lb') := res in
+                                (k,update_at lb' n true, u)  
+                  | _       => (O,[],Zero _ _)
                   end
   | u           => match l with
                   | k :: l' => (k,lb,⟦u⟧)
-                  | _       => (O,[],Zero 2 2)
+                  | _       => (O,[],Zero _ _)
                   end
   end.
 

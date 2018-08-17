@@ -1274,9 +1274,16 @@ Fixpoint mk_typed_qubit (Γ : Ctx) : Pat Qubit * Ctx :=
                    end
   end.
   
-(* Is there a preferred way to do this? *)
-Parameter dummy_pat : forall W, Pat W.
-Parameter dummy_ctx : Ctx.
+(* Opaque Dummy Values *)
+Definition dummy_ctx : Ctx. exact []. Qed.
+
+Definition dummy_pat {W} : Pat W.
+induction W.
+- exact (qubit O).
+- exact (bit O).
+- exact unit.
+- constructor; auto.
+Qed.
 
 Fixpoint mk_typed_pat (W : WType) (Γ : Ctx) {struct W} : Pat W * Ctx :=
   match W with
@@ -1286,11 +1293,11 @@ Fixpoint mk_typed_pat (W : WType) (Γ : Ctx) {struct W} : Pat W * Ctx :=
   | Tensor W1 W2 => let (p1,Γ1) := mk_typed_pat W1 Γ in
               let Γ1' := (Γ ⋓ Γ1) in 
               let (p2,Γ2) := match Γ1' with 
-                             | Invalid => (dummy_pat _, dummy_ctx)
+                             | Invalid => (dummy_pat, dummy_ctx)
                              | Valid Γ1'' => mk_typed_pat W2 Γ1''
                              end in
               match Valid Γ1 ⋓ Valid Γ2 with
-              | Invalid    => (dummy_pat _, dummy_ctx)
+              | Invalid    => (dummy_pat, dummy_ctx)
               | Valid Γ12  => ((pair p1 p2), Γ12)
               end
   end.

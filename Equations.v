@@ -12,7 +12,7 @@ Global Unset Asymmetric Patterns.
          here I'm just outputting the mentioned (qu)bits *)
 
 Open Scope circ_scope.  
-
+  
 (** Equality 1: X; meas = meas; NOT **)
 
 Definition X_meas : Box Qubit Bit :=
@@ -458,3 +458,20 @@ Proof.
        easy.
 Qed.  
 
+(** HZH Equality **)
+
+Definition HZH : Box Qubit Qubit := 
+  box_ q ⇒ _H $ _Z $ _H $ q.
+
+Lemma HZH_X : HZH ≡ _X.
+Proof.
+  matrix_denote.
+  intros.
+  Msimpl.
+  repeat rewrite <- Mmult_assoc.
+  rewrite (Mmult_assoc _ _ _ _ _ _ hadamard).
+  rewrite (Mmult_assoc _ _ _ _ _ hadamard).
+  rewrite <- (Mmult_assoc _ _ _ _ hadamard).
+  replace (hadamard × σz × hadamard) with σx. easy.
+  crunch_matrix.
+Qed.
