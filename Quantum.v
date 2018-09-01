@@ -789,7 +789,7 @@ Definition Pure_State_Vector {n} (φ : Matrix n 1): Prop :=
 Definition Pure_State {n} (ρ : Density n) : Prop := 
   exists φ, Pure_State_Vector φ /\ ρ = φ × φ†.
 
-Inductive Mixed_State {n} : (Matrix n n) -> Prop :=
+Inductive Mixed_State {n} : Matrix n n -> Prop :=
 | Pure_S : forall ρ, Pure_State ρ -> Mixed_State ρ
 | Mix_S : forall (p : R) ρ1 ρ2, 0 < p < 1 -> Mixed_State ρ1 -> Mixed_State ρ2 ->
                                        Mixed_State (p .* ρ1 .+ (1-p)%R .* ρ2).  

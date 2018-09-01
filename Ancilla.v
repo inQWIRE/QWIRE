@@ -34,7 +34,7 @@ Definition valid_ancillae {W} (c : Circuit W) : Prop := forall (Γ Γ0 : Ctx),
   ⟨ Γ0 | Γ ⊩ c ⟩ = ⟨! Γ0 | Γ ⊩ c !⟩.
 
 Definition valid_ancillae_box {W1 W2} (c : Box W1 W2) := 
-  Typed_Box c -> 
+  Typed_Box c -> (* why are we including typing judgments? *)
   denote_box true c = denote_box false c.
 
 Definition valid_ancillae' {W} (c : Circuit W) := forall (Γ Γ0 : Ctx) ρ, 

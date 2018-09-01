@@ -458,6 +458,10 @@ Proof.
        easy.
 Qed.  
 
+(***********************)
+(* Assorted Equalities *)
+(***********************)
+
 (** HZH Equality **)
 
 Definition HZH : Box Qubit Qubit := 
@@ -475,3 +479,4 @@ Proof.
   replace (hadamard × σz × hadamard) with σx. easy.
   crunch_matrix.
 Qed.
+

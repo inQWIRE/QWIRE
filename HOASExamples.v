@@ -152,6 +152,22 @@ Definition bell00 : Box One (Qubit ⊗ Qubit) :=
 Lemma bell00_WT : Typed_Box bell00.
 Proof. type_check. Qed.
 
+(* Two alternative ways of writing bell00 *)
+Definition bell_old_style : Box One (Qubit ⊗ Qubit) :=
+  box_ () ⇒  
+    gate_ a ← init0 @();
+    gate_ b ← init0 @();
+    gate_ a ← _H @a;
+    gate_ (a,b) ← CNOT @(a,,b); 
+    output (a,,b).
+Lemma bell_old_style_WT : Typed_Box bell_old_style.
+Proof. type_check. Qed.
+
+Definition bell_one_line : Box One (Qubit ⊗ Qubit) :=
+  box_ () ⇒  CNOT $ (_H $ init0 $(), init0 $()).
+Lemma bell_one_line_WT : Typed_Box bell_one_line.
+Proof. type_check. Qed.
+
 Definition alice : Box (Qubit ⊗ Qubit) (Bit ⊗ Bit) :=
   box_ qa ⇒ 
     let_ (q,a) ← CNOT $qa;
