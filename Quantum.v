@@ -59,6 +59,9 @@ Proof. intros. destruct b; simpl; solve_matrix. Qed.
 Lemma bool_to_ket_matrix_eq : forall b, outer_product (bool_to_ket b) = bool_to_matrix b.
 Proof. unfold outer_product. destruct b; simpl; reflexivity. Qed.
 
+Definition bools_to_matrix (l : list bool) : Square (2^(length l)) := 
+  big_kron (map bool_to_matrix l).
+
 
 (*************)
 (* Unitaries *)
@@ -116,7 +119,6 @@ Definition phase_shift (ϕ : R) : Matrix 2 2 :=
           | 1, 1 => Cexp ϕ
           | _, _ => C0
           end.
-    
   
 Definition control {n : nat} (A : Matrix n n) : Matrix (2*n) (2*n) :=
   fun x y => if (x <? n) && (y =? x) then 1 else 
@@ -253,8 +255,19 @@ Proof. destruct b; show_wf. Qed.
 Lemma WF_bool_to_matrix' : forall b, WF_Matrix 2 2 (bool_to_matrix' b).
 Proof. destruct b; show_wf. Qed.
 
+Lemma WF_bools_to_matrix : forall l, 
+  WF_Matrix (2^(length l)) (2^(length l))  (bools_to_matrix l).
+Proof. 
+  induction l; auto with wf_db.
+  unfold bools_to_matrix in *; simpl.
+  apply WF_kron; try rewrite map_length; try omega.
+  apply WF_bool_to_matrix.
+  apply IHl.
+Qed.
+
 Hint Resolve WF_bra0 WF_bra1 WF_ket0 WF_ket1 WF_braket0 WF_braket1 : wf_db.
 Hint Resolve WF_bool_to_ket WF_bool_to_matrix WF_bool_to_matrix' : wf_db.
+Hint Resolve WF_bools_to_matrix : wf_db.
 
 Lemma WF_hadamard : WF_Matrix 2 2 hadamard. Proof. show_wf. Qed.
 Lemma WF_σx : WF_Matrix 2 2 σx. Proof. show_wf. Qed.

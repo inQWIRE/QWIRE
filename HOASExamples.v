@@ -242,6 +242,36 @@ Lemma teleport_distant_WT : Typed_Box teleport_distant.
 Proof. type_check. Qed.
 
 
+(***********************)
+(** Superdense Coding **)
+(***********************)
+
+(* Same as `bob` *)
+Definition send_distant (b1 b2 : bool) : Box Qubit Qubit :=
+  box_ s ⇒ 
+    let_ s ← (if b2 then _X else id_circ) $ s;
+    let_ s ← (if b1 then _Z else id_circ) $ s;
+    s.
+Lemma send_distant_WT : forall b1 b2, Typed_Box (send_distant b1 b2).
+Proof. type_check. Qed.
+
+(* Same as `alice`, though rewritten *)
+Definition receive : Box (Qubit ⊗ Qubit) (Bit ⊗ Bit) :=
+  box_ (s,r) ⇒ 
+    let_ (s,r) ← CNOT $(s,r);
+    let_ s     ← _H $s;
+    (meas $ s, meas $ r).
+Lemma receive_WT : Typed_Box receive.
+Proof. type_check. Qed.
+
+Definition superdense_distant (b1 b2 : bool) : Box One (Bit ⊗ Bit) :=
+  box_ () ⇒ 
+    let_ (s,r) ← bell00 $ ();
+    let_ s     ← send_distant b1 b2 $ s;
+    receive $ (s,r).   
+Lemma superdense_distant_WT : forall b1 b2, Typed_Box (superdense_distant b1 b2).
+Proof. type_check. Qed.
+
 (*******************************)
 (** Quantum Fourier Transform **)
 (*******************************)

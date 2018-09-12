@@ -647,6 +647,18 @@ Proof.
        reflexivity.
 Qed.
 
+(*********************)
+(* Superdense Coding *)
+(*********************)
+
+Lemma superdense_eq : forall b1 b2, 
+  ⟦superdense_distant b1 b2⟧ I1 = bools_to_matrix [b1; b2].
+Proof.
+  intros b1 b2.
+  specialize (WF_bools_to_matrix ([b1;b2])) as WF.
+  destruct b1, b2; matrix_denote; Msimpl; solve_matrix.
+Qed.
+
 (* Lemmas out of date
 Proposition boxed_gate_correct : forall W1 W2 (g : Gate W1 W2) (ρ : Density (2^⟦W1⟧)) ,
       Mixed_State ρ -> ⟦boxed_gate g⟧ ρ = ⟦g⟧ ρ.
