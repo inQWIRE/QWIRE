@@ -56,9 +56,6 @@ Definition id_bexp : bexp := 0.
 Definition list_to_function {A} (l : list A) (d : A) := fun (n : nat) => nth n l d.
 Definition fun_of_bools (l : list bool) := fun n => nth n l false.
 
-Definition bools_to_matrix (l : list bool) : Square (2^(length l)) := 
-  big_kron (map bool_to_matrix l).
-
 (*
 Fixpoint bools_to_matrix (l : list bool) : Square (2^(length l)) := 
   match l with

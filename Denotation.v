@@ -302,10 +302,10 @@ Instance Denote_Gate_Correct W1 W2 : Denote_Correct (Denote_Gate W1 W2) :=
 |}.
 
 
-(* for (i,x) ∈ l, 
+(* for (i,j) ∈ l, 
     swaps the position of qubits i and x in the n-qubit system 
 *)
-(* Requires: (i,x) ∈ l implies i < n and x < n *)
+(* Requires: (i,j) ∈ l implies i < n and j < n *)
 (* Requires: m <= n (m is structurally decreasing) *)
 (* Invariant: m = length l *)
 Fixpoint swap_list_aux (m n : nat) (l : list (nat * nat)) : Square  (2^n) :=
@@ -388,9 +388,9 @@ Proposition swap_list_shift' : forall (n : nat) (ρ : Square 2) (A : Square (2^n
   super (swap_list (S n) (n :: seq 0 n)) (A ⊗ ρ) = ρ ⊗ A.
 *)
 
-(* These propositions about swap_list are probably important 
-Proposition swap_to_0_aux_unitary : forall n i, 
-  (n >= 2)%nat ->
+(* These propositions about swap_list are probably important *)
+Lemma swap_to_0_aux_unitary : forall n i, 
+  (i + 1 < n)%nat ->
   WF_Unitary (swap_to_0_aux n i).
 Proof.
   intros n i H.
@@ -403,21 +403,81 @@ Proof.
     apply id_unitary.
     omega.
   - unify_pows_two.
+    replace (2^n)%nat with (2^(i + 1 + 2 + (n - S i - 2)))%nat by
+      (apply f_equal2; trivial; try omega).
+    Set Printing Implicit.
     apply Mmult_unitary.
+    apply Mmult_unitary.
+    rewrite Nat.pow_add_r.
+    apply kron_unitary.
+    rewrite Nat.pow_add_r.
+    apply kron_unitary.
+    apply id_unitary.
+    apply swap_unitary.
+    apply id_unitary.
+    replace (2^(i + 1 + 2 + (n - S i - 2)))%nat with (2^n)%nat by
+      (apply f_equal2; trivial; try omega).
+    apply IHi.
+    omega.
+    rewrite Nat.pow_add_r.
+    apply kron_unitary.
+    rewrite Nat.pow_add_r.
+    apply kron_unitary.
+    apply id_unitary.
+    apply swap_unitary.
+    apply id_unitary.
+    Unset Printing Implicit.
+Qed.
 
-  apply kron_unitary.
-  
-  
-
-Proposition swap_to_0_unitary : forall m n l, WF_Unitary (swap_to_0 m n l).
-Abort.
-
-Proposition swap_two_aux_unitary : forall m n l, WF_Unitary (swap_two_aux m n l).
-Abort.  
-
-Proposition swap_list_aux_unitary : forall m n l, WF_Unitary (swap_list_aux m n l).
+Lemma swap_to_0_unitary : forall i n, (i < n)%nat -> WF_Unitary (swap_to_0 n i).
 Proof.
-  induction m; intros n l.
+  intros i n L.
+  unfold swap_to_0.
+  destruct i. 
+  apply id_unitary.
+  apply swap_to_0_aux_unitary.
+  omega.
+Qed.  
+
+Lemma swap_two_aux_unitary : forall n i j, (i < j < n)%nat -> 
+                                      WF_Unitary (swap_two_aux n i j).
+Proof.
+  intros n i.
+  gen n.
+  induction i.
+  - intros; simpl.
+    apply swap_to_0_unitary.
+    omega.
+  - intros n j [Lij Ljn].
+    simpl.
+    destruct n; try omega.
+    rewrite <- (Nat.add_1_l n).
+    rewrite minus_plus.
+    apply kron_unitary.
+    apply id_unitary.
+    apply IHi.
+    omega.
+Qed.
+    
+Lemma swap_two_unitary : forall n i j, (i < n)%nat -> (j < n)%nat ->
+                                  WF_Unitary (swap_two n i j).
+Proof.
+  intros n i j Lin Ljn.
+  unfold swap_two.
+  bdestruct (i =? j). apply id_unitary.
+  bdestruct (i <? j).
+  apply swap_two_aux_unitary. omega.
+  apply swap_two_aux_unitary. omega.
+Qed.  
+
+Lemma swap_list_aux_unitary : forall m n l, 
+   (forall i j, In (i,j) l -> (i < n)%nat /\ (j < n)%nat) ->
+   (m <= n)%nat -> 
+  WF_Unitary (swap_list_aux m n l).
+Proof.
+  intros m n l Lall Lmn.
+  gen l.
+  induction m; intros l Lall.
   - simpl.
     apply id_unitary.
   - simpl.
@@ -425,99 +485,81 @@ Proof.
     apply id_unitary.
     destruct p.
     apply Mmult_unitary.
-    Focus 2.
+    destruct (Lall n0 n1); simpl; auto.
+    apply swap_two_unitary; easy.
     apply IHm.
-   
-    Search WF_Unitary swap_two.
-    specialize (IHm 1%nat 
-    apply IHm.
-    Search WF_Unitary Mmult.
-Abort.
+    omega.
+    intros x y IN.
+    split. (* This shouldn't be hard... *)
+    + induction l.
+      easy.
+      destruct IN.
+      destruct a.
+      simpl in *.
+      destruct (n0 =? n3).
+      inversion H; subst. clear H.
+      edestruct Lall.
+      right. left. reflexivity.
+      easy.
+      inversion H; subst. clear H.
+      edestruct Lall.
+      right. left. reflexivity.
+      easy.
+      apply IHl.
+      intros. 
+      apply Lall.
+      destruct H0.
+      left. easy.
+      right. right. easy.
+      apply H.
+    + induction l.
+      easy.
+      destruct IN.
+      destruct a.
+      simpl in *.
+      destruct (n0 =? n3).
+      inversion H; subst. clear H.
+      edestruct Lall.
+      left. reflexivity.
+      easy.
+      inversion H; subst. clear H.
+      edestruct Lall.
+      right. left. reflexivity.
+      easy.
+      apply IHl.
+      intros. 
+      apply Lall.
+      destruct H0.
+      left. easy.
+      right. right. easy.
+      apply H.
+Qed.
 
-(* older attempts *)
-Proposition unitary_swap_to_0 : forall n i, (i < n)%nat -> WF_Unitary (swap_to_0 n i).
+
+(* for l[i]=x, swaps the position of qubits i and x in the n-qubit system *)
+(* Requires: length l <= n *)
+(* Requires: x ∈ l implies x < n *)
+
+Lemma swap_list_unitary : forall n l, (length l <= n)%nat -> 
+                                 (forall x, In x l -> x < n)%nat ->
+                                 WF_Unitary (swap_list n l).
 Proof.
-  intros n i.
-  generalize dependent n.
-  unfold WF_Unitary; split.
-  + (* well-formedness *)
-    induction i. 
-    simpl. auto with wf_db.     
-    simpl in *.
-    unfold swap_to_0 in IHi.
-    destruct i; simpl in *.
-    - specialize Nat.pow_nonzero; intros NZ.
-      replace (2 ^ n)%nat with (4 * 2^(n-2))%nat by unify_pows_two.
-      auto with wf_db.
-    - specialize Nat.pow_nonzero; intros NZ.
-      replace (2^n)%nat with  (2 ^ (i+1) * 4 * 2 ^ (n - i - 3))%nat by unify_pows_two.    
-      auto with wf_db.
-      replace (2 ^ i + (2 ^ i + 0))%nat with (2 ^ (i + 1))%nat by unify_pows_two.
-      replace (n - S i - 2)%nat with (n - i - 3)%nat by omega. 
-      apply WF_mult; auto with wf_db.
-      apply WF_mult; auto with wf_db.
-      replace (2 ^ (i + 1) * 4 * 2 ^ (n - i - 3))%nat with (2^n)%nat by unify_pows_two.
-      apply IHi.
-      omega.
-  + induction i; simpl.
-    - apply id_unitary.
-    - unfold swap_to_0 in IHi. 
-      destruct i.
-      * simpl.
-        remember ( Id (2 ^ (n - 2))) as A.
-        remember swap as B.
-        setoid_rewrite (kron_adjoint _ _ _ _ B A).            
-    
-(*    rewrite (kron_mixed_product B† A† B A). *)
-
-        specialize (kron_mixed_product _ _ _ _ _ _ B† A† B A); intros H'.
-        assert (WF_Unitary B). subst. apply swap_unitary.
-        assert (WF_Unitary A). subst. apply id_unitary.
-        destruct H0 as [_ H0], H1 as [_ H1].
-        rewrite H0 in H'.
-        rewrite H1 in H'.
-        replace (Id (2 ^ n)) with (Id 4 ⊗ Id (2 ^ (n - 2))).
-        (* apply H doesn't work. 
-         Surprisingly, that's the matrix types failing to line up *)
-        rewrite <- H'.
-        replace (4 * (2 ^ (n - 2)))%nat with (2 ^ n)%nat.
-        reflexivity.
-        unify_pows_two.
-        unify_pows_two.
-        replace (2^n)%nat with (2^2 * 2^(n-2))%nat by unify_pows_two.
-        rewrite id_kron.
-        reflexivity.
-      * simpl.
-Abort.
-
-Proposition unitary_swap_two : forall n i j, (i < n)%nat -> (j < n)%nat ->
-                                  WF_Unitary (swap_two n i j).
-Proof.
-  intros n i j P1 P2.
-  unfold WF_Unitary.
-  unfold swap_two.
-  destruct (lt_eq_lt_dec i j) as [[ltij | eq] | ltji].
-  + induction i.
-    simpl.
-Abort.
-*)
-
-Fact swap_list_unitary : forall n l, WF_Unitary (swap_list n l).
-Proof.
-  intros n l.
+  intros n l len Lall.
   unfold swap_list.
-  induction n.
-  - simpl.
-    apply id_unitary.
-  - simpl.
-    destruct (zip_to 0 (S n) l) eqn:E.
-    unify_pows_two.
-    apply id_unitary.
-    destruct p.
-Admitted.
+  apply swap_list_aux_unitary; try omega.
+  intros i j IN.
+  split.
+  - unfold zip_to in *.
+    apply in_combine_l in IN.
+    apply in_seq in IN.
+    omega.
+  - unfold zip_to in *.
+    apply in_combine_r in IN.
+    apply Lall.
+    apply IN.
+Qed.
 
-
-(*** Applying Unitaries to Sytems ***)
+(*** Applying Unitaries to Systems ***)
 
 (* Dummy matrices and superoperators *)
 Definition dummy_mat {m n} : Matrix m n. exact (Zero m n). Qed.
@@ -2176,7 +2218,15 @@ Proof.
     unfold denote_circuit.
     simpl.
     unfold pad.
-    rewrite (ctx_wtype_size w p Γ') by easy.  
+    rewrite (ctx_wtype_size w p Γ') by easy.
+    rewrite size_fresh_ctx.
+    Search add_fresh_state.
+    
+
+    unfold hoas_to_db.
+    simpl.
+    cbn.
+
 
     admit. (* property about f being parametric *)
     (* ⟨ Γ0 | Γ1 ⋓ Γ2 ⊩ f p ⟩
@@ -2693,6 +2743,13 @@ Proof.
       with (2 ^ size_ctx Γ * 2 ^ size_ctx Γ0)%nat by (simpl; unify_pows_two). 
     apply KU.
     apply swap_list_unitary.
+    rewrite size_wtype_length.
+    rewrite (ctx_wtype_size w p Γ t). omega.
+    intros x.
+    eapply pat_to_list_bounded.
+    split. validate.
+    rewrite merge_nil_r. easy.
+    easy.
     apply id_unitary.
   - dependent destruction STAT. 
     rename H0 into STAT. rename H into IH. 
