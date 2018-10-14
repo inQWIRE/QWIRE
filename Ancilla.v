@@ -1,6 +1,6 @@
 Require Import DBCircuits.
-Require Import Denotation.
 Require Import TypeChecking.
+Require Import Denotation.
 
 (*************************)
 (* Assertion Correctness *)
@@ -53,9 +53,59 @@ Proof.
   intros.
   unfold valid_ancillae, valid_ancillae'.
   split.
-  - intros VA.
-  unfold valid_ancillae, valid_ancillae'.
-  induction c.
+  - intros H Γ Γ0 ρ H0 H1.
+    rewrite <- H; trivial.
+    apply mixed_state_trace_1.
+    (* The following lemma is sufficient:
+    apply denote_circuit_correct; easy. *)
+    admit.
+  - induction c as [| W' W0 g p c IH | IH]. 
+    + reflexivity.
+    + intros H Γ Γ0 H'.    
+      replace (gate g p c) with (compose (gate g p (fun p' => output p')) c) by auto.
+      dependent destruction H'.
+      destruct Γ1 as [|Γ1]; try invalid_contradiction.
+      erewrite denote_compose with (Γ1:=[]); trivial.        
+      Locate ":Fun".
+      Focus 3.
+        intros Γ3 Γ0' p0 H0 H1.
+        destruct H0.
+        rewrite merge_nil_r in pf_merge.
+        subst.
+        apply (t0 Γ3); trivial.
+        
+(*        
+      rewrite denote_compose with (Γ1:=Γ); trivial.        
+      apply f_equal2.
+      rewrite (IH (add_fresh_pat W0 Γ)). 
+      reflexivity.
+      intros. apply (H Γ1 Γ2).
+      
+
+      denote_compose.
+
+      unfold denote_circuit in *. 
+      
+        
+      rewrite H1.
+
+      simpl.
+      destruct g.
+      * simpl. 
+        unfold denote_db_circuit.
+        simpl.
+        reflexivity.
+        reflexivity.
+        matrix_denote. simpl.
+
+
+    intros VA.
+    unfold valid_ancillae, valid_ancillae'.
+    induction c.
+    intros Γ Γ0 ρ H H0.
+
+*)
+
 Abort.
 
 Fact valid_ancillae_box_equal : forall W1 W2 (c : Box W1 W2), 
@@ -201,10 +251,7 @@ Proof.
     intros Γ0 Γ1 WT.
     dependent destruction WT.
     destruct Γ as [|Γ], Γ2 as [|Γ2]; try invalid_contradiction.
-    erewrite denote_gate_circuit; [|apply pf1|apply t]. 
-    erewrite denote_gate_circuit_unsafe; [|apply pf1|apply t].
-
-
+    erewrite 2 denote_gate_circuit; try apply pf1; try apply t. 
     destruct g.
     - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
     - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].

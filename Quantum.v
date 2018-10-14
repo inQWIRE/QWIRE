@@ -996,6 +996,15 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma WF_super : forall  m n (U : Matrix m n) (ρ : Square n), 
+  WF_Matrix m n U -> WF_Matrix n n ρ -> WF_Matrix m m (super U ρ).
+Proof.
+  unfold super.
+  auto with wf_db.
+Qed.
+
+Hint Resolve WF_super : wf_db.
+
 Lemma super_outer_product : forall m (φ : Matrix m 1) (U : Matrix m m), 
     super U (outer_product φ) = outer_product (U × φ).
 Proof.
@@ -1007,6 +1016,20 @@ Qed.
 Definition compose_super {m n p} (g : Superoperator n p) (f : Superoperator m n)
                       : Superoperator m p :=
   fun ρ => g (f ρ).
+
+Lemma WF_compose_super : forall m n p (g : Superoperator n p) (f : Superoperator m n) 
+  (ρ : Square m), 
+  WF_Matrix m m ρ ->
+  (forall A, WF_Matrix m m A -> WF_Matrix n n (f A)) ->
+  (forall A, WF_Matrix n n A -> WF_Matrix p p (g A)) ->
+  WF_Matrix p p (compose_super g f ρ).
+Proof.
+  unfold compose_super.
+  auto.
+Qed.
+
+Hint Resolve WF_compose_super : wf_db.
+
 
 Lemma compose_super_correct : forall {m n p} 
                               (g : Superoperator n p) (f : Superoperator m n),

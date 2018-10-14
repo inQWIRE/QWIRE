@@ -153,7 +153,7 @@ Qed.
 
 (* The following uses a lemma (scale_safe) that is worth proving, but not yet proven *)
 (* We abort this lemma and prove a more general version below *)
-Lemma flips_lift_correct : forall n, ⟦coin_flips_lift n⟧ I1 = biased_coin (1/(2^n)).
+Proposition flips_lift_correct : forall n, ⟦coin_flips_lift n⟧ I1 = biased_coin (1/(2^n)).
 Proof.
   induction n.
   + matrix_denote. Msimpl. solve_matrix.

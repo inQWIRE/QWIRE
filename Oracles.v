@@ -811,6 +811,12 @@ Ltac unify_dim_solve :=
   | [|- _ = _] => reflexivity
   end.
 
+Ltac show_static :=
+  repeat match goal with 
+  | [ |- Static_Box ?c] => constructor; intros
+  | [ |- Static_Circuit ?c] => constructor; intros
+  end.
+
 Ltac show_pure := 
   repeat match goal with
   | [|- Pure_State (⨂ ctx_to_mat_list ?Γ ?f)] =>
@@ -845,6 +851,28 @@ Ltac show_mixed :=
   repeat match goal with
     [|- @Mixed_State ?W (@denote_box true ?W1 ?W2 ?c ?ρ) ] => 
     let H := fresh "H" in
+    let S := fresh "S" in
+    let T := fresh "T" in
+    specialize (@denote_static_box_correct W1 W2 c) as H;
+    unfold WF_Superoperator in H;
+    assert (S : Static_Box c) by show_static;
+    assert (T : Typed_Box c) by (compile_typing (compile_WT); type_check);
+    specialize (H S T ρ);
+    simpl in H;
+    match type of H with
+    | _ -> @Mixed_State ?W' (denote_box true ?c' ?ρ') => 
+      replace ρ with ρ' by easy;
+      replace W with W' by dim_solve;
+      try apply H
+    end;
+    clear H S T
+  end; try solve [apply Pure_S; show_pure].
+
+(* Version with denote_box_correct: 
+Ltac show_mixed := 
+  repeat match goal with
+    [|- @Mixed_State ?W (@denote_box true ?W1 ?W2 ?c ?ρ) ] => 
+    let H := fresh "H" in
     let T := fresh "T" in
     specialize (@denote_box_correct W1 W2 c) as H;
     unfold WF_Superoperator in H;
@@ -859,6 +887,7 @@ Ltac show_mixed :=
     end;
     clear H; clear T
   end; try solve [apply Pure_S; show_pure].
+*)
 
 Hint Extern 2 (Mixed_State _) => show_mixed : wf_db. 
 
@@ -1128,6 +1157,76 @@ Proof.
     Msimpl.
     rewrite xorb_comm.
     reflexivity.
+
+    all: unify_pows_two.
+    + replace (size_ctx Γ + 1)%nat with (size_wtype (S (⟦Γ⟧) ⨂ Qubit)%qc).
+      2: rewrite size_ntensor; simpl; omega.
+      apply WF_denote_box. type_check.
+      auto with wf_db.
+    + replace (size_ctx Γ + 1)%nat with (size_wtype (S (⟦Γ⟧) ⨂ Qubit)%qc).
+      2: rewrite size_ntensor; simpl; omega.
+      apply WF_denote_box. type_check.
+      apply WF_kron.
+      simpl. rewrite size_ntensor. simpl. unify_pows_two.
+      simpl. rewrite size_ntensor. simpl. unify_pows_two.
+      auto with wf_db.
+      replace (2^(size_ctx Γ)) with (2^(size_wtype ((⟦Γ⟧) ⨂ Qubit)%qc)).
+      2: rewrite size_ntensor; simpl; unify_pows_two.
+      apply WF_denote_box. type_check.
+      apply WF_denote_box. type_check.
+      apply WF_kron.
+      simpl. rewrite size_ntensor. simpl. unify_pows_two.
+      simpl. rewrite size_ntensor. simpl. unify_pows_two.
+      auto with wf_db.
+      auto with wf_db.
+    + replace (size_ctx Γ + 1)%nat with (size_wtype (S (⟦Γ⟧) ⨂ Qubit)%qc).
+      2: rewrite size_ntensor; simpl; omega.
+      apply WF_denote_box. type_check.
+      apply WF_kron.
+      simpl. rewrite size_ntensor. simpl. unify_pows_two.
+      simpl. rewrite size_ntensor. simpl. unify_pows_two.
+      auto with wf_db.
+      auto with wf_db.
+    + apply WF_kron; unify_pows_two.
+      replace 2%nat with (2^(size_wtype Qubit))%nat.
+      2: simpl; unify_pows_two; easy.
+      apply WF_denote_box. type_check.
+      auto with wf_db.
+      replace (2^(size_ctx Γ)) with (2^(size_wtype ((⟦Γ⟧) ⨂ Qubit)%qc)).
+      2: rewrite size_ntensor; simpl; unify_pows_two.
+      apply WF_denote_box. type_check.
+      apply WF_denote_box. type_check.
+      apply WF_kron.
+      simpl. rewrite size_ntensor. simpl. unify_pows_two.
+      simpl. rewrite size_ntensor. simpl. unify_pows_two.
+      auto with wf_db.
+      auto with wf_db.
+    + replace (size_ctx Γ + 1)%nat with (size_wtype (S (⟦Γ⟧) ⨂ Qubit)%qc).
+      2: rewrite size_ntensor; simpl; omega.
+      apply WF_denote_box. type_check.
+      auto with wf_db.
+    + apply WF_kron; unify_pows_two.
+      replace 2%nat with (2^(size_wtype Qubit))%nat. 
+      2: simpl; unify_pows_two; easy.
+      apply WF_denote_box. type_check.
+      auto with wf_db.
+      replace (size_ctx Γ + 1)%nat with (size_wtype (S (⟦Γ⟧) ⨂ Qubit)%qc).
+      2: rewrite size_ntensor; simpl; omega.
+      apply WF_denote_box. type_check.
+      auto with wf_db.
+    + replace (size_ctx Γ + 1)%nat with (size_wtype (S (⟦Γ⟧) ⨂ Qubit)%qc).
+      2: rewrite size_ntensor; simpl; omega.
+      apply WF_denote_box. type_check.
+      auto with wf_db.
+    + replace (size_ctx Γ + 1 + 1)%nat with (size_wtype (S (S (⟦Γ⟧)) ⨂ Qubit)%qc).
+      2: rewrite size_ntensor; simpl; unify_pows_two; omega.
+      apply WF_denote_box. type_check.
+      apply WF_denote_box. type_check.
+      auto with wf_db.
+    + replace (size_ctx Γ + 1)%nat with (size_wtype (S (⟦Γ⟧) ⨂ Qubit)%qc).
+      2: rewrite size_ntensor; simpl; omega.
+      apply WF_denote_box. type_check.
+      auto with wf_db.
   - simpl in *.
     specialize inSeq_correct as IS. simpl in IS.    
     repeat (rewrite IS; compile_typing (compile_WT)). clear IS.
@@ -1174,4 +1273,104 @@ Proof.
     rewrite (xorb_comm _ t).
     rewrite xorb_assoc.
     reflexivity.
+    unify_pows_two.
+    replace (size_ctx Γ + 1)%nat with (size_wtype (S (⟦Γ⟧) ⨂ Qubit)%qc).
+    2: rewrite size_ntensor; simpl; omega.
+    apply WF_denote_box. type_check.
+    auto with wf_db.    
 Qed.
+    
+(*
+Proposition compile_static : forall b Γ, Static_Box (compile b Γ).
+Proof.
+  intros.
+  induction b; simpl.
+  - constructor. intros.
+    dependent destruction p.
+    simpl.
+    repeat (constructor; intros).
+  - constructor. intros.
+    dependent destruction p.
+    simpl.
+    repeat (constructor; intros).
+  - unfold CNOT_at.
+    destruct (lt_dec (S (position_of v Γ)) (S (size_ctx Γ))).
+    + destruct (lt_dec 0 (S (size_ctx Γ))).
+      * destruct (Nat.eq_dec (S (position_of v Γ)) 0).
+        -- repeat (constructor; intros).
+        -- unfold CNOT_at'.
+constructor.
+        constructor. 
+    constructor. intros.
+    dependent destruction p.
+    simpl.
+    repeat (constructor; intros).
+
+Ltac show_static' :=
+  repeat match goal with 
+  | [ |- Static_Box ?c] => constructor; intros
+  | [ |- Static_Circuit ?c] => constructor; intros
+  end.
+
+Ltac show_pure' := 
+  repeat match goal with
+  | [|- Pure_State (⨂ ctx_to_mat_list ?Γ ?f)] =>
+    replace (⨂ ctx_to_mat_list Γ f) with (ctx_to_matrix Γ f) by easy
+  | [|- @Pure_State ?W (ctx_to_matrix ?Γ ?f) ] => 
+    let H := fresh "H" in 
+    specialize (pure_ctx_to_matrix Γ f) as H;
+    match type of H with
+    | @Pure_State ?W' (ctx_to_matrix ?Γ ?f) =>
+      replace W with W' by dim_solve;
+      apply H
+    end; clear H
+  | [|- @Pure_State ?W (@kron ?a ?b ?c ?d ?A ?B) ] => 
+    let H := fresh "H" in 
+    specialize (pure_state_kron a c A B) as H;
+    match type of H with
+    | ?H1 -> ?H2 -> @Pure_State ?W' (@kron ?a' ?b' ?c' ?d' ?A ?B) => 
+        replace W with W' by dim_solve;
+        replace a with a' by dim_solve; 
+        replace b with b' by dim_solve;
+        replace c with c' by dim_solve;
+        replace d with d' by dim_solve;
+        apply H
+    end; clear H
+  | _ => apply pure_bool_to_matrix
+  | _ => apply pure0
+  | _ => apply pure1
+  | _ => apply pure_id1
+  end.
+
+Ltac show_mixed' := 
+  repeat match goal with
+    [|- @Mixed_State ?W (@denote_box true ?W1 ?W2 ?c ?ρ) ] => 
+    let H := fresh "H" in
+    let S := fresh "S" in
+    let T := fresh "T" in
+    specialize (@denote_static_box_correct W1 W2 c) as H;
+    unfold WF_Superoperator in H;
+    assert (S : Static_Box c) by show_static';
+    assert (T : Typed_Box c) by (compile_typing (compile_WT); type_check);
+    specialize (H S T ρ);
+    simpl in H;
+    match type of H with
+    | _ -> @Mixed_State ?W' (denote_box true ?c' ?ρ') => 
+      replace ρ with ρ' by easy;
+      replace W with W' by dim_solve;
+      try apply H
+    end;
+    clear H S T
+  end; try solve [apply Pure_S; show_pure'].
+
+  match goal with
+    [|- @Mixed_State ?W (@denote_box true ?W1 ?W2 ?c ?ρ) ] => 
+    let H := fresh "H" in
+    let S := fresh "S" in
+    let T := fresh "T" in
+    specialize (@denote_static_box_correct W1 W2 c) as H;
+    unfold WF_Superoperator in H;
+    assert (S : Static_Box c)
+  end. 
+
+*)

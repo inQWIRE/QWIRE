@@ -132,6 +132,20 @@ Definition inPar {w1 w2 w1' w2'}
     let_ p2'     ← unbox c2 p2; 
     (p1',p2').
 
+(* Idealized inPar 
+
+Unset Printing Notations.
+
+Print inPar.
+Print inSeq.
+
+⟦inPar c1 c2⟧ ρ = (I_s' ⊗? ⟦c2⟧) ((⟦c1⟧ ⊗? I_s) ρ)
+
+What is I_s? 
+
+⟦inPar c1 c2⟧ (ρ1 ⊗ ρ2) = ⟦c1⟧ ρ1 ⊗ ⟦c2⟧ ρ2.
+*)
+
 Lemma inPar_WT : forall W1 W1' W2 W2' (c1 : Box W1 W2) (c2 : Box W1' W2'), 
   Typed_Box c1 -> Typed_Box c2 ->
   Typed_Box (inPar c1 c2).

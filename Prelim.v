@@ -331,7 +331,29 @@ Ltac simpl_rewrite_h lem hyp :=
   let H := fresh "H" in
   specialize lem as H; simpl in H; rewrite <- H in hyp; clear H.
 
-(* From SF *)
+Ltac apply_with_obligations H :=
+  match goal with
+  | [|- ?P ?a]    => match type of H with ?P ?a' => 
+    replace a with a'; [apply H|]; trivial end
+  | [|- ?P ?a ?b] => match type of H with ?P ?a' ?b' => 
+    replace a with a'; [replace b with b'; [apply H|]|]; trivial end
+  | [|- ?P ?a ?b ?c ] => match type of H with ?P ?a' ?b' ?c' => 
+    replace a with a'; [replace b with b'; [replace c with c'; [apply H|]|]|]; trivial end
+  | [|- ?P ?a ?b ?c ?d] => match type of H with ?P ?a' ?b' ?c' ?d' => 
+    replace a with a'; [replace b with b'; [replace c with c'; [replace d with d'; [apply H|]|]|]|]; trivial end
+  | [|- ?P ?a ?b ?c ?d ?e] => match type of H with ?P ?a' ?b' ?c' ?d' ?e' => 
+    replace a with a'; [replace b with b'; [replace c with c'; [replace d with d'; [replace e with e'; [apply H|]|]|]|]|]; 
+    trivial end 
+  | [|- ?P ?a ?b ?c ?d ?e ?f] => match type of H with ?P ?a' ?b' ?c' ?d' ?e' ?f' => 
+    replace a with a'; [replace b with b'; [replace c with c'; [replace d with d'; [replace e with e'; [replace f with f'; 
+    [apply H|]|]|]|]|]|]; trivial end 
+  | [|- ?P ?a ?b ?c ?d ?e ?f ?g] => match type of H with ?P ?a' ?b' ?c' ?d' ?e' ?f' ?g' => 
+    replace a with a'; [replace b with b'; [replace c with c'; [replace d with d'; [replace e with e'; [replace f with f'; 
+    [replace g with g'; [apply H|]|]|]|]|]|]|]; trivial end 
+  end.
+
+
+(* From SF - up to five arguments *)
 Tactic Notation "gen" ident(X1) :=
   generalize dependent X1.
 Tactic Notation "gen" ident(X1) ident(X2) :=
@@ -364,6 +386,8 @@ Ltac unify_pows_two :=
   | [ |- context[ 4%nat ]]                  => replace 4%nat with (2^2)%nat by reflexivity
   | [ |- context[ (0 + ?a)%nat]]            => rewrite plus_0_l 
   | [ |- context[ (?a + 0)%nat]]            => rewrite plus_0_r 
+  | [ |- context[ (1 * ?a)%nat]]            => rewrite Nat.mul_1_l 
+  | [ |- context[ (?a * 1)%nat]]            => rewrite Nat.mul_1_r 
   | [ |- context[ (2 * 2^?x)%nat]]          => rewrite <- Nat.pow_succ_r'
   | [ |- context[ (2^?x * 2)%nat]]          => rewrite pow_two_succ_l
   | [ |- context[ (2^?x + 2^?x)%nat]]       => rewrite double_pow 

@@ -476,7 +476,16 @@ Lemma valid_empty : is_valid ∅. Proof. unfold is_valid; eauto. Defined.
 
 Lemma not_valid : not (is_valid Invalid). Proof. intros [Γ F]; inversion F. Defined.
 
-Lemma valid_split_basic : forall Γ1 Γ2, is_valid (Γ1 ⋓ Γ2) -> is_valid Γ1 /\ is_valid Γ2.
+Lemma valid_l : forall Γ1 Γ2, is_valid (Γ1 ⋓ Γ2) -> is_valid Γ1.
+Proof.
+  intros Γ1 Γ2 V.
+  unfold is_valid in *.
+  destruct V as [Γ' V].
+  apply merge_valid in V as [[Γ1'] [Γ2']].
+  eauto.
+Defined.
+
+Lemma valid_r : forall Γ1 Γ2, is_valid (Γ1 ⋓ Γ2) -> is_valid Γ2.
 Proof.
   intros Γ1 Γ2 V.
   unfold is_valid in *.
@@ -1142,6 +1151,15 @@ Proof.
   eapply octx_wtype_size; apply H.
 Qed.
 
+Lemma size_wtype_length : forall {w} (p : Pat w),
+    length (pat_to_list p) = size_wtype w.
+Proof.
+  induction p; simpl; auto.
+  rewrite app_length.
+  rewrite IHp1, IHp2.
+  auto.
+Qed.
+
 Open Scope circ_scope.
 Inductive Unitary : WType -> Set := 
   | _H         : Unitary Qubit 
@@ -1208,8 +1226,10 @@ Ltac validate :=
   (* Pattern contexts are valid *)
   | [H : Types_Pat _ _ |- _ ]    => apply pat_ctx_valid in H
   (* Solve trivial *)
-  | [|- is_valid (Valid _)]                  => apply valid_valid
-  | [H : is_valid ?Γ |- is_valid ?Γ ] => exact H
+  | [|- is_valid (Valid _)]                    => apply valid_valid
+  | [H : is_valid ?Γ |- is_valid ?Γ ]          => exact H
+  | [H: is_valid (?Γ1 ⋓ ?Γ2) |- is_valid ?Γ1 ] => eapply valid_l; exact H
+  | [H: is_valid (?Γ1 ⋓ ?Γ2) |- is_valid ?Γ2 ] => eapply valid_r; exact H
   | [H: is_valid (?Γ1 ⋓ ?Γ2) |- is_valid (?Γ2 ⋓ ?Γ1) ] => rewrite merge_comm; exact H
   (* Remove nils *)
   | [|- context [∅ ⋓ ?Γ] ]             => rewrite (merge_nil_l Γ)
