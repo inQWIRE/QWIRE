@@ -314,19 +314,15 @@ Proof.
     - dependent destruction p.
       dependent destruction t.
       simpl. erewrite VA. reflexivity.
+      unfold process_gate_state. simpl.
+      unfold process_gate_pat. simpl.
+      apply singleton_equiv in s. subst.
+      erewrite remove_bit_merge'. 
+      apply trim_types_circ. 
       eapply t0.
       2: constructor.
-      constructor.
-      validate.
-      rewrite merge_nil_l.
-      assert (t' : Γ ⊢ c () :Circ). apply (t0 ∅). split. 
-        validate. rewrite merge_nil_l. easy. constructor.
-      specialize (types_circ_types_pat w Γ (c ()) t') as [w' [p' TP]].  
-      unfold process_gate_state; simpl.
-      apply ctx_octx.
-      apply (remove_bit_merge _ _ w' p'); trivial. 
-      apply singleton_equiv in s. subst.
-      assumption.
+      split. validate. rewrite merge_nil_l. easy. 
+      easy.
     - dependent destruction AF. inversion H.
     - dependent destruction AF. inversion H.
   + dependent destruction AF.
@@ -344,23 +340,28 @@ Proof.
       dependent destruction p.
       dependent destruction t.
       apply singleton_equiv in s. subst.
-      specialize (types_circ_types_pat w Γ2 (c true) (t0 true)) as [w' [p' TP]].      
       destruct Γ2 as [|Γ2]; try invalid_contradiction.
-      rewrite (remove_bit_merge Γ2 Γ w' p'); easy. 
+      erewrite remove_bit_merge'. 
+      apply trim_types_circ. 
+      apply t0.
+      easy.
     * dependent destruction WT.
       dependent destruction p.
       dependent destruction t.
       apply singleton_equiv in s. subst.
-      specialize (types_circ_types_pat w Γ2 (c false) (t0 false)) as [w' [p' TP]].   
       destruct Γ2 as [|Γ2]; try invalid_contradiction.
-      rewrite (remove_bit_merge Γ2 Γ w' p'); easy. 
+      erewrite remove_bit_merge'. 
+      apply trim_types_circ. 
+      apply t0.
+      easy.
     * dependent destruction WT.
       dependent destruction p.
       dependent destruction t.
       apply singleton_equiv in s. subst.
-      specialize (types_circ_types_pat w Γ2 (c true) (t0 true)) as [w' [p' TP]].      
       destruct Γ2 as [|Γ2]; try invalid_contradiction.
-      rewrite (remove_bit_pred Γ2 Γ); easy.
+      rewrite (remove_bit_pred Γ2 Γ). 
+      easy. 
+      easy.
 Qed.
 
 Lemma ancilla_free_box_valid : forall W W' (c : Box W W'), 

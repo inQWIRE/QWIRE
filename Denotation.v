@@ -2837,12 +2837,10 @@ Proof.
     rewrite e at 2.
     rewrite <- (IHW1 Γ1 p1); trivial.
     rewrite <- (IHW2 Γ2 p2); trivial.
-    rewrite (trim_merge Γ Γ1 Γ2).
-    reflexivity.
-    split; easy.
-    simpl in H1.
-    inversion H1.
-    repeat rewrite H3.
+    destruct (trim_merge Γ Γ1 Γ2). solve_merge. assumption.
+    apply pf_merge.
+    simpl in H1. 
+    rewrite ctx_octx in H1.
     easy.
 Qed.
 
@@ -2968,67 +2966,107 @@ Proof.
   omega.
 Qed.
 
-Proposition types_circ_no_trail : forall (Γ : Ctx) W (c : Circuit W), 
-            Γ ⊢ c:Circ ->
-            trim Γ = Γ.
+(* Move these to somewhere relevant *)
+Lemma maps_to_trim : forall Γ v, maps_to v (trim Γ) = maps_to v Γ.
 Proof.
-  intros Γ W c WT.
-  dependent induction WT; subst.
-  - eapply types_pat_no_trail. apply t.
-  - destruct Γ0 as [|Γ0]. invalid_contradiction.
-    destruct (mk_typed_pat w2 Γ0) as [p2 Γ2] eqn:E.
-    symmetry in E.
-    specialize (typed_pat_merge_valid _ _ _ _ E) as V.
-    destruct V as [Γ2' M].
-    assert (T2 : trim Γ2' = Γ2'). 
-      eapply H; trivial.
-      split. validate. rewrite <- M. monoid.
-      rewrite merge_nil_r. eapply typed_pat_typed. apply E.
-    clear H.
-    destruct Γ1 as [|Γ1]. invalid_contradiction.
-    apply types_pat_no_trail in t.
-    destruct pf1. 
-    apply ctx_octx.
-    replace (Valid (trim Γ)) with (otrim Γ) by easy.
+  intros Γ v. gen Γ.
+  induction v; intros Γ.
+  - destruct Γ; trivial. 
+    destruct o; trivial.
+    simpl. destruct (trim Γ); easy.
+  - destruct Γ; trivial.
+    simpl. 
+    destruct o.
+    rewrite IHv; easy.
+    rewrite <- IHv.
+    destruct (trim Γ) eqn:E; trivial.
+    destruct v; easy.
+Qed.
+
+Lemma subst_pat_trim : forall W Γ (p : Pat W), subst_pat (trim Γ) p = subst_pat Γ p.
+Proof.
+  intros W Γ p.
+  induction p.
+  - simpl. easy.
+  - simpl. unfold subst_var. rewrite maps_to_trim. easy.
+  - simpl. unfold subst_var. rewrite maps_to_trim. easy. 
+  - simpl. rewrite IHp1, IHp2. easy.
+Qed.    
+
+Proposition hoas_to_db_trim : forall W Γ (c : Circuit W), hoas_to_db (trim Γ) c = hoas_to_db Γ c.
+Proof.
+  intros W Γ c.
+  induction c.
+  - simpl. rewrite subst_pat_trim. easy.
+  - simpl. rewrite subst_pat_trim. 
+    destruct g eqn:E.
+    + simpl. rewrite H. easy. 
+    + simpl. rewrite H. easy. 
+    + simpl. (*nope! and not even close to true for flatten_ctx *) 
+Abort.
+
+Lemma trim_types_circ : forall W (c : Circuit W) (Γ : Ctx), Γ ⊢ c :Circ -> trim Γ ⊢ c :Circ.
+Proof.
+  intros W c.
+  induction c.
+  - intros Γ WT. 
+    dependent destruction WT.
+    erewrite types_pat_no_trail by apply t. 
+    econstructor; easy.
+  - intros Γ WT.
+    dependent destruction WT.
+    destruct Γ0 as [|Γ0], Γ1 as [|Γ1]; try invalid_contradiction.
+    specialize (types_pat_no_trail _ _ _ t) as NT1.
+    econstructor.
+    rewrite <- NT1 in t.
+    apply t.
+    2: apply (trim_merge Γ Γ1 Γ0 pf1).
+    simpl. intros Γ1' Γ' p2 M' t'.
+    destruct Γ1' as [|Γ1']; try invalid_contradiction.
+    assert (M'' : (Γ1' ⋓ Γ0) == Γ1' ∙ Γ0).
+      split; trivial. 
+      apply trim_valid.
+      destruct M'. 
+      apply types_pat_no_trail in t'.
+      rewrite <- t' in pf_merge.
+      rewrite <- trim_merge_dist.
+      simpl.
+      rewrite <- pf_merge.
+      easy.
+    specialize (t0 Γ1' (Γ1' ⋓ Γ0) p2 M'' t').
+    destruct M'.
     rewrite pf_merge.
-    rewrite <- t at 2.
-    apply typed_pat_typed in E.
-    apply types_pat_no_trail in E.
-    (* But what if Γ0 has trailing Nones, and Γ1 < Γ0 < Γ2? *)
-Abort.
-
-(* Γ should type the input pattern *)
-Proposition types_fun_types_pat : forall W W' Γ (f : Pat W' -> Circuit W), 
-            Γ ⊢ f:Fun ->
-            {W' : WType & {p : Pat W' & Γ ⊢ p:Pat}}.
-Abort.
-
-Fact types_circ_types_pat : forall W Γ (c : Circuit W), 
-            Γ ⊢ c:Circ ->
-            {W' : WType & {p : Pat W' & Γ ⊢ p:Pat}}.
-Proof.
-  intros W Γ c WT.
-  induction WT; subst.
-  - exists w, p. easy.
-  - (* Γ2 is the union. How can we break it into components? *)
-    destruct Γ as [|Γ]. invalid_contradiction.
-    destruct (mk_typed_pat w2 Γ) as [p2 Γ2] eqn:E.
-    symmetry in E.
-    specialize (typed_pat_merge_valid _ _ _ _ E) as V.
-    specialize (H Γ2 (Γ2 ⋓ Γ) p2).
-    destruct H as [w' [p' TP']].
-    split; trivial. validate. 
-    eapply typed_pat_typed. apply E.
-Admitted.
+    apply types_pat_no_trail in t'.
+    rewrite <- t'.
+    simpl_rewrite (trim_merge_dist Γ1' Γ0).
+    destruct (Γ1' ⋓ Γ0) as [|Γ'']; try invalid_contradiction.
+    simpl.
+    apply H.
+    apply t0.
+  - intros Γ H0.
+    dependent destruction H0.
+    destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.
+    econstructor.
+    apply t.
+    intros b.
+    apply H.
+    apply t0.
+    apply types_pat_no_trail in t.
+    rewrite <- t.
+    apply (trim_merge Γ Γ1 Γ2).
+    easy.
+Qed.
 
 Proposition WF_denote_circuit : forall safe W (c : Circuit W) (Γ0 Γ : Ctx) ρ,
   Γ ⊢ c:Circ -> 
   WF_Matrix (2^(⟦Γ0⟧ + ⟦Γ⟧)) (2^(⟦Γ0⟧ + ⟦Γ⟧)) ρ -> 
   WF_Matrix (2^(⟦Γ0⟧ + ⟦W⟧)) (2^(⟦Γ0⟧ + ⟦W⟧)) (denote_circuit safe c Γ0 Γ ρ).
 Proof.
-  intros safe W c Γ0 Γ ρ WT WF.
-  dependent induction WT.
-  - unfold denote_circuit. simpl.
+  intros safe W c.
+  induction c.
+  - intros Γ0 Γ ρ WT WF.
+    dependent destruction WT.
+    unfold denote_circuit. simpl.
     unfold denote_pat.
     unfold pad.
     subst.
@@ -3044,7 +3082,9 @@ Proof.
     apply (pat_to_list_bounded _ Γ Γ []).
     solve_merge.
     easy.
-  - unfold compose_super.
+  - intros Γ0 Γ ρ WT WF.
+    dependent destruction WT.
+    unfold compose_super.
     rename H into IH. 
     unfold denote_circuit; simpl.
     destruct g.
@@ -3053,7 +3093,7 @@ Proof.
       replace (size_ctx Γ) with (size_octx Γ) by easy.
       rewrite pf_merge in *.
       rewrite size_octx_merge by easy.
-      simpl_rewrite (octx_wtype_size W p1 Γ1 t).
+      simpl_rewrite (octx_wtype_size W p Γ2 t).
       rewrite leb_correct by omega.
       unfold compose_super.
       unfold denote_circuit in IH.
@@ -3061,19 +3101,21 @@ Proof.
       rewrite Nat.add_sub.
       rewrite <- size_octx_merge by easy.
       rewrite <- pf_merge in *. simpl.
-      eapply (IH Γ1); trivial. 
+      simpl in IH.
+      eapply (IH p); trivial. 
+      eapply t0; [|apply t].
       split; easy.
       unfold apply_U.
       destruct W.
       * simpl.
         unfold apply_to_first, apply_qubit_unitary, super.
-        specialize (size_wtype_length (subst_pat Γ p1)) as L. simpl in L.
-        destruct (pat_to_list (subst_pat Γ p1)) eqn:E; simpl in L; try omega. 
+        specialize (size_wtype_length (subst_pat Γ p)) as L. simpl in L.
+        destruct (pat_to_list (subst_pat Γ p)) eqn:E; simpl in L; try omega. 
         Msimpl.
-        assert (M : Γ == Γ1 ∙ Γ2) by (split; auto).
+        assert (M : Γ == Γ2 ∙ Γ1) by (split; auto).
         destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.
-        assert (IN : In v (pat_to_list (subst_pat Γ p1))) by (rewrite E; simpl; auto).
-        specialize (pat_to_list_bounded Qubit _ _ _ p1 v M t IN) as LT.
+        assert (IN : In v (pat_to_list (subst_pat Γ p))) by (rewrite E; simpl; auto).
+        specialize (pat_to_list_bounded Qubit _ _ _ p v M t IN) as LT.
         replace (2^(size_ctx Γ0 + size_ctx Γ))%nat with 
             (2 ^ v * 2 * 2 ^ (size_ctx Γ0 + size_ctx Γ - v - 1))%nat by unify_pows_two.
         apply WF_mult.
@@ -3166,35 +3208,33 @@ Proof.
         rewrite size_wtype_length. easy.
     + simpl.
       rewrite Nat.add_sub.
-      replace (size_ctx Γ0 + size_ctx Γ)%nat with (S (⟦Γ0⟧ + ⟦Γ2⟧))%nat.
+      replace (size_ctx Γ0 + size_ctx Γ)%nat with (S (⟦Γ0⟧ + ⟦Γ1⟧))%nat.
       Focus 2.
         destruct pf1.
         replace (size_ctx Γ) with (size_octx Γ) by easy.
         rewrite pf_merge in *.
         rewrite size_octx_merge by easy.
-        rewrite <- (octx_wtype_size Bit p1 Γ1 t).
+        rewrite <- (octx_wtype_size Bit p Γ2 t).
         simpl. omega.
       unfold compose_super.
       unfold denote_circuit in IH.
       eapply IH.
-      apply pf1; easy. 
-      easy.
-      easy.
+      eapply t0. apply pf1. easy.
       unfold apply_to_first, apply_qubit_unitary, super.
-      specialize (size_wtype_length (subst_pat Γ p1)) as L. simpl in L.
-      destruct (pat_to_list (subst_pat Γ p1)) eqn:E; simpl in L; try omega. 
+      specialize (size_wtype_length (subst_pat Γ p)) as L. simpl in L.
+      destruct (pat_to_list (subst_pat Γ p)) eqn:E; simpl in L; try omega. 
       Msimpl.
       destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.
-      assert (IN : In v (pat_to_list (subst_pat Γ p1))) by (rewrite E; simpl; auto).
-      specialize (pat_to_list_bounded Bit _ _ _ p1 v pf1 t IN) as LT.
+      assert (IN : In v (pat_to_list (subst_pat Γ p))) by (rewrite E; simpl; auto).
+      specialize (pat_to_list_bounded Bit _ _ _ p v pf1 t IN) as LT.
       destruct pf1. 
       replace (⟦Γ⟧) with (⟦Valid Γ⟧) by easy.
       replace (size_ctx Γ) with (size_octx Γ) in LT by easy.
       rewrite pf_merge in *.
       rewrite size_octx_merge in * by easy.
-      rewrite <- (octx_wtype_size Bit p1 Γ1 t) in *.        
-      replace (2 ^ (⟦ Γ0 ⟧ + (size_wtype Bit + size_octx Γ2)))%nat with 
-          (2 ^ v * 2 * 2 ^ (S (⟦ Γ0 ⟧ + ⟦ Γ2 ⟧) - v - 1))%nat.
+      rewrite <- (octx_wtype_size Bit p Γ2 t) in *.        
+      replace (2 ^ (⟦ Γ0 ⟧ + (size_wtype Bit + size_octx Γ1)))%nat with 
+          (2 ^ v * 2 * 2 ^ (S (⟦ Γ0 ⟧ + ⟦ Γ1 ⟧) - v - 1))%nat.
       Focus 2.
         unify_pows_two. simpl in *. destruct v; omega. 
       apply WF_mult.
@@ -3204,15 +3244,15 @@ Proof.
       auto with wf_db.
       unify_pows_two.
       auto with wf_db.
-      simpl (denote Γ0). simpl (denote (Valid Γ2)).
-      replace (v + 1 + (S (size_ctx Γ0 + size_ctx Γ2) - v - 1))%nat with
+      simpl (denote Γ0). simpl (denote (Valid Γ1)).
+      replace (v + 1 + (S (size_ctx Γ0 + size_ctx Γ1) - v - 1))%nat with
           (size_ctx Γ0 + size_ctx Γ)%nat. 
       easy. 
       simpl in *.  
       replace (size_ctx Γ) with (size_octx Γ) by easy.
       rewrite pf_merge.
       rewrite size_octx_merge by easy.
-      rewrite <- (octx_wtype_size Bit p1 Γ1 t).
+      rewrite <- (octx_wtype_size Bit p Γ2 t).
       simpl.
       destruct v; omega.
       auto with wf_db.
@@ -3232,12 +3272,14 @@ Proof.
         easy.
       * replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Qubit]))). 
           2: simpl; rewrite size_ctx_app; simpl; omega. 
-        eapply IH; 
-          [|constructor; apply singleton_singleton|easy|rewrite size_ctx_app;easy].
+        eapply IH.
+        eapply t0. 
         split. validate.
         rewrite merge_comm. 
         rewrite merge_singleton_append.
-        easy.
+        reflexivity.
+        constructor; apply singleton_singleton.
+        rewrite size_ctx_app; easy.
     + simpl.
       dependent destruction t.
       destruct pf1.
@@ -3254,12 +3296,14 @@ Proof.
         easy.
       * replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Qubit]))). 
           2: simpl; rewrite size_ctx_app; simpl; omega. 
-        eapply IH; 
-          [|constructor; apply singleton_singleton|easy|rewrite size_ctx_app;easy].
+        eapply IH.
+        eapply t0. 
         split. validate.
         rewrite merge_comm. 
         rewrite merge_singleton_append.
-        easy.
+        reflexivity.
+        constructor; apply singleton_singleton.
+        rewrite size_ctx_app; easy.
     + simpl.
       dependent destruction t.
       destruct pf1.
@@ -3276,12 +3320,14 @@ Proof.
         easy.
       * replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Bit]))). 
           2: simpl; rewrite size_ctx_app; simpl; omega. 
-        eapply IH; 
-          [|constructor; apply singleton_singleton|easy|rewrite size_ctx_app;easy].
+        eapply IH.
+        eapply t0. 
         split. validate.
         rewrite merge_comm. 
         rewrite merge_singleton_append.
-        easy.
+        reflexivity.
+        constructor; apply singleton_singleton.
+        rewrite size_ctx_app; easy.
     + simpl.
       dependent destruction t.
       destruct pf1.
@@ -3298,12 +3344,14 @@ Proof.
         easy.
       * replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Bit]))). 
           2: simpl; rewrite size_ctx_app; simpl; omega. 
-        eapply IH; 
-          [|constructor; apply singleton_singleton|easy|rewrite size_ctx_app;easy].
+        eapply IH.
+        eapply t0. 
         split. validate.
         rewrite merge_comm. 
         rewrite merge_singleton_append.
-        easy.
+        reflexivity.
+        constructor; apply singleton_singleton.
+        rewrite size_ctx_app; easy.
     + simpl.
       dependent destruction t.
       simpl.
@@ -3312,7 +3360,7 @@ Proof.
       * apply WF.
       * unfold apply_meas.       
         unfold Splus.
-        destruct Γ2 as [|Γ2]; try invalid_contradiction.
+        destruct Γ1 as [|Γ1]; try invalid_contradiction.
         specialize (subst_qubit_bounded _ _ _ _ (types_qubit _ _ s) pf1) as LT. 
         simpl in LT.
         replace (2 ^ (size_ctx Γ0 + size_ctx Γ))%nat with
@@ -3328,12 +3376,15 @@ Proof.
           apply pf1.
           apply singleton_index.
           apply s.
-        eapply IH; [|constructor; apply singleton_singleton|easy|].
+        eapply IH. 
         unfold change_type.
+        eapply t0.
         eapply update_at_merge.
         apply s.
         apply singleton_singleton.
         easy.
+        constructor.
+        apply singleton_singleton.
         unfold change_type.
         erewrite denote_index_update_some.
         apply H.
@@ -3345,27 +3396,27 @@ Proof.
       simpl.
       rewrite Nat.add_sub.
       unfold apply_to_first.
-      specialize (size_wtype_length (subst_pat Γ p1)) as L. simpl in L.
-      destruct (pat_to_list (subst_pat Γ p1)) eqn:E; simpl in L; try omega. 
+      specialize (size_wtype_length (subst_pat Γ p)) as L. simpl in L.
+      destruct (pat_to_list (subst_pat Γ p)) eqn:E; simpl in L; try omega. 
       apply WF_compose_super; intros.
       * easy.
       * unfold apply_meas.
         unfold Splus.
         destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.   
-        assert (IN: In v (pat_to_list (subst_pat Γ p1))).
+        assert (IN: In v (pat_to_list (subst_pat Γ p))).
           rewrite E. simpl. auto.
         specialize (pat_to_list_bounded _ _ _ _ _ _ pf1 t IN) as LT.
         replace (2 ^ (size_ctx Γ0 + size_ctx Γ))%nat with
           (2 ^ v * 2 * 2 ^ (size_ctx Γ0 + size_ctx Γ - v - 1))%nat in * 
           by unify_pows_two. 
         auto with wf_db.
-      * apply (IH Γ1 Γ); easy.
+      * eapply (IH p). eapply t0. apply pf1. easy. easy.
     + simpl in *.
       apply WF_compose_super.
       * easy.
       * intros A WFA.
         rewrite Nat.add_0_r.
-        replace (size_ctx Γ - 1)%nat with (size_octx Γ2) in *.
+        replace (size_ctx Γ - 1)%nat with (size_octx Γ1) in *.
         Focus 2.
           simpl.
           replace (size_ctx Γ) with (size_octx Γ) by easy.
@@ -3389,17 +3440,17 @@ Proof.
         rewrite size_octx_merge in * by easy.
         apply singleton_equiv in s. subst.
         simpl in *. rewrite singleton_size in *.
-        replace (2 ^ (size_ctx Γ0 + size_ctx Γ2))%nat with
-            (2 ^ subst_var Γ x * 1 * 2 ^ (size_ctx Γ0 + (1 + size_ctx Γ2) 
+        replace (2 ^ (size_ctx Γ0 + size_ctx Γ1))%nat with
+            (2 ^ subst_var Γ x * 1 * 2 ^ (size_ctx Γ0 + (1 + size_ctx Γ1) 
              - subst_var Γ x - 1))%nat in * by unify_pows_two.
-        replace (2 ^ (size_ctx Γ0 + (1 + size_ctx Γ2)))%nat with (2 ^ subst_var Γ x * 2
-          * 2 ^ (size_ctx Γ0 + (1 + size_ctx Γ2) - subst_var Γ x - 1))%nat in WFA by
+        replace (2 ^ (size_ctx Γ0 + (1 + size_ctx Γ1)))%nat with (2 ^ subst_var Γ x * 2
+          * 2 ^ (size_ctx Γ0 + (1 + size_ctx Γ1) - subst_var Γ x - 1))%nat in WFA by
           unify_pows_two.
         apply WF_plus; auto with wf_db.
       * rewrite Nat.add_0_r.
         intros A.
         destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.
-        replace (size_ctx Γ - 1)%nat with (size_octx Γ2) in *.
+        replace (size_ctx Γ - 1)%nat with (size_octx Γ1) in *.
         Focus 2.
           simpl.
           replace (size_ctx Γ) with (size_octx Γ) by easy.
@@ -3413,17 +3464,22 @@ Proof.
         intros WFA.
         dependent destruction t.
         apply singleton_equiv in s; subst.
-        assert (M: Γ2 == ∅ ∙ Γ2) by solve_merge.
-        specialize (t0 ∅ Γ2 unit M types_unit).
-        apply types_circ_types_pat in t0 as [w' [p' TP]]. (* admitted *)
-        erewrite remove_bit_merge; [|apply TP|apply pf1]. (*I don't like this lemma*)
-        eapply IH; [apply M|constructor|easy|easy].
+        assert (M: Γ1 == ∅ ∙ Γ1) by solve_merge.
+        specialize (t0 ∅ Γ1 unit M types_unit).
+        erewrite remove_bit_merge' by apply pf1.
+        specialize (IH unit Γ0 (trim Γ1) A). 
+        unfold denote_circuit in IH.
+        simpl in IH.
+        rewrite size_ctx_trim in IH.
+        apply IH. 
+        apply trim_types_circ. easy.
+        easy.
     + simpl in *.
       apply WF_compose_super.
       * easy.
       * intros A WFA.
         rewrite Nat.add_0_r.
-        replace (size_ctx Γ - 1)%nat with (size_octx Γ2) in *.
+        replace (size_ctx Γ - 1)%nat with (size_octx Γ1) in *.
         Focus 2.
           simpl.
           replace (size_ctx Γ) with (size_octx Γ) by easy.
@@ -3447,11 +3503,11 @@ Proof.
         rewrite size_octx_merge in * by easy.
         apply singleton_equiv in s. subst.
         simpl in *. rewrite singleton_size in *.
-        replace (2 ^ (size_ctx Γ0 + size_ctx Γ2))%nat with
-            (2 ^ subst_var Γ x * 1 * 2 ^ (size_ctx Γ0 + (1 + size_ctx Γ2) 
+        replace (2 ^ (size_ctx Γ0 + size_ctx Γ1))%nat with
+            (2 ^ subst_var Γ x * 1 * 2 ^ (size_ctx Γ0 + (1 + size_ctx Γ1) 
              - subst_var Γ x - 1))%nat in * by unify_pows_two.
-        replace (2 ^ (size_ctx Γ0 + (1 + size_ctx Γ2)))%nat with (2 ^ subst_var Γ x * 2
-          * 2 ^ (size_ctx Γ0 + (1 + size_ctx Γ2) - subst_var Γ x - 1))%nat in WFA by
+        replace (2 ^ (size_ctx Γ0 + (1 + size_ctx Γ1)))%nat with (2 ^ subst_var Γ x * 2
+          * 2 ^ (size_ctx Γ0 + (1 + size_ctx Γ1) - subst_var Γ x - 1))%nat in WFA by
           unify_pows_two.
         destruct safe.
         apply WF_plus; auto with wf_db.
@@ -3459,7 +3515,7 @@ Proof.
       * rewrite Nat.add_0_r.
         intros A.
         destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.
-        replace (size_ctx Γ - 1)%nat with (size_octx Γ2) in *.
+        replace (size_ctx Γ - 1)%nat with (size_octx Γ1) in *.
         Focus 2.
           simpl.
           replace (size_ctx Γ) with (size_octx Γ) by easy.
@@ -3473,17 +3529,22 @@ Proof.
         intros WFA.
         dependent destruction t.
         apply singleton_equiv in s; subst.
-        assert (M: Γ2 == ∅ ∙ Γ2) by solve_merge.
-        specialize (t0 ∅ Γ2 unit M types_unit).
-        apply types_circ_types_pat in t0 as [w' [p' TP]]. (* admitted *)
-        erewrite remove_qubit_merge; [|apply TP|apply pf1]. (*I don't like this lemma*)
-        eapply IH; [apply M|constructor|easy|easy].
+        assert (M: Γ1 == ∅ ∙ Γ1) by solve_merge.
+        specialize (t0 ∅ Γ1 unit M types_unit).
+        erewrite remove_qubit_merge' by apply pf1.
+        specialize (IH unit Γ0 (trim Γ1) A). 
+        unfold denote_circuit in IH.
+        simpl in IH.
+        rewrite size_ctx_trim in IH.
+        apply IH. 
+        apply trim_types_circ. easy.
+        easy.
     + simpl in *.
       apply WF_compose_super.
       * easy.
       * intros A WFA.
         rewrite Nat.add_0_r.
-        replace (size_ctx Γ - 1)%nat with (size_octx Γ2) in *.
+        replace (size_ctx Γ - 1)%nat with (size_octx Γ1) in *.
         Focus 2.
           simpl.
           replace (size_ctx Γ) with (size_octx Γ) by easy.
@@ -3507,11 +3568,11 @@ Proof.
         rewrite size_octx_merge in * by easy.
         apply singleton_equiv in s. subst.
         simpl in *. rewrite singleton_size in *.
-        replace (2 ^ (size_ctx Γ0 + size_ctx Γ2))%nat with
-            (2 ^ subst_var Γ x * 1 * 2 ^ (size_ctx Γ0 + (1 + size_ctx Γ2) 
+        replace (2 ^ (size_ctx Γ0 + size_ctx Γ1))%nat with
+            (2 ^ subst_var Γ x * 1 * 2 ^ (size_ctx Γ0 + (1 + size_ctx Γ1) 
              - subst_var Γ x - 1))%nat in * by unify_pows_two.
-        replace (2 ^ (size_ctx Γ0 + (1 + size_ctx Γ2)))%nat with (2 ^ subst_var Γ x * 2
-          * 2 ^ (size_ctx Γ0 + (1 + size_ctx Γ2) - subst_var Γ x - 1))%nat in WFA by
+        replace (2 ^ (size_ctx Γ0 + (1 + size_ctx Γ1)))%nat with (2 ^ subst_var Γ x * 2
+          * 2 ^ (size_ctx Γ0 + (1 + size_ctx Γ1) - subst_var Γ x - 1))%nat in WFA by
           unify_pows_two.
         destruct safe.
         apply WF_plus; auto with wf_db.
@@ -3519,7 +3580,7 @@ Proof.
       * rewrite Nat.add_0_r.
         intros A.
         destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.
-        replace (size_ctx Γ - 1)%nat with (size_octx Γ2) in *.
+        replace (size_ctx Γ - 1)%nat with (size_octx Γ1) in *.
         Focus 2.
           simpl.
           replace (size_ctx Γ) with (size_octx Γ) by easy.
@@ -3533,12 +3594,19 @@ Proof.
         intros WFA.
         dependent destruction t.
         apply singleton_equiv in s; subst.
-        assert (M: Γ2 == ∅ ∙ Γ2) by solve_merge.
-        specialize (t0 ∅ Γ2 unit M types_unit).
-        apply types_circ_types_pat in t0 as [w' [p' TP]]. (* admitted *)
-        erewrite remove_qubit_merge; [|apply TP|apply pf1]. (*I don't like this lemma*)
-        eapply IH; [apply M|constructor|easy|easy].
-  - unfold denote_circuit in *.
+        assert (M: Γ1 == ∅ ∙ Γ1) by solve_merge.
+        specialize (t0 ∅ Γ1 unit M types_unit).
+        erewrite remove_qubit_merge' by apply pf1.
+        specialize (IH unit Γ0 (trim Γ1) A). 
+        unfold denote_circuit in IH.
+        simpl in IH.
+        rewrite size_ctx_trim in IH.
+        apply IH. 
+        apply trim_types_circ. easy.
+        easy.
+  - intros Γ0 Γ ρ WT WF.
+    dependent destruction WT.
+    unfold denote_circuit in *.
     dependent destruction t.
     destruct Γ2 as [|Γ2]; try invalid_contradiction.
     specialize (subst_bit_bounded _ _ _ _ (types_bit _ _ s) pf) as LT. 
@@ -3568,9 +3636,12 @@ Proof.
           omega.
         apply singleton_equiv in s; subst.
         specialize (t0 false).
-        apply types_circ_types_pat in t0 as [w' [p' TP]]. (* admitted *)
-        erewrite remove_bit_merge; [|apply TP|apply pf]. (*I don't like this lemma*)
-        eapply H; easy.
+        erewrite remove_bit_merge'; [|apply pf].
+        specialize (H false Γ0 (trim Γ2)).
+        rewrite size_ctx_trim in H.
+        eapply H.
+        apply trim_types_circ. easy.
+        easy.
     + apply WF_compose_super.
       * apply_with_obligations WF.
         unify_pows_two.
@@ -3593,10 +3664,13 @@ Proof.
           simpl. rewrite singleton_size.
           omega.
         apply singleton_equiv in s; subst.
-        specialize (t0 false).
-        apply types_circ_types_pat in t0 as [w' [p' TP]]. (* admitted *)
-        erewrite remove_bit_merge; [|apply TP|apply pf]. (*I don't like this lemma*)
-        eapply H; easy.
+        specialize (t0 true).
+        erewrite remove_bit_merge'; [|apply pf].
+        specialize (H true Γ0 (trim Γ2)).
+        rewrite size_ctx_trim in H.
+        eapply H.
+        apply trim_types_circ. easy.
+        easy.
 Qed.
 
 Proposition WF_denote_box : forall safe W1 W2 (c : Box W1 W2) ρ,
@@ -3637,9 +3711,11 @@ Theorem denote_static_circuit_correct : forall W (Γ0 Γ : Ctx) (c : Circuit W),
   Γ ⊢ c:Circ -> 
   WF_Superoperator (⟨ Γ0 | Γ ⊩ c⟩).
 Proof.
-  intros W Γ0 Γ c STAT WT.
-  dependent induction WT.
-  - unfold denote_circuit. simpl.
+  intros W Γ0 Γ c.
+  gen Γ0 Γ.
+  induction c; intros Γ0 Γ STAT WT.
+  - dependent destruction WT.
+    unfold denote_circuit. simpl.
     unfold denote_pat.
     unfold pad.
     subst.
@@ -3663,7 +3739,9 @@ Proof.
     rewrite merge_nil_r. easy.
     easy.
     apply id_unitary.
-  - dependent destruction STAT. 
+  - dependent destruction WT.
+    rename p into p1. rename Γ1 into Γ3. rename Γ2 into Γ1. rename Γ3 into Γ2.
+    dependent destruction STAT. 
     rename H0 into STAT. rename H into IH. 
     unfold denote_circuit; simpl.
     destruct g.
@@ -3680,8 +3758,9 @@ Proof.
         rewrite Nat.add_sub.
         rewrite <- size_octx_merge by easy.
         rewrite <- pf_merge in *. simpl.
-        eapply (IH Γ1); trivial. 
-        split; easy.
+        eapply (IH p1); trivial. 
+        eapply t0.
+        split. easy. apply pf_merge. easy.
       * rewrite Nat.add_sub.
         apply apply_U_correct.
         rewrite size_wtype_length.
@@ -3703,12 +3782,13 @@ Proof.
       rewrite pf_merge in *.
       rewrite Nat.add_sub.
       apply compose_super_correct.
-      * eapply IH.
-        split. 
-        apply pf_valid.
-        easy.
-        easy.
+      * eapply IH. 
         apply STAT.
+        eapply t0.
+        split.
+        rewrite pf_merge.
+        apply pf_valid.
+        apply pf_merge.
         easy.
       * replace (size_ctx Γ) with (size_octx Γ) by easy.
         rewrite pf_merge.
@@ -3751,11 +3831,14 @@ Proof.
         rewrite Nat.sub_0_r.
         replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Qubit]))). 
           2: simpl; rewrite size_ctx_app; simpl; omega. 
-        eapply IH; [|constructor; apply singleton_singleton|easy|easy].
+        eapply IH.
+        apply STAT.
+        eapply t0.
         split. validate.
         rewrite merge_comm. 
         rewrite merge_singleton_append.
         easy.
+        constructor; apply singleton_singleton.
       * rewrite Nat.sub_0_r.
         rewrite Nat.add_assoc.
         apply apply_new0_correct.
@@ -3771,11 +3854,14 @@ Proof.
         rewrite Nat.sub_0_r.
         replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Qubit]))). 
           2: simpl; rewrite size_ctx_app; simpl; omega. 
-        eapply IH; [|constructor; apply singleton_singleton|easy|easy].
+        eapply IH.
+        apply STAT. 
+        eapply t0. 
         split. validate.
         rewrite merge_comm. 
         rewrite merge_singleton_append.
         easy.
+        constructor; apply singleton_singleton.
       * rewrite Nat.sub_0_r.
         rewrite Nat.add_assoc.
         apply apply_new1_correct.
@@ -3791,11 +3877,14 @@ Proof.
         rewrite Nat.sub_0_r.
         replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Bit]))). 
           2: simpl; rewrite size_ctx_app; simpl; omega. 
-        eapply IH; [|constructor; apply singleton_singleton|easy|easy].
+        eapply IH.
+        apply STAT. 
+        eapply t0. 
         split. validate.
         rewrite merge_comm. 
         rewrite merge_singleton_append.
         easy.
+        constructor; apply singleton_singleton.
       * rewrite Nat.sub_0_r.
         rewrite Nat.add_assoc.
         apply apply_new0_correct.
@@ -3811,11 +3900,14 @@ Proof.
         rewrite Nat.sub_0_r.
         replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Bit]))). 
           2: simpl; rewrite size_ctx_app; simpl; omega. 
-        eapply IH; [|constructor; apply singleton_singleton|easy|easy].
+        eapply IH.
+        apply STAT. 
+        eapply t0. 
         split. validate.
         rewrite merge_comm. 
         rewrite merge_singleton_append.
         easy.
+        constructor; apply singleton_singleton.
       * rewrite Nat.sub_0_r.
         rewrite Nat.add_assoc.
         apply apply_new1_correct.
@@ -3836,9 +3928,13 @@ Proof.
           destruct Γ1. invalid_contradiction. 
           apply singleton_index.
           inversion t. easy.
-        eapply IH; [|constructor; apply singleton_singleton|easy|easy].
+        eapply IH.
+        apply STAT. 
+        eapply t0. 
+        split. validate.
         inversion t; subst.
         eapply update_at_merge; [apply H1| apply singleton_singleton| easy].
+        constructor; apply singleton_singleton.
       * rewrite Nat.add_sub. 
         apply apply_meas_correct.
         apply Nat.lt_lt_add_l.
@@ -3848,7 +3944,9 @@ Proof.
       apply compose_super_correct.
       * rewrite Nat.add_sub.
         unfold denote_circuit in IH.
-        eapply IH; [apply pf1|easy|easy|easy].
+        eapply IH.
+        apply STAT.
+        eapply t0. apply pf1. apply t.
       * dependent destruction t. simpl.
         rewrite Nat.add_sub.
         apply apply_meas_correct.
@@ -3866,14 +3964,14 @@ Proof.
         assert (M: Γ2 == ∅ ∙ Γ2).
           solve_merge. rewrite pf_merge in *. validate.
         specialize (t0 ∅ Γ2 unit M types_unit).
-        apply types_circ_types_pat in t0 as [w' [p' TP]]. (* admitted *)
         destruct Γ2 as [|Γ2]; try invalid_contradiction.
         replace (size_ctx Γ - 1)%nat with (size_ctx (remove_pat (bit x) Γ)).
           2: erewrite remove_bit_pred; [easy|apply pf1].
-        apply (IH ∅ Γ2 unit M types_unit); trivial.        
-        apply f_equal. symmetry.
-        eapply remove_bit_merge; trivial.
-        apply TP.
+        eapply IH.
+        apply STAT.
+        erewrite remove_bit_merge'; trivial.
+        apply trim_types_circ. apply t0. 
+        apply pf1.
       * unfold apply_to_first.
         dependent destruction p1.
         dependent destruction t.
@@ -3903,14 +4001,14 @@ Proof.
         assert (M: Γ2 == ∅ ∙ Γ2). 
           solve_merge. rewrite pf_merge in *. validate.
         specialize (t0 ∅ Γ2 unit M types_unit).
-        apply types_circ_types_pat in t0 as [w' [p' TP]]. (* admitted *)
         destruct Γ2 as [|Γ2]; try invalid_contradiction.
         replace (size_ctx Γ - 1)%nat with (size_ctx (remove_pat (qubit x) Γ)).
           2: erewrite remove_qubit_pred; [easy|apply pf1].
-        apply (IH ∅ Γ2 unit M types_unit); trivial.        
-        apply f_equal. symmetry.
-        eapply remove_qubit_merge; trivial.
-        apply TP.
+        eapply IH.
+        apply STAT.
+        erewrite remove_qubit_merge'; trivial.
+        apply trim_types_circ. apply t0. 
+        apply pf1.
       * unfold apply_to_first.
         dependent destruction p1.
         dependent destruction t.
@@ -3939,17 +4037,16 @@ Proof.
         dependent destruction t.
         apply singleton_equiv in s; subst.
         assert (M: Γ2 == ∅ ∙ Γ2). 
-          split. destruct Γ2. invalid_contradiction. validate. 
-          rewrite merge_nil_l. easy.
+          solve_merge. rewrite pf_merge in *. validate.
         specialize (t0 ∅ Γ2 unit M types_unit).
-        apply types_circ_types_pat in t0 as [w' [p' TP]]. (* admitted *)
         destruct Γ2 as [|Γ2]; try invalid_contradiction.
         replace (size_ctx Γ - 1)%nat with (size_ctx (remove_pat (qubit x) Γ)).
           2: erewrite remove_qubit_pred; [easy|apply pf1].
-        apply (IH ∅ Γ2 unit M types_unit); trivial.        
-        apply f_equal. symmetry.
-        eapply remove_qubit_merge; trivial.
-        apply TP.
+        eapply IH.
+        apply STAT.
+        erewrite remove_qubit_merge'; trivial.
+        apply trim_types_circ. apply t0. 
+        apply pf1.
       * unfold apply_to_first.
         dependent destruction p1.
         dependent destruction t.
