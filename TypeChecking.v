@@ -3,7 +3,7 @@ Require Export HOASCircuits.
 (** Projecting out elements of tensors **)
 
 Open Scope circ_scope.
-Definition wproj {W1 W2} (p : Pat (W1 ⊗ W2)) : Pat W1 * Pat W2 :=
+Definition wproj {Var} {W1 W2} (p : Pat Var (W1 ⊗ W2)) : Pat Var W1 * Pat Var W2 :=
   match p with
   | pair p1 p2 => (p1, p2)  
   end.
@@ -17,13 +17,13 @@ Global Opaque merge.
 Global Opaque Ctx.
 Global Opaque is_valid.
 
-Fixpoint pair_circ' {W1 W2} (p : Pat W1) (c2 : Circuit W2) : Circuit (W1 ⊗ W2) :=
+Fixpoint pair_circ' {Var} {W1 W2} (p : Pat Var W1) (c2 : Circuit Var W2) : Circuit Var (W1 ⊗ W2) :=
   match c2 with
   | output p2   => output (pair p p2)
   | gate g p1 f => gate g p1 (fun p2 => pair_circ' p (f p2))
   | lift p1 f   => lift p1 (fun x => pair_circ' p (f x))
   end.
-Fixpoint pair_circ {W1 W2} (c1 : Circuit W1) (c2 : Circuit W2) : Circuit (W1 ⊗ W2) :=
+Fixpoint pair_circ {Var} {W1 W2} (c1 : Circuit Var W1) (c2 : Circuit Var W2) : Circuit Var (W1 ⊗ W2) :=
   match c1 with
   | output p1   => pair_circ' p1 c2
   | gate g p1 f => gate g p1 (fun p2 => pair_circ (f p2) c2)
@@ -181,10 +181,10 @@ Ltac goal_has_evars :=
 
 Ltac invert_patterns := 
   repeat match goal with
-  | [ p : Pat One |- _ ] => dependent destruction p
-  | [ p : Pat Qubit |- _] => dependent destruction p
-  | [ p : Pat Bit |- _] => dependent destruction p
-  | [ p : Pat (_ ⊗ _) |- _ ] => dependent destruction p
+  | [ p : Pat _ One |- _ ] => dependent destruction p
+  | [ p : Pat _ Qubit |- _] => dependent destruction p
+  | [ p : Pat _ Bit |- _] => dependent destruction p
+  | [ p : Pat _ (_ ⊗ _) |- _ ] => dependent destruction p
   | [ H : Types_Pat ?Γ () |- _ ]           => is_var Γ; inversion H; subst
   | [ H : Types_Pat ?Γ (qubit _) |- _ ]    => is_var Γ; inversion H; subst
   | [ H : Types_Pat ?Γ (bit _)   |- _ ]    => is_var Γ; inversion H; subst
@@ -196,8 +196,8 @@ Create HintDb typed_db.
 Ltac type_check_once := 
   intros;
   try match goal with 
-  | [|- Typed_Box _ ]           => solve [eauto with typed_db] (* extensible *)
-  | [|- @Typed_Box  ?W1 ?W2 ?c] => unfold Typed_Box in *; try unfold c
+  | [|- Typed_Box _ _ ]          => solve [eauto with typed_db] (* extensible *)
+  | [|- @Typed_Box _ ?W1 ?W2 ?c] => unfold Typed_Box in *; try unfold c
   end;
   intros;
   simpl in *;
@@ -206,22 +206,22 @@ Ltac type_check_once :=
   repeat match goal with 
   | [ b : bool |- _ ]              => destruct b 
   | [ H : _ == _ ∙ _ |- _ ]     => destruct H
-    | H: @Types_Circuit _ _ ?c |- @Types_Circuit _ _ ?c 
+    | H: @Types_Circuit _ _ _ ?c |- @Types_Circuit _ _ _ ?c 
                                => exact H
-  | [ |- @Types_Circuit _ _ _ ] => econstructor; type_check_once
+  | [ |- @Types_Circuit _ _ _ _ ] => econstructor; type_check_once
 
-  | [ |- @Types_Circuit _ _ (if ?b then _ else _) ]
+  | [ |- @Types_Circuit _ _ _ (if ?b then _ else _) ]
                                 => destruct b; type_check_once
 
   (* compose_typing : specify goal. *)                                  
-  | [ |- @Types_Circuit _ _ _ ] =>  eapply compose_typing; type_check_once 
+  | [ |- @Types_Circuit _ _ _ _ ] =>  eapply compose_typing; type_check_once 
 
   | [ H : forall a b, Types_Pat _ _ -> Types_Circuit _ _ |- Types_Circuit _ _] 
                                 => apply H; type_check_once
 
-  | [ H : @Types_Pat _ _ ?p |- @Types_Pat _ _ ?p ] 
+  | [ H : @Types_Pat _ _ _ ?p |- @Types_Pat _ _ _ ?p ] 
                                 => exact H
-  | [ H : @Types_Pat ?Γ1 _ ?p |- @Types_Pat ?Γ2 _ ?p ] 
+  | [ H : @Types_Pat _ ?Γ1 _ ?p |- @Types_Pat _ ?Γ2 _ ?p ] 
                                    (* in case they don't line up exactly *)
                                 => replace Γ2 with Γ1; [exact H | monoid]
 
@@ -261,7 +261,7 @@ Ltac destruct_merges :=
 
 (* Three typing derivations for a simple circuit *)
 (* Corresponds to thesis figure 9.1 *)
-Definition cnot12 : Square_Box (Qubit ⊗ Qubit ⊗ Qubit) :=
+Definition cnot12 {Var} : Square_Box Var (Qubit ⊗ Qubit ⊗ Qubit) :=
   box_ (p0,p1,p2) ⇒ 
     gate_ (p3,p4) ← CNOT @(p1,,p2);
     output (p0,,p3,,p4).
@@ -273,7 +273,7 @@ Definition entangle23 : Square_Box (Qubit ⊗ Qubit ⊗ Qubit) :=
     (p0,p3,p4).
 *)
 
-Lemma cnot12_WT_manual : Typed_Box cnot12.
+Lemma cnot12_WT_manual {Var} : Typed_Box Var cnot12.
 Proof.    
   (* manual - no evars *)
   unfold Typed_Box, cnot12. 
@@ -285,23 +285,24 @@ Proof.
   rename TP1_1 into TP0, TP1_2 into TP1.  
   apply @types_gate with (Γ := Γ0) (Γ1 := Γ1 ⋓ Γ2); try solve_merge.
   - (* type input pattern `(p1,p2)` *)
-    apply types_pair with (Γ1 := Γ1) (Γ2 := Γ2); try solve_merge.
+About types_pair.
+    apply (@types_pair _ Γ1 Γ2); try solve_merge.
     + apply TP1. (* types p1 *)
     + apply TP2. (* types p2 *)
   - (* types `output (p0, p3, p4)` *)
     intros Γ Γ' p M TP.
     dependent destruction TP.
-    apply (@types_output _ _ _ _ eq_refl).
+    apply (@types_output _ _ _ _ _ eq_refl).
     (* types (p0, p3, p4) *)
-    apply types_pair with (Γ1 := Γ0 ⋓ Γ3) (Γ2 := Γ4); try solve_merge.
+    apply (types_pair (Γ0 ⋓ Γ3) (Γ4)); try solve_merge.
     + (* types (p0, p3) *)
-      apply types_pair with (Γ1 := Γ0) (Γ2 := Γ3); try solve_merge.
+      apply (types_pair Γ0 Γ3); try solve_merge.
       * apply TP0. (* types p0 *)
       * apply TP3. (* types p3 *)
     + apply TP4. (* types p4 *)
 Qed.
     
-Lemma cnot12_WT_evars : Typed_Box cnot12.
+Lemma cnot12_WT_evars {Var} : Typed_Box Var cnot12.
 Proof.    
   (* manual with evars *)
   unfold Typed_Box, cnot12. 
@@ -342,7 +343,7 @@ Proof.
 Qed.
 
 (* More succint, maybe less readable *)
-Lemma cnot23_WT_evars' : Typed_Box cnot12.
+Lemma cnot23_WT_evars' {Var} : Typed_Box Var cnot12.
 Proof.    
   unfold Typed_Box, cnot12. 
   intros; simpl.
@@ -376,7 +377,7 @@ Proof.
 Qed.  
 
 
-Lemma cnot23_WT_auto : Typed_Box cnot12.
+Lemma cnot23_WT_auto {Var} : Typed_Box Var cnot12.
 Proof.    
   (* using only type_check *)
   type_check.

@@ -6,11 +6,12 @@ Require Import HOASCircuits.
 Open Scope circ_scope.
 Global Opaque merge.
 
+(* Variables in DB Circuits are all nats *)
 Inductive DeBruijn_Circuit (w : WType) : Set :=
-| db_output : Pat w -> DeBruijn_Circuit w
+| db_output : Pat nat w -> DeBruijn_Circuit w
 | db_gate   : forall {w1 w2},
-               Gate w1 w2 -> Pat w1 -> DeBruijn_Circuit w -> DeBruijn_Circuit w
-| db_lift   : Pat Bit -> (bool -> DeBruijn_Circuit w) -> DeBruijn_Circuit w
+               Gate w1 w2 -> Pat nat w1 -> DeBruijn_Circuit w -> DeBruijn_Circuit w
+| db_lift   : Pat nat Bit -> (bool -> DeBruijn_Circuit w) -> DeBruijn_Circuit w
 .
 
 Inductive DeBruijn_Box (w1 w2 : WType) : Set :=
@@ -27,7 +28,7 @@ Arguments db_box w1 {w2}.
 (**********************)
 
 (* Produces a p and Γ such that Γ ⊢ p:Pat *)
-Fixpoint get_fresh w (Γ : Ctx) : Pat w * Ctx:= 
+Fixpoint get_fresh w (Γ : Ctx) : Pat nat w * Ctx:= 
   match w with
   | One   => (unit, [])
   | Bit   => (bit (length Γ), singleton (length Γ) w)
@@ -43,14 +44,14 @@ Fixpoint get_fresh w (Γ : Ctx) : Pat w * Ctx:=
               end
   end.
 
-Definition get_fresh_pat w Γ : Pat w := fst (get_fresh w Γ).
+Definition get_fresh_pat w Γ : Pat nat w := fst (get_fresh w Γ).
 Definition get_fresh_state w Γ : Ctx := snd (get_fresh w Γ).
 
 Lemma get_fresh_split : forall w Γ, 
   get_fresh w Γ = (get_fresh_pat w Γ, get_fresh_state w Γ).
 Proof. intros. rewrite (surjective_pairing (get_fresh w Γ)). easy. Qed.
 
-Lemma get_fresh_merge_valid : forall w Γ Γ0 (p : Pat w),
+Lemma get_fresh_merge_valid : forall w Γ Γ0 (p : Pat nat w),
   (p, Γ) = get_fresh w Γ0 ->
   is_valid (Γ0 ⋓ Γ).
 Proof.
@@ -119,7 +120,7 @@ Definition add_fresh w (Γ : Ctx) : Pat w * Ctx :=
 *)
 
 (* Direct, concatenation based approach *)
-Fixpoint add_fresh w (Γ : Ctx) : Pat w * Ctx:= 
+Fixpoint add_fresh w (Γ : Ctx) : Pat nat w * Ctx:= 
   match w with
   | One     => (unit, Γ)
   | Bit     => (bit (length Γ), Γ ++ [Some Bit])
@@ -129,7 +130,7 @@ Fixpoint add_fresh w (Γ : Ctx) : Pat w * Ctx:=
               ((pair p1 p2), Γ'')
   end.
 
-Definition add_fresh_pat w (Γ : Ctx) : Pat w := fst (add_fresh w Γ).
+Definition add_fresh_pat w (Γ : Ctx) : Pat nat w := fst (add_fresh w Γ).
 Definition add_fresh_state w (Γ : Ctx) : Ctx := snd (add_fresh w Γ).
 
 Lemma add_fresh_split : forall w Γ, 
@@ -208,7 +209,7 @@ Proof.
   congruence.
 Qed.
 
-Lemma add_fresh_typed : forall w w0 (p : Pat w) (p0 : Pat w0) Γ Γ0,
+Lemma add_fresh_typed : forall w w0 (p : Pat nat w) (p0 : Pat nat w0) Γ Γ0,
   (p, Γ) = add_fresh w Γ0 ->
   Γ0 ⊢ p0:Pat ->
   Γ ⊢ (pair p0 p):Pat.
@@ -227,7 +228,7 @@ Proof.
   rewrite get_fresh_split. reflexivity.
 Qed.
 
-Lemma add_fresh_typed_empty : forall w (p : Pat w) Γ,
+Lemma add_fresh_typed_empty : forall w (p : Pat nat w) Γ,
   (p, Γ) = add_fresh w [] ->
   Γ ⊢ p:Pat.
 Proof.
@@ -236,13 +237,13 @@ Proof.
   specialize (add_fresh_typed _ _ _ _ _ _ H types_unit) as TP.
   dependent destruction TP.
   inversion TP1; subst.
-  rewrite merge_nil_l in e. subst.
+  rewrite merge_nil_l in x. subst.
   easy.
 Qed.
 
-Definition remove_var (v : Var) (Γ : Ctx) : Ctx := trim (update_at Γ v None).  
+Definition remove_var (v : nat) (Γ : Ctx) : Ctx := trim (update_at Γ v None).  
 
-Definition change_type (v : Var) (w : WType) (Γ : Ctx) := update_at Γ v (Some w).
+Definition change_type (v : nat) (w : WType) (Γ : Ctx) := update_at Γ v (Some w).
 
 Fixpoint ctx_dom (Γ : Ctx) :=
   match Γ with
@@ -251,11 +252,11 @@ Fixpoint ctx_dom (Γ : Ctx) :=
   | None :: Γ' => fmap S (ctx_dom Γ')
   end.
 
-Definition remove_pat {w} (p : Pat w) (Γ : Ctx) : Ctx :=
+Definition remove_pat {w} (p : Pat nat w) (Γ : Ctx) : Ctx :=
   fold_left (fun a x => remove_var x a)  (pat_to_list p) Γ.
 
 Definition process_gate {w1 w2} (g : Gate w1 w2) 
-         : Pat w1 -> Ctx -> Pat w2 * Ctx :=
+         : Pat nat w1 -> Ctx -> Pat nat w2 * Ctx :=
   match g with 
   | U _ | BNOT | measQ => fun p st => (p,st)
   | init0 | init1      => fun _ st => add_fresh Qubit st
@@ -267,10 +268,10 @@ Definition process_gate {w1 w2} (g : Gate w1 w2)
   end. 
 
 Definition process_gate_pat {w1 w2} (g : Gate w1 w2) 
-         : Pat w1 -> Ctx -> Pat w2 := fun p st => fst (process_gate g p st).
+         : Pat nat w1 -> Ctx -> Pat nat w2 := fun p st => fst (process_gate g p st).
 
 Definition process_gate_state {w1 w2} (g : Gate w1 w2) 
-         : Pat w1 -> Ctx -> Ctx := fun p st => snd (process_gate g p st).
+         : Pat nat w1 -> Ctx -> Ctx := fun p st => snd (process_gate g p st).
                                          
 (**********)
 (* Typing *)
@@ -323,13 +324,13 @@ Fixpoint maps_to (x : nat) (Γ : Ctx) : option nat :=
 Lemma maps_to_singleton : forall v W, maps_to v (singleton v W) = Some O.
 Proof. induction v; auto. Qed.
 
-Definition subst_var (Γ : Ctx) (x : Var) : Var :=
+Definition subst_var (Γ : Ctx) (x : varNat) : varNat :=
   match maps_to x Γ with
   | Some y => y
   | None => 0
   end.
  
-Fixpoint subst_pat (Γ : Ctx) {w} (p : Pat w) : Pat w :=
+Fixpoint subst_pat (Γ : Ctx) {w} (p : Pat varNat w) : Pat varNat w :=
   match p with
   | unit    => unit
   | qubit x => qubit (subst_var Γ x)
@@ -370,12 +371,12 @@ Lemma SingletonCtx_dom : forall x w Γ,
       SingletonCtx x w Γ ->
       ctx_dom Γ = [x].
 Proof.
-  induction 1; simpl; auto.
-  rewrite IHSingletonCtx.
-  auto.
+  intros x w Γ HΓ.
+  dependent induction HΓ; simpl; auto.
+  erewrite IHHΓ; simpl; eauto.
 Qed.
 
-Lemma SingletonCtx_flatten : forall x w Γ,
+Lemma SingletonCtx_flatten : forall Var (x : Var) w Γ,
       SingletonCtx x w Γ ->
       flatten_ctx Γ = [Some w].
 Proof. induction 1; auto. Qed.
@@ -449,7 +450,7 @@ Proof.
     easy.
 Qed.
 
-Fixpoint hoas_to_db {w} Γ (c : Circuit w) : DeBruijn_Circuit w :=
+Fixpoint hoas_to_db {w} Γ (c : Circuit nat w) : DeBruijn_Circuit w :=
   match c with
   | output p   => db_output (subst_pat Γ p)
   | gate g p f =>  (* p0 is the db-pat corresponding to p *)
@@ -462,7 +463,7 @@ Fixpoint hoas_to_db {w} Γ (c : Circuit w) : DeBruijn_Circuit w :=
                   db_lift p0 (fun b => hoas_to_db Γ' (f b))
   end.
 
-Proposition hoas_to_db_typed : forall (Γ : Ctx) w (c : Circuit w),
+Proposition hoas_to_db_typed : forall (Γ : Ctx) w (c : Circuit nat w),
       Γ ⊢ c :Circ ->
       Types_DB (flatten_ctx Γ) (hoas_to_db Γ c).
 Proof.
@@ -472,13 +473,13 @@ Proof.
   * simpl. admit.
 Abort.
 
-Definition hoas_to_db_box {w1 w2} (B : Box w1 w2) : DeBruijn_Box w1 w2 :=
+Definition hoas_to_db_box {w1 w2} (B : Box nat w1 w2) : DeBruijn_Box w1 w2 :=
   match B with
   | box f => let (p,Γ) := add_fresh w1 [] in
              db_box w1 (hoas_to_db Γ (f p))
   end.
 
-Eval compute in (hoas_to_db_box (box (fun (p : Pat (Qubit ⊗ Bit)) => output p))).
+Eval compute in (hoas_to_db_box (box (fun (p : Pat nat (Qubit ⊗ Bit)) => output p))).
 
 (* Not sure we need these anymore *)
 Lemma fmap_S_seq : forall len start,

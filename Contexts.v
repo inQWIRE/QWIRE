@@ -49,7 +49,7 @@ Close Scope circ_scope.
 
 
 (** Variables **)
-Definition Var := nat.
+Definition varNat := nat.
 Definition Ctx := list (option WType).
 
 Inductive OCtx := 
@@ -84,17 +84,18 @@ Proof. intuition; congruence. Defined.
 (* Singleton Contexts *)
 (**********************)
 
-Inductive SingletonCtx : Var -> WType -> Ctx -> Prop :=
+Inductive SingletonCtx : forall {Var}, Var -> WType -> Ctx -> Prop :=
 | SingletonHere : forall w, SingletonCtx 0 w [Some w]
 | SingletonLater : forall x w Γ, SingletonCtx x w Γ -> SingletonCtx (S x) w (None::Γ).
 
-Inductive SingletonOCtx x w : OCtx -> Prop :=
+Inductive SingletonOCtx {Var} (x : Var) w : OCtx -> Prop :=
 | SingletonValid : forall Γ, SingletonCtx x w Γ -> SingletonOCtx x w (Valid Γ).
 
-Lemma Singleton_size : forall x w Γ, SingletonCtx x w Γ -> size_ctx Γ = 1%nat.
+Lemma Singleton_size : forall {Var} (x : Var) w Γ, 
+      SingletonCtx x w Γ -> size_ctx Γ = 1%nat.
 Proof. induction 1; auto. Qed.
 
-Fixpoint singleton (x : Var) (W : WType) : Ctx :=
+Fixpoint singleton (x : varNat) (W : WType) : Ctx :=
   match x with
   | O => [Some W]
   | S x => None :: singleton x W
@@ -108,11 +109,12 @@ Proof.
   - simpl. constructor. apply IHx.
 Defined.   
 
-Lemma singleton_equiv : forall x W Γ,
+Lemma singleton_equiv : forall (x : varNat) W Γ,
       SingletonCtx x W Γ -> Γ = singleton x W.
 Proof.
-  induction 1; trivial.
-  simpl. rewrite IHSingletonCtx. reflexivity.
+  intros x W Γ HΓ.
+  dependent induction HΓ; trivial.
+  simpl. erewrite IHHΓ; reflexivity.
 Defined.
 
 Lemma singleton_size : forall x w, size_ctx (singleton x w) = 1%nat.
@@ -891,7 +893,10 @@ Lemma singleton_index : forall x w Γ,
       SingletonCtx x w Γ ->
       index Γ x = Some w.
 Proof.
-  induction 1; simpl; auto.
+  intros x w Γ HΓ.
+  dependent induction HΓ; simpl; auto.
+  unfold index in IHHΓ.
+  rewrite IHHΓ; reflexivity.
 Qed.
 
 (********************)
@@ -1090,14 +1095,15 @@ Defined.
 (* Patterns and Gates *)
 
 Open Scope circ_scope.
-Inductive Pat : WType ->  Set :=
+Inductive Pat {Var : Set} : WType ->  Set :=
 | unit : Pat One
 | qubit : Var -> Pat Qubit
 | bit : Var -> Pat Bit
 | pair : forall {W1 W2}, Pat W1 -> Pat W2 -> Pat (W1 ⊗ W2).
+Arguments Pat : clear implicits.
 
 
-Fixpoint pat_to_list {w} (p : Pat w) : list Var :=
+Fixpoint pat_to_list {Var} {w} (p : Pat Var w) : list Var :=
   match p with
   | unit => []
   | qubit x => [x]
@@ -1106,7 +1112,7 @@ Fixpoint pat_to_list {w} (p : Pat w) : list Var :=
   end.
 
 
-Fixpoint pat_map {w} (f : Var -> Var) (p : Pat w) : Pat w :=
+Fixpoint pat_map {Var : Set} {w} (f : Var -> Var) (p : Pat Var w) : Pat Var w :=
   match p with
   | unit => unit
   | qubit x => qubit (f x)
@@ -1114,28 +1120,28 @@ Fixpoint pat_map {w} (f : Var -> Var) (p : Pat w) : Pat w :=
   | pair p1 p2 => pair (pat_map f p1) (pat_map f p2)
   end.
 
-
 Reserved Notation "Γ ⊢ p ':Pat'" (at level 30).
 
-Inductive Types_Pat : OCtx -> forall {W : WType}, Pat W -> Set :=
-| types_unit : ∅ ⊢ unit :Pat
-| types_qubit : forall x Γ, SingletonCtx x Qubit Γ ->  Γ ⊢ qubit x :Pat
-| types_bit : forall x Γ, SingletonCtx x Bit Γ -> Γ ⊢ bit x :Pat
-| types_pair : forall Γ1 Γ2 Γ w1 w2 (p1 : Pat w1) (p2 : Pat w2),
+Inductive Types_Pat {Var : Set} : OCtx -> forall {W : WType}, Pat Var W -> Set :=
+| types_unit : ∅ ⊢ @unit Var :Pat
+| types_qubit : forall (x : Var) Γ, SingletonCtx x Qubit Γ ->  Γ ⊢ qubit x :Pat
+| types_bit : forall (x : Var) Γ, SingletonCtx x Bit Γ -> Γ ⊢ bit x :Pat
+| types_pair : forall Γ1 Γ2 Γ w1 w2 (p1 : Pat Var w1) (p2 : Pat Var w2),
         is_valid Γ 
       -> Γ = Γ1 ⋓ Γ2
       -> Γ1 ⊢ p1 :Pat
       -> Γ2 ⊢ p2 :Pat
       -> Γ  ⊢ pair p1 p2 :Pat
-where "Γ ⊢ p ':Pat'" := (@Types_Pat Γ _ p).
+where "Γ ⊢ p ':Pat'" := (@Types_Pat _ Γ _ p).
 
-Lemma pat_ctx_valid : forall Γ W (p : Pat W), Γ ⊢ p :Pat -> is_valid Γ.
-Proof. intros Γ W p TP. unfold is_valid. inversion TP; eauto. Qed.
 
-Lemma octx_wtype_size : forall w (p : Pat w) (Γ : OCtx),
+Lemma pat_ctx_valid : forall {Var} Γ W (p : Pat Var W), Γ ⊢ p :Pat -> is_valid Γ.
+Proof. intros Var Γ W p TP. unfold is_valid. inversion TP; eauto. Qed.
+
+Lemma octx_wtype_size : forall Var w (p : Pat Var w) (Γ : OCtx),
       Γ ⊢ p:Pat -> size_wtype w = size_octx Γ.
 Proof.
-  intros w p Γ H.
+  intros Var w p Γ H.
   dependent induction H; simpl; auto.
   * apply Singleton_size in s. easy. 
   * apply Singleton_size in s. easy. 
@@ -1143,15 +1149,15 @@ Proof.
     rewrite size_octx_merge; auto.
 Qed.
 
-Lemma ctx_wtype_size : forall w (p : Pat w) (Γ : Ctx),
+Lemma ctx_wtype_size : forall Var w (p : Pat Var w) (Γ : Ctx),
       Γ ⊢ p:Pat -> size_wtype w = size_ctx Γ.
 Proof.
-  intros w p Γ H.
+  intros Var w p Γ H.
   replace (size_ctx Γ) with (size_octx Γ) by easy.
   eapply octx_wtype_size; apply H.
 Qed.
 
-Lemma size_wtype_length : forall {w} (p : Pat w),
+Lemma size_wtype_length : forall {Var} {w} (p : Pat Var w),
     length (pat_to_list p) = size_wtype w.
 Proof.
   induction p; simpl; auto.
@@ -1274,7 +1280,7 @@ Ltac solve_merge :=
 
 (*** Constructing Typed Patterns ***)
 
-Fixpoint mk_typed_bit (Γ : Ctx) : Pat Bit * Ctx :=
+Fixpoint mk_typed_bit (Γ : Ctx) : Pat _ Bit * Ctx :=
   match Γ with 
   | []           => (bit O, [Some Bit])
   | None :: Γ'   => (bit O, [Some Bit])
@@ -1284,7 +1290,7 @@ Fixpoint mk_typed_bit (Γ : Ctx) : Pat Bit * Ctx :=
                    end
   end.
 
-Fixpoint mk_typed_qubit (Γ : Ctx) : Pat Qubit * Ctx :=
+Fixpoint mk_typed_qubit (Γ : Ctx) : Pat _ Qubit * Ctx :=
   match Γ with 
   | []           => (qubit O, [Some Qubit])
   | None :: Γ'   => (qubit O, [Some Qubit])
@@ -1297,7 +1303,7 @@ Fixpoint mk_typed_qubit (Γ : Ctx) : Pat Qubit * Ctx :=
 (* Opaque Dummy Values *)
 Definition dummy_ctx : Ctx. exact []. Qed.
 
-Definition dummy_pat {W} : Pat W.
+Definition dummy_pat {W} : Pat varNat W.
 induction W.
 - exact (qubit O).
 - exact (bit O).
@@ -1305,7 +1311,7 @@ induction W.
 - constructor; auto.
 Qed.
 
-Fixpoint mk_typed_pat (W : WType) (Γ : Ctx) {struct W} : Pat W * Ctx :=
+Fixpoint mk_typed_pat (W : WType) (Γ : Ctx) {struct W} : Pat _ W * Ctx :=
   match W with
   | One   => (unit, [])
   | Bit   => mk_typed_bit Γ                             
@@ -1322,7 +1328,7 @@ Fixpoint mk_typed_pat (W : WType) (Γ : Ctx) {struct W} : Pat W * Ctx :=
               end
   end.
 
-Lemma typed_pat_merge_valid : forall W Γ Γ' (p : Pat W),
+Lemma typed_pat_merge_valid : forall W Γ Γ' (p : Pat _ W),
   (p, Γ') = mk_typed_pat W Γ ->
   is_valid (Γ ⋓ Γ').
 Proof.
@@ -1405,7 +1411,7 @@ Proof.
     + dependent destruction p.
       simpl in H. destruct (mk_typed_bit Γ) as [p Γ'']. 
       dependent destruction p. inversion H. subst.
-      specialize (IHΓ (bit v) Γ'' eq_refl). 
+      specialize (IHΓ (bit n) Γ'' eq_refl). 
       inversion IHΓ; subst.
       constructor.
       constructor.
@@ -1416,8 +1422,9 @@ Proof.
       constructor.
 Qed.
 
-Lemma typed_qubit_typed : forall Γ p Γ', (p, Γ') = mk_typed_qubit Γ ->
-                                              Γ' ⊢ p:Pat.
+Lemma typed_qubit_typed : forall Γ (p : Pat _ Qubit) Γ', 
+                                   (p, Γ') = mk_typed_qubit Γ ->
+                                    Γ' ⊢ p:Pat.
 Proof.
   induction Γ as [|o Γ].
   - intros p Γ' H. simpl in H. inversion H; subst. constructor.
@@ -1427,7 +1434,7 @@ Proof.
     + dependent destruction p.
       simpl in H. destruct (mk_typed_qubit Γ) as [p Γ'']. 
       dependent destruction p. inversion H. subst.
-      specialize (IHΓ (qubit v) Γ'' eq_refl). 
+      specialize (IHΓ (qubit n) Γ'' eq_refl). 
       inversion IHΓ; subst.
       constructor.
       constructor.
@@ -1438,7 +1445,7 @@ Proof.
       constructor.
 Qed.
 
-Lemma typed_pat_typed : forall W Γ (p : Pat W) Γ', 
+Lemma typed_pat_typed : forall W Γ (p : Pat _ W) Γ', 
   (p, Γ') = mk_typed_pat W Γ ->
   Γ' ⊢ p:Pat.
 Proof.
