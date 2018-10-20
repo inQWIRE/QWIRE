@@ -6,6 +6,7 @@ Require Import HOASExamples.
 Require Import Complex.
 Require Import TypeChecking.
 Require Import Denotation.
+Require Import Composition.
 Require Import DBCircuits.
 
 Set Bullet Behavior "Strict Subproofs".

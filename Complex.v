@@ -20,8 +20,8 @@ COPYING file for more details.
 
 ---------------------------------------------------------------
 
-This reduced version modified to work without SSReflect,
-or any other dependencies, as part of the QWIRE project. 
+This version modified to work without SSReflect,
+or any other dependencies, as part of the QWIRE project
 by Robert Rand and Jennifer Paykin (June 2017).
 
 *)

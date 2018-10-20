@@ -41,11 +41,16 @@ HOASExamples.vo: HOASExamples.v HOASLib.vo
 Denotation.vo: Denotation.v Quantum.vo DBCircuits.vo HOASLib.vo
 	coqc Denotation.v
 
-Ancilla.vo : Ancilla.v Denotation.vo TypeChecking.vo
-	coqc Ancilla.v
-
-SemanticLib.vo : SemanticLib.v Ancilla.vo 
+SemanticLib.vo : SemanticLib.v Denotation.vo 
 	coqc SemanticLib.v
+
+Composition.vo: Composition.v Denotation.vo
+	coqc Composition.v
+
+# Rely upon Composition
+
+Ancilla.vo : Ancilla.v Composition.vo TypeChecking.vo
+	coqc Ancilla.v
 
 Symmetric.vo : Symmetric.v Ancilla.vo SemanticLib.vo
 	coqc Symmetric.v

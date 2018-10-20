@@ -3,6 +3,7 @@ Require Import Monad.
 Require Import HOASCircuits.
 Require Import HOASExamples.
 Require Import Denotation.
+Require Import Composition.
 Require Import DBCircuits.
 Require Import TypeChecking.
 Require Import Symmetric.

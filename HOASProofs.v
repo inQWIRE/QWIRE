@@ -109,7 +109,9 @@ Qed.
 Hint Resolve wf_biased_coin : wf_db.
 Hint Unfold super_Zero : den_db. 
 
-Lemma flips_correct : forall n, ⟦coin_flips n⟧ I1 = biased_coin (1/(2^n)).
+(* Uses denote_compose: *)
+(*
+Proposition flips_correct : forall n, ⟦coin_flips n⟧ I1 = biased_coin (1/(2^n)).
 Proof.
   induction n.  
   + matrix_denote. Msimpl. solve_matrix.
@@ -149,7 +151,8 @@ Proof.
       autorewrite with C_db.
       rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
       reflexivity.
-Qed.
+Abort.
+*)
 
 (* The following uses a lemma (scale_safe) that is worth proving, but not yet proven *)
 (* We abort this lemma and prove a more general version below *)
@@ -284,6 +287,7 @@ Qed.
 Hint Unfold pure : den_db.
 Close Scope matrix_scope.
 
+(*
 Proposition share_correct : forall n α β, 
       (@denote _ _ (@Denote_Box _ _) (share n) (pure (α.*|0⟩ .+ β.*|1⟩))
     = pure (α.*(S n ⨂ |0⟩) .+ β.*(S n ⨂ |1⟩)))%M.
@@ -326,6 +330,7 @@ Proof.
     
     admit (* need padding lemma *).
 Abort.
+*)
 
 (* Can we multiply 16 x 16 matrices? Yes, we can!
 Example test : ((swap ⊗ swap) × (swap ⊗ swap) = 'I_16)%M.
@@ -361,10 +366,18 @@ Definition f2 : Matrix 4 4 := fun x y =>
 (* f(x) = 1. Unitary: Id ⊗ X *)
 Definition f3 : Matrix 4 4 := Id 2 ⊗ σx.
 
+(*
 Definition constant (U : Unitary (Qubit ⊗ Qubit)%qc) := 
                        denote_unitary U = f0 \/ denote_unitary U = f3.
 Definition balanced (U : Unitary (Qubit ⊗ Qubit)%qc) := 
                        denote_unitary U = f1 \/ denote_unitary U = f2.
+*)
+
+Definition constant (U : Unitary (Qubit ⊗ Qubit)%qc) := 
+  apply_U 2 U [0;1]%nat = super f0 \/ apply_U 2 U [0;1]%nat = super f3.
+Definition balanced (U : Unitary (Qubit ⊗ Qubit)%qc) := 
+  apply_U 2 U [0;1]%nat = super f1 \/ apply_U 2 U [0;1]%nat = super f2.
+
 
 Lemma f2_WF : WF_Matrix 4 4 f2. Proof. show_wf. Qed.
 Hint Resolve f2_WF : wf_db.
@@ -375,19 +388,21 @@ Open Scope circ_scope.
 
 (* New approach no longer explicitly calls denote_unitary. 
    And, unfortunately, we don't have a unitary corresponding to f0, f2 or f3.
-   Should use the circuit where U_f is a boxed_circuit instead 
+   Should use the circuit where U_f is a boxed_circuit instead *)
 
 Lemma deutsch_constant : forall U_f, constant U_f -> 
                                 ⟦U_deutsch U_f⟧ I1 = |0⟩⟨0|.
 Proof.
+  Opaque apply_U.
   intros U_f H.
-  repeat (simpl; autounfold with den_db). 
-  specialize (unitary_gate_unitary U_f). intros [WFU UU].
-  simpl in WFU.
-  Msimpl.
-  destruct H; rewrite H; clear.
-  rewrite H; clear.
-  + (* f0 *)
+  simpl.
+  unfold denote_box. unfold denote_db_box. simpl.
+  unfold subst_var. simpl.
+  destruct H; setoid_rewrite H.
+  Transparent apply_U.
+  - (* f0 *)
+    matrix_denote.
+    Msimpl.
     unfold f0.
     solve_matrix.
     rewrite (Cmult_comm (/ √2) _).
@@ -397,7 +412,9 @@ Proof.
     rewrite <- Cmult_assoc.
     autorewrite with C_db. 
     reflexivity.
-  + (* f3 *)
+  - (* f3 *)
+    matrix_denote.
+    Msimpl.
     unfold f3.
     solve_matrix.
     rewrite (Cmult_comm (/ √2) _).
@@ -409,17 +426,20 @@ Proof.
     autorewrite with C_db. 
     reflexivity.
 Qed.
-
+  
 Lemma deutsch_balanced : forall U_f, balanced U_f -> 
                                 ⟦U_deutsch U_f⟧ I1 = |1⟩⟨1|.
 Proof.
+  Opaque apply_U.
   intros U_f H.
-  repeat (simpl; autounfold with den_db). 
-  specialize (unitary_gate_unitary U_f). intros [WFU UU].
-  simpl in WFU.
-  Msimpl.
-  destruct H; rewrite H; clear.
+  simpl.
+  unfold denote_box. unfold denote_db_box. simpl.
+  unfold subst_var. simpl.
+  destruct H; setoid_rewrite H.
+  Transparent apply_U.
   + (* f1 *)
+    matrix_denote.
+    Msimpl.
     unfold f1.
     solve_matrix.
     rewrite (Cmult_comm (/ √2) _).
@@ -430,6 +450,8 @@ Proof.
     autorewrite with C_db. 
     reflexivity.
   + (* f2 *)
+    matrix_denote.
+    Msimpl.
     unfold f2.
     solve_matrix.
     rewrite (Cmult_comm (/ √2) _).
@@ -441,7 +463,6 @@ Proof.
     autorewrite with C_db. 
     reflexivity.
 Qed.
-*)
 
 (* Show Ltac Profile *)
 
