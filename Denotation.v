@@ -1708,9 +1708,49 @@ Proof.
   rewrite IHΓ. easy.
 Qed.
 
+(* Two closely related concepts which we will develop upon *)
 Inductive no_gaps : Ctx -> Prop :=
 | no_gaps_empty : no_gaps []
 | no_gaps_cons : forall W Γ, no_gaps Γ -> no_gaps (Some W :: Γ).
+
+Inductive Bounded_Pat (n : nat) : forall {W}, Pat W -> Prop :=
+| bounded_unit  : Bounded_Pat n unit
+| bounded_qubit : forall v, (v < n)%nat -> Bounded_Pat n (qubit v)
+| bounded_bit   : forall v, (v < n)%nat -> Bounded_Pat n (bit v)
+| bounded_pair  : forall W1 W2 (p1 : Pat W1) (p2 : Pat W2),
+                  Bounded_Pat n p1 -> Bounded_Pat n p2 -> Bounded_Pat n (p1,,p2)%qc.                                     
+
+Lemma no_gaps_size : forall Γ,
+  no_gaps Γ ->
+  size_ctx Γ = length Γ.  
+Proof.
+  induction Γ; trivial.
+  intros NG.
+  inversion NG; subst; simpl.
+  rewrite IHΓ; easy.
+Qed.
+
+Lemma size_ctx_le_length : forall Γ,
+  (size_ctx Γ <= length Γ)%nat.
+Proof.
+  induction Γ; trivial.
+  destruct a; simpl; omega.
+Qed.
+  
+Lemma size_eq_no_gaps : forall Γ,
+  size_ctx Γ = length Γ ->
+  no_gaps Γ.
+Proof.
+  induction Γ. constructor.
+  intros E.
+  destruct a.
+  - constructor.
+    apply IHΓ.
+    simpl in E; omega.
+  - simpl in E.
+    specialize (size_ctx_le_length Γ) as LE.
+    omega.
+Qed.
 
 Lemma no_gaps_app : forall Γ Γ',
   no_gaps Γ ->
@@ -1743,6 +1783,45 @@ Proof.
     auto.
 Qed.
 
+Lemma bounded_pat_le : forall W (p : Pat W) n n',
+  (n <= n')%nat ->
+  Bounded_Pat n p ->
+  Bounded_Pat n' p.
+Proof.
+  intros W p n n' LT BP.
+  induction p.
+  - constructor.
+  - inversion BP. constructor. omega.
+  - inversion BP. constructor. omega.
+  - dependent destruction BP.
+    constructor; auto.
+Qed.
+      
+(* Could use size_ctx instead of length... *)
+Lemma add_fresh_pat_bounded : forall W Γ,
+  no_gaps Γ ->
+  Bounded_Pat (length Γ + size_wtype W)%nat (add_fresh_pat W Γ). 
+Proof.
+  induction W; intros Γ NG.
+  - unfold add_fresh_pat. simpl.
+    constructor. omega.
+  - unfold add_fresh_pat. simpl.
+    constructor. omega.
+  - unfold add_fresh_pat. simpl.
+    constructor.
+  - unfold add_fresh_pat in *. simpl in *.
+    rewrite 2 add_fresh_split. simpl.
+    constructor.
+    specialize (IHW1 Γ NG).
+    eapply bounded_pat_le; [|apply IHW1]. omega.
+    specialize (IHW2 _ (add_fresh_state_no_gaps W1 Γ NG)).
+    apply_with_obligations IHW2.
+    erewrite length_fresh_state by reflexivity.
+    omega.
+Qed.
+
+
+(* Modifying to work with subst_pat_no_gaps
 Lemma subst_var_no_gaps : forall Γ w, 
   no_gaps Γ ->
   subst_var (Γ ++ [Some w]) (length Γ) = length Γ.
@@ -1754,6 +1833,48 @@ Proof.
   rewrite maps_to_app in *. simpl in *.
   rewrite IHΓ; easy.
 Qed. 
+*)
+
+Lemma maps_to_no_gaps : forall v Γ,
+  (v < length Γ)%nat ->
+  no_gaps Γ -> 
+  maps_to v Γ = Some v.
+Proof.
+  induction v.
+  - intros Γ LT NG.
+    inversion NG; subst; easy.
+  - intros Γ LT NG.
+    inversion NG; subst. easy.
+    simpl.
+    rewrite IHv; trivial.
+    simpl in LT; omega.
+Qed.    
+  
+Lemma subst_var_no_gaps : forall Γ v, 
+  (v < length Γ)%nat ->
+  no_gaps Γ -> 
+  subst_var Γ v = v.
+Proof.
+  intros Γ v LT NG.
+  unfold subst_var.
+  rewrite maps_to_no_gaps; easy.
+Qed.
+
+Lemma subst_pat_no_gaps : forall w (Γ : Ctx) (p : Pat w), 
+  Bounded_Pat (length Γ) p ->
+  no_gaps Γ ->
+  subst_pat Γ p = p.
+Proof.
+  intros w Γ p BP NG.
+  induction p; trivial.
+  - inversion BP. simpl.
+    rewrite subst_var_no_gaps; easy.
+  - inversion BP. simpl.
+    rewrite subst_var_no_gaps; easy.
+  - dependent destruction BP.
+    simpl.
+    rewrite IHp1, IHp2; easy.
+Qed.
 
 Lemma subst_units : forall w (p : Pat w) Γ, ∅ ⊢ p:Pat -> subst_pat Γ p = p.
 Proof.  
@@ -1770,71 +1891,25 @@ Proof.
     rewrite IHTypes_Pat1, IHTypes_Pat2; easy.
 Qed.
 
-Proposition subst_pat_no_gaps : forall w (Γ : Ctx) (p : Pat w), 
-  Γ ⊢ p:Pat ->
-  no_gaps Γ ->
-  subst_pat Γ p = p.
-Proof.
-  intros w Γ p TP.
-  dependent induction TP; trivial.
-  - intros NG.
-    inversion s; subst.
-    reflexivity.
-    inversion NG.
-  - intros NG.
-    inversion s; subst.
-    reflexivity.
-    inversion NG.
-  - intros NG.
-    destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.
-    destruct Γ1 as [|o1 Γ1], Γ2 as [|o2 Γ2].
-    + simpl. rewrite IHTP1, IHTP2; easy.
-    + rewrite merge_nil_l in e.
-      inversion e; subst.
-      simpl. rewrite IHTP2; trivial. 
-      f_equal.
-      apply subst_units; easy.
-    + rewrite merge_nil_r in e.
-      inversion e; subst.
-      simpl. rewrite IHTP1; trivial. 
-      f_equal.
-      apply subst_units; easy.
-    + destruct o1, o2.
-      unlock_merge. inversion e.
-      (* inductive hypotheses fail us *)
-Abort.
-
-Fact subst_pat_fresh : forall w Γ w',
-      Γ = add_fresh_state w' [] ->
+Lemma subst_pat_fresh : forall w Γ,
+      no_gaps Γ ->
       subst_pat (add_fresh_state w Γ) (add_fresh_pat w Γ) 
     = add_fresh_pat w Γ.
 Proof.
-  induction w; intros; auto.
-  - unfold add_fresh_state. simpl.
-    rewrite subst_var_no_gaps.
-    reflexivity.
-    rewrite H.
-    apply add_fresh_state_no_gaps.
-    constructor.
-  - unfold add_fresh_state. simpl.
-    rewrite subst_var_no_gaps.
-    reflexivity.
-    rewrite H.
-    apply add_fresh_state_no_gaps.
-    constructor.
-  - unfold add_fresh_state. simpl.
-    destruct (add_fresh w1 Γ) as [p1 Γ1] eqn:E1.
-    destruct (add_fresh w2 Γ1) as [p2 Γ2] eqn:E2.
-    simpl.
-Admitted.
+  intros.
+  apply subst_pat_no_gaps.
+  erewrite length_fresh_state by easy.
+  apply add_fresh_pat_bounded. easy.
+  apply add_fresh_state_no_gaps. easy.
+Qed.
 
 Lemma subst_pat_fresh_empty : forall w,
       subst_pat (add_fresh_state w []) (add_fresh_pat w [])
     = add_fresh_pat w [].
 Proof.
   intros.
-  apply subst_pat_fresh with (w' := One).
-  auto.
+  apply subst_pat_fresh. 
+  constructor.
 Qed.
 
 Lemma size_fresh_ctx : forall (w : WType) (Γ : Ctx),
