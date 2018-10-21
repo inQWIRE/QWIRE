@@ -386,9 +386,10 @@ Close Scope matrix_scope.
 Open Scope circ_scope.  
 (* Set Ltac Profiling. *)
 
-(* New approach no longer explicitly calls denote_unitary. 
-   And, unfortunately, we don't have a unitary corresponding to f0, f2 or f3.
-   Should use the circuit where U_f is a boxed_circuit instead *)
+(* One could quibble with the following proofs that they're true vacuously since
+   we don't have a unitary corresponding to f0, f2 or f3 (though f1 exists).
+   However, we could easily add them, and the proofs of each case mirrors that
+   of f1 (=CNOT). *)
 
 Lemma deutsch_constant : forall U_f, constant U_f -> 
                                 ⟦U_deutsch U_f⟧ I1 = |0⟩⟨0|.
@@ -546,11 +547,10 @@ Definition M_alice (ρ : Matrix 4 4) : Matrix 4 4 :=
   | _, _ => 0
   end.
 
-Lemma alice_spec : forall (ρ : Density 4), Mixed_State ρ -> ⟦alice⟧ ρ = M_alice ρ.
+Lemma alice_spec : forall (ρ : Density 4), WF_Matrix 4 4  ρ -> ⟦alice⟧ ρ = M_alice ρ.
 Proof.
   intros.
   repeat (simpl; autounfold with den_db). 
-  specialize (WF_Mixed ρ H). intros WFρ.
   Msimpl.
   repeat rewrite <- Mmult_assoc.
   Msimpl.
@@ -595,12 +595,11 @@ Definition M_bob (ρ : Density 8) : Density 2 :=
           | _, _ => 0
           end.
 
-Lemma bob_spec : forall (ρ : Density 8), Mixed_State ρ -> ⟦bob⟧ ρ = M_bob ρ.
+Lemma bob_spec : forall (ρ : Density 8), WF_Matrix 8 8 ρ -> ⟦bob⟧ ρ = M_bob ρ.
 Proof.
   intros.
   matrix_denote.
   repeat (simpl; autounfold with den_db). 
-  specialize (WF_Mixed ρ H). intros WFρ.
   Msimpl.
   solve_matrix.
 Qed.  
@@ -612,9 +611,8 @@ Qed.
 
 Lemma teleport_eq : teleport ≡ id_circ.
 Proof.
-  intros ρ safe Mρ.
+  intros ρ safe WF.
   matrix_denote.
-  specialize (WF_Mixed _ Mρ). intros WFρ.
   Msimpl.
   solve_matrix.
   idtac.
@@ -641,20 +639,18 @@ Definition M_bob_distant (b1 b2 : bool) (ρ : Density 2) : Matrix 2 2 :=
 Close Scope matrix_scope.
 
 Definition bob_distant_spec : forall b1 b2 (ρ : Density 2), 
-    Mixed_State ρ -> 
+    WF_Matrix 2 2 ρ -> 
     ⟦bob_distant b1 b2⟧ ρ = M_bob_distant b1 b2 ρ.
 Proof.
   intros.
-  specialize (WF_Mixed ρ H). intros WFρ.
   destruct b1, b2;
   matrix_denote; Msimpl; solve_matrix.
 Qed.
 
 Definition teleport_distant_eq : teleport_distant ≡ id_circ.
 Proof. 
-  intros ρ safe Mρ.
+  intros ρ safe WF.
   matrix_denote.
-  specialize (WF_Mixed _ Mρ). intros WFρ.
   Msimpl.
   solve_matrix.
   idtac.

@@ -69,17 +69,6 @@ Admitted.
 (* Composition lemmas *)
 (**********************)
 
-(*
-Lemma merge_singleton_end : forall Γ w,
-      Valid (Γ ++ [Some w]) = Valid Γ ⋓ singleton (length Γ) w.
-Proof.
-  unlock_merge.
-  induction Γ as [ | [w' | ] Γ]; intros; simpl in *; auto.
-  * rewrite <- IHΓ. reflexivity.
-  * rewrite <- IHΓ. reflexivity.
-Qed.
- *)
-
 Theorem inSeq_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2) (safe : bool),
       Typed_Box g -> Typed_Box f ->
       denote_box safe (inSeq f g) = 
@@ -194,7 +183,7 @@ Proof.
 Admitted.
 
 
-Fact HOAS_Equiv_inSeq : forall w1 w2 w3 (c1 c1' : Box w1 w2) (c2 c2' : Box w2 w3),
+Lemma HOAS_Equiv_inSeq : forall w1 w2 w3 (c1 c1' : Box w1 w2) (c2 c2' : Box w2 w3),
     Typed_Box c1 -> Typed_Box c1' ->  Typed_Box c2 -> Typed_Box c2' -> 
     c1 ≡ c1' -> c2 ≡ c2' -> (c2 · c1) ≡ (c2' · c1').
 Proof.
@@ -206,7 +195,6 @@ Proof.
   rewrite E1 by easy.
   rewrite E2. 
   easy. 
-(* This last isn't necessarily true under the unsafe semantics *)
-  admit. 
-Admitted.  
+  apply WF_denote_box; easy.
+Qed.
 

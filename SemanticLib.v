@@ -1,7 +1,6 @@
 Require Import HOASLib.
 Require Import Denotation.
 Require Import TypeChecking.
-Require Import Ancilla.
 
 Open Scope matrix_scope.
 

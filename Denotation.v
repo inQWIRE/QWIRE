@@ -4029,8 +4029,10 @@ Abort.
 (*********************************************************)
 
 (* Now for both version of the semantics *)
+(* I don't think we need ρ to be a Mixed State. 
+   We might not even need it to be well-formed. *)
 Definition HOAS_Equiv {W1 W2} (c1 c2 : Box W1 W2) :=
-  forall ρ b, Mixed_State ρ -> denote_box b c1 ρ = denote_box b c2 ρ .
+  forall ρ b, WF_Matrix (2 ^ ⟦ W1 ⟧) (2 ^ ⟦ W1 ⟧) ρ -> denote_box b c1 ρ = denote_box b c2 ρ .
 
 Locate "≡".
 Notation "a ≡ b" := (HOAS_Equiv a b) (at level 70) : circ_scope.
