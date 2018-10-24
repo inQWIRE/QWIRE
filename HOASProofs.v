@@ -39,29 +39,89 @@ Proof.
   reflexivity.
 Qed.
 
-(* General form *)
-(* TODO: update for new apply_U 
+(*
+Lemma apply_U_trans : forall n W (U : Unitary W) li,
+    compose_super (apply_U n U li) (apply_U n (trans U) li) = fun x => x.
+Proof.
+  intros n W U li.
+  unfold compose_super.
+  apply functional_extensionality.
+  intros ρ.
+  destruct W.
+  - simpl. Search trans.
+    unfold apply_to_first.
+    unfold apply_qubit_unitary.
+*)    
+  
 Lemma unitary_transpose_id : forall W (U : Unitary W),
   unitary_transpose U ≡ id_circ.
 Proof.
-  destruct W; try solve [inversion U].
-  apply unitary_transpose_id_qubit.
-  intros U ρ wfρ Mρ.  
-  specialize (unitary_gate_unitary U); intros [WFU UU].
-  simpl. autounfold with den_db. simpl.
-  assert (WFU' : WF_Matrix _ _ (⟦U⟧†)) by auto with wf_db.
-  autorewrite with proof_db.
-  rewrite denote_ctrls_transpose.
+  intros W U ρ safe WF.
   matrix_denote.
-  autorewrite with M_db.
-  repeat rewrite <- Mmult_assoc.
-  setoid_rewrite UU.
-  repeat rewrite Mmult_assoc.
-  setoid_rewrite UU.
-  autorewrite with M_db.
-  reflexivity.
-Qed.
-*)
+  rewrite add_fresh_split.
+  rewrite subst_pat_fresh by constructor.
+  unfold denote_db_box. simpl.  
+  unfold compose_super, super, pad.
+  repeat rewrite Nat.add_sub.
+  rewrite Nat.sub_diag.
+  rewrite Nat.leb_refl.
+  Msimpl.
+  destruct W; try solve [inversion U].
+  - simpl.
+    unfold denote_pat; simpl.
+    unfold swap_list; simpl.
+    unfold swap_two; simpl.
+    Msimpl.
+    rewrite Mmult_assoc.
+    unfold apply_qubit_unitary.
+    unfold super. simpl.
+    destruct (unitary_gate_unitary U) as [WFU inv].
+    assert (WFU' : WF_Matrix _ _ (⟦U⟧†)) by auto with wf_db.
+    simpl_rewrite @denote_unitary_transpose.
+    simpl in *. Msimpl.
+    repeat rewrite Mmult_assoc. rewrite inv.
+    repeat rewrite <- Mmult_assoc. rewrite inv.
+    Msimpl.
+    easy.
+  - simpl.
+    unfold denote_pat; simpl.
+    Msimpl.
+    rewrite Mmult_assoc.
+    unfold super. simpl.
+    remember (W1 ⊗ W2) as W.
+    remember (pat_to_list (add_fresh_pat W [])) as li.
+    destruct (denote_ctrls_unitary W (⟦W⟧) U li ) as [WFU inv].
+      apply forallb_forall. intros.
+      rewrite Nat.ltb_lt.
+      rewrite Heqli in H.
+      simpl.
+      rewrite (ctx_wtype_size _ (add_fresh_pat W []) (add_fresh_state W [])).
+      eapply pat_to_list_bounded.
+      split. validate. rewrite merge_nil_r. easy.
+      eapply get_fresh_typed.
+      rewrite get_fresh_split.
+      specialize (add_fresh_state_merge W [] _ eq_refl) as AFE.
+      rewrite merge_nil_l in AFE. inversion AFE. rewrite <- H1. easy.
+      rewrite <- add_fresh_pat_eq.
+      rewrite subst_pat_fresh by constructor.
+      easy.
+      apply add_fresh_typed_empty.
+      rewrite add_fresh_split. easy.
+      subst.
+      rewrite size_wtype_length.
+      easy.
+    replace (size_wtype W1 + size_wtype W2)%nat with  (⟦ W ⟧) by (subst;easy).
+    rewrite denote_ctrls_transpose.
+    remember (denote_ctrls (⟦ W ⟧) U li) as A.
+    remember (swap_list (⟦ W ⟧) li) as S.
+    rewrite <- (Mmult_assoc _ _ _ _ _ (A × ρ) _).
+    rewrite <- (Mmult_assoc _ _ _ _ _ A ρ).
+    rewrite inv. Msimpl.
+    rewrite (Mmult_assoc _ _ _ _ ρ _ A).
+    rewrite inv. Msimpl.
+    rewrite Mmult_assoc.
+    easy.
+Qed.    
 
 (****************)
 (* Coin Tossing *)
