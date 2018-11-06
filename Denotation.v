@@ -33,6 +33,7 @@ Instance Denote_WType : Denote WType nat := {| denote := size_wtype |}.
 Instance Denote_Ctx : Denote Ctx nat := {| denote := size_ctx |}.
 Instance Denote_OCtx : Denote OCtx nat := {| denote := size_octx |}.
 
+(* This isn't connected to apply_U but should be *)
 Fixpoint denote_unitary {W} (U : Unitary W) : Square (2^⟦W⟧) :=
   match U with  
   | _H          => hadamard 
@@ -137,6 +138,37 @@ Qed.
 Hint Resolve WF_denote_gate : wf_db.
 
 Close Scope circ_scope.
+
+Lemma discard_qubit_correct : forall (ρ : Matrix 2 2),
+  Mixed_State ρ ->
+  Mixed_State (⟨0| × ρ × |0⟩ .+ ⟨1| × ρ × |1⟩).
+Proof.
+  intros ρ M.
+  specialize (WF_Mixed _ M) as WF.
+  do 4 reduce_matrices.
+  replace (list2D_to_matrix [[ρ 0%nat 0%nat]]) with (ρ 0%nat 0%nat .* 'I_ 1) by solve_matrix.
+  replace (list2D_to_matrix [[ρ 1%nat 1%nat]]) with (ρ 1%nat 1%nat .* 'I_ 1) by solve_matrix.
+  specialize (mixed_state_diag_real _ 0%nat M) as R0.
+  specialize (mixed_state_diag_real _ 1%nat M) as R1.
+  specialize (mixed_state_diag_in01 _ 0%nat M) as IN0.
+  specialize (mixed_state_diag_in01 _ 1%nat M) as IN1.
+  specialize (mixed_state_trace_1 _ M) as TR1.
+  unfold trace in TR1. simpl in TR1.
+  replace (ρ 0%nat 0%nat) with (RtoC (fst (ρ 0%nat 0%nat))) by clra.
+  replace (ρ 1%nat 1%nat) with (RtoC (fst (ρ 1%nat 1%nat))) by clra.
+  replace (ρ 1%nat 1%nat) with (RtoC (1 - fst (ρ 0%nat 0%nat))) by (inversion TR1; clra).
+  destruct (Req_dec (fst (ρ 0%nat 0%nat)) 0); [|destruct (Req_dec (fst (ρ 0%nat 0%nat)) 1)].
+  - rewrite H, Mscale_0_l, Mplus_0_l, Rminus_0_r, Mscale_1_l.
+    constructor; apply pure_id1.
+  - unfold Rminus.
+    rewrite H0, Mscale_1_l, Rplus_opp_r, Mscale_0_l, Mplus_0_r.
+    constructor; apply pure_id1.
+  - apply Mix_S.
+    lra.
+    constructor; apply pure_id1.
+    constructor; apply pure_id1.
+Qed.    
+
 (* This is only true for "safe" gate denotation *)
 Lemma denote_gate_correct : forall {W1} {W2} (g : Gate W1 W2), 
                             WF_Superoperator (denote_gate true g). 
@@ -201,16 +233,16 @@ Proof.
     replace (fst a, 0) with (RtoC (fst a)) by reflexivity.
     destruct (Ceq_dec a C0) as [Z | NZ]; [|destruct (Ceq_dec a C1) as [O | NO]].
     * rewrite Z in *.
-      rewrite Mscale_0.
+      rewrite Mscale_0_l.
       rewrite Mplus_0_l.
       simpl. autorewrite with R_db.
-      rewrite Mscale_1.
+      rewrite Mscale_1_l.
       apply Pure_S.
       apply pure1.
     * rewrite O in *.
-      rewrite Mscale_1.
+      rewrite Mscale_1_l.
       simpl. unfold Rminus. rewrite Rplus_opp_r.
-      rewrite Mscale_0.
+      rewrite Mscale_0_l.
       rewrite Mplus_0_r.
       apply Pure_S.
       apply pure0.
@@ -247,9 +279,9 @@ Proof.
     destruct in01 as [[L|E0] [R|E1]]. 
     * apply Mix_S. easy. apply Pure_S. apply pure0. apply Pure_S. apply pure1.
     * rewrite E1. unfold Rminus. rewrite Rplus_opp_r. 
-      rewrite Mscale_0, Mscale_1. rewrite Mplus_0_r. apply Pure_S. apply pure0. 
+      rewrite Mscale_0_l, Mscale_1_l, Mplus_0_r. apply Pure_S. apply pure0. 
     * rewrite <- E0. rewrite Rminus_0_r. 
-      rewrite Mscale_0, Mscale_1. rewrite Mplus_0_l. apply Pure_S. apply pure1. 
+      rewrite Mscale_0_l, Mscale_1_l. rewrite Mplus_0_l. apply Pure_S. apply pure1. 
     * lra.      
   + simpl in *.
     unfold super, Splus.
@@ -720,6 +752,7 @@ Definition dummy_so {m n} : Superoperator m n. exact (fun _ => dummy_mat). Qed.
 Definition super_Zero {m n} : Superoperator m n  :=
   fun _ => Zero n n.
 
+(* Remove, use hd_default with default *)
 Definition apply_to_first {m n} (f : nat -> Superoperator m n) (l : list nat) :
   Superoperator m n :=
   match l with
@@ -779,6 +812,7 @@ Definition apply_qubit_unitary {n} (U : Matrix 2 2) (k : nat)
   : Superoperator (2^n) (2^n) := (super (Id (2^k) ⊗ U ⊗ Id (2^(n-k-1)))).
 
 (* New in-place version of apply_U *)
+(* We should have a unitary version of this, which we then turn into a superoperator *)
 Definition apply_U {W} (n : nat) (U : Unitary W) (l : list nat) 
            : Superoperator (2^n) (2^n) :=
   match W with
@@ -795,8 +829,8 @@ Fixpoint apply_U {W} (n : nat) (U : Unitary W) (l : list nat)
   | _Y          => apply_to_first (apply_qubit_unitary σy) l
   | _Z          => apply_to_first (apply_qubit_unitary σz) l
   | _R_ ϕ       => apply_to_first (apply_qubit_unitary (phase_shift ϕ)) l
-  | ctrl g     => super (denote_ctrls n U l)  
-  | bit_ctrl g => 
+  | ctrl g      => super (denote_ctrls n U l)  
+  | bit_ctrl g  => 
   end.
 *)
 
@@ -1279,36 +1313,62 @@ Definition apply_gate {n w1 w2} (safe : bool) (g : Gate w1 w2) (l : list nat)
 
 (*** Correctness of Gate Application **)
 
-Lemma apply_new0_correct : forall n, 
-  WF_Superoperator (@apply_new0 n).
-Proof.
-  intros n ρ Mρ.
-  unfold apply_new0.
-  unfold super.
-  Msimpl.
+Axiom discard_superoperator : forall (n i j : nat) (ρ : Square (2 ^ n)),      
+  (i * j * 2 = 2^n)%nat ->
+  Mixed_State ρ ->
+  Mixed_State (('I_i ⊗ ⟨0| ⊗ 'I_j) × ρ × ('I_i ⊗ |0⟩ ⊗ 'I_j) .+ ('I_i ⊗ ⟨1| ⊗ 'I_j) × ρ × ('I_i ⊗ |1⟩ ⊗ 'I_j)).
+
+Axiom measure_superoperator : forall (n i j : nat) (ρ : Square (2 ^ n)),      
+  (i * j * 2 = 2^n)%nat ->
+  Mixed_State ρ ->
+  Mixed_State (('I_i ⊗ |0⟩⟨0| ⊗ 'I_j) × ρ × ('I_i ⊗ |0⟩⟨0| ⊗ 'I_j) .+ ('I_i ⊗ |1⟩⟨1| ⊗ 'I_j) × ρ × ('I_i ⊗ |1⟩⟨1| ⊗ 'I_j)).
+                                          
+Proposition init0_superoperator : forall (n i j : nat) (ρ : Square (2 ^ n)),      
+  (i * j = 2^n)%nat ->
+  Mixed_State ρ ->
+  Mixed_State (('I_i ⊗ |0⟩ ⊗ 'I_j) × ρ × ('I_i ⊗ ⟨0| ⊗ 'I_j)).
+Abort.
+
+(* A simplified version where the initialization is done at the end *)
+Lemma init0_superoperator : forall (n i : nat) (ρ : Square (2 ^ n)),
+  (i = 2^n)%nat ->
+  Mixed_State ρ ->
+  Mixed_State (('I_i ⊗ |0⟩) × ρ × ('I_i ⊗ ⟨0|)).
+Proof.    
+  intros; subst.
   rewrite <- (kron_1_r _ _ ρ).
   Msimpl.
-  replace (2 ^ (n+1))%nat with (2^n * 2)%nat by unify_pows_two. 
   apply (mixed_state_kron _ _ ρ (|0⟩⟨0|)).
   easy.
   constructor.
   apply pure0.
 Qed.
 
-Lemma apply_new1_correct : forall n, 
-  WF_Superoperator (@apply_new1 n).
-Proof.
-  intros n ρ Mρ.
-  unfold apply_new1.
-  unfold super.
-  Msimpl.
+Lemma init1_superoperator : forall (n i : nat) (ρ : Square (2 ^ n)),
+  (i = 2^n)%nat ->
+  Mixed_State ρ ->
+  Mixed_State (('I_i ⊗ |1⟩) × ρ × ('I_i ⊗ ⟨1|)).
+Proof.    
+  intros; subst.
   rewrite <- (kron_1_r _ _ ρ).
   Msimpl.
-  replace (2 ^ (n+1))%nat with (2^n * 2)%nat by unify_pows_two. 
   apply (mixed_state_kron _ _ ρ (|1⟩⟨1|)).
   easy.
   constructor.
   apply pure1.
+Qed.  
+
+Lemma apply_discard_correct : forall n k, (k < n)%nat ->
+    WF_Superoperator (@apply_discard n k). 
+Proof.
+  intros n k L ρ Mρ.
+  unfold apply_discard.
+  unfold Splus, super.
+  Msimpl.
+  replace (2 ^ (n-1))%nat with ((2^k) * 1 * (2^(n-k-1)))%nat by unify_pows_two.
+  apply discard_superoperator.
+  unify_pows_two.
+  easy.
 Qed.
 
 Fact apply_meas_correct : forall n k, (k < n)%nat ->
@@ -1318,16 +1378,32 @@ Proof.
   unfold apply_meas.
   unfold Splus, super.
   Msimpl.
-Admitted.
-  
-Fact apply_discard_correct : forall n k, (k < n)%nat ->
-    WF_Superoperator (@apply_discard n k). 
+  Set Printing Implicit.
+  replace (2^n)%nat with (2^k * 2 * 2^(n-k-1))%nat by unify_pows_two.
+  apply measure_superoperator.
+  unify_pows_two.
+  easy.
+Qed.
+
+Lemma apply_new0_correct : forall n, 
+  WF_Superoperator (@apply_new0 n).
 Proof.
-  intros n k L ρ Mρ.
-  unfold apply_discard.
-  unfold Splus, super.
+  intros n ρ Mρ.
+  unfold apply_new0, super.
   Msimpl.
-Admitted.
+  replace (2^(n+1))%nat with (2^n * 2)%nat by unify_pows_two.
+  apply init0_superoperator; easy.
+Qed.
+
+Lemma apply_new1_correct : forall n, 
+  WF_Superoperator (@apply_new1 n).
+Proof.
+  intros n ρ Mρ.
+  unfold apply_new1, super.
+  Msimpl.
+  replace (2^(n+1))%nat with (2^n * 2)%nat by unify_pows_two.
+  apply init1_superoperator; easy.
+Qed.
 
 Lemma apply_gate_correct : forall W1 W2 n (g : Gate W1 W2) l,
                            length l = ⟦W1⟧ ->

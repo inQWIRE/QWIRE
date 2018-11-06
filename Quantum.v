@@ -28,11 +28,6 @@ Definition ket1 : Matrix 2 1 :=
           | _, _ => C0
           end.
 
-Definition ket (x : nat) : Matrix 2 1 := if x =? 0 then ket0 else ket1.
-Transparent ket0.
-Transparent ket1.
-Transparent ket.
-
 Notation "|0⟩" := ket0.
 Notation "|1⟩" := ket1.
 Notation "⟨0|" := ket0†.
@@ -41,6 +36,20 @@ Notation "|0⟩⟨0|" := (|0⟩×⟨0|).
 Notation "|1⟩⟨1|" := (|1⟩×⟨1|).
 Notation "|1⟩⟨0|" := (|1⟩×⟨0|).
 Notation "|0⟩⟨1|" := (|0⟩×⟨1|).
+
+Definition bra (x : nat) : Matrix 2 1 := if x =? 0 then ⟨0| else ⟨1|.
+Definition ket (x : nat) : Matrix 2 1 := if x =? 0 then |0⟩ else |1⟩.
+
+(*                                                      
+Notation "'⟨' x '|'" := (bra x). (* Unfortunately, this gives the Coq parser headaches *)
+Notation "'|' x '⟩'" := (ket x).
+*)
+                                                                 
+Transparent bra.
+Transparent ket.
+Transparent ket0.
+Transparent ket1.
+
 
 Definition bool_to_matrix (b : bool) : Matrix 2 2 := if b then |1⟩⟨1| else |0⟩⟨0|.
 
@@ -821,6 +830,16 @@ Proof. exists |0⟩. intuition. split. auto with wf_db. solve_matrix. Qed.
 Lemma pure1 : Pure_State |1⟩⟨1|. 
 Proof. exists |1⟩. intuition. split. auto with wf_db. solve_matrix. Qed.
 
+Lemma pure_id1 : Pure_State ('I_ 1).
+Proof. exists ('I_ 1). split. split. auto with wf_db. solve_matrix. solve_matrix. Qed.
+
+Lemma pure_dim1 : forall (ρ : Square 1), Pure_State ρ -> ρ = 'I_ 1.
+Proof.
+  intros ρ [φ [[WFφ IP1] Eρ]]. 
+  apply Minv_flip in IP1.
+  rewrite Eρ; easy.
+Qed.    
+                              
 Lemma pure_state_kron : forall m n (ρ : Square m) (φ : Square n),
   Pure_State ρ -> Pure_State φ -> Pure_State (ρ ⊗ φ).
 Proof.
@@ -954,16 +973,6 @@ Proof.
     repeat rewrite Rmult_0_r, Rmult_0_l.
     lra.
 Qed.
-
-Lemma pure_id1 : Pure_State ('I_ 1).
-Proof. exists ('I_ 1). split. split. auto with wf_db. solve_matrix. solve_matrix. Qed.
-
-Lemma pure_dim1 : forall (ρ : Square 1), Pure_State ρ -> ρ = 'I_ 1.
-Proof.
-  intros ρ [φ [[WFφ IP1] Eρ]]. 
-  apply Minv_flip in IP1.
-  rewrite Eρ; easy.
-Qed.    
 
 Lemma mixed_dim1 : forall (ρ : Square 1), Mixed_State ρ -> ρ = 'I_ 1.
 Proof.

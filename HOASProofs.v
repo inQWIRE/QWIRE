@@ -287,7 +287,7 @@ Qed.
 Lemma flips_lift_correct : forall n, ⟦coin_flips_lift n⟧ I1 = biased_coin (1/(2^n)).
 Proof.
   intros n.
-  rewrite <- Mscale_1, <- (Mscale_1 _ _ I1).
+  rewrite <- Mscale_1_l, <- (Mscale_1_l _ _ I1).
   apply flips_lift_correct_gen.
 Qed.
 

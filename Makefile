@@ -47,8 +47,6 @@ SemanticLib.vo : SemanticLib.v Denotation.vo
 Composition.vo: Composition.v Denotation.vo
 	coqc Composition.v
 
-# Rely upon Composition
-
 Ancilla.vo : Ancilla.v Composition.vo TypeChecking.vo
 	coqc Ancilla.v
 
@@ -60,17 +58,17 @@ Oracles.vo: Oracles.v Symmetric.vo HOASExamples.vo
 
 # Built by "make all"
 
-Arithmetic.vo: Arithmetic.v Oracles.vo
-	coqc Arithmetic.v
-
 HOASProofs.vo: HOASProofs.v HOASExamples.vo SemanticLib.vo
 	coqc HOASProofs.v
 
-Deutsch.vo: Deutsch.v HOASExamples.vo Complex.vo Denotation.vo DBCircuits.vo TypeChecking.vo
-	coqc Deutsch.v
-
 Equations.vo: Equations.v SemanticLib.vo
 	coqc Equations.v
+
+Arithmetic.vo: Arithmetic.v Oracles.vo
+	coqc Arithmetic.v
+
+Deutsch.vo: Deutsch.v HOASExamples.vo Complex.vo Denotation.vo DBCircuits.vo TypeChecking.vo
+	coqc Deutsch.v
 
 # Not built at all
 

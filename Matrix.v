@@ -594,6 +594,36 @@ Hint Extern 2 (_ = _) => unify_pows_two : wf_db.
 
 (** Basic Matrix Lemmas **)
 
+Lemma WF0_Zero_l :forall (n : nat) (A : Matrix 0%nat n), WF_Matrix _ _ A -> A = Zero 0%nat n.
+Proof.
+  intros n A WFA.
+  prep_matrix_equality.
+  rewrite WFA.
+  reflexivity.
+  omega.
+Qed.
+
+Lemma WF0_Zero_r :forall (n : nat) (A : Matrix n 0%nat), WF_Matrix _ _ A -> A = Zero n 0%nat.
+Proof.
+  intros n A WFA.
+  prep_matrix_equality.
+  rewrite WFA.
+  reflexivity.
+  omega.
+Qed.
+
+Lemma WF0_Zero :forall (A : Matrix 0%nat 0%nat), WF_Matrix _ _ A -> A = Zero 0%nat 0%nat.
+Proof.
+  apply WF0_Zero_l.
+Qed.
+
+Lemma Id0_Zero : 'I_ 0 = Zero 0 0.
+Proof.
+  apply WF0_Zero.
+  apply WF_Id.
+Qed.
+
+
 Lemma trace_plus_dist : forall (n : nat) (A B : Square n), 
     trace (A .+ B) = (trace A + trace B)%C. 
 Proof. 
@@ -967,8 +997,8 @@ Proof.
   reflexivity.
 Qed.
 
-
-Lemma Mscale_0 : forall (m n : nat) (A : Matrix m n), C0 .* A = Zero m n.
+(* There should be left and right versions of these *)
+Lemma Mscale_0_l : forall (m n : nat) (A : Matrix m n), C0 .* A = Zero m n.
 Proof.
   intros m n A.
   prep_matrix_equality.
@@ -977,13 +1007,32 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma Mscale_1 : forall (m n : nat) (A : Matrix m n), C1 .* A = A.
+Lemma Mscale_0_r : forall (m n : nat) (c : C), c .* Zero m n = Zero m n.
+Proof.
+  intros m n c.
+  prep_matrix_equality.
+  unfold Zero, scale.
+  rewrite Cmult_0_r.
+  reflexivity.
+Qed.
+
+Lemma Mscale_1_l : forall (m n : nat) (A : Matrix m n), C1 .* A = A.
 Proof.
   intros m n A.
   prep_matrix_equality.
   unfold scale.
   rewrite Cmult_1_l.
   reflexivity.
+Qed.
+
+Lemma Mscale_1_r : forall (n : nat) (c : C), c .* 'I_ n = fun x y => if (x =? y) && (x <? n) then c else C0.
+Proof.
+  intros n c.
+  prep_matrix_equality.
+  unfold scale, Id.
+  destruct ((x =? y) && (x <? n)).
+  rewrite Cmult_1_r; reflexivity.
+  rewrite Cmult_0_r; reflexivity.
 Qed.
 
 Lemma Mscale_mult_dist_l : forall (m n o : nat) (x : C) (A : Matrix m n) (B : Matrix n o), 
@@ -1056,9 +1105,8 @@ Qed.
 Lemma Minv_symm : forall (n : nat) (A B : Square n), Minv A B -> Minv B A.
 Proof. unfold Minv; intuition. Qed.
 
-(* Important but hardish lemma *)
-Fact Minv_flip : forall (n : nat) (A B : Square n), A × B = Id n -> B × A = Id n.
-Proof. Admitted.
+(* The left inverse of a square matrix is also its right inverse *)
+Axiom Minv_flip : forall (n : nat) (A B : Square n), A × B = Id n -> B × A = Id n.
   
 Lemma Minv_left : forall (n : nat) (A B : Square n), A × B = Id n -> Minv A B.
 Proof.
@@ -1076,28 +1124,18 @@ Proof.
   assumption.
 Qed.
 
-Fact kron_assoc : forall (m n o p q r : nat) (A : Matrix m n) (B : Matrix o p) 
+
+Axiom kron_assoc : forall (m n o p q r : nat) (A : Matrix m n) (B : Matrix o p) 
   (C : Matrix q r), (A ⊗ B ⊗ C) = A ⊗ (B ⊗ C).
-Proof.
-Admitted.
-(*
-  intros m n o p q r A B C.
-  unfold kron.
-  prep_matrix_equality.
-  repeat rewrite Nat.div_div.
-  rewrite (mult_comm q o).
-  rewrite (mult_comm r p).
-  Search Nat.modulo.
-  Search (_ mod (_ * _))%nat.
-*)
 
 (*
-Lemma mod_product : forall x y z, y <> 0 -> x mod (y * z) mod z = x mod z.
+Proposition mod_product : forall x y z, y <> 0 -> x mod (y * z) mod z = x mod z.
 Proof.  
   induction z.
   - intros. simpl. reflexivity.
   - intros. simpl.
     unfold Nat.modulo in IHz.
+Abort.
 *)    
 
 Lemma kron_mixed_product : forall (m n o p q r : nat) (A : Matrix m n) (B : Matrix p q ) 
