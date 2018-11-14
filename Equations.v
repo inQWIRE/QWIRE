@@ -324,10 +324,10 @@ Proof. type_check. Qed.
 
 Hint Unfold Splus : den_db.
 
-Definition classical {n} (ρ : Density n) := forall i j, i <> j -> ρ i j = 0.
+Definition Classical {n} (ρ : Density n) := forall i j, i <> j -> ρ i j = 0.
 
 Lemma lift_new_new : forall (ρ : Density 2), WF_Matrix 2 2 ρ -> 
-                                        classical ρ -> 
+                                        Classical ρ -> 
                                         ⟦lift_new⟧ ρ = ⟦@id_circ Bit⟧ ρ.
 Proof. 
   intros ρ M C.

@@ -6,7 +6,6 @@ Open Scope list_scope.
 
 Open Scope circ_scope.
 
-
 (* Example circuits *)
 
 Definition new_discard : Box One One := 
@@ -246,29 +245,19 @@ Proof. type_check. Qed.
 (** Superdense Coding **)
 (***********************)
 
-(* Same as `bob` *)
-Definition send_distant (b1 b2 : bool) : Box Qubit Qubit :=
-  box_ s ⇒ 
-    let_ s ← (if b2 then _X else id_circ) $ s;
-    let_ s ← (if b1 then _Z else id_circ) $ s;
-    s.
-Lemma send_distant_WT : forall b1 b2, Typed_Box (send_distant b1 b2).
-Proof. type_check. Qed.
-
-(* Same as `alice`, though rewritten *)
-Definition receive : Box (Qubit ⊗ Qubit) (Bit ⊗ Bit) :=
-  box_ (s,r) ⇒ 
-    let_ (s,r) ← CNOT $(s,r);
-    let_ s     ← _H $s;
-    (meas $ s, meas $ r).
-Lemma receive_WT : Typed_Box receive.
+Definition superdense : Box (Bit ⊗ Bit) (Bit ⊗ Bit) :=
+  box_ (b1,b2) ⇒ 
+    let_ (a,b) ← bell00 $ ();
+    let_ q     ← bob $ (b1,b2,b);
+    alice $ (q,a).
+Lemma superdense_WT : Typed_Box superdense.
 Proof. type_check. Qed.
 
 Definition superdense_distant (b1 b2 : bool) : Box One (Bit ⊗ Bit) :=
   box_ () ⇒ 
-    let_ (s,r) ← bell00 $ ();
-    let_ s     ← send_distant b1 b2 $ s;
-    receive $ (s,r).   
+    let_ (a,b) ← bell00 $ ();
+    let_ q     ← bob_distant b1 b2 $ b;
+    alice $ (q,a).
 Lemma superdense_distant_WT : forall b1 b2, Typed_Box (superdense_distant b1 b2).
 Proof. type_check. Qed.
 

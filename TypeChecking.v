@@ -58,8 +58,7 @@ Notation "'box_' ( p1 , ( p2 , p3 ) ) ⇒ C" := (box (fun x =>
 Notation "'box_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ⇒ C" := (box (fun x =>
     let (y,z) := wproj x in
     let (p1,p2) := wproj y in
-    let (p3,p4) := wproj z in
-    C)) 
+    let (p3,p4) := wproj z in C)) 
     (at level 13) : circ_scope.
 
 (* Notations for patterns *)

@@ -728,7 +728,16 @@ Qed.
 (* Superdense Coding *)
 (*********************)
 
-Lemma superdense_eq : forall b1 b2, 
+Lemma superdense_eq : forall (ρ : Density 4),
+  Classical ρ ->
+  ⟦superdense⟧ ρ = ρ.
+Proof.
+  intros b1 b2.
+  specialize (WF_bools_to_matrix ([b1;b2])) as WF.
+  destruct b1, b2; matrix_denote; Msimpl; solve_matrix.
+Qed.
+
+Lemma superdense_distant_eq : forall b1 b2, 
   ⟦superdense_distant b1 b2⟧ I1 = bools_to_matrix [b1; b2].
 Proof.
   intros b1 b2.

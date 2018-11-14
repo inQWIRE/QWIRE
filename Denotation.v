@@ -1313,24 +1313,119 @@ Definition apply_gate {n w1 w2} (safe : bool) (g : Gate w1 w2) (l : list nat)
 
 (*** Correctness of Gate Application **)
 
-Axiom discard_superoperator : forall (n i j : nat) (ρ : Square (2 ^ n)),      
+(* We first add the operator sum decomposition theorem as an axiom *)
+Definition SZero {m n} : Matrix m m -> Matrix n n := fun _ => Zero n n.
+           
+Definition operator_sum {m n} (l : list (Matrix m n)) : Superoperator n m :=
+  fold_left Splus (map (fun A => super A) l) SZero. 
+
+Definition outer_sum {m n} (l : list (Matrix m n)) :=
+  fold_left Mplus (map (fun A => A† × A) l) (Zero n n). 
+
+Axiom operator_sum_decomposition : forall {m n} (l : list (Matrix m n)),
+  outer_sum l = 'I_n <-> WF_Superoperator (operator_sum l).
+
+(* We can then prove that idealized mathematical representations of 
+   discard, measure, and init are valid superoperators. *)
+Lemma discard_superoperator : forall (n i j : nat) (ρ : Square (2 ^ n)),      
   (i * j * 2 = 2^n)%nat ->
   Mixed_State ρ ->
   Mixed_State (('I_i ⊗ ⟨0| ⊗ 'I_j) × ρ × ('I_i ⊗ |0⟩ ⊗ 'I_j) .+ ('I_i ⊗ ⟨1| ⊗ 'I_j) × ρ × ('I_i ⊗ |1⟩ ⊗ 'I_j)).
-
-Axiom measure_superoperator : forall (n i j : nat) (ρ : Square (2 ^ n)),      
+Proof.
+  intros n i j ρ E M.
+  destruct (operator_sum_decomposition ['I_i ⊗ ⟨0| ⊗ 'I_j ; 'I_i ⊗ ⟨1| ⊗ 'I_j]) as [WFS _].
+  assert (OS : outer_sum ['I_ i ⊗ ⟨0| ⊗ 'I_ j; 'I_ i ⊗ ⟨1| ⊗ 'I_ j] = 'I_ (i * 2 * j)).
+    idtac.
+    unfold outer_sum. simpl. Msimpl.
+    rewrite Mplus_0_l.
+    rewrite <- kron_plus_distr_r, <- kron_plus_distr_l.
+    replace (|0⟩⟨0| .+ |1⟩⟨1|) with ('I_2).
+    2: { crunch_matrix. bdestructΩ (S (S x) <? 2). rewrite andb_false_r. easy. }
+    repeat rewrite id_kron. easy.
+  specialize (WFS OS ρ).
+  unfold operator_sum, Splus, SZero, super, WF_Superoperator in WFS. simpl in WFS.
+  autorewrite with M_db in WFS.
+  rewrite Mplus_0_l in WFS.
+  apply WFS.
+  rewrite <- Nat.mul_assoc, (Nat.mul_comm 2%nat), Nat.mul_assoc.
+  rewrite E.
+  apply M.
+Qed.
+                          
+Lemma measure_superoperator : forall (n i j : nat) (ρ : Square (2 ^ n)),      
   (i * j * 2 = 2^n)%nat ->
   Mixed_State ρ ->
   Mixed_State (('I_i ⊗ |0⟩⟨0| ⊗ 'I_j) × ρ × ('I_i ⊗ |0⟩⟨0| ⊗ 'I_j) .+ ('I_i ⊗ |1⟩⟨1| ⊗ 'I_j) × ρ × ('I_i ⊗ |1⟩⟨1| ⊗ 'I_j)).
-                                          
-Proposition init0_superoperator : forall (n i j : nat) (ρ : Square (2 ^ n)),      
+Proof.
+  intros n i j ρ E M.
+  destruct (operator_sum_decomposition ['I_i ⊗ |0⟩⟨0| ⊗ 'I_j ; 'I_i ⊗ |1⟩⟨1| ⊗ 'I_j]) as [WFS _].
+  assert (OS : outer_sum ['I_ i ⊗ |0⟩⟨0| ⊗ 'I_ j; 'I_ i ⊗ |1⟩⟨1| ⊗ 'I_ j] = 'I_ (i * 2 * j)).
+    unfold outer_sum. simpl. Msimpl.
+    rewrite Mplus_0_l.
+    rewrite <- kron_plus_distr_r, <- kron_plus_distr_l.
+    replace ((|0⟩⟨0| × |0⟩⟨0| .+ |1⟩⟨1| × |1⟩⟨1|)) with ('I_2).
+    2: { crunch_matrix. bdestructΩ (S (S x) <? 2). rewrite andb_false_r. easy. }
+    repeat rewrite id_kron. easy.
+  specialize (WFS OS ρ).
+  unfold operator_sum, Splus, SZero, super, WF_Superoperator in WFS. simpl in WFS.
+  autorewrite with M_db in WFS.
+  rewrite Mplus_0_l in WFS.
+  apply WFS.
+  rewrite <- Nat.mul_assoc, (Nat.mul_comm 2%nat), Nat.mul_assoc.
+  rewrite E.
+  apply M.
+Qed.
+
+Lemma init0_superoperator : forall (n i j : nat) (ρ : Square (2 ^ n)),      
   (i * j = 2^n)%nat ->
   Mixed_State ρ ->
   Mixed_State (('I_i ⊗ |0⟩ ⊗ 'I_j) × ρ × ('I_i ⊗ ⟨0| ⊗ 'I_j)).
-Abort.
+Proof.
+  intros n i j ρ E M.
+  destruct (operator_sum_decomposition ['I_i ⊗ |0⟩ ⊗ 'I_j ]) as [WFS _].
+  assert (OS : outer_sum ['I_ i ⊗ |0⟩ ⊗ 'I_ j] = 'I_ (i * 1 * j)).
+    unfold outer_sum. simpl. Msimpl.
+    rewrite Mplus_0_l.
+    replace (⟨0| × |0⟩) with ('I_1).
+    2: { crunch_matrix. bdestructΩ (S x <? 1). rewrite andb_false_r. easy. }
+    repeat rewrite id_kron. easy.
+  specialize (WFS OS ρ).
+  unfold operator_sum, Splus, SZero, super, WF_Superoperator in WFS. simpl in WFS.
+  autorewrite with M_db in WFS.
+  rewrite Mplus_0_l in WFS.
+  apply WFS.
+  Set Printing Implicit.
+  rewrite Nat.mul_1_r.
+  rewrite E.
+  apply M.
+Qed.
 
-(* A simplified version where the initialization is done at the end *)
-Lemma init0_superoperator : forall (n i : nat) (ρ : Square (2 ^ n)),
+Lemma init1_superoperator : forall (n i j : nat) (ρ : Square (2 ^ n)),      
+  (i * j = 2^n)%nat ->
+  Mixed_State ρ ->
+  Mixed_State (('I_i ⊗ |1⟩ ⊗ 'I_j) × ρ × ('I_i ⊗ ⟨1| ⊗ 'I_j)).
+Proof.
+  intros n i j ρ E M.
+  destruct (operator_sum_decomposition ['I_i ⊗ |1⟩ ⊗ 'I_j ]) as [WFS _].
+  assert (OS : outer_sum ['I_ i ⊗ |1⟩ ⊗ 'I_ j] = 'I_ (i * 1 * j)).
+    unfold outer_sum. simpl. Msimpl.
+    rewrite Mplus_0_l.
+    replace (⟨1| × |1⟩) with ('I_1).
+    2: { crunch_matrix. bdestructΩ (S x <? 1). rewrite andb_false_r. easy. }
+    repeat rewrite id_kron. easy.
+  specialize (WFS OS ρ).
+  unfold operator_sum, Splus, SZero, super, WF_Superoperator in WFS. simpl in WFS.
+  autorewrite with M_db in WFS.
+  rewrite Mplus_0_l in WFS.
+  apply WFS.
+  Set Printing Implicit.
+  rewrite Nat.mul_1_r.
+  rewrite E.
+  apply M.
+Qed.
+
+(* A simplified version (without the OSD axiom) where the initialization is done at the end *)
+Lemma init0_end_superoperator : forall (n i : nat) (ρ : Square (2 ^ n)),
   (i = 2^n)%nat ->
   Mixed_State ρ ->
   Mixed_State (('I_i ⊗ |0⟩) × ρ × ('I_i ⊗ ⟨0|)).
@@ -1344,7 +1439,7 @@ Proof.
   apply pure0.
 Qed.
 
-Lemma init1_superoperator : forall (n i : nat) (ρ : Square (2 ^ n)),
+Lemma init1_end_superoperator : forall (n i : nat) (ρ : Square (2 ^ n)),
   (i = 2^n)%nat ->
   Mixed_State ρ ->
   Mixed_State (('I_i ⊗ |1⟩) × ρ × ('I_i ⊗ ⟨1|)).
@@ -1358,6 +1453,7 @@ Proof.
   apply pure1.
 Qed.  
 
+(* Connected to our semantics for discard, measure and init gates *)
 Lemma apply_discard_correct : forall n k, (k < n)%nat ->
     WF_Superoperator (@apply_discard n k). 
 Proof.
@@ -1378,7 +1474,6 @@ Proof.
   unfold apply_meas.
   unfold Splus, super.
   Msimpl.
-  Set Printing Implicit.
   replace (2^n)%nat with (2^k * 2 * 2^(n-k-1))%nat by unify_pows_two.
   apply measure_superoperator.
   unify_pows_two.
@@ -1392,7 +1487,7 @@ Proof.
   unfold apply_new0, super.
   Msimpl.
   replace (2^(n+1))%nat with (2^n * 2)%nat by unify_pows_two.
-  apply init0_superoperator; easy.
+  apply init0_end_superoperator; easy.
 Qed.
 
 Lemma apply_new1_correct : forall n, 
@@ -1402,7 +1497,7 @@ Proof.
   unfold apply_new1, super.
   Msimpl.
   replace (2^(n+1))%nat with (2^n * 2)%nat by unify_pows_two.
-  apply init1_superoperator; easy.
+  apply init1_end_superoperator; easy.
 Qed.
 
 Lemma apply_gate_correct : forall W1 W2 n (g : Gate W1 W2) l,
@@ -2991,18 +3086,6 @@ Proof.
   - simpl. rewrite IHp1, IHp2. easy.
 Qed.    
 
-Proposition hoas_to_db_trim : forall W Γ (c : Circuit W), hoas_to_db (trim Γ) c = hoas_to_db Γ c.
-Proof.
-  intros W Γ c.
-  induction c.
-  - simpl. rewrite subst_pat_trim. easy.
-  - simpl. rewrite subst_pat_trim. 
-    destruct g eqn:E.
-    + simpl. rewrite H. easy. 
-    + simpl. rewrite H. easy. 
-    + simpl. (*nope! and not even close to true for flatten_ctx *) 
-Abort.
-
 Lemma trim_types_circ : forall W (c : Circuit W) (Γ : Ctx), Γ ⊢ c :Circ -> trim Γ ⊢ c :Circ.
 Proof.
   intros W c.
@@ -3704,6 +3787,7 @@ Inductive Static_Circuit {W} : Circuit W -> Prop :=
 Inductive Static_Box {W1 W2} : Box W1 W2 -> Prop := 
 | S_box : forall c, (forall p, Static_Circuit (c p)) -> Static_Box (box c).
 
+(** Circuits are valid superoperators **)
 Theorem denote_static_circuit_correct : forall W (Γ0 Γ : Ctx) (c : Circuit W),
   Static_Circuit c ->
   Γ ⊢ c:Circ -> 

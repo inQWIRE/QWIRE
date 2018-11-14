@@ -805,6 +805,8 @@ Qed.
 
 Notation Density n := (Matrix n n) (only parsing). 
 
+Definition Classical {n} (ρ : Density n) := forall i j, i <> j -> ρ i j = 0.
+
 Definition Pure_State_Vector {n} (φ : Matrix n 1): Prop := 
   WF_Matrix n 1 φ /\ φ† × φ = 'I_ 1.
 
