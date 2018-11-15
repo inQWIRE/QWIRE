@@ -128,27 +128,23 @@ Proof.
 Qed.
 
     
-(* Precondition: 0 < j < n *)
+(* Precondition:  0 < j < n *)
 Definition CNOT_at_i0 (n j : nat) (pf_j : 0 < j) (pf_n : j < n) 
                      : Box (n ⨂ Qubit) (n ⨂ Qubit).
 Proof.
   gen n.
   induction j as [ | [ | j']]; intros n pf_n.
-  * (* i = 0, j = 0 *) absurd False; auto. inversion pf_j.
+  * (* i = 0, j = 0 *) omega. 
   * (* i = 0, j = 1 *)
-    destruct n as [ | [ | n']]. 
-    { absurd False; auto. inversion pf_n. }
-    { absurd False; auto. inversion pf_n. inversion H0. }
-    refine (box_ q ⇒ let_ (q0,(q1,qs)) ← q; 
+    destruct n as [ | [ | n']]; try omega.
+    exact (box_ q ⇒ let_ (q0,(q1,qs)) ← q; 
                      let_ (q0,q1) ← CNOT $(q0,q1);
                      (q0,(q1,qs))).
   * (* i = 0, j = S (S j') *)
-    destruct n as [ | [ | n']]. 
-    { absurd False; auto. inversion pf_n. }
-    { absurd False; auto. inversion pf_n. inversion H0. }
-       refine (box_ q ⇒ let_ (q0,(q1,qs)) ← q;
-                        let_ (q0,qs) ← IHj _ (S n') _ $ (q0,qs);
-                        (q0,(q1,qs))).
+    destruct n as [ | [ | n']]; try omega.
+    refine (box_ q ⇒ let_ (q0,(q1,qs)) ← q;
+                     let_ (q0,qs) ← IHj _ (S n') _ $ (q0,qs);
+                     (q0,(q1,qs))).
        + apply Nat.lt_0_succ.
        + apply lt_S_n. auto.
 Defined.
@@ -200,21 +196,17 @@ Definition CNOT_at_j0 (n i : nat) (pf_j : 0 < i) (pf_n : i < n)
 Proof.
   gen n.
   induction i as [ | [ | i']]; intros n pf_n.
-  * (* i = 0, j = 0 *) absurd False; auto. inversion pf_j.
+  * (* i = 0, j = 0 *) omega.
   * (* i = 1, j = 0 *)
-    destruct n as [ | [ | n']]. 
-    { absurd False; auto. inversion pf_n. }
-    { absurd False; auto. inversion pf_n. inversion H0. }
-       refine (box_ q ⇒ let_ (q0,(q1,qs)) ← q; 
-                        let_ (q1,q0) ← CNOT $(q1,q0);
-                        (q0,(q1,qs))).
+    destruct n as [ | [ | n']]; try omega.
+    exact (box_ q ⇒ let_ (q0,(q1,qs)) ← q; 
+                     let_ (q1,q0) ← CNOT $(q1,q0);
+                     (q0,(q1,qs))).
   * (* i = S (S i'), j = 0 *)
-    destruct n as [ | [ | n']]. 
-    { absurd False; auto. inversion pf_n. }
-    { absurd False; auto. inversion pf_n. inversion H0. }
-       refine (box_ q ⇒ let_ (q0,(q1,qs)) ← q;
-                        let_ (q0,qs) ← IHi _ (S n') _ $(q0,qs);
-                        (q0,(q1,qs))).
+    destruct n as [ | [ | n']]; try omega.
+    refine (box_ q ⇒ let_ (q0,(q1,qs)) ← q;
+                     let_ (q0,qs) ← IHi _ (S n') _ $(q0,qs);
+                     (q0,(q1,qs))).
        + apply Nat.lt_0_succ.
        + apply lt_S_n. auto.
 Defined.
@@ -267,7 +259,7 @@ Definition CNOT_at' (n i j : nat)
                     : Box (n ⨂ Qubit) (n ⨂ Qubit).
 Proof.
   dependent induction n.
-  - (* n = 0 *) absurd False; auto. inversion pf_i.
+  - (* n = 0 *) omega.
   - destruct i as [ | i'], j as [ | j'].
     * (* i = 0, j = 0 *) contradiction.
     * (* i = 0, j = S j' *) refine (CNOT_at_i0 (S n) (S j') _ pf_j).
@@ -275,13 +267,37 @@ Proof.
     * (* i = S i', j = 0 *) refine (CNOT_at_j0 (S n) (S i') _ pf_i).
       + apply Nat.lt_0_succ.
     * (* i = S i', j = S j' *)
-    refine (box_ q ⇒ let_ (q0,qs) ← q;
-                     let_ qs ←  IHn i' j' _ _ _ $qs;
-                     (q0,qs)).  
+      refine (box_ q ⇒ let_ (q0,qs) ← q;
+                       let_ qs ←  IHn i' j' _ _ _ $qs;
+                       (q0,qs)).  
       + apply (lt_S_n _ _ pf_i).
       + apply (lt_S_n _ _ pf_j).
       + apply Nat.succ_inj_wd_neg. apply pf_i_j.
 Defined.
+
+(* Alternative, direct definition of CNOT_at' *)
+(*
+Definition CNOT_at'' (n i j : nat) 
+                     (pf_i : i < n) (pf_j : j < n) (pf_i_j : i <> j) 
+                     : Box (n ⨂ Qubit) (n ⨂ Qubit).
+induction i as [|[|i]]; induction j as [|[|j]]; destruct n as [|[|n]]; try omega.
+- (* i = 0, j = 1 *)
+  exact (box_ q ⇒ let_ (q0,(q1,qs)) ← q; 
+                   let_ (q0,q1) ← CNOT $(q0,q1);
+                   (q0,(q1,qs))).
+- (* i = 0, j > 1 *)
+  refine (box_ q ⇒ let_ (q0,(q1,qs)) ← q;
+                   let_ (q1,(q0,qs)) ← IHj _ _ $ (q1,(q0,qs));
+                   (q0,(q1,qs))); omega.
+- (* i = 1, j = 0 *)
+  exact (box_ q ⇒ let_ (q0,(q1,qs)) ← q; 
+                  let_ (q1,q0) ← CNOT $(q1,q0);
+                  (q0,(q1,qs))).
+- (* i = 1, j > 1 *)
+    refine (box_ q ⇒ let_ (q0,(q1,qs)) ← q;
+                   let_ (q1,(q0,qs)) ← IHi _ _ $ (q1,(q0,qs));
+                   (q0,(q1,qs))); omega.
+*)
 
 Opaque CNOT_at_i0.
 Opaque CNOT_at_j0.
@@ -404,10 +420,112 @@ Proof.
   * omega.
 Qed.
 
-(* TODO: Fill in *)
-Parameter Toffoli_at' : forall (n : nat) (i j k : Var) (pf_i : i < n) (pf_j : j < n) (pf_k : k < n)
-                                      (pf_i_j : i <> j) (pf_i_k : i <> k) (pf_j_k : j <> k),
-         Box (n ⨂ Qubit) (n ⨂ Qubit).
+Notation "'let_' ( p1 , ( p2 , ( p3 , p4 ) ) ) ← c1 ; c2" :=
+    (compose c1 (fun x => let (p1,y) := wproj x in
+                       let (p2,z) := wproj y in
+                       let (p3,p4) := wproj z in c2))
+                            (at level 14, right associativity) : circ_scope.
+Notation "'let_' ( p1 , ( p2 , ( p3 , ( p4 , p5 ) ) ) ) ← c1 ; c2" :=
+    (compose c1 (fun x => let (p1,y) := wproj x in
+                       let (p2,z) := wproj y in
+                       let (p3,a) := wproj z in
+                       let (p4,p5) := wproj a in c2))
+                            (at level 14, right associativity) : circ_scope.
+
+(* i and j are the controls, k is the target *)
+(* i is always assumed to be smaller than j *)
+(* i = 0, j = 1 *)
+Definition TOF_at_ij01 (n k : nat) (pf_j : 1 < k) (pf_n : k < n) 
+  : Box (n ⨂ Qubit) (n ⨂ Qubit).
+  gen n.
+  induction k as [| [| [|k]]]; intros; try omega.
+  - destruct n as [| [| [|n]]]; try omega.
+    exact (box_ q ⇒ let_ (q0,(q1,(q2,qs))) ← q; 
+                    let_ (q0,(q1,q2)) ← CCNOT $(q0,(q1,q2));
+                    (q0,(q1,(q2,qs)))).
+  - destruct n as [| [| [|n]]]; try omega.
+    refine (box_ q ⇒ let_ (q0,(q1,(q2,qs))) ← q;
+                     let_ (q0,(q1,qs)) ← IHk _ (S (S n)) _ $ (q0,(q1,qs));
+                     (q0,(q1,(q2,qs)))); omega.
+Defined.
+
+(* i = 0, k = 1 *)
+Definition TOF_at_ik01 (n j : nat) (pf_j : 1 < j) (pf_n : j < n) 
+  : Box (n ⨂ Qubit) (n ⨂ Qubit).
+  gen n.
+  induction j as [| [| [|j]]]; intros; try omega.
+  - destruct n as [| [| [|n]]]; try omega.
+    exact (box_ q ⇒ let_ (q0,(q1,(q2,qs))) ← q; 
+                    let_ (q0,(q2,q1)) ← CCNOT $(q0,(q2,q1));
+                    (q0,(q1,(q2,qs)))).
+  - destruct n as [| [| [|n]]]; try omega.
+    refine (box_ q ⇒ let_ (q0,(q1,(q2,qs))) ← q;
+                     let_ (q0,(q1,qs)) ← IHj _ (S (S n)) _ $ (q0,(q1,qs));
+                     (q0,(q1,(q2,qs)))); omega.
+Defined.    
+
+(* k = 0, i = 1 *)
+Definition TOF_at_ki01 (n j : nat) (pf_j : 1 < j) (pf_n : j < n) 
+  : Box (n ⨂ Qubit) (n ⨂ Qubit).
+  gen n.
+  induction j as [| [| [|j]]]; intros; try omega.
+  - destruct n as [| [| [|n]]]; try omega.
+    exact (box_ q ⇒ let_ (q0,(q1,(q2,qs))) ← q; 
+                    let_ (q1,(q2,q0)) ← CCNOT $(q1,(q2,q0));
+                    (q0,(q1,(q2,qs)))).
+  - destruct n as [| [| [|n]]]; try omega.
+    refine (box_ q ⇒ let_ (q0,(q1,(q2,qs))) ← q;
+                     let_ (q0,(q1,qs)) ← IHj _ (S (S n)) _ $ (q0,(q1,qs));
+                     (q0,(q1,(q2,qs)))); omega.
+Defined.    
+
+(* i = 0 *)
+Definition TOF_at_i0 (n j k : nat) (pf_ij : 0 < j) (pf_ik : 0 < k) (pf_jk : j <> k) (pf_jn : j < n) (pf_kn : k < n)
+  : Box (n ⨂ Qubit) (n ⨂ Qubit).
+  gen n k. induction j as [| [|j]]; intros; try omega.
+  - apply (TOF_at_ij01 n k); omega.
+  - gen n. induction k as [| [|k]]; intros; try omega.
+    + apply (TOF_at_ik01 n (S (S j))); omega.
+    + destruct n as [| [| [|n]]]; try omega.
+      refine (box_ q ⇒ let_ (q0,(q1,qs)) ← q;
+                       let_ (q0,qs) ← IHj _ (S (S n)) _ (S k) _ _ _ $ (q0,qs);
+                       (q0,(q1,qs))); omega.
+Defined.
+
+(* k = 0 *)
+Definition TOF_at_k0 (n i j : nat) (pf_ij : i < j) (pf_ik : 0 < i) (pf_jk : 0 < j) (pf_in : i < n) (pf_jn : j < n)
+  : Box (n ⨂ Qubit) (n ⨂ Qubit).
+  gen n j. induction i as [| [|i]]; intros; try omega.
+  - apply (TOF_at_ki01 n j); omega.
+  - destruct j as [|[|j]]; try omega.
+    destruct n as [| [| [|n]]]; try omega.
+    refine (box_ q ⇒ let_ (q0,(q1,qs)) ← q;
+                     let_ (q0,qs) ← IHi _ (S (S n)) _ (S j) _ _ _ $ (q0,qs);
+                     (q0,(q1,qs))); omega.
+Defined.
+
+Definition Toffoli_at' (n : nat) (i j k : Var) (pf_i : i < n) (pf_j : j < n) (pf_k : k < n)
+                                      (pf_i_j : i <> j) (pf_i_k : i <> k) (pf_j_k : j <> k) :
+    Box (n ⨂ Qubit) (n ⨂ Qubit).
+gen i j k.
+induction n; intros; try omega.
+destruct i; [|destruct j; [|destruct k]]; try omega.
+- apply (TOF_at_i0 (S n) j k); omega.
+- apply (TOF_at_i0 (S n) (S i) k); omega.
+- destruct (lt_dec i j).
+  + apply (TOF_at_k0 (S n) (S i) (S j)); omega.
+  + apply (TOF_at_k0 (S n) (S j) (S i)); omega.
+- refine (box_ q ⇒ let_ (q0,qs) ← q;
+                   let_ qs ← IHn i _ j _ _ k _ _ _ $ qs;
+                   (q0,qs)); omega.
+Defined.
+
+(* Should prove *)
+Lemma Toffoli_at'_WT : forall n (i j k : Var) (pf_i : i < n) (pf_j : j < n) (pf_k : k < n)
+                             (pf_i_j : i <> j) (pf_i_k : i <> k) (pf_j_k : j <> k),
+      Typed_Box (Toffoli_at' n i j k pf_i pf_j pf_k pf_i_j pf_i_k pf_j_k).
+Proof.
+Admitted.
 
 Axiom Toffoli_at'_WT : forall n (i j k : Var) (pf_i : i < n) (pf_j : j < n) (pf_k : k < n)
                              (pf_i_j : i <> j) (pf_i_k : i <> k) (pf_j_k : j <> k),

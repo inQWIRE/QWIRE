@@ -231,10 +231,8 @@ Proof.
     replace (⟨1| × (|0⟩⟨0| × (hadamard × |0⟩⟨0| × hadamard) × |0⟩⟨0| .+ 
                     |1⟩⟨1| × (hadamard × |0⟩⟨0| × hadamard) × |1⟩⟨1|) × |1⟩)
       with ((1/2) .* 'I_1) by solve_matrix. 
-    (* almost certainly true where ρ = I_1, as in this case  *)
     assert (scale_safe : forall safe w i j (c : DeBruijn_Circuit w) a ρ, 
                denote_db_circuit safe i j c (a .* ρ) = a .* denote_db_circuit safe i j c ρ). admit.
-    (* there should never be [None] contexts *)
     rewrite scale_safe.
     setoid_rewrite IHn.
     solve_matrix.
@@ -242,7 +240,6 @@ Proof.
       Csimpl.
       rewrite Cplus_assoc.
       rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
-      Search (_ * - _).
       rewrite <- Copp_mult_distr_r.
       clra.
     - rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         

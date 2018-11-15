@@ -77,17 +77,50 @@ Notation "'let_' () ← c1 ; c2" :=
 Notation "'let_' ( p1 , p2 ) ← c1 ; c2" := 
     (compose c1 (fun x => letpair p1 p2 x c2)) 
                             (at level 14, right associativity) : circ_scope.
-Notation "'let_' ( p1 , p2 , p3 ) ← c1 ; c2" :=
-    (compose c1 (fun x => let (y,p3) := wproj x in
-                       let (p1,p2) := wproj y in c2))
-                            (at level 14, right associativity) : circ_scope.
 Notation "'let_' ( ( p1 , p2 ) , p3 ) ← c1 ; c2" := 
     (compose c1 (fun x => let (y,p3) := wproj x in
                        let (p1,p2) := wproj y in c2))
                             (at level 14, right associativity) : circ_scope.
+Notation "'let_' ( p1 , p2 , p3 ) ← c1 ; c2" :=
+    (compose c1 (fun x => let (y,p3) := wproj x in
+                       let (p1,p2) := wproj y in c2))
+                            (at level 14, right associativity) : circ_scope.
+Notation "'let_' ( ( ( p1 , p2 ) , p3 ) , p4 ) ← c1 ; c2" :=
+    (compose c1 (fun x => let (y,p4) := wproj x in
+                       let (z,p3) := wproj y in
+                       let (p1,p2) := wproj z in c2))
+                            (at level 14, right associativity) : circ_scope.
+Notation "'let_' ( p1 , p2 , p3 , p4 ) ← c1 ; c2" :=
+    (compose c1 (fun x => let (y,p4) := wproj x in
+                       let (z,p3) := wproj y in
+                       let (p1,p2) := wproj z in c2))
+                            (at level 14, right associativity) : circ_scope.
+Notation "'let_' ( ( ( ( p1 , p2 ) , p3 ) , p4 ) , p5 ) ← c1 ; c2" :=
+    (compose c1 (fun x => let (y,p5) := wproj x in
+                       let (z,p4) := wproj y in
+                       let (a,p3) := wproj z in
+                       let (p1,p2) := wproj a in c2))
+                            (at level 14, right associativity) : circ_scope.
+Notation "'let_' ( p1 , p2 , p3 , p4 , p5 ) ← c1 ; c2" :=
+    (compose c1 (fun x => let (y,p5) := wproj x in
+                       let (z,p4) := wproj y in
+                       let (a,p3) := wproj z in
+                       let (p1,p2) := wproj a in c2))
+                            (at level 14, right associativity) : circ_scope.
 Notation "'let_' ( p1 , ( p2 , p3 ) ) ← c1 ; c2" :=
     (compose c1 (fun x => let (p1,y) := wproj x in
                        let (p2,p3) := wproj y in c2))
+                            (at level 14, right associativity) : circ_scope.
+Notation "'let_' ( p1 , ( p2 , ( p3 , p4 ) ) ) ← c1 ; c2" :=
+    (compose c1 (fun x => let (p1,y) := wproj x in
+                       let (p2,z) := wproj y in
+                       let (p3,p4) := wproj z in c2))
+                            (at level 14, right associativity) : circ_scope.
+Notation "'let_' ( p1 , ( p2 , ( p3 , ( p4 , p5 ) ) ) ) ← c1 ; c2" :=
+    (compose c1 (fun x => let (p1,y) := wproj x in
+                       let (p2,z) := wproj y in
+                       let (p3,a) := wproj z in
+                       let (p4,p5) := wproj a in c2))
                             (at level 14, right associativity) : circ_scope.
 Notation "'let_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ← c1 ; c2" :=
     (compose c1 (fun x => let (y,z) := wproj x in
