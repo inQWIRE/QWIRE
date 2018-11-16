@@ -727,11 +727,18 @@ Qed.
 
 Lemma superdense_eq : forall (ρ : Density 4),
   Classical ρ ->
+  WF_Matrix 4 4 ρ -> 
   ⟦superdense⟧ ρ = ρ.
 Proof.
-  intros b1 b2.
-  specialize (WF_bools_to_matrix ([b1;b2])) as WF.
-  destruct b1, b2; matrix_denote; Msimpl; solve_matrix.
+  intros ρ CL WF.
+  matrix_denote.
+  Msimpl.
+  solve_matrix.
+  all: try (rewrite CL by omega; easy).
+  all: autorewrite with Cdist_db;
+       repeat rewrite Cmult_assoc; autorewrite with C_db;
+       repeat rewrite <- Cmult_assoc; autorewrite with C_db;    
+       clra.
 Qed.
 
 Lemma superdense_distant_eq : forall b1 b2, 
@@ -741,6 +748,7 @@ Proof.
   specialize (WF_bools_to_matrix ([b1;b2])) as WF.
   destruct b1, b2; matrix_denote; Msimpl; solve_matrix.
 Qed.
+
 
 (* Lemmas out of date
 Proposition boxed_gate_correct : forall W1 W2 (g : Gate W1 W2) (ρ : Density (2^⟦W1⟧)) ,

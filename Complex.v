@@ -623,6 +623,10 @@ Hint Rewrite Cinv_mult_distr using nonzero : C_db.
 Hint Rewrite Cplus_0_l Cplus_0_r Cmult_0_l Cmult_0_r Copp_0 
              Cconj_R Cmult_1_l Cmult_1_r : C_db_light.
 
+(* Distributing db *)
+Hint Rewrite Cmult_plus_distr_l Cmult_plus_distr_r Copp_plus_distr Copp_mult_distr_l Copp_involutive : Cdist_db.
+
+
 Ltac Csimpl := 
   repeat match goal with
   | _ => rewrite Cmult_0_l

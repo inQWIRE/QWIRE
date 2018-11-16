@@ -4182,13 +4182,14 @@ Proof.
   apply add_fresh_typed_empty. easy. 
   apply add_fresh_typed_empty. easy. 
 Qed.
-  
-Fact denote_circuit_correct : forall W (Γ0 Γ : Ctx) (c : Circuit W),
+
+(* General case:
+Proposition denote_circuit_correct : forall W (Γ0 Γ : Ctx) (c : Circuit W),
   Γ ⊢ c:Circ -> 
   WF_Superoperator (⟨ Γ0 | Γ ⊩ c⟩).
-Admitted.
+Abort.
 
-Fact denote_box_correct : forall W1 W2 (c : Box W1 W2), 
+Proposition denote_box_correct : forall W1 W2 (c : Box W1 W2), 
   Typed_Box c -> WF_Superoperator (⟦c⟧).
 Proof.
   intros W1 W2 c WT.
@@ -4208,7 +4209,8 @@ Proof.
   apply WT.  
   apply add_fresh_typed_empty. easy. 
   apply add_fresh_typed_empty. easy. 
-Qed.
+Abort.
+ *)
 
 (********************************************)
 (* Lemmas regarding denotation with padding *)
