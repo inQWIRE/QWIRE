@@ -606,40 +606,14 @@ Definition M_alice (ρ : Matrix 4 4) : Matrix 4 4 :=
 
 Lemma alice_spec : forall (ρ : Density 4), WF_Matrix 4 4  ρ -> ⟦alice⟧ ρ = M_alice ρ.
 Proof.
-  intros.
-  repeat (simpl; autounfold with den_db). 
-  Msimpl.
-  repeat rewrite <- Mmult_assoc.
-  Msimpl.
-  repeat rewrite Mmult_assoc.
-  Msimpl.
+  matrix_denote. Msimpl.
+  repeat rewrite <- Mmult_assoc; Msimpl.
+  repeat rewrite Mmult_assoc; Msimpl.
   solve_matrix.
-  + rewrite 2 (Cmult_comm (/√2)).
-    rewrite <- 4 Cmult_plus_distr_r.
-    rewrite <- Cmult_assoc.
-    autorewrite with C_db.
-    clra.
-  + rewrite 2 (Cmult_comm (/√2)).
-    rewrite <- 4 Cmult_plus_distr_r.
-    rewrite <- Cmult_assoc.
-    autorewrite with C_db.
-    clra.
-  + rewrite (Copp_mult_distr_r (/√2)).
-    rewrite Copp_plus_distr.
-    repeat rewrite Copp_mult_distr_l.
-    rewrite 2 (Cmult_comm (/√2)).
-    rewrite <- 4 Cmult_plus_distr_r.
-    rewrite <- Cmult_assoc.
-    autorewrite with C_db.
-    clra.
-  + rewrite (Copp_mult_distr_r (/√2)).
-    rewrite Copp_plus_distr.
-    repeat rewrite Copp_mult_distr_l.
-    rewrite 2 (Cmult_comm (/√2)).
-    rewrite <- 4 Cmult_plus_distr_r.
-    rewrite <- Cmult_assoc.
-    autorewrite with C_db.
-    clra.
+  all: autorewrite with Cdist_db;
+       repeat rewrite (Cmult_comm _ (/√2));
+       repeat rewrite Cmult_assoc;
+       autorewrite with C_db; clra.
 Qed.    
 
 (* Spec computed rather than reasoned about - should confirm correct *)
@@ -653,13 +627,7 @@ Definition M_bob (ρ : Density 8) : Density 2 :=
           end.
 
 Lemma bob_spec : forall (ρ : Density 8), WF_Matrix 8 8 ρ -> ⟦bob⟧ ρ = M_bob ρ.
-Proof.
-  intros.
-  matrix_denote.
-  repeat (simpl; autounfold with den_db). 
-  Msimpl.
-  solve_matrix.
-Qed.  
+Proof. matrix_denote. Msimpl. solve_matrix. Qed.  
 
 
 (* We convert the matrices back to functional representation for 
@@ -672,7 +640,6 @@ Proof.
   matrix_denote.
   Msimpl.
   solve_matrix.
-  idtac.
   all: rewrite (Cmult_assoc (/ √2));
        autorewrite with C_db;
        rewrite (Cmult_comm _ (/2));

@@ -138,7 +138,7 @@ Proof.
     rewrite H. 
     easy.
     unfold Typed_Box in T. simpl in T. apply T.
-    (* Lemma to add to DBCircuits *)
+    (* This should be proven in DBCircuits *)
     admit.
   - intros H p Γ Γ0 T.
     simpl in *.

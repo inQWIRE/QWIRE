@@ -1329,8 +1329,27 @@ Proof.
     apply symmetric_ancilla_noop_source; auto.
 Qed.
 
-(* trivial lemmas *)
-Fact ancilla_free_X_at : forall n k pf_k, ancilla_free_box (X_at n k pf_k).
+Ltac show_ancilla_free :=
+  repeat match goal with
+  | [|- ancilla_free_box _ ] => apply af_box; intros
+  | [|- ancilla_free (letpair _ _ ?p _)] => dependent destruction p; simpl
+  | [|- ancilla_free (comp _ (output ?p) _)] => dependent destruction p; simpl
+  | [|- ancilla_free (gate _ _ _)] => apply af_gate; intros                                                                     
+  | [|- ancilla_free (output _)] => apply af_output; intros                                                                     
+  | [|- not_assert _] => constructor
+  end.
+
+(* obvious lemmas *)
+Fact ancilla_free_X_at : forall n i pf_i, ancilla_free_box (X_at n i pf_i).
+Proof.
+  intros n i. gen n.
+  induction i as [ | i]; intros n pf.
+  - unfold X_at, unitary_at1; simpl.
+    destruct n; try omega.
+    show_ancilla_free.
+  - destruct n; try omega.
+    unshelve epose (pf' := _ : i < n); try omega.
+    specialize (IHi n pf'). (* annoying case *)
 Admitted.
 
 Fact ancilla_free_CNOT_at : forall n a b, ancilla_free_box (CNOT_at n a b).

@@ -1467,7 +1467,7 @@ Proof.
   easy.
 Qed.
 
-Fact apply_meas_correct : forall n k, (k < n)%nat ->
+Lemma apply_meas_correct : forall n k, (k < n)%nat ->
     WF_Superoperator (@apply_meas n k). 
 Proof.
   intros n k L ρ Mρ.
@@ -2575,7 +2575,7 @@ Proof.
 Abort.
 *)
 
-Fact process_gate_ctx_size : forall w1 w2 (Γ Γ1 Γ2 : Ctx) (g : Gate w1 w2) (p1 : Pat w1),
+Lemma process_gate_ctx_size : forall w1 w2 (Γ Γ1 Γ2 : Ctx) (g : Gate w1 w2) (p1 : Pat w1),
   Γ == Γ1 ∙ Γ2 -> (* these are only needed for measure and maybe discard *)
   Γ1 ⊢ p1 :Pat ->
   (size_ctx (process_gate_state g p1 Γ)) = (size_ctx Γ + ⟦w2⟧ - ⟦w1⟧)%nat.
