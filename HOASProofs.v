@@ -406,6 +406,7 @@ Delimit Scope circ_scope with qc.
 Close Scope circ_scope. 
 Open Scope matrix_scope.
 
+(* Version on an abstract unitary gate *)
 
 (* f(x) = 0. Unitary: Identity *)
 Definition f0 : Matrix 4 4 := Id 4.
@@ -423,18 +424,10 @@ Definition f2 : Matrix 4 4 := fun x y =>
 (* f(x) = 1. Unitary: Id ⊗ X *)
 Definition f3 : Matrix 4 4 := Id 2 ⊗ σx.
 
-(*
-Definition constant (U : Unitary (Qubit ⊗ Qubit)%qc) := 
-                       denote_unitary U = f0 \/ denote_unitary U = f3.
-Definition balanced (U : Unitary (Qubit ⊗ Qubit)%qc) := 
-                       denote_unitary U = f1 \/ denote_unitary U = f2.
-*)
-
-Definition constant (U : Unitary (Qubit ⊗ Qubit)%qc) := 
+Definition U_constant (U : Unitary (Qubit ⊗ Qubit)%qc) := 
   apply_U 2 U [0;1]%nat = super f0 \/ apply_U 2 U [0;1]%nat = super f3.
-Definition balanced (U : Unitary (Qubit ⊗ Qubit)%qc) := 
+Definition U_balanced (U : Unitary (Qubit ⊗ Qubit)%qc) := 
   apply_U 2 U [0;1]%nat = super f1 \/ apply_U 2 U [0;1]%nat = super f2.
-
 
 Lemma f2_WF : WF_Matrix 4 4 f2. Proof. show_wf. Qed.
 Hint Resolve f2_WF : wf_db.
@@ -448,7 +441,7 @@ Open Scope circ_scope.
    However, we could easily add them, and the proofs of each case mirrors that
    of f1 (=CNOT). *)
 
-Lemma deutsch_constant : forall U_f, constant U_f -> 
+Lemma U_deutsch_constant : forall U_f, U_constant U_f -> 
                                 ⟦U_deutsch U_f⟧ I1 = |0⟩⟨0|.
 Proof.
   Opaque apply_U.
@@ -485,7 +478,7 @@ Proof.
     reflexivity.
 Qed.
   
-Lemma deutsch_balanced : forall U_f, balanced U_f -> 
+Lemma U_deutsch_balanced : forall U_f, U_balanced U_f -> 
                                 ⟦U_deutsch U_f⟧ I1 = |1⟩⟨1|.
 Proof.
   Opaque apply_U.
@@ -570,6 +563,62 @@ Proof.
     reflexivity.
 Qed.
 *)
+
+(* A more explicit version that uses concrete boxed circuits *)
+
+Locate "||".
+
+Definition fun_to_box (f : bool -> bool) : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) :=
+  match (f false), (f true) with
+  | false, false => id_circ
+  | false, true  => CNOT
+  | true,  false => _X ∥ id_circ ;; CNOT ;; _X ∥ id_circ
+  | true,  true  => id_circ ∥ _X
+  end.                             
+                              
+Definition constant (f : bool -> bool) := f true = f false.
+
+Definition balanced (f : bool -> bool) := f true <> f false.
+
+Lemma deutsch_constant : forall f, constant f -> 
+                                  ⟦deutsch (fun_to_box f)⟧ I1 = |0⟩⟨0|.
+Proof.
+  intros f H.
+  unfold fun_to_box, constant' in *. 
+  destruct (f true), (f false); try discriminate H.
+  - matrix_denote.
+    Msimpl.
+    solve_matrix.
+    rewrite (Cmult_comm (/√2) _).
+    repeat (rewrite (Cmult_assoc 2 (/2)); autorewrite with C_db).
+    easy.
+  - matrix_denote.
+    Msimpl.
+    solve_matrix.
+    rewrite (Cmult_comm (/√2) _).
+    repeat (rewrite (Cmult_assoc 2 (/2)); autorewrite with C_db).
+    easy.
+Qed.
+
+Lemma deutsch_balanced : forall f, balanced f -> 
+                                  ⟦deutsch (fun_to_box f)⟧ I1 = |1⟩⟨1|.
+Proof.
+  intros f H.
+  unfold fun_to_box, balanced' in *. 
+  destruct (f true), (f false); try contradiction.
+  - matrix_denote.
+    Msimpl.
+    solve_matrix.
+    rewrite (Cmult_comm (/√2) _).
+    repeat (rewrite (Cmult_assoc 2 (/2)); autorewrite with C_db).
+    easy.
+  - matrix_denote.
+    Msimpl.
+    solve_matrix.
+    rewrite (Cmult_comm (/√2) _).
+    repeat (rewrite (Cmult_assoc 2 (/2)); autorewrite with C_db).
+    easy.
+Qed.
 
 
 (*************************)
