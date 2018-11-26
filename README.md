@@ -35,6 +35,7 @@ Files in this repository
 - Denotation.v : Defines the denotational semantics of QWIRE circuits and proves its (quantum mechanical) validity
 - HOASLib.v : A library of basic circuits used in QWIRE programming
 - SemanticLib.v : Proves the semantic properties of HOASLib circuits
+- Composition.v : States and admits compositionality lemmas (used in the following three files, plus Arithmetic and Deutsch).
 - Ancilla.v : Defines the correctness of circuits using ancilla assertions
 - Symmetric.v : Syntactic conditions for guaranteeing the validity of assertions
 - Oracles.v : Compilation of boolean expressions to QWIRE circuits
@@ -42,7 +43,7 @@ Files in this repository
 
 *Verification of QWIRE circuits*
 - Arithmetic.v : Verification of a quantum adder
-- Deutsch.v : Verification of Deutsch's Algorithm
+- Deutsch.v : Variants on Deutsch's Algorithm
 - Equations.v : Equalities on small circuits
 - HOASProofs.v : Additional proofs, including coin flips and teleportation
 
