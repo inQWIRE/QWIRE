@@ -14,10 +14,11 @@ Delimit Scope matrix_scope with M.
 (** EXAMPLES START **)
 (*****************************************************************************)
 
-Lemma init_ket1 : ⟦init true⟧ I1 = (|1⟩⟨1| : Density 2).
+Lemma init_ket1 : ⟦init true⟧ I1 = |1⟩⟨1|. 
 Proof.
-  repeat (autounfold with den_db; simpl).
-  Msimpl; reflexivity.
+  matrix_denote.
+  Msimpl.
+  reflexivity.
 Qed.
 
 (*********************)
@@ -28,8 +29,11 @@ Qed.
 Lemma unitary_transpose_id_qubit : forall (U : Unitary Qubit),
    unitary_transpose U ≡ id_circ.
 Proof.
+  Locate "≡".
+  unfold HOAS_Equiv.
   intros U ρ safe pf_ρ.
   destruct (unitary_gate_unitary U) as [WF inv].
+  simpl in *.
   matrix_denote.
   setoid_rewrite denote_unitary_transpose.
   simpl in *; Msimpl.
@@ -580,11 +584,11 @@ Definition constant (f : bool -> bool) := f true = f false.
 
 Definition balanced (f : bool -> bool) := f true <> f false.
 
-Lemma deutsch_constant : forall f, constant f -> 
-                              ⟦deutsch (fun_to_box f)⟧ I1 = |0⟩⟨0|.
+Lemma deutsch_constant_concrete : forall f, constant f -> 
+                                  ⟦deutsch (fun_to_box f)⟧ I1 = |0⟩⟨0|.
 Proof.
   intros f H.
-  unfold fun_to_box, constant in *. 
+  unfold fun_to_box, constant' in *. 
   destruct (f true), (f false); try discriminate H.
   - matrix_denote.
     Msimpl.
@@ -600,11 +604,11 @@ Proof.
     easy.
 Qed.
 
-Lemma deutsch_balanced : forall f, balanced f -> 
-                              ⟦deutsch (fun_to_box f)⟧ I1 = |1⟩⟨1|.
+Lemma deutsch_balanced_concrete : forall f, balanced f -> 
+                                  ⟦deutsch (fun_to_box f)⟧ I1 = |1⟩⟨1|.
 Proof.
   intros f H.
-  unfold fun_to_box, balanced in *. 
+  unfold fun_to_box, balanced' in *. 
   destruct (f true), (f false); try contradiction.
   - matrix_denote.
     Msimpl.

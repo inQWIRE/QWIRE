@@ -1340,7 +1340,7 @@ Proof.
     rewrite Mplus_0_l.
     rewrite <- kron_plus_distr_r, <- kron_plus_distr_l.
     replace (|0⟩⟨0| .+ |1⟩⟨1|) with ('I_2).
-    2: { crunch_matrix. bdestructΩ (S (S x) <? 2). rewrite andb_false_r. easy. }
+      Focus 2. crunch_matrix. bdestructΩ (S (S x) <? 2). rewrite andb_false_r. easy.
     repeat rewrite id_kron. easy.
   specialize (WFS OS ρ).
   unfold operator_sum, Splus, SZero, super, WF_Superoperator in WFS. simpl in WFS.
@@ -1364,7 +1364,7 @@ Proof.
     rewrite Mplus_0_l.
     rewrite <- kron_plus_distr_r, <- kron_plus_distr_l.
     replace ((|0⟩⟨0| × |0⟩⟨0| .+ |1⟩⟨1| × |1⟩⟨1|)) with ('I_2).
-    2: { crunch_matrix. bdestructΩ (S (S x) <? 2). rewrite andb_false_r. easy. }
+      Focus 2. crunch_matrix. bdestructΩ (S (S x) <? 2). rewrite andb_false_r. easy.
     repeat rewrite id_kron. easy.
   specialize (WFS OS ρ).
   unfold operator_sum, Splus, SZero, super, WF_Superoperator in WFS. simpl in WFS.
@@ -1387,14 +1387,13 @@ Proof.
     unfold outer_sum. simpl. Msimpl.
     rewrite Mplus_0_l.
     replace (⟨0| × |0⟩) with ('I_1).
-    2: { crunch_matrix. bdestructΩ (S x <? 1). rewrite andb_false_r. easy. }
+      Focus 2. crunch_matrix. bdestructΩ (S x <? 1). rewrite andb_false_r. easy.
     repeat rewrite id_kron. easy.
   specialize (WFS OS ρ).
   unfold operator_sum, Splus, SZero, super, WF_Superoperator in WFS. simpl in WFS.
   autorewrite with M_db in WFS.
   rewrite Mplus_0_l in WFS.
   apply WFS.
-  Set Printing Implicit.
   rewrite Nat.mul_1_r.
   rewrite E.
   apply M.
@@ -1411,7 +1410,7 @@ Proof.
     unfold outer_sum. simpl. Msimpl.
     rewrite Mplus_0_l.
     replace (⟨1| × |1⟩) with ('I_1).
-    2: { crunch_matrix. bdestructΩ (S x <? 1). rewrite andb_false_r. easy. }
+      Focus 2. crunch_matrix. bdestructΩ (S x <? 1). rewrite andb_false_r. easy.
     repeat rewrite id_kron. easy.
   specialize (WFS OS ρ).
   unfold operator_sum, Splus, SZero, super, WF_Superoperator in WFS. simpl in WFS.
