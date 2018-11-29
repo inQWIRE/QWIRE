@@ -1,13 +1,6 @@
 # QWIRE
 
-This is a Coq implementation of the QWIRE quantum programming language, described in the following papers by Jennifer Paykin, Robert Rand, Dong-Ho Lee and Steve Zdancewic:
-- [QWIRE: a core language for quantum circuits][1].
-- [QWIRE Practice: Formal Verification of Quantum Circuits in Coq][2]
-- [ReQWIRE: Reasoning about Reversible Quantum Circuits][3]
-- [Phantom Types for Quantum Programs][4]
-
-Rennela and Staton's [Classical Control, Quantum Circuits and Linear Logic in Enriched Category Theory][5] provides a categorical
-semantics for QWIRE.
+This branch of the QWIRE repository corresponds to Robert Rand's 2018 PhD Dissertation, "Formally Verified Quantum Programming".
 
 QWIRE is compatible with Coq 8.5 - 8.8.
 
