@@ -745,7 +745,7 @@ Qed.
 (*
 Fixpoint ctx_to_matrix (Γ : Ctx) (f : Var -> bool) {struct Γ} : Square (2^⟦Γ⟧) :=
   match Γ with 
-  | [] => 'I_1
+  | [] => I 1
   | None :: Γ' => ctx_to_matrix Γ' (fun v => f (S v))
   | Some W :: Γ' => bool_to_matrix (f O) ⊗ ctx_to_matrix Γ' (fun v => f (S v))
   end.
@@ -1114,7 +1114,7 @@ Proof.
     unfold compose_super.
     repeat rewrite_inPar.    
     repeat rewrite strip_one_l_in_eq.
-    replace (ctx_to_matrix Γ f) with (Id 1 ⊗ ctx_to_matrix Γ f) by
+    replace (ctx_to_matrix Γ f) with (I 1 ⊗ ctx_to_matrix Γ f) by
         (Msimpl; easy).
     rewrite_inPar.    
     repeat simpl_rewrite id_circ_spec; auto with wf_db.
@@ -1125,7 +1125,7 @@ Proof.
         (destruct (⌈b1 | f⌉); easy).  
     rewrite_inPar.
     repeat rewrite strip_one_l_in_eq.
-    replace (ctx_to_matrix Γ f) with (Id 1 ⊗ ctx_to_matrix Γ f) by
+    replace (ctx_to_matrix Γ f) with (I 1 ⊗ ctx_to_matrix Γ f) by
         (Msimpl; easy).
     rewrite_inPar.
     rewrite_inPar.
@@ -1234,7 +1234,7 @@ Proof.
     unfold compose_super.
     repeat rewrite_inPar.    
     repeat rewrite strip_one_l_in_eq.
-    replace (ctx_to_matrix Γ f) with (Id 1 ⊗ ctx_to_matrix Γ f) by
+    replace (ctx_to_matrix Γ f) with (I 1 ⊗ ctx_to_matrix Γ f) by
         (Msimpl; easy).
     rewrite_inPar.    
     repeat simpl_rewrite id_circ_spec; auto with wf_db.

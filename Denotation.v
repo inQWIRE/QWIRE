@@ -87,21 +87,21 @@ Instance Denote_Unitary_Correct W : Denote_Correct (Denote_Unitary W) :=
 Definition denote_gate' (safe : bool) n {w1 w2} (g : Gate w1 w2)
            : Superoperator (2^⟦w1⟧ * 2^n) (2^⟦w2⟧ * 2^n) :=
   match g with 
-  | U u     => super (⟦u⟧ ⊗ Id (2^n))
-  | BNOT     => super (σx ⊗ Id (2^n))
-  | init0   => super (|0⟩ ⊗ Id (2^n))
-  | init1   => super (|1⟩ ⊗ Id (2^n))
-  | new0    => super (|0⟩ ⊗ Id (2^n))
-  | new1    => super (|1⟩ ⊗ Id (2^n))
-  | meas    => Splus (super (|0⟩⟨0| ⊗ Id (2^n))) (super (|1⟩⟨1| ⊗ Id (2^n)))
-  | measQ   => Splus (super (|0⟩⟨0| ⊗ Id (2^n))) (super (|1⟩⟨1| ⊗ Id (2^n)))
-  | discard => Splus (super (⟨0| ⊗ Id (2^n))) (super (⟨1| ⊗ Id (2^n)))
+  | U u     => super (⟦u⟧ ⊗ I (2^n))
+  | BNOT     => super (σx ⊗ I (2^n))
+  | init0   => super (|0⟩ ⊗ I (2^n))
+  | init1   => super (|1⟩ ⊗ I (2^n))
+  | new0    => super (|0⟩ ⊗ I (2^n))
+  | new1    => super (|1⟩ ⊗ I (2^n))
+  | meas    => Splus (super (|0⟩⟨0| ⊗ I (2^n))) (super (|1⟩⟨1| ⊗ I (2^n)))
+  | measQ   => Splus (super (|0⟩⟨0| ⊗ I (2^n))) (super (|1⟩⟨1| ⊗ I (2^n)))
+  | discard => Splus (super (⟨0| ⊗ I (2^n))) (super (⟨1| ⊗ I (2^n)))
   (* Safe performs a standard measure-discard, unsafe takes for granted that the 
      qubit to be removed is in the desired state. *)
-  | assert0 => if safe then Splus (super (⟨0| ⊗ Id (2^n))) (super (⟨1| ⊗ Id (2^n)))
-                      else super (⟨0| ⊗ Id (2^n))
-  | assert1 => if safe then Splus (super (⟨0| ⊗ Id (2^n))) (super (⟨1| ⊗ Id (2^n)))
-                      else super (⟨1| ⊗ Id (2^n))
+  | assert0 => if safe then Splus (super (⟨0| ⊗ I (2^n))) (super (⟨1| ⊗ I (2^n)))
+                      else super (⟨0| ⊗ I (2^n))
+  | assert1 => if safe then Splus (super (⟨0| ⊗ I (2^n))) (super (⟨1| ⊗ I (2^n)))
+                      else super (⟨1| ⊗ I (2^n))
   end.
 
 Definition denote_gate safe {W1 W2} (g : Gate W1 W2) : 
@@ -146,8 +146,8 @@ Proof.
   intros ρ M.
   specialize (WF_Mixed _ M) as WF.
   do 4 reduce_matrices.
-  replace (list2D_to_matrix [[ρ 0%nat 0%nat]]) with (ρ 0%nat 0%nat .* 'I_ 1) by solve_matrix.
-  replace (list2D_to_matrix [[ρ 1%nat 1%nat]]) with (ρ 1%nat 1%nat .* 'I_ 1) by solve_matrix.
+  replace (list2D_to_matrix [[ρ 0%nat 0%nat]]) with (ρ 0%nat 0%nat .* I  1) by solve_matrix.
+  replace (list2D_to_matrix [[ρ 1%nat 1%nat]]) with (ρ 1%nat 1%nat .* I  1) by solve_matrix.
   specialize (mixed_state_diag_real _ 0%nat M) as R0.
   specialize (mixed_state_diag_real _ 1%nat M) as R1.
   specialize (mixed_state_diag_in01 _ 0%nat M) as IN0.
@@ -292,8 +292,8 @@ Proof.
     apply mixed_state_trace_1 in H.
     unfold trace in H. simpl in H. rewrite Cplus_0_l in H.
     rewrite H.
-    specialize (@WF_Id 1%nat) as WFI. 
-    replace (list2D_to_matrix [[C1]]) with ('I_ 1).     
+    specialize (@WF_I 1%nat) as WFI. 
+    replace (list2D_to_matrix [[C1]]) with (I  1).     
     apply pure_id1.
     crunch_matrix. 
     bdestruct (S (S x) <? 1). omega. rewrite andb_false_r. reflexivity.
@@ -306,8 +306,8 @@ Proof.
     apply mixed_state_trace_1 in H.
     unfold trace in H. simpl in H. rewrite Cplus_0_l in H.
     rewrite H.
-    specialize (@WF_Id 1%nat) as WFI. 
-    replace (list2D_to_matrix [[C1]]) with ('I_ 1).     
+    specialize (@WF_I 1%nat) as WFI. 
+    replace (list2D_to_matrix [[C1]]) with (I  1).     
     apply pure_id1.
     crunch_matrix. 
     bdestruct (S (S x) <? 1). omega. rewrite andb_false_r. reflexivity.
@@ -320,8 +320,8 @@ Proof.
     apply mixed_state_trace_1 in H.
     unfold trace in H. simpl in H. rewrite Cplus_0_l in H.
     rewrite H.
-    specialize (@WF_Id 1%nat) as WFI. 
-    replace (list2D_to_matrix [[C1]]) with ('I_ 1).     
+    specialize (@WF_I 1%nat) as WFI. 
+    replace (list2D_to_matrix [[C1]]) with (I  1).     
     apply pure_id1.
     crunch_matrix. 
     bdestruct (S (S x) <? 1). omega. rewrite andb_false_r. reflexivity.
@@ -344,9 +344,9 @@ Instance Denote_Gate_Correct W1 W2 : Denote_Correct (Denote_Gate W1 W2) :=
 (* Invariant: m = length l *)
 Fixpoint swap_list_aux (m n : nat) (l : list (nat * nat)) : Square  (2^n) :=
   match m with
-  | 0 => Id (2^n)
+  | 0 => I (2^n)
   | S m' => match l with
-           | nil => Id (2^n)
+           | nil => I (2^n)
            | cons (a,b) xs => swap_two n a b × 
              swap_list_aux m' n (map (fun z => if a =? snd z then (fst z, b) else z) xs)
            end
@@ -374,7 +374,7 @@ Proof.
 Qed.
 
 (* Requires m < n *)
-Definition pad {m} n (A : Square (2^m)) : Square (2^n) := (A ⊗ Id (2^ (n - m))).
+Definition pad {m} n (A : Square (2^m)) : Square (2^n) := (A ⊗ I (2^ (n - m))).
 
 Lemma WF_pad : forall m n (A : Square m),
       (m <= n)%nat ->
@@ -389,7 +389,7 @@ Proof.
   rewrite <- Nat.pow_add_r.
   replace (m + (n - m))%nat with n by omega.
   reflexivity.
-  apply WF_Id.
+  apply WF_I.
 Qed.
 
 Lemma pad_nothing : forall m A, @pad m m A = A.
@@ -579,7 +579,7 @@ Lemma swap_to_0_aux_unitary : forall n i,
 Proof.
   intros n i H.
   induction i; simpl.
-  - specialize (kron_unitary swap ('I_(2^(n-2))))%nat.
+  - specialize (kron_unitary swap (I (2^(n-2))))%nat.
     unify_pows_two. rewrite <- le_plus_minus.
     intros KU.
     apply KU.
@@ -746,11 +746,10 @@ Qed.
 (*** Applying Unitaries to Systems ***)
 
 (* Dummy matrices and superoperators *)
-Definition dummy_mat {m n} : Matrix m n. exact (Zero m n). Qed.
+Definition dummy_mat {m n} : Matrix m n. exact Zero. Qed.
 Definition dummy_so {m n} : Superoperator m n. exact (fun _ => dummy_mat). Qed.
 
-Definition super_Zero {m n} : Superoperator m n  :=
-  fun _ => Zero n n.
+Definition super_Zero {m n} : Superoperator m n  := fun _ => Zero.
 
 (* Remove, use hd_default with default *)
 Definition apply_to_first {m n} (f : nat -> Superoperator m n) (l : list nat) :
@@ -769,33 +768,33 @@ Fixpoint ctrls_to_list {W} (lb : list bool) (l : list nat) (g : Unitary W) {stru
                   | n :: l' => let (res,u) := ctrls_to_list lb l' g' in
                                 let (k,lb') := res in
                                   (k,update_at lb' n true, u)  
-                  | _       => (O,[],Zero _ _)
+                  | _       => (O,[],Zero)
                   end
   | bit_ctrl g' => match l with 
                   | n :: l' => let (res,u) := ctrls_to_list lb l' g' in
                                 let (k,lb') := res in
                                 (k,update_at lb' n true, u)  
-                  | _       => (O,[],Zero _ _)
+                  | _       => (O,[],Zero)
                   end
   | u           => match l with
                   | k :: l' => (k,lb,⟦u⟧)
-                  | _       => (O,[],Zero _ _)
+                  | _       => (O,[],Zero)
                   end
   end.
 
 Fixpoint ctrl_list_to_unitary_r (r : list bool) (u : Square 2) : 
   (Square (2^(length r + 1))) := 
   match r with 
-  | false :: r' =>  ctrl_list_to_unitary_r r' u ⊗ Id 2
-  | true  :: r' =>  ctrl_list_to_unitary_r r' u ⊗ |1⟩⟨1| .+ Id _ ⊗ |0⟩⟨0|
+  | false :: r' =>  ctrl_list_to_unitary_r r' u ⊗ I 2
+  | true  :: r' =>  ctrl_list_to_unitary_r r' u ⊗ |1⟩⟨1| .+ I _ ⊗ |0⟩⟨0|
   | []          => u
   end.
 
 Fixpoint ctrl_list_to_unitary (l r : list bool) (u : Square 2) : 
   (Square (2^(length l + length r + 1))) := 
   match l with 
-  | false :: l' => Id 2 ⊗ ctrl_list_to_unitary l' r u
-  | true  :: l' => |1⟩⟨1| ⊗ ctrl_list_to_unitary l' r u .+ |0⟩⟨0| ⊗ Id _
+  | false :: l' => I 2 ⊗ ctrl_list_to_unitary l' r u
+  | true  :: l' => |1⟩⟨1| ⊗ ctrl_list_to_unitary l' r u .+ |0⟩⟨0| ⊗ I _
   | []          => ctrl_list_to_unitary_r r u
   end.
 
@@ -809,7 +808,7 @@ Definition denote_ctrls {W} (n : nat) (g : Unitary W) (l : list nat) : Matrix (2
 (* Apply U to qubit k in an n-qubit system *)
 (* Requires: k < n *)
 Definition apply_qubit_unitary {n} (U : Matrix 2 2) (k : nat) 
-  : Superoperator (2^n) (2^n) := (super (Id (2^k) ⊗ U ⊗ Id (2^(n-k-1)))).
+  : Superoperator (2^n) (2^n) := (super (I (2^k) ⊗ U ⊗ I (2^(n-k-1)))).
 
 (* New in-place version of apply_U *)
 (* We should have a unitary version of this, which we then turn into a superoperator *)
@@ -839,7 +838,7 @@ Fixpoint apply_U {W} (n : nat) (U : Unitary W) (l : list nat)
 (***********************************)
 
 Lemma ctrl_list_to_unitary_r_false : forall n (u : Matrix 2 2),
-  ctrl_list_to_unitary_r (repeat false n) u = u ⊗ 'I_ (2^n).
+  ctrl_list_to_unitary_r (repeat false n) u = u ⊗ I  (2^n).
 Proof.
   induction n; intros.
   - simpl. Msimpl. reflexivity.
@@ -854,7 +853,7 @@ Qed.
 
 Lemma ctrl_list_to_unitary_false : forall m n (u : Matrix 2 2),
   WF_Matrix 2 2 u ->
-  ctrl_list_to_unitary (repeat false m) (repeat false n) u = 'I_ (2^m) ⊗ u ⊗ 'I_ (2^n).
+  ctrl_list_to_unitary (repeat false m) (repeat false n) u = I  (2^m) ⊗ u ⊗ I  (2^n).
 Proof.
   induction m; intros.
   - simpl. Msimpl. apply ctrl_list_to_unitary_r_false. 
@@ -880,11 +879,11 @@ Proof.
     reflexivity.
 Qed.
          
-Lemma ctrls_to_list_empty  : forall W lb u, @ctrls_to_list W lb [] u = (O, [], Zero 2 2).
+Lemma ctrls_to_list_empty  : forall W lb u, @ctrls_to_list W lb [] u = (O, [], Zero).
 Proof. destruct u; easy. Qed.  
 
 Lemma denote_ctrls_empty : forall W (n : nat) (u : Unitary W),
-  denote_ctrls n u [] = Zero (2^n) (2^n).
+  denote_ctrls n u [] = Zero.
 Proof. destruct u; cbv; easy. Qed.
 
 (*
@@ -913,7 +912,7 @@ Qed.
 
 Lemma denote_ctrls_qubit : forall n (u : Unitary Qubit) k,
   (k < n)%nat ->
-  denote_ctrls n u [k] = 'I_ (2^k) ⊗ ⟦u⟧ ⊗ 'I_ (2^(n-k-1)).
+  denote_ctrls n u [k] = I (2^k) ⊗ ⟦u⟧ ⊗ I  (2^(n-k-1)).
 Proof.
   intros n u k L.
   remember Qubit as W.
@@ -927,15 +926,15 @@ Proof.
   1-2: inversion HeqW.
 Qed.
 
-Lemma ctrl_list_to_unitary_r_unitary : forall r (u : Square 2), WF_Unitary u -> 
-                                                           WF_Unitary (ctrl_list_to_unitary_r r u).
+Lemma ctrl_list_to_unitary_r_unitary : forall r (u : Square 2),
+    WF_Unitary u -> WF_Unitary (ctrl_list_to_unitary_r r u).
 Proof.
   intros r u Uu.
   induction r; auto.
   simpl.
   destruct a.
   - simpl.
-    assert (H : forall n (U : Square n), WF_Unitary U -> WF_Unitary (U ⊗ |1⟩⟨1| .+ 'I_n ⊗ |0⟩⟨0|)).
+    assert (H : forall n (U : Square n), WF_Unitary U -> WF_Unitary (U ⊗ |1⟩⟨1| .+ I n ⊗ |0⟩⟨0|)).
     intros n U [WFU UU].
     unfold WF_Unitary.
     split; auto with wf_db.
@@ -944,19 +943,19 @@ Proof.
     rewrite Mmult_plus_distr_l.
     Msimpl.
     rewrite UU.
-    replace (|0⟩⟨0| × |1⟩⟨1|) with (Zero 2 2) by solve_matrix.
-    replace (|1⟩⟨1| × |0⟩⟨0|) with (Zero 2 2) by solve_matrix.
+    replace (|0⟩⟨0| × |1⟩⟨1|) with (@Zero 2 2) by solve_matrix.
+    replace (|1⟩⟨1| × |0⟩⟨0|) with (@Zero 2 2) by solve_matrix.
     repeat rewrite kron_0_r.
     rewrite Mplus_0_r, Mplus_0_l.
     rewrite <- kron_plus_distr_l.
-    replace (|1⟩⟨1| × |1⟩⟨1| .+ |0⟩⟨0| × |0⟩⟨0|) with ('I_2) by solve_matrix.
+    replace (|1⟩⟨1| × |1⟩⟨1| .+ |0⟩⟨0| × |0⟩⟨0|) with (I 2) by solve_matrix.
     rewrite id_kron.
     reflexivity.
     specialize (H _ (ctrl_list_to_unitary_r r u)).
     rewrite Nat.mul_comm in H.
     apply H.
     apply IHr.
-  - specialize (kron_unitary _ ('I_ 2) IHr) as H.
+  - specialize (kron_unitary _ (I 2) IHr) as H.
     rewrite Nat.mul_comm in H.
     apply H.
     apply id_unitary. 
@@ -971,7 +970,7 @@ Proof.
   - simpl.
     destruct a.
     + simpl.
-      assert (H : forall n (U : Square n), WF_Unitary U -> WF_Unitary (|1⟩⟨1| ⊗ U .+ |0⟩⟨0| ⊗ ('I_n))).
+      assert (H : forall n (U : Square n), WF_Unitary U -> WF_Unitary (|1⟩⟨1| ⊗ U .+ |0⟩⟨0| ⊗ (I n))).
       intros n U [WFU UU].
       unfold WF_Unitary.
       split; auto with wf_db.
@@ -981,13 +980,13 @@ Proof.
       Msimpl.
       setoid_rewrite kron_mixed_product.
       rewrite UU.
-      replace (|0⟩⟨0| × |1⟩⟨1|) with (Zero 2 2) by solve_matrix.
-      replace (|1⟩⟨1| × |0⟩⟨0|) with (Zero 2 2) by solve_matrix.
+      replace (|0⟩⟨0| × |1⟩⟨1|) with (@Zero 2 2) by solve_matrix.
+      replace (|1⟩⟨1| × |0⟩⟨0|) with (@Zero 2 2) by solve_matrix.
       repeat rewrite kron_0_l.
       rewrite Mplus_0_r, Mplus_0_l.
       Msimpl. 
       rewrite <- kron_plus_distr_r.
-      replace (|1⟩⟨1| × |1⟩⟨1| .+ |0⟩⟨0| × |0⟩⟨0|) with ('I_2) by solve_matrix.
+      replace (|1⟩⟨1| × |1⟩⟨1| .+ |0⟩⟨0| × |0⟩⟨0|) with (I 2) by solve_matrix.
       rewrite id_kron.
       reflexivity.
       specialize (H _ (ctrl_list_to_unitary l r u)).
@@ -1202,7 +1201,7 @@ Proof.
   replace (k + 1 + (n - k - 1))%nat with n by omega.    
   apply mixed_unitary; trivial.
   specialize @kron_unitary as KU.
-  specialize (KU _ _ ('I_(2^k) ⊗ u) ('I_(2^(n-k-1)))). 
+  specialize (KU _ _ (I (2^k) ⊗ u) (I (2^(n-k-1)))). 
   replace (2^(k+1))%nat with (2^k * 2)%nat by unify_pows_two. 
   replace ((2^k * 2) * (2 ^ (n - k - 1)))%nat with (2^n)%nat in KU by unify_pows_two.
   apply KU.
@@ -1252,26 +1251,26 @@ Qed.
 
 (* Initializing qubits in the 0 position
 Definition apply_new0 {n} : Superoperator (2^n) (2^(n+1)) :=
-  super (|0⟩ ⊗ Id (2^n)).
+  super (|0⟩ ⊗ I (2^n)).
 
 Definition apply_new1 {n} : Superoperator (2^n) (2^(n+1)) :=
-  super (|1⟩ ⊗ Id (2^n)).
+  super (|1⟩ ⊗ I (2^n)).
 *)
 
 (* Initializing qubits in the n position *)
 Definition apply_new0 {n} : Superoperator (2^n) (2^(n+1)) :=
-  super (Id (2^n) ⊗ |0⟩).
+  super (I (2^n) ⊗ |0⟩).
 
 Definition apply_new1 {n} : Superoperator (2^n) (2^(n+1)) :=
-  super (Id (2^n) ⊗ |1⟩).
+  super (I (2^n) ⊗ |1⟩).
 
 
 (* Moving new qubits to the end
 Definition apply_new0 {n} : Superoperator (2^n) (2^(n+1)) :=
-  super (Id (2^n) ⊗ |0⟩).
+  super (I (2^n) ⊗ |0⟩).
 
 Definition apply_new1 {n} : Superoperator (2^n) (2^(n+1)) :=
-  super (Id (2^n) ⊗ |1⟩).
+  super (I (2^n) ⊗ |1⟩).
 *)
 
 (* In-place measurement and discarding *)
@@ -1279,23 +1278,23 @@ Definition apply_new1 {n} : Superoperator (2^n) (2^(n+1)) :=
 (* Discard the qubit k (in place) in an n-qubit system *)
 (* Requires: k < n *)
 Definition apply_discard {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
-  Splus (super (Id (2^k) ⊗ ⟨0| ⊗ Id (2^(n-k-1)))) 
-        (super (Id (2^k) ⊗ ⟨1| ⊗ Id (2^(n-k-1)))).
+  Splus (super (I (2^k) ⊗ ⟨0| ⊗ I (2^(n-k-1)))) 
+        (super (I (2^k) ⊗ ⟨1| ⊗ I (2^(n-k-1)))).
 
 (* Discard the qubit k, assuming it has the value |0⟩ *)
 Definition apply_assert0 {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
-  (super (Id (2^k) ⊗ ⟨0| ⊗ Id (2^(n-k-1)))).
+  (super (I (2^k) ⊗ ⟨0| ⊗ I (2^(n-k-1)))).
         
 Definition apply_assert1 {n} (k : nat) : Superoperator (2^n) (2^(n-1)) :=
-  (super (Id (2^k) ⊗ ⟨1| ⊗ Id (2^(n-k-1)))).
+  (super (I (2^k) ⊗ ⟨1| ⊗ I (2^(n-k-1)))).
 
 Definition apply_meas {n} (k : nat) : Superoperator (2^n) (2^n) :=
-  Splus (super (Id (2^k) ⊗ |0⟩⟨0| ⊗ Id (2^(n-k-1)))) 
-        (super (Id (2^k) ⊗ |1⟩⟨1| ⊗ Id (2^(n-k-1)))).
+  Splus (super (I (2^k) ⊗ |0⟩⟨0| ⊗ I (2^(n-k-1)))) 
+        (super (I (2^k) ⊗ |1⟩⟨1| ⊗ I (2^(n-k-1)))).
 
 Definition apply_measQ {n} (k : nat) : Superoperator (2^n) (2^n) :=
-  Splus (super (Id (2^k) ⊗ |0⟩⟨0| ⊗ Id (2^(n-k-1)))) 
-        (super (Id (2^k) ⊗ |1⟩⟨1| ⊗ Id (2^(n-k-1)))).
+  Splus (super (I (2^k) ⊗ |0⟩⟨0| ⊗ I (2^(n-k-1)))) 
+        (super (I (2^k) ⊗ |1⟩⟨1| ⊗ I (2^(n-k-1)))).
 
 Definition apply_gate {n w1 w2} (safe : bool) (g : Gate w1 w2) (l : list nat) 
            : Superoperator (2^n) (2^(n+⟦w2⟧-⟦w1⟧)) :=
@@ -1314,32 +1313,31 @@ Definition apply_gate {n w1 w2} (safe : bool) (g : Gate w1 w2) (l : list nat)
 (*** Correctness of Gate Application **)
 
 (* We first add the operator sum decomposition theorem as an axiom *)
-Definition SZero {m n} : Matrix m m -> Matrix n n := fun _ => Zero n n.
            
 Definition operator_sum {m n} (l : list (Matrix m n)) : Superoperator n m :=
   fold_left Splus (map (fun A => super A) l) SZero. 
 
 Definition outer_sum {m n} (l : list (Matrix m n)) :=
-  fold_left Mplus (map (fun A => A† × A) l) (Zero n n). 
+  fold_left Mplus (map (fun A => A† × A) l) Zero. 
 
 Axiom operator_sum_decomposition : forall {m n} (l : list (Matrix m n)),
-  outer_sum l = 'I_n <-> WF_Superoperator (operator_sum l).
+  outer_sum l = I n <-> WF_Superoperator (operator_sum l).
 
 (* We can then prove that idealized mathematical representations of 
    discard, measure, and init are valid superoperators. *)
 Lemma discard_superoperator : forall (n i j : nat) (ρ : Square (2 ^ n)),      
   (i * j * 2 = 2^n)%nat ->
   Mixed_State ρ ->
-  Mixed_State (('I_i ⊗ ⟨0| ⊗ 'I_j) × ρ × ('I_i ⊗ |0⟩ ⊗ 'I_j) .+ ('I_i ⊗ ⟨1| ⊗ 'I_j) × ρ × ('I_i ⊗ |1⟩ ⊗ 'I_j)).
+  Mixed_State ((I i ⊗ ⟨0| ⊗ I j) × ρ × (I i ⊗ |0⟩ ⊗ I j) .+ (I i ⊗ ⟨1| ⊗ I j) × ρ × (I i ⊗ |1⟩ ⊗ I j)).
 Proof.
   intros n i j ρ E M.
-  destruct (operator_sum_decomposition ['I_i ⊗ ⟨0| ⊗ 'I_j ; 'I_i ⊗ ⟨1| ⊗ 'I_j]) as [WFS _].
-  assert (OS : outer_sum ['I_ i ⊗ ⟨0| ⊗ 'I_ j; 'I_ i ⊗ ⟨1| ⊗ 'I_ j] = 'I_ (i * 2 * j)).
+  destruct (operator_sum_decomposition [I i ⊗ ⟨0| ⊗ I j ; I i ⊗ ⟨1| ⊗ I j]) as [WFS _].
+  assert (OS : outer_sum [I  i ⊗ ⟨0| ⊗ I  j; I  i ⊗ ⟨1| ⊗ I  j] = I  (i * 2 * j)).
     idtac.
     unfold outer_sum. simpl. Msimpl.
     rewrite Mplus_0_l.
     rewrite <- kron_plus_distr_r, <- kron_plus_distr_l.
-    replace (|0⟩⟨0| .+ |1⟩⟨1|) with ('I_2).
+    replace (|0⟩⟨0| .+ |1⟩⟨1|) with (I 2).
       Focus 2. crunch_matrix. bdestructΩ (S (S x) <? 2). rewrite andb_false_r. easy.
     repeat rewrite id_kron. easy.
   specialize (WFS OS ρ).
@@ -1355,15 +1353,15 @@ Qed.
 Lemma measure_superoperator : forall (n i j : nat) (ρ : Square (2 ^ n)),      
   (i * j * 2 = 2^n)%nat ->
   Mixed_State ρ ->
-  Mixed_State (('I_i ⊗ |0⟩⟨0| ⊗ 'I_j) × ρ × ('I_i ⊗ |0⟩⟨0| ⊗ 'I_j) .+ ('I_i ⊗ |1⟩⟨1| ⊗ 'I_j) × ρ × ('I_i ⊗ |1⟩⟨1| ⊗ 'I_j)).
+  Mixed_State ((I i ⊗ |0⟩⟨0| ⊗ I j) × ρ × (I i ⊗ |0⟩⟨0| ⊗ I j) .+ (I i ⊗ |1⟩⟨1| ⊗ I j) × ρ × (I i ⊗ |1⟩⟨1| ⊗ I j)).
 Proof.
   intros n i j ρ E M.
-  destruct (operator_sum_decomposition ['I_i ⊗ |0⟩⟨0| ⊗ 'I_j ; 'I_i ⊗ |1⟩⟨1| ⊗ 'I_j]) as [WFS _].
-  assert (OS : outer_sum ['I_ i ⊗ |0⟩⟨0| ⊗ 'I_ j; 'I_ i ⊗ |1⟩⟨1| ⊗ 'I_ j] = 'I_ (i * 2 * j)).
+  destruct (operator_sum_decomposition [I i ⊗ |0⟩⟨0| ⊗ I j ; I i ⊗ |1⟩⟨1| ⊗ I j]) as [WFS _].
+  assert (OS : outer_sum [I i ⊗ |0⟩⟨0| ⊗ I j; I i ⊗ |1⟩⟨1| ⊗ I j] = I  (i * 2 * j)).
     unfold outer_sum. simpl. Msimpl.
     rewrite Mplus_0_l.
     rewrite <- kron_plus_distr_r, <- kron_plus_distr_l.
-    replace ((|0⟩⟨0| × |0⟩⟨0| .+ |1⟩⟨1| × |1⟩⟨1|)) with ('I_2).
+    replace ((|0⟩⟨0| × |0⟩⟨0| .+ |1⟩⟨1| × |1⟩⟨1|)) with (I 2).
       Focus 2. crunch_matrix. bdestructΩ (S (S x) <? 2). rewrite andb_false_r. easy.
     repeat rewrite id_kron. easy.
   specialize (WFS OS ρ).
@@ -1379,14 +1377,14 @@ Qed.
 Lemma init0_superoperator : forall (n i j : nat) (ρ : Square (2 ^ n)),      
   (i * j = 2^n)%nat ->
   Mixed_State ρ ->
-  Mixed_State (('I_i ⊗ |0⟩ ⊗ 'I_j) × ρ × ('I_i ⊗ ⟨0| ⊗ 'I_j)).
+  Mixed_State ((I i ⊗ |0⟩ ⊗ I j) × ρ × (I i ⊗ ⟨0| ⊗ I j)).
 Proof.
   intros n i j ρ E M.
-  destruct (operator_sum_decomposition ['I_i ⊗ |0⟩ ⊗ 'I_j ]) as [WFS _].
-  assert (OS : outer_sum ['I_ i ⊗ |0⟩ ⊗ 'I_ j] = 'I_ (i * 1 * j)).
+  destruct (operator_sum_decomposition [I i ⊗ |0⟩ ⊗ I j ]) as [WFS _].
+  assert (OS : outer_sum [I i ⊗ |0⟩ ⊗ I j] = I  (i * 1 * j)).
     unfold outer_sum. simpl. Msimpl.
     rewrite Mplus_0_l.
-    replace (⟨0| × |0⟩) with ('I_1).
+    replace (⟨0| × |0⟩) with (I 1).
       Focus 2. crunch_matrix. bdestructΩ (S x <? 1). rewrite andb_false_r. easy.
     repeat rewrite id_kron. easy.
   specialize (WFS OS ρ).
@@ -1402,14 +1400,14 @@ Qed.
 Lemma init1_superoperator : forall (n i j : nat) (ρ : Square (2 ^ n)),      
   (i * j = 2^n)%nat ->
   Mixed_State ρ ->
-  Mixed_State (('I_i ⊗ |1⟩ ⊗ 'I_j) × ρ × ('I_i ⊗ ⟨1| ⊗ 'I_j)).
+  Mixed_State ((I i ⊗ |1⟩ ⊗ I j) × ρ × (I i ⊗ ⟨1| ⊗ I j)).
 Proof.
   intros n i j ρ E M.
-  destruct (operator_sum_decomposition ['I_i ⊗ |1⟩ ⊗ 'I_j ]) as [WFS _].
-  assert (OS : outer_sum ['I_ i ⊗ |1⟩ ⊗ 'I_ j] = 'I_ (i * 1 * j)).
+  destruct (operator_sum_decomposition [I i ⊗ |1⟩ ⊗ I j ]) as [WFS _].
+  assert (OS : outer_sum [I  i ⊗ |1⟩ ⊗ I  j] = I  (i * 1 * j)).
     unfold outer_sum. simpl. Msimpl.
     rewrite Mplus_0_l.
-    replace (⟨1| × |1⟩) with ('I_1).
+    replace (⟨1| × |1⟩) with (I 1).
       Focus 2. crunch_matrix. bdestructΩ (S x <? 1). rewrite andb_false_r. easy.
     repeat rewrite id_kron. easy.
   specialize (WFS OS ρ).
@@ -1427,7 +1425,7 @@ Qed.
 Lemma init0_end_superoperator : forall (n i : nat) (ρ : Square (2 ^ n)),
   (i = 2^n)%nat ->
   Mixed_State ρ ->
-  Mixed_State (('I_i ⊗ |0⟩) × ρ × ('I_i ⊗ ⟨0|)).
+  Mixed_State ((I i ⊗ |0⟩) × ρ × (I i ⊗ ⟨0|)).
 Proof.    
   intros; subst.
   rewrite <- (kron_1_r _ _ ρ).
@@ -1441,7 +1439,7 @@ Qed.
 Lemma init1_end_superoperator : forall (n i : nat) (ρ : Square (2 ^ n)),
   (i = 2^n)%nat ->
   Mixed_State ρ ->
-  Mixed_State (('I_i ⊗ |1⟩) × ρ × ('I_i ⊗ ⟨1|)).
+  Mixed_State ((I i ⊗ |1⟩) × ρ × (I i ⊗ ⟨1|)).
 Proof.    
   intros; subst.
   rewrite <- (kron_1_r _ _ ρ).
@@ -1582,7 +1580,7 @@ Proof.
   subst; reflexivity.
 Qed.
 
-Lemma swap_list_aux_id : forall m n l, swap_list_aux m n (combine l l) = Id (2 ^ n).
+Lemma swap_list_aux_id : forall m n l, swap_list_aux m n (combine l l) = I (2 ^ n).
 Proof.
   intros m n l.
   generalize dependent m.
@@ -1599,7 +1597,7 @@ Proof.
     reflexivity.
 Qed.
 
-Lemma swap_list_n_id : forall n, swap_list n (seq 0 n) = Id (2^n).
+Lemma swap_list_n_id : forall n, swap_list n (seq 0 n) = I (2^n).
 Proof.
   intros.
   unfold swap_list.
@@ -1667,10 +1665,10 @@ Fixpoint denote_db_circuit {w} safe padding input (c : DeBruijn_Circuit w)
   | db_lift p c'            => let k := get_var p in Splus  
                               (compose_super 
                                  (denote_db_circuit safe padding (input-1) (c' false))
-                                 (super ('I_(2^k) ⊗ ⟨0| ⊗ 'I_(2^(input+padding-k-1)))))
+                                 (super (I (2^k) ⊗ ⟨0| ⊗ I (2^(input+padding-k-1)))))
                               (compose_super 
                                  (denote_db_circuit safe padding (input-1) (c' true))
-                                 (super ('I_(2^k) ⊗ ⟨1| ⊗ 'I_(2^(input+padding-k-1)))))
+                                 (super (I (2^k) ⊗ ⟨1| ⊗ I (2^(input+padding-k-1)))))
   end.
 
 (* Just removed. Lift case needs to mention padding
@@ -1684,10 +1682,10 @@ Fixpoint denote_db_circuit {w} safe padding input (c : DeBruijn_Circuit w)
   | db_lift p c'            => let k := get_var p in Splus  
                               (compose_super 
                                  (denote_db_circuit safe padding (input-1) (c' false))
-                                 (super ('I_(2^k) ⊗ ⟨0| ⊗ 'I_(2^(input-k-1)))))
+                                 (super (I (2^k) ⊗ ⟨0| ⊗ I (2^(input-k-1)))))
                               (compose_super 
                                  (denote_db_circuit safe padding (input-1) (c' true))
-                                 (super ('I_(2^k) ⊗ ⟨1| ⊗ 'I_(2^(input-k-1)))))
+                                 (super (I (2^k) ⊗ ⟨1| ⊗ I (2^(input-k-1)))))
   end.
 *)
 
@@ -1703,10 +1701,10 @@ Fixpoint denote_db_circuit {w} safe padding input (c : DeBruijn_Circuit w)
   | db_lift p c'   => let S := swap_two input 0 (get_var p) in
                       Splus (compose_super 
                                (denote_db_circuit safe padding (input-1) (c' false))
-                                     (super (⟨0| ⊗ 'I_(2^(input-1)) × S)))
+                                     (super (⟨0| ⊗ I (2^(input-1)) × S)))
                              (compose_super 
                                 (denote_db_circuit safe padding (input-1) (c' true))
-                                     (super (⟨1| ⊗ 'I_(2^(input-1)) × S)))
+                                     (super (⟨1| ⊗ I (2^(input-1)) × S)))
   end.
 
 *)
@@ -1722,9 +1720,9 @@ Fixpoint denote_db_circuit {w} Γ0 Γ (c : DeBruijn_Circuit w)
   | db_lift p c'   => let S := swap_two (⟦Γ⟧) 0 (get_var p) in
                       let Γ' := remove_pat p Γ in
                Splus (compose_super (denote_db_circuit Γ0 Γ' (c' false))
-                                    (super (⟨0| ⊗ 'I_ (2^⟦Γ'⟧) × S)))
+                                    (super (⟨0| ⊗ I  (2^⟦Γ'⟧) × S)))
                      (compose_super (denote_db_circuit Γ0 Γ' (c' true))
-                                    (super (⟨1| ⊗ 'I_ (2^⟦Γ'⟧) × S)))
+                                    (super (⟨1| ⊗ I  (2^⟦Γ'⟧) × S)))
   end.
 *)
 
@@ -1741,9 +1739,9 @@ Fixpoint denote_db_circuit {w}  (pad n : nat) (c : DeBruijn_Circuit w)
                                 (apply_gate g (pat_to_list p))
   | db_lift p c'   =>    let S := swap_two n 0 (get_var p) in 
                          Splus (compose_super (denote_db_circuit pad (n-1) (c' false)) 
-                                            (super (⟨0| ⊗ Id (2^(n-1)) × S)))
+                                            (super (⟨0| ⊗ I (2^(n-1)) × S)))
                                (compose_super (denote_db_circuit pad (n-1) (c' true)) 
-                                            (super (⟨1| ⊗ Id (2^(n-1))× S)))         
+                                            (super (⟨1| ⊗ I (2^(n-1))× S)))         
   end.
 *)
 
@@ -1859,7 +1857,7 @@ Proof.
 Qed.
 
 Lemma denote_pat_fresh_id : forall w,
-      denote_pat (add_fresh_pat w []) = Id (2^⟦w⟧).
+      denote_pat (add_fresh_pat w []) = I (2^⟦w⟧).
 Proof.
   intros.
   unfold denote_pat.

@@ -1790,15 +1790,15 @@ Check Superoperator.
 Check denote.
 Print Superoperator.
 Check Superoperator 1 2.
-Check (Id 1).
+Check (I 1).
 Check (denote box_example_1).
-Check (denote box_example_1) (Id 1).
-Check (denote box_example_1) (Id 1) O O.
-Proposition test : forall {b : Box One Qubit}, (denote b) (Id 1) O O = C0. Abort.
+Check (denote box_example_1) (I 1).
+Check (denote box_example_1) (I 1) O O.
+Proposition test : forall {b : Box One Qubit}, (denote b) (I 1) O O = C0. Abort.
 Check C1.
-Check (Id (2 ^ ⟦ One ⟧)).
+Check (I (2 ^ ⟦ One ⟧)).
 Fixpoint eq_denotation_qasm_simulator (b : Box One Qubit) :=
-  ((denote b) (Id 1) O O) = C1?.
+  ((denote b) (I 1) O O) = C1?.
 
 QuickChick (forAll (genBoxWTypedSized One Qubit 2) (eq_denotation_qasm_simulator Qubit)).
 

@@ -8,7 +8,7 @@ Definition id := string.
 Inductive bexp : Type :=
 | BTrue : bexp
 | BFalse : bexp
-| BId : string -> bexp
+| BI : string -> bexp
 | BNot : bexp -> bexp
 | BAnd : bexp -> bexp -> bexp
 .

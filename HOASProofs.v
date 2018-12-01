@@ -14,7 +14,7 @@ Delimit Scope matrix_scope with M.
 (** EXAMPLES START **)
 (*****************************************************************************)
 
-Lemma init_ket1 : ⟦init true⟧ I1 = |1⟩⟨1|. 
+Lemma init_qubit1 : ⟦init true⟧ I1 = |1⟩⟨1|. 
 Proof.
   matrix_denote.
   Msimpl.
@@ -22,7 +22,7 @@ Proof.
 Qed.
 
 (*********************)
-(* Identity circuits *)
+(* Ientity circuits *)
 (*********************)
 
 (* Qubit form *) 
@@ -234,7 +234,7 @@ Proof.
     replace ((box c) $ ()) with (c ()) by reflexivity.
     replace (⟨1| × (|0⟩⟨0| × (hadamard × |0⟩⟨0| × hadamard) × |0⟩⟨0| .+ 
                     |1⟩⟨1| × (hadamard × |0⟩⟨0| × hadamard) × |1⟩⟨1|) × |1⟩)
-      with ((1/2) .* 'I_1) by solve_matrix. 
+      with ((1/2) .* I 1) by solve_matrix. 
     assert (scale_safe : forall safe w i j (c : DeBruijn_Circuit w) a ρ, 
                denote_db_circuit safe i j c (a .* ρ) = a .* denote_db_circuit safe i j c ρ). admit.
     rewrite scale_safe.
@@ -265,7 +265,7 @@ Proof.
     unfold remove_pat. simpl.
     replace ((box c) $ ()) with (c ()) by reflexivity.
     match goal with 
-    [|- _ .+ ?f ?ρ = _] => replace ρ with ((a/2 .* 'I_1))
+    [|- _ .+ ?f ?ρ = _] => replace ρ with ((a/2 .* I 1))
     end.
     2: solve_matrix; rewrite (Cmult_comm (/√2)), <- Cmult_assoc; autorewrite with C_db; easy.
     setoid_rewrite (IHn (a / 2)).
@@ -334,7 +334,7 @@ Hint Unfold apply_box : den_db.
 
 Open Scope matrix_scope.
 Fixpoint prepare (ls : list nat) : Matrix 1%nat (2^(length ls)) :=
-  fold_left (fun A x => ket x ⊗ A) ls (Id 1).
+  fold_left (fun A x => ket x ⊗ A) ls (I 1).
 
 Definition pure {n} (vec : Matrix n 1%nat) : Matrix n n := vec × (vec †).
 
@@ -394,7 +394,7 @@ Abort.
 *)
 
 (* Can we multiply 16 x 16 matrices? Yes, we can!
-Example test : ((swap ⊗ swap) × (swap ⊗ swap) = 'I_16)%M.
+Example test : ((swap ⊗ swap) × (swap ⊗ swap) = I 16)%M.
 Proof. 
   solve_matrix. 
   all: unfold Nat.ltb; simpl; rewrite andb_false_r; reflexivity.
@@ -412,8 +412,8 @@ Open Scope matrix_scope.
 
 (* Version on an abstract unitary gate *)
 
-(* f(x) = 0. Unitary: Identity *)
-Definition f0 : Matrix 4 4 := Id 4.
+(* f(x) = 0. Unitary: Ientity *)
+Definition f0 : Matrix 4 4 := I 4.
 
 (* f(x) = x. Unitary: CNOT *)
 Definition f1 : Matrix 4 4 := control σx.
@@ -425,8 +425,8 @@ Definition f2 : Matrix 4 4 := fun x y =>
   | _, _                      => 0
   end.
 
-(* f(x) = 1. Unitary: Id ⊗ X *)
-Definition f3 : Matrix 4 4 := Id 2 ⊗ σx.
+(* f(x) = 1. Unitary: I ⊗ X *)
+Definition f3 : Matrix 4 4 := I 2 ⊗ σx.
 
 Definition U_constant (U : Unitary (Qubit ⊗ Qubit)%qc) := 
   apply_U 2 U [0;1]%nat = super f0 \/ apply_U 2 U [0;1]%nat = super f3.
@@ -798,9 +798,9 @@ Proof.
   Msimpl.
   unfold super, compose_super, Splus, SZero.
   Msimpl.
-  rewrite braket0_adjoint, braket1_adjoint.
+  rewrite braqubit0_adjoint, braqubit1_adjoint.
   prep_matrix_equality; simpl.
-  unfold Mplus, Mmult, Id, adjoint, Zero. simpl.
+  unfold Mplus, Mmult, I, adjoint, Zero. simpl.
   autorewrite with C_db.
   rewrite Cplus_comm. reflexivity.
 Abort.
@@ -816,7 +816,7 @@ Abort (* This is only true if ρ is a classical state *).
   unfold super, compose_super, Splus, SZero. 
   Msimpl.
   prep_matrix_equality.
-  unfold Mmult, Mplus, Zero, adjoint, ket0, ket1. simpl.
+  unfold Mmult, Mplus, Zero, adjoint, qubit0, qubit1. simpl.
   Csimpl.
   destruct x; Csimpl. 
   destruct y; Csimpl.

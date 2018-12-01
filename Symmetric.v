@@ -859,8 +859,8 @@ Open Scope matrix_scope.
 Fact init_at_spec_strong : forall b n i (ρ : Square (2^n)) (safe : bool), 
   i <= n ->
   denote_box safe (init_at b n i) ρ = 
-  ('I_ (2^i) ⊗ bool_to_ket b ⊗ 'I_ (2^ (n-i))) × ρ × 
-  ('I_ (2^i) ⊗ (bool_to_ket b)† ⊗ 'I_ (2^ (n-i))).
+  (I  (2^i) ⊗ bool_to_ket b ⊗ I  (2^ (n-i))) × ρ × 
+  (I  (2^i) ⊗ (bool_to_ket b)† ⊗ I  (2^ (n-i))).
 Proof.
 (*
     rewrite Nat.add_1_r, Nat.mul_1_r.
@@ -872,7 +872,7 @@ Proof.
 
 (* Show that apply_U CNOT [0; n] has desired behavior *)
     remember (S (length l2)) as n.
-    remember ('I_ (2 ^ S n)) as I_m.
+    remember (I  (2 ^ S n)) as I_m.
     replace (@Datatypes.cons Var O (@Datatypes.cons Var n (@Datatypes.nil Var)))
           with ([0; 0 + length l2 + 1])%nat.
     2: subst; rewrite Nat.add_1_r; reflexivity. 
@@ -885,7 +885,7 @@ Proof.
     (* breaks here *)
 
 
-    specialize (apply_U_spec_2 (S n) O (length l2) O (Id 1) (⨂ l2) (Id 1) 
+    specialize (apply_U_spec_2 (S n) O (length l2) O (I 1) (⨂ l2) (I 1) 
                              _ _ _ _ _ E CS). simpl; Msimpl.
     intros H. 
     rewrite H.
@@ -985,7 +985,7 @@ Proof.
           reflexivity.
       rewrite swap_list_n_id.
       rewrite pad_nothing.
-      remember ('I_ (2 ^ (2 + n'))) as Im. 
+      remember (I  (2 ^ (2 + n'))) as Im. 
       simpl. 
       replace ([Some Qubit]) with (repeat (Some Qubit) 1) by reflexivity.
       rewrite repeat_combine.
@@ -1053,15 +1053,15 @@ Admitted.
 Fact assert_at_spec_safe : forall b n i (ρ : Square (2^n)), 
   i <= n ->
   denote_box true (assert_at b n i) ρ = 
-  ('I_ (2^i) ⊗ ⟨0| ⊗ 'I_ (2^ (n-i))) × ρ × ('I_ (2^i) ⊗ |0⟩ ⊗ 'I_ (2^ (n-i))) .+ 
-  ('I_ (2^i) ⊗ ⟨1| ⊗ 'I_ (2^ (n-i))) × ρ × ('I_ (2^i) ⊗ |1⟩ ⊗ 'I_ (2^ (n-i))).
+  (I  (2^i) ⊗ ⟨0| ⊗ I  (2^ (n-i))) × ρ × (I  (2^i) ⊗ |0⟩ ⊗ I  (2^ (n-i))) .+ 
+  (I  (2^i) ⊗ ⟨1| ⊗ I  (2^ (n-i))) × ρ × (I  (2^i) ⊗ |1⟩ ⊗ I  (2^ (n-i))).
 Admitted.
 
 (* unsafe semantics *)
 Fact assert_at_spec_unsafe : forall b n i (ρ : Square (2^n)), 
   i <= n ->
   denote_box false (assert_at b n i) ρ = 
-  ('I_ (2^i) ⊗ (bool_to_ket b)† ⊗ 'I_ (2^ (n-i))) × ρ × ('I_ (2^i) ⊗ bool_to_ket b ⊗ 'I_ (2^ (n-i))).
+  (I  (2^i) ⊗ (bool_to_ket b)† ⊗ I  (2^ (n-i))) × ρ × (I  (2^i) ⊗ bool_to_ket b ⊗ I  (2^ (n-i))).
 Admitted.
 
 
@@ -1104,10 +1104,10 @@ Proof.
     end.
     Msimpl.
     destruct b; simpl.
-    + replace (⟨0| × |1⟩) with (Zero 1 1) by crunch_matrix.
+    + replace (⟨0| × |1⟩) with (@Zero 1 1) by crunch_matrix.
       rewrite kron_0_r, kron_0_l. 
       rewrite Mmult_0_l, Mplus_0_l. (* add to dbs *)
-      replace (⟨1| × |1⟩) with ('I_1).
+      replace (⟨1| × |1⟩) with (I 1).
       2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
       Msimpl.
       setoid_rewrite (id_kron (2^i) (2^(m-i))).
@@ -1119,7 +1119,7 @@ Proof.
       Msimpl.
       setoid_rewrite kron_mixed_product.
       Msimpl.
-      replace (⟨1| × |1⟩) with ('I_1).
+      replace (⟨1| × |1⟩) with (I 1).
       2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
       rewrite id_kron.
       rewrite Nat.mul_1_r.
@@ -1128,10 +1128,10 @@ Proof.
       replace (i + (m - i)) with m by omega.    
       rewrite Mmult_1_l by (auto with wf_db).
       reflexivity.
-    + replace (⟨0| × |1⟩) with (Zero 1 1) by crunch_matrix.
+    + replace (⟨0| × |1⟩) with (@Zero 1 1) by crunch_matrix.
       rewrite kron_0_r, kron_0_l. 
       repeat rewrite Mmult_0_r. rewrite Mplus_0_r.
-      replace (⟨0| × |0⟩) with ('I_1).
+      replace (⟨0| × |0⟩) with (I 1).
       2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
       Msimpl.
       setoid_rewrite (id_kron (2^i) (2^(m-i))).
@@ -1151,7 +1151,7 @@ Proof.
     end.
     Msimpl.
     destruct b; simpl.
-    + replace (⟨1| × |1⟩) with ('I_1).
+    + replace (⟨1| × |1⟩) with (I 1).
       2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
       Msimpl.
       setoid_rewrite (id_kron (2^i) (2^(m-i))).
@@ -1159,7 +1159,7 @@ Proof.
       replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
       Msimpl.
       reflexivity.
-    + replace (⟨0| × |0⟩) with ('I_1).
+    + replace (⟨0| × |0⟩) with (I 1).
       2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
       Msimpl.
       setoid_rewrite (id_kron (2^i) (2^(m-i))).

@@ -122,8 +122,8 @@ Proof.
     unfold c000, c001.
     repeat rewrite <- Cmult_assoc.
     rewrite <- Cmult_plus_distr_l.
-    assert (H : ((u † × u) 0 0 = Id 2 0 0)%nat) by (rewrite <- UU; easy).
-    unfold Mmult, Id, adjoint in H. simpl in H.
+    assert (H : ((u † × u) 0 0 = I 2 0 0)%nat) by (rewrite <- UU; easy).
+    unfold Mmult, I, adjoint in H. simpl in H.
     autorewrite with C_db in H.
     rewrite Cmult_comm in H.
     rewrite (Cmult_comm ((u 1%nat 0%nat) ^* )) in H.
@@ -137,8 +137,8 @@ Proof.
     unfold c111, c110.
     repeat rewrite <- Cmult_assoc.
     rewrite <- Cmult_plus_distr_l.
-    assert (H: ((u † × u) 1 1 = Id 2 1 1)%nat) by (rewrite <- UU; easy).
-    unfold Mmult, Id, adjoint in H. simpl in H.
+    assert (H: ((u † × u) 1 1 = I 2 1 1)%nat) by (rewrite <- UU; easy).
+    unfold Mmult, I, adjoint in H. simpl in H.
     autorewrite with C_db in H.
     rewrite Cmult_comm in H.
     rewrite Cplus_comm in H.
@@ -154,8 +154,8 @@ Proof.
     unfold c011, c010.
     repeat rewrite <- Cmult_assoc.
     rewrite <- Cmult_plus_distr_l.
-    assert (H : ((u† × u) 1 0 = Id 2 1 0)%nat)  by (rewrite <- UU; easy).
-    unfold Mmult, Id, adjoint in H. simpl in H.
+    assert (H : ((u† × u) 1 0 = I 2 1 0)%nat)  by (rewrite <- UU; easy).
+    unfold Mmult, I, adjoint in H. simpl in H.
     autorewrite with C_db in H.
     rewrite Cmult_comm in H.
     rewrite Cplus_comm in H.
@@ -171,8 +171,8 @@ Proof.
     unfold c101, c100.
     repeat rewrite <- Cmult_assoc.
     rewrite <- Cmult_plus_distr_l.
-    assert (H : ((u † × u ) 0 1 = Id 2 0 1)%nat) by (rewrite <- UU; easy).
-    unfold Mmult, Id, adjoint in H. simpl in H.
+    assert (H : ((u † × u ) 0 1 = I 2 0 1)%nat) by (rewrite <- UU; easy).
+    unfold Mmult, I, adjoint in H. simpl in H.
     autorewrite with C_db in H.
     rewrite Cmult_comm in H.
     rewrite Cplus_comm in H.
@@ -224,7 +224,7 @@ Proof. type_check. Qed.
 
 Lemma init_if_true_qubit : forall (U V : Unitary Qubit) ρ,
   WF_Matrix 2 2 ρ -> 
-  ⟦init_if true U V⟧ ρ = (|1⟩ ⊗ 'I_2 )%M × (⟦U⟧ × ρ × (⟦U⟧†)) × (⟨1| ⊗ 'I_2)%M. 
+  ⟦init_if true U V⟧ ρ = (|1⟩ ⊗ I 2 )%M × (⟦U⟧ × ρ × (⟦U⟧†)) × (⟨1| ⊗ I 2)%M. 
 Proof.
   intros U V ρ WF. simpl in *.
   matrix_denote.
@@ -235,7 +235,7 @@ Qed.
   
 Lemma init_if_false_qubit : forall (U V : Unitary Qubit) ρ,
   WF_Matrix 2 2 ρ -> 
-  ⟦init_if false U V⟧ ρ = (|0⟩ ⊗ 'I_2 )%M × (⟦V⟧ × ρ × (⟦V⟧†)) × (⟨0| ⊗ 'I_2)%M. 
+  ⟦init_if false U V⟧ ρ = (|0⟩ ⊗ I 2 )%M × (⟦V⟧ × ρ × (⟦V⟧†)) × (⟨0| ⊗ I 2)%M. 
 Proof.
   intros U V ρ WF. simpl in *.
   matrix_denote.
