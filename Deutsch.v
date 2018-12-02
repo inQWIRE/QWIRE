@@ -129,7 +129,7 @@ Lemma deutsch_constant : forall (f : bool -> bool)
       Typed_Box U ->
       (f = fun _ => true) \/ (f = fun _ => false) -> 
       (forall ρ, ⟦U⟧ ρ = (toUnitary f) × ρ × (toUnitary f)†) ->
-      ⟦deutsch U⟧ I1 = |0⟩⟨0|.
+      ⟦deutsch U⟧ I1 = ∣0⟩⟨0∣.
 Proof.
   intros f U pf_U pf_constant H_U.
 
@@ -182,7 +182,7 @@ Lemma deutsch_balanced : forall (f : bool -> bool) (U : Box (Qubit ⊗ Qubit)%qc
       Typed_Box U ->
       (f = fun x => x) \/ (f = fun x => negb x) ->
       (forall ρ, ⟦U⟧ ρ = (toUnitary f) × ρ × (toUnitary f)†) ->
-      ⟦deutsch U⟧ I1 = |1⟩⟨1|.
+      ⟦deutsch U⟧ I1 = ∣1⟩⟨1∣.
 Proof.
   intros f U pf_U pf_constant H_U.
 

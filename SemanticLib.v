@@ -30,13 +30,13 @@ Lemma X_spec : forall (b safe : bool), denote_box safe (boxed_gate _X) (bool_to_
                                bool_to_matrix (¬ b).
 Proof. intros. vector_denote. destruct b; unfold bool_to_ket; simpl; Msimpl; easy. Qed.
 
-Lemma init0_spec : forall safe, denote_box safe init0 (I (2^0)) = |0⟩⟨0|.
+Lemma init0_spec : forall safe, denote_box safe init0 (I (2^0)) = ∣0⟩⟨0∣.
 Proof. intros. matrix_denote. Msimpl. reflexivity. Qed.
 
-Lemma init1_spec : forall safe, denote_box safe init1 (I (2^0)) = |1⟩⟨1|.
+Lemma init1_spec : forall safe, denote_box safe init1 (I (2^0)) = ∣1⟩⟨1∣.
 Proof. intros. matrix_denote. Msimpl. reflexivity. Qed.
 
-Lemma assert0_spec : forall safe, denote_box safe assert0 |0⟩⟨0| = I 1. 
+Lemma assert0_spec : forall safe, denote_box safe assert0 ∣0⟩⟨0∣ = I 1. 
 Proof.  
   destruct safe.
   - matrix_denote.
@@ -47,7 +47,7 @@ Proof.
     solve_matrix.
 Qed.
 
-Lemma assert1_spec : forall safe, denote_box safe assert1 |1⟩⟨1| = I 1. 
+Lemma assert1_spec : forall safe, denote_box safe assert1 ∣1⟩⟨1∣ = I 1. 
 Proof.  
   destruct safe.
   - matrix_denote.

@@ -1053,8 +1053,8 @@ Admitted.
 Fact assert_at_spec_safe : forall b n i (ρ : Square (2^n)), 
   i <= n ->
   denote_box true (assert_at b n i) ρ = 
-  (I  (2^i) ⊗ ⟨0| ⊗ I  (2^ (n-i))) × ρ × (I  (2^i) ⊗ |0⟩ ⊗ I  (2^ (n-i))) .+ 
-  (I  (2^i) ⊗ ⟨1| ⊗ I  (2^ (n-i))) × ρ × (I  (2^i) ⊗ |1⟩ ⊗ I  (2^ (n-i))).
+  (I  (2^i) ⊗ ⟨0∣ ⊗ I  (2^ (n-i))) × ρ × (I  (2^i) ⊗ ∣0⟩ ⊗ I  (2^ (n-i))) .+ 
+  (I  (2^i) ⊗ ⟨1∣ ⊗ I  (2^ (n-i))) × ρ × (I  (2^i) ⊗ ∣1⟩ ⊗ I  (2^ (n-i))).
 Admitted.
 
 (* unsafe semantics *)
@@ -1104,10 +1104,10 @@ Proof.
     end.
     Msimpl.
     destruct b; simpl.
-    + replace (⟨0| × |1⟩) with (@Zero 1 1) by crunch_matrix.
+    + replace (⟨0∣ × ∣1⟩) with (@Zero 1 1) by crunch_matrix.
       rewrite kron_0_r, kron_0_l. 
       rewrite Mmult_0_l, Mplus_0_l. (* add to dbs *)
-      replace (⟨1| × |1⟩) with (I 1).
+      replace (⟨1∣ × ∣1⟩) with (I 1).
       2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
       Msimpl.
       setoid_rewrite (id_kron (2^i) (2^(m-i))).
@@ -1119,7 +1119,7 @@ Proof.
       Msimpl.
       setoid_rewrite kron_mixed_product.
       Msimpl.
-      replace (⟨1| × |1⟩) with (I 1).
+      replace (⟨1∣ × ∣1⟩) with (I 1).
       2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
       rewrite id_kron.
       rewrite Nat.mul_1_r.
@@ -1128,10 +1128,10 @@ Proof.
       replace (i + (m - i)) with m by omega.    
       rewrite Mmult_1_l by (auto with wf_db).
       reflexivity.
-    + replace (⟨0| × |1⟩) with (@Zero 1 1) by crunch_matrix.
+    + replace (⟨0∣ × ∣1⟩) with (@Zero 1 1) by crunch_matrix.
       rewrite kron_0_r, kron_0_l. 
       repeat rewrite Mmult_0_r. rewrite Mplus_0_r.
-      replace (⟨0| × |0⟩) with (I 1).
+      replace (⟨0∣ × ∣0⟩) with (I 1).
       2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
       Msimpl.
       setoid_rewrite (id_kron (2^i) (2^(m-i))).
@@ -1151,7 +1151,7 @@ Proof.
     end.
     Msimpl.
     destruct b; simpl.
-    + replace (⟨1| × |1⟩) with (I 1).
+    + replace (⟨1∣ × ∣1⟩) with (I 1).
       2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
       Msimpl.
       setoid_rewrite (id_kron (2^i) (2^(m-i))).
@@ -1159,7 +1159,7 @@ Proof.
       replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
       Msimpl.
       reflexivity.
-    + replace (⟨0| × |0⟩) with (I 1).
+    + replace (⟨0∣ × ∣0⟩) with (I 1).
       2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
       Msimpl.
       setoid_rewrite (id_kron (2^i) (2^(m-i))).

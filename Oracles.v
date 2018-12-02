@@ -1090,7 +1090,7 @@ Proof.
     rewrite_inPar.
     repeat simpl_rewrite id_circ_spec; auto with wf_db.
     simpl_rewrite init1_spec.
-    replace (|1⟩⟨1|) with (bool_to_matrix true) by reflexivity.    
+    replace (∣1⟩⟨1∣) with (bool_to_matrix true) by reflexivity.    
     rewrite (IHb Γ f true H). rewrite xorb_true_l. (* yay! *)
     listify_kron.
     simpl_rewrite (CNOT_at_spec (¬ ⌈b | f⌉) t (S (S (⟦Γ⟧))) 1 0); trivial; try omega. 
@@ -1131,7 +1131,7 @@ Proof.
     rewrite_inPar.
     simpl_rewrite init0_spec.
     repeat simpl_rewrite id_circ_spec; auto with wf_db.
-    replace (|0⟩⟨0|) with (bool_to_matrix false) by reflexivity.
+    replace (∣0⟩⟨0∣) with (bool_to_matrix false) by reflexivity.
     simpl_rewrite IHb2; trivial.
     rewrite xorb_false_l.
     listify_kron.
@@ -1146,13 +1146,13 @@ Proof.
     rewrite_inPar.
     repeat simpl_rewrite id_circ_spec; auto with wf_db.
     rewrite xorb_nilpotent.
-    replace (bool_to_matrix false) with (|0⟩⟨0|) by easy.
+    replace (bool_to_matrix false) with (∣0⟩⟨0∣) by easy.
     simpl_rewrite assert0_spec.
     Msimpl.
     simpl_rewrite IHb1; trivial.
     rewrite_inPar.
     rewrite xorb_nilpotent.
-    replace (bool_to_matrix false) with (|0⟩⟨0|) by easy.
+    replace (bool_to_matrix false) with (∣0⟩⟨0∣) by easy.
     simpl_rewrite assert0_spec.
     simpl_rewrite id_circ_spec; auto with wf_db.
     Msimpl.

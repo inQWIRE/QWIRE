@@ -29,18 +29,18 @@ Definition qubit1 : Vector 2 :=
           | _, _ => C0
           end.
 
-(* Ket notation *)
-Notation "|0⟩" := qubit0.
-Notation "|1⟩" := qubit1.
-Notation "⟨0|" := qubit0†.
-Notation "⟨1|" := qubit1†.
-Notation "|0⟩⟨0|" := (|0⟩×⟨0|).
-Notation "|1⟩⟨1|" := (|1⟩×⟨1|).
-Notation "|1⟩⟨0|" := (|1⟩×⟨0|).
-Notation "|0⟩⟨1|" := (|0⟩×⟨1|).
+(* Ket notation: \mid 0 \rangle *)
+Notation "∣0⟩" := qubit0.
+Notation "∣1⟩" := qubit1.
+Notation "⟨0∣" := qubit0†.
+Notation "⟨1∣" := qubit1†.
+Notation "∣0⟩⟨0∣" := (∣0⟩×⟨0∣).
+Notation "∣1⟩⟨1∣" := (∣1⟩×⟨1∣).
+Notation "∣1⟩⟨0∣" := (∣1⟩×⟨0∣).
+Notation "∣0⟩⟨1∣" := (∣0⟩×⟨1∣).
 
-Definition bra (x : nat) : Matrix 2 1 := if x =? 0 then ⟨0| else ⟨1|.
-Definition ket (x : nat) : Matrix 2 1 := if x =? 0 then |0⟩ else |1⟩.
+Definition bra (x : nat) : Matrix 2 1 := if x =? 0 then ⟨0∣ else ⟨1∣.
+Definition ket (x : nat) : Matrix 2 1 := if x =? 0 then ∣0⟩ else ∣1⟩.
 
 (* Note the 'mid' symbol for these *)
 Notation "'∣' x '⟩'" := (ket x).
@@ -53,9 +53,9 @@ Transparent ket.
 Transparent qubit0.
 Transparent qubit1.
 
-Definition bool_to_ket (b : bool) : Matrix 2 1 := if b then |1⟩ else |0⟩.
+Definition bool_to_ket (b : bool) : Matrix 2 1 := if b then ∣1⟩ else ∣0⟩.
                                                                      
-Definition bool_to_matrix (b : bool) : Matrix 2 2 := if b then |1⟩⟨1| else |0⟩⟨0|.
+Definition bool_to_matrix (b : bool) : Matrix 2 2 := if b then ∣1⟩⟨1∣ else ∣0⟩⟨0∣.
 
 Definition bool_to_matrix' (b : bool) : Matrix 2 2 := fun x y =>
   match x, y with
@@ -168,10 +168,10 @@ Definition swap : Matrix 4 4 :=
 Hint Unfold qubit0 qubit1 hadamard σx σy σz control cnot swap : M_db.
 
 (* Lemmas *)
-Lemma MmultX1 : σx × |1⟩ = |0⟩. Proof. solve_matrix. Qed.
-Lemma Mmult1X : ⟨1| × σx = ⟨0|. Proof. solve_matrix. Qed.
-Lemma MmultX0 : σx × |0⟩ = |1⟩. Proof. solve_matrix. Qed.
-Lemma Mmult0X : ⟨0| × σx = ⟨1|. Proof. solve_matrix. Qed.
+Lemma MmultX1 : σx × ∣1⟩ = ∣0⟩. Proof. solve_matrix. Qed.
+Lemma Mmult1X : ⟨1∣ × σx = ⟨0∣. Proof. solve_matrix. Qed.
+Lemma MmultX0 : σx × ∣0⟩ = ∣1⟩. Proof. solve_matrix. Qed.
+Lemma Mmult0X : ⟨0∣ × σx = ⟨1∣. Proof. solve_matrix. Qed.
 Hint Rewrite Mmult0X Mmult1X MmultX0 MmultX1 : M_db.
 
 Lemma swap_swap : swap × swap = I 4. Proof. solve_matrix. Qed.
@@ -254,12 +254,12 @@ Eval compute in (print_matrix (swap_two 1 0 2)).
 
 (** Well Formedness of Quantum States and Unitaries **)
 
-Lemma WF_bra0 : WF_Matrix 1 2 ⟨0|. Proof. show_wf. Qed. 
-Lemma WF_bra1 : WF_Matrix 1 2 ⟨1|. Proof. show_wf. Qed.
-Lemma WF_qubit0 : WF_Matrix 2 1 |0⟩. Proof. show_wf. Qed.
-Lemma WF_qubit1 : WF_Matrix 2 1 |1⟩. Proof. show_wf. Qed.
-Lemma WF_braqubit0 : WF_Matrix 2 2 |0⟩⟨0|. Proof. show_wf. Qed.
-Lemma WF_braqubit1 : WF_Matrix 2 2 |1⟩⟨1|. Proof. show_wf. Qed.
+Lemma WF_bra0 : WF_Matrix 1 2 ⟨0∣. Proof. show_wf. Qed. 
+Lemma WF_bra1 : WF_Matrix 1 2 ⟨1∣. Proof. show_wf. Qed.
+Lemma WF_qubit0 : WF_Matrix 2 1 ∣0⟩. Proof. show_wf. Qed.
+Lemma WF_qubit1 : WF_Matrix 2 1 ∣1⟩. Proof. show_wf. Qed.
+Lemma WF_braqubit0 : WF_Matrix 2 2 ∣0⟩⟨0∣. Proof. show_wf. Qed.
+Lemma WF_braqubit1 : WF_Matrix 2 2 ∣1⟩⟨1∣. Proof. show_wf. Qed.
 Lemma WF_bool_to_ket : forall b, WF_Matrix 2 1 (bool_to_ket b). 
 Proof. destruct b; show_wf. Qed.
 Lemma WF_bool_to_matrix : forall b, WF_Matrix 2 2 (bool_to_matrix b).
@@ -681,8 +681,8 @@ Proof.
   easy.
 Qed.
 
-Lemma braqubit0_sa : |0⟩⟨0|† = |0⟩⟨0|. Proof. mlra. Qed.
-Lemma braqubit1_sa : |1⟩⟨1|† = |1⟩⟨1|. Proof. mlra. Qed.
+Lemma braqubit0_sa : ∣0⟩⟨0∣† = ∣0⟩⟨0∣. Proof. mlra. Qed.
+Lemma braqubit1_sa : ∣1⟩⟨1∣† = ∣1⟩⟨1∣. Proof. mlra. Qed.
 
 Hint Rewrite hadamard_sa σx_sa σy_sa σz_sa cnot_sa swap_sa 
              braqubit1_sa braqubit0_sa control_adjoint phase_adjoint : M_db.
@@ -690,6 +690,112 @@ Hint Rewrite hadamard_sa σx_sa σy_sa σz_sa cnot_sa swap_sa
 (* Rather use control_adjoint :
 Hint Rewrite control_sa using (autorewrite with M_db; reflexivity) : M_db. *)
 
+(************************************)
+(* Unitary Properties on Basis Kets *)
+(************************************)
+
+(*
+Definition plus_state := 1/√2 .* ∣0⟩ .+ 1/√2 .* ∣1⟩.
+Definition minus_state := 1/√2 .* ∣0⟩ .+ (-1/√2) .* ∣1⟩.
+
+Transparent plus_state.
+Transparent minus_state.
+                                                       
+Notation "∣+⟩" := plus_state.
+Notation "∣-⟩" := minus_state.
+*)
+
+Notation "∣+⟩" := (/√2 .* ∣0⟩ .+ /√2 .* ∣1⟩).
+Notation "∣-⟩" := (/√2 .* ∣0⟩ .+ (-/√2) .* ∣1⟩).
+
+(* Hadamard properties *)
+Lemma H0_spec : hadamard × ∣0⟩ = ∣+⟩.
+Proof. solve_matrix. Qed.
+
+Lemma H1_spec : hadamard × ∣1⟩ = ∣-⟩.
+Proof. solve_matrix. Qed.
+
+Lemma Hplus_spec : hadamard × ∣+⟩ = ∣0⟩.
+Proof. solve_matrix. Qed.
+
+Lemma Hminus_spec : hadamard × ∣-⟩ = ∣1⟩.
+Proof. solve_matrix.  Qed.
+
+(* X properties *)
+Lemma X0_spec : σx × ∣0⟩ = ∣1⟩.
+Proof. solve_matrix. Qed.
+
+Lemma X1_spec : σx × ∣1⟩ = ∣0⟩.
+Proof. solve_matrix. Qed.
+
+(* Y properties *)
+Lemma Y0_spec : σy × ∣0⟩ = Ci .* ∣1⟩.
+Proof. solve_matrix. Qed.
+
+Lemma Y1_spec : σy × ∣1⟩ = -Ci .* ∣0⟩.
+Proof. solve_matrix. Qed.
+
+(* Z properties *)
+Lemma Z0_spec : σz × ∣0⟩ = ∣0⟩.
+Proof. solve_matrix. Qed.
+
+Lemma Z1_spec : σz × ∣1⟩ = -C1 .* ∣1⟩.
+Proof. solve_matrix. Qed.
+
+(* Move to Matrix.v *)
+Lemma Mscale_assoc : forall (m n : nat) (x y : C) (A : Matrix m n),
+  x .* (y .* A) = (x * y) .* A.
+Proof.
+  intros. unfold scale. prep_matrix_equality.
+  rewrite Cmult_assoc; easy.
+Qed.
+
+Lemma Mscale_plus_distr : forall (m n : nat) (x : C) (A B : Matrix m n),
+  x .* (A .+ B) = x .* A .+ x .* B.
+Proof.
+  intros. unfold Mplus, scale. prep_matrix_equality. apply Cmult_plus_distr_l.
+Qed.
+
+(* For Complex.v *)
+Lemma Ci2 : Ci * Ci = -C1. Proof. clra. Qed.
+
+Hint Rewrite Ci2 : C_db.
+
+      
+Hint Rewrite Mmult_plus_distr_l Mscale_plus_distr Mscale_mult_dist_r Mscale_mult_dist_l : ket_db.
+Hint Rewrite Mscale_assoc Mmult_assoc: ket_db.
+Hint Rewrite Mscale_0_l Mscale_1_l : ket_db.
+Hint Rewrite H0_spec H1_spec Hplus_spec Hminus_spec X0_spec X1_spec Y0_spec Y1_spec
+     Z0_spec Z1_spec : ket_db.
+
+Ltac ket_eq_solver :=
+  intros; autorewrite with ket_db C_db;
+  try match goal with
+  | [|- ?a .* ∣0⟩ .+ ?b .* ∣1⟩ = ?a' .* ∣0⟩ .+ ?b' .* ∣1⟩ ] =>
+    replace a with a'; try clra; replace b with b'; try clra; trivial
+  end.                                                           
+
+Lemma XYZ0 : -Ci .* σx × σy × σz × ∣0⟩ = ∣0⟩.
+Proof. autorewrite with ket_db C_db; easy. Qed.
+                                            
+Lemma XYZ1 : -Ci .* σx × σy × σz × ∣1⟩ = ∣1⟩.
+Proof. autorewrite with ket_db C_db; easy. Qed.
+
+Lemma XYZ : forall α β, -Ci .* σx × σy × σz × (α .* ∣0⟩ .+ β .* ∣1⟩) = α .* ∣0⟩ .+ β .* ∣1⟩.
+Proof.
+  ket_eq_solver.
+Qed.
+
+Proposition HZH : forall α β,
+  hadamard × σz × hadamard × (α .* ∣0⟩ .+ β .* ∣1⟩) = σx × (α .* ∣0⟩ .+ β .* ∣1⟩).
+Proof.
+  ket_eq_solver.
+Abort.
+
+(* Next up:
+   Multiqubit systems.
+   Have ket_eq_solver group ∣0⟩s and ∣1⟩s.
+*)
 
 (**************)
 (* Automation *)
@@ -721,7 +827,7 @@ Ltac Msimpl :=
 Definition positive_semidefinite {n} (A : Square n) : Prop :=
   forall (z : Matrix n 1), WF_Matrix 2 1 z -> fst ((z† × A × z) O O) >= 0.  
 
-Lemma braqubit0_psd : positive_semidefinite |0⟩⟨0|.
+Lemma braqubit0_psd : positive_semidefinite ∣0⟩⟨0∣.
 Proof. 
   intros z WFz. 
   do 3 reduce_matrices. 
@@ -735,7 +841,7 @@ Proof.
   apply Rplus_le_le_0_compat; apply Rle_0_sqr.
 Qed.
 
-Lemma braqubit1_psd : positive_semidefinite |1⟩⟨1|.
+Lemma braqubit1_psd : positive_semidefinite ∣1⟩⟨1∣.
 Proof. 
   intros z WFz. 
   do 3 reduce_matrices. 
@@ -749,7 +855,7 @@ Proof.
   apply Rplus_le_le_0_compat; apply Rle_0_sqr.
 Qed.
 
-Lemma H0_psd : positive_semidefinite (hadamard × |0⟩⟨0| × hadamard).
+Lemma H0_psd : positive_semidefinite (hadamard × ∣0⟩⟨0∣ × hadamard).
 Proof.
   intros z WFz.
   do 5 reduce_matrices.  
@@ -829,11 +935,11 @@ Lemma WF_Mixed : forall {n} (ρ : Density n), Mixed_State ρ -> WF_Matrix n n ρ
 Proof. induction 1; auto with wf_db. Qed.
 Hint Resolve WF_Mixed : wf_db.
 
-Lemma pure0 : Pure_State |0⟩⟨0|. 
-Proof. exists |0⟩. intuition. split. auto with wf_db. solve_matrix. Qed.
+Lemma pure0 : Pure_State ∣0⟩⟨0∣. 
+Proof. exists ∣0⟩. intuition. split. auto with wf_db. solve_matrix. Qed.
 
-Lemma pure1 : Pure_State |1⟩⟨1|. 
-Proof. exists |1⟩. intuition. split. auto with wf_db. solve_matrix. Qed.
+Lemma pure1 : Pure_State ∣1⟩⟨1∣. 
+Proof. exists ∣1⟩. intuition. split. auto with wf_db. solve_matrix. Qed.
 
 Lemma pure_id1 : Pure_State (I  1).
 Proof. exists (I  1). split. split. auto with wf_db. solve_matrix. solve_matrix. Qed.
@@ -1077,10 +1183,10 @@ Definition Splus {m n} (S T : Superoperator m n) : Superoperator m n :=
   fun ρ => S ρ .+ T ρ.
 
 (* These are *)
-Definition new0_op : Superoperator 1 2 := super |0⟩.
-Definition new1_op : Superoperator 1 2 := super |1⟩.
-Definition meas_op : Superoperator 2 2 := Splus (super |0⟩⟨0|) (super |1⟩⟨1|).
-Definition discard_op : Superoperator 2 1 := Splus (super ⟨0|) (super ⟨1|).
+Definition new0_op : Superoperator 1 2 := super ∣0⟩.
+Definition new1_op : Superoperator 1 2 := super ∣1⟩.
+Definition meas_op : Superoperator 2 2 := Splus (super ∣0⟩⟨0∣) (super ∣1⟩⟨1∣).
+Definition discard_op : Superoperator 2 1 := Splus (super ⟨0∣) (super ⟨1∣).
 
 Lemma pure_unitary : forall {n} (U ρ : Matrix n n), 
   WF_Unitary U -> Pure_State ρ -> Pure_State (super U ρ).

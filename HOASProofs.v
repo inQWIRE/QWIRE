@@ -14,7 +14,7 @@ Delimit Scope matrix_scope with M.
 (** EXAMPLES START **)
 (*****************************************************************************)
 
-Lemma init_qubit1 : ⟦init true⟧ I1 = |1⟩⟨1|. 
+Lemma init_qubit1 : ⟦init true⟧ I1 = ∣1⟩⟨1∣. 
 Proof.
   matrix_denote.
   Msimpl.
@@ -148,7 +148,7 @@ Definition biased_coin (c : C) : Matrix 2 2 :=
 Definition uniform (n : nat) : Matrix n n :=
   fun x y => if (x =? y) && (x <? n) then 1/(INR n) else 0.
 
-Lemma bias1 : biased_coin 1 = |1⟩⟨1|.
+Lemma bias1 : biased_coin 1 = ∣1⟩⟨1∣.
 Proof.
   unfold biased_coin.
   prep_matrix_equality; simpl.
@@ -232,8 +232,8 @@ Proof.
     destruct (coin_flips_lift n) eqn:EC.
     unfold remove_pat. simpl.
     replace ((box c) $ ()) with (c ()) by reflexivity.
-    replace (⟨1| × (|0⟩⟨0| × (hadamard × |0⟩⟨0| × hadamard) × |0⟩⟨0| .+ 
-                    |1⟩⟨1| × (hadamard × |0⟩⟨0| × hadamard) × |1⟩⟨1|) × |1⟩)
+    replace (⟨1∣ × (∣0⟩⟨0∣ × (hadamard × ∣0⟩⟨0∣ × hadamard) × ∣0⟩⟨0∣ .+ 
+                    ∣1⟩⟨1∣ × (hadamard × ∣0⟩⟨0∣ × hadamard) × ∣1⟩⟨1∣) × ∣1⟩)
       with ((1/2) .* I 1) by solve_matrix. 
     assert (scale_safe : forall safe w i j (c : DeBruijn_Circuit w) a ρ, 
                denote_db_circuit safe i j c (a .* ρ) = a .* denote_db_circuit safe i j c ρ). admit.
@@ -338,7 +338,7 @@ Fixpoint prepare (ls : list nat) : Matrix 1%nat (2^(length ls)) :=
 
 Definition pure {n} (vec : Matrix n 1%nat) : Matrix n n := vec × (vec †).
 
-Definition prep α β : Matrix 2 2 := pure ((α.*|0⟩) .+ (β.*|1⟩)).
+Definition prep α β : Matrix 2 2 := pure ((α.*∣0⟩) .+ (β.*∣1⟩)).
 Lemma wf_prep : forall α β, WF_Matrix 2 2 (prep α β).
 Proof.
   intros. unfold prep, pure.
@@ -350,8 +350,8 @@ Close Scope matrix_scope.
 
 (*
 Proposition share_correct : forall n α β, 
-      (@denote _ _ (@Denote_Box _ _) (share n) (pure (α.*|0⟩ .+ β.*|1⟩))
-    = pure (α.*(S n ⨂ |0⟩) .+ β.*(S n ⨂ |1⟩)))%M.
+      (@denote _ _ (@Denote_Box _ _) (share n) (pure (α.*∣0⟩ .+ β.*∣1⟩))
+    = pure (α.*(S n ⨂ ∣0⟩) .+ β.*(S n ⨂ ∣1⟩)))%M.
 Proof.
   induction n; intros.
   * repeat (autounfold with den_db; simpl).
@@ -446,7 +446,7 @@ Open Scope circ_scope.
    of f1 (=CNOT). *)
 
 Lemma U_deutsch_constant : forall U_f, U_constant U_f -> 
-                                ⟦U_deutsch U_f⟧ I1 = |0⟩⟨0|.
+                                ⟦U_deutsch U_f⟧ I1 = ∣0⟩⟨0∣.
 Proof.
   Opaque apply_U.
   intros U_f H.
@@ -483,7 +483,7 @@ Proof.
 Qed.
   
 Lemma U_deutsch_balanced : forall U_f, U_balanced U_f -> 
-                                ⟦U_deutsch U_f⟧ I1 = |1⟩⟨1|.
+                                ⟦U_deutsch U_f⟧ I1 = ∣1⟩⟨1∣.
 Proof.
   Opaque apply_U.
   intros U_f H.
@@ -523,7 +523,7 @@ Qed.
 
 (* Slightly faster to destruct 'balanced' last 
 Lemma deutsch_balanced'' : forall U_f, balanced U_f -> 
-                                ⟦deutsch U_f⟧ I1 = |1⟩⟨1|.
+                                ⟦deutsch U_f⟧ I1 = ∣1⟩⟨1∣.
 Proof.
   intros U_f H.
   repeat (simpl; autounfold with den_db). 
@@ -585,7 +585,7 @@ Definition constant (f : bool -> bool) := f true = f false.
 Definition balanced (f : bool -> bool) := f true <> f false.
 
 Lemma deutsch_constant_concrete : forall f, constant f -> 
-                                  ⟦deutsch (fun_to_box f)⟧ I1 = |0⟩⟨0|.
+                                  ⟦deutsch (fun_to_box f)⟧ I1 = ∣0⟩⟨0∣.
 Proof.
   intros f H.
   unfold fun_to_box, constant' in *. 
@@ -605,7 +605,7 @@ Proof.
 Qed.
 
 Lemma deutsch_balanced_concrete : forall f, balanced f -> 
-                                  ⟦deutsch (fun_to_box f)⟧ I1 = |1⟩⟨1|.
+                                  ⟦deutsch (fun_to_box f)⟧ I1 = ∣1⟩⟨1∣.
 Proof.
   intros f H.
   unfold fun_to_box, balanced' in *. 

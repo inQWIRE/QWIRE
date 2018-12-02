@@ -34,10 +34,10 @@ Proof.
   rewrite Mmult_plus_distr_l.
   rewrite Mmult_plus_distr_r.
   repeat rewrite <- Mmult_assoc.
-  repeat rewrite (Mmult_assoc _ _ _ _ _ ⟨0| σx).
-  repeat rewrite (Mmult_assoc _ _ _ _ _ ⟨1| σx).
-  repeat rewrite (Mmult_assoc _ _ _ _ _ σx |0⟩).
-  repeat rewrite (Mmult_assoc _ _ _ _ _ σx |1⟩).
+  repeat rewrite (Mmult_assoc _ _ _ _ _ ⟨0∣ σx).
+  repeat rewrite (Mmult_assoc _ _ _ _ _ ⟨1∣ σx).
+  repeat rewrite (Mmult_assoc _ _ _ _ _ σx ∣0⟩).
+  repeat rewrite (Mmult_assoc _ _ _ _ _ σx ∣1⟩).
   Msimpl.
   rewrite Mplus_comm.
   reflexivity.
@@ -224,7 +224,7 @@ Proof. type_check. Qed.
 
 Lemma init_if_true_qubit : forall (U V : Unitary Qubit) ρ,
   WF_Matrix 2 2 ρ -> 
-  ⟦init_if true U V⟧ ρ = (|1⟩ ⊗ I 2 )%M × (⟦U⟧ × ρ × (⟦U⟧†)) × (⟨1| ⊗ I 2)%M. 
+  ⟦init_if true U V⟧ ρ = (∣1⟩ ⊗ I 2 )%M × (⟦U⟧ × ρ × (⟦U⟧†)) × (⟨1∣ ⊗ I 2)%M. 
 Proof.
   intros U V ρ WF. simpl in *.
   matrix_denote.
@@ -235,7 +235,7 @@ Qed.
   
 Lemma init_if_false_qubit : forall (U V : Unitary Qubit) ρ,
   WF_Matrix 2 2 ρ -> 
-  ⟦init_if false U V⟧ ρ = (|0⟩ ⊗ I 2 )%M × (⟦V⟧ × ρ × (⟦V⟧†)) × (⟨0| ⊗ I 2)%M. 
+  ⟦init_if false U V⟧ ρ = (∣0⟩ ⊗ I 2 )%M × (⟦V⟧ × ρ × (⟦V⟧†)) × (⟨0∣ ⊗ I 2)%M. 
 Proof.
   intros U V ρ WF. simpl in *.
   matrix_denote.
