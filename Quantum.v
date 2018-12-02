@@ -46,8 +46,8 @@ Definition ket (x : nat) : Matrix 2 1 := if x =? 0 then ∣0⟩ else ∣1⟩.
 Notation "'∣' x '⟩'" := (ket x).
 Notation "'⟨' x '∣'" := (bra x). (* This gives the Coq parser headaches *)
 
-Notation "∣ x y .. z ⟩" := (kron .. (kron ∣x⟩ ∣y⟩) .. ∣z⟩) (at level 0).
-                                                      
+Notation "∣ x , y , .. , z ⟩" := (kron .. (kron ∣x⟩ ∣y⟩) .. ∣z⟩) (at level 0).
+                                                           
 Transparent bra.
 Transparent ket.
 Transparent qubit0.
@@ -165,7 +165,7 @@ Definition swap : Matrix 4 4 :=
           end.
 
 (* Does this overwrite the other Hint DB M? *)
-Hint Unfold qubit0 qubit1 hadamard σx σy σz control cnot swap : M_db.
+Hint Unfold qubit0 qubit1 hadamard σx σy σz control cnot swap bra ket : M_db.
 
 (* Lemmas *)
 Lemma MmultX1 : σx × ∣1⟩ = ∣0⟩. Proof. solve_matrix. Qed.
@@ -742,26 +742,33 @@ Proof. solve_matrix. Qed.
 Lemma Z1_spec : σz × ∣1⟩ = -C1 .* ∣1⟩.
 Proof. solve_matrix. Qed.
 
-(* Move to Matrix.v *)
-Lemma Mscale_assoc : forall (m n : nat) (x y : C) (A : Matrix m n),
-  x .* (y .* A) = (x * y) .* A.
+(* CNOT properties *)
+
+Lemma CNOT_spec : forall (x y : nat), (x < 2)%nat -> (y < 2)%nat -> cnot × ∣x,y⟩ = ∣x, (x + y) mod 2⟩.
 Proof.
-  intros. unfold scale. prep_matrix_equality.
-  rewrite Cmult_assoc; easy.
+  intros.
+  destruct x as [| [|x]], y as [| [|y]]; try omega; solve_matrix.
 Qed.
 
-Lemma Mscale_plus_distr : forall (m n : nat) (x : C) (A B : Matrix m n),
-  x .* (A .+ B) = x .* A .+ x .* B.
-Proof.
-  intros. unfold Mplus, scale. prep_matrix_equality. apply Cmult_plus_distr_l.
-Qed.
+Lemma CNOT00_spec : cnot × ∣0,0⟩ = ∣0,0⟩.
+Proof. solve_matrix. Qed.
 
-(* For Complex.v *)
-Lemma Ci2 : Ci * Ci = -C1. Proof. clra. Qed.
+Lemma CNOT01_spec : cnot × ∣0,1⟩ = ∣0,1⟩.
+Proof. crunch_matrix. Qed.
 
-Hint Rewrite Ci2 : C_db.
+Lemma CNOT10_spec : cnot × ∣1,0⟩ = ∣1,1⟩.
+Proof. solve_matrix. Qed.
+                                        
+Lemma CNOT11_spec : cnot × ∣1,1⟩ = ∣1,0⟩.
+Proof. solve_matrix. Qed.
 
-      
+(* SWAP properties *)
+
+Lemma SWAP_spec : forall x y, swap × ∣x,y⟩ = ∣y,x⟩.
+Proof. intros. destruct x,y; solve_matrix. Qed.
+
+(* Automation *)
+
 Hint Rewrite Mmult_plus_distr_l Mscale_plus_distr Mscale_mult_dist_r Mscale_mult_dist_l : ket_db.
 Hint Rewrite Mscale_assoc Mmult_assoc: ket_db.
 Hint Rewrite Mscale_0_l Mscale_1_l : ket_db.

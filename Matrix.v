@@ -1006,7 +1006,6 @@ Proof.
   reflexivity.
 Qed.
 
-(* There should be left and right versions of these *)
 Lemma Mscale_0_l : forall (m n : nat) (A : Matrix m n), C0 .* A = Zero.
 Proof.
   intros m n A.
@@ -1043,6 +1042,19 @@ Proof.
   destruct ((x =? y) && (x <? n)).
   rewrite Cmult_1_r; reflexivity.
   rewrite Cmult_0_r; reflexivity.
+Qed.
+
+Lemma Mscale_assoc : forall (m n : nat) (x y : C) (A : Matrix m n),
+  x .* (y .* A) = (x * y) .* A.
+Proof.
+  intros. unfold scale. prep_matrix_equality.
+  rewrite Cmult_assoc; easy.
+Qed.
+
+Lemma Mscale_plus_distr : forall (m n : nat) (x : C) (A B : Matrix m n),
+  x .* (A .+ B) = x .* A .+ x .* B.
+Proof.
+  intros. unfold Mplus, scale. prep_matrix_equality. apply Cmult_plus_distr_l.
 Qed.
 
 Lemma Mscale_mult_dist_l : forall (m n o : nat) (x : C) (A : Matrix m n) (B : Matrix n o), 
