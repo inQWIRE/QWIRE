@@ -588,7 +588,7 @@ Lemma deutsch_constant_concrete : forall f, constant f ->
                                   ⟦deutsch (fun_to_box f)⟧ I1 = |0⟩⟨0|.
 Proof.
   intros f H.
-  unfold fun_to_box, constant' in *. 
+  unfold fun_to_box, constant in *. 
   destruct (f true), (f false); try discriminate H.
   - matrix_denote.
     Msimpl.
@@ -608,7 +608,7 @@ Lemma deutsch_balanced_concrete : forall f, balanced f ->
                                   ⟦deutsch (fun_to_box f)⟧ I1 = |1⟩⟨1|.
 Proof.
   intros f H.
-  unfold fun_to_box, balanced' in *. 
+  unfold fun_to_box, balanced in *. 
   destruct (f true), (f false); try contradiction.
   - matrix_denote.
     Msimpl.
