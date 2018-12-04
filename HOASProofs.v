@@ -14,7 +14,7 @@ Delimit Scope matrix_scope with M.
 (** EXAMPLES START **)
 (*****************************************************************************)
 
-Lemma init_qubit1 : ⟦init true⟧ I1 = ∣1⟩⟨1∣. 
+Lemma init_qubit1 : ⟦init true⟧ (I 1) = ∣1⟩⟨1∣. 
 Proof.
   matrix_denote.
   Msimpl.
@@ -162,7 +162,7 @@ Proof.
   destruct_m_eq; clra.
 Qed.
 
-Lemma fair_toss : ⟦coin_flip⟧ I1  = fair_coin.
+Lemma fair_toss : ⟦coin_flip⟧ (I 1)  = fair_coin.
 Proof. matrix_denote. Msimpl. solve_matrix. Qed.
 
 Lemma wf_biased_coin : forall c, WF_Matrix 2 2 (biased_coin c).
@@ -175,7 +175,7 @@ Hint Unfold super_Zero : den_db.
 
 (* Uses denote_compose: *)
 (*
-Proposition flips_correct : forall n, ⟦coin_flips n⟧ I1 = biased_coin (1/(2^n)).
+Proposition flips_correct : forall n, ⟦coin_flips n⟧ (I 1) = biased_coin (1/(2^n)).
 Proof.
   induction n.  
   + matrix_denote. Msimpl. solve_matrix.
@@ -220,7 +220,7 @@ Abort.
 
 (* The following uses a lemma (scale_safe) that is worth proving, but not yet proven *)
 (* We abort this lemma and prove a more general version below *)
-Proposition flips_lift_correct : forall n, ⟦coin_flips_lift n⟧ I1 = biased_coin (1/(2^n)).
+Proposition flips_lift_correct : forall n, ⟦coin_flips_lift n⟧ (I 1) = biased_coin (1/(2^n)).
 Proof.
   induction n.
   + matrix_denote. Msimpl. solve_matrix.
@@ -234,7 +234,7 @@ Proof.
     replace ((box c) $ ()) with (c ()) by reflexivity.
     replace (⟨1∣ × (∣0⟩⟨0∣ × (hadamard × ∣0⟩⟨0∣ × hadamard) × ∣0⟩⟨0∣ .+ 
                     ∣1⟩⟨1∣ × (hadamard × ∣0⟩⟨0∣ × hadamard) × ∣1⟩⟨1∣) × ∣1⟩)
-      with ((1/2) .* I 1) by solve_matrix. 
+      with ((1/2) .* (I 1)) by solve_matrix. 
     assert (scale_safe : forall safe w i j (c : DeBruijn_Circuit w) a ρ, 
                denote_db_circuit safe i j c (a .* ρ) = a .* denote_db_circuit safe i j c ρ). admit.
     rewrite scale_safe.
@@ -251,7 +251,7 @@ Proof.
 Abort.
 
 (* This generalizes the theorem to get around the lemma *)
-Lemma flips_lift_correct_gen : forall n a, ⟦coin_flips_lift n⟧ (a .* I1) = a .* biased_coin (1/(2^n)).
+Lemma flips_lift_correct_gen : forall n a, ⟦coin_flips_lift n⟧ (a .* (I 1)) = a .* biased_coin (1/(2^n)).
 Proof.
   induction n.
   + matrix_denote. Msimpl. solve_matrix.
@@ -265,7 +265,7 @@ Proof.
     unfold remove_pat. simpl.
     replace ((box c) $ ()) with (c ()) by reflexivity.
     match goal with 
-    [|- _ .+ ?f ?ρ = _] => replace ρ with ((a/2 .* I 1))
+    [|- _ .+ ?f ?ρ = _] => replace ρ with ((a/2 .* (I 1)))
     end.
     2: solve_matrix; rewrite (Cmult_comm (/√2)), <- Cmult_assoc; autorewrite with C_db; easy.
     setoid_rewrite (IHn (a / 2)).
@@ -285,10 +285,10 @@ Proof.
       easy.
 Qed.
 
-Lemma flips_lift_correct : forall n, ⟦coin_flips_lift n⟧ I1 = biased_coin (1/(2^n)).
+Lemma flips_lift_correct : forall n, ⟦coin_flips_lift n⟧ (I 1) = biased_coin (1/(2^n)).
 Proof.
   intros n.
-  rewrite <- Mscale_1_l, <- (Mscale_1_l _ _ I1).
+  rewrite <- Mscale_1_l, <- (Mscale_1_l _ _ (I 1)).
   apply flips_lift_correct_gen.
 Qed.
 
@@ -334,7 +334,7 @@ Hint Unfold apply_box : den_db.
 
 Open Scope matrix_scope.
 Fixpoint prepare (ls : list nat) : Matrix 1%nat (2^(length ls)) :=
-  fold_left (fun A x => ket x ⊗ A) ls (I 1).
+  fold_left (fun A x => ket x ⊗ A) ls ((I 1)).
 
 Definition pure {n} (vec : Matrix n 1%nat) : Matrix n n := vec × (vec †).
 
@@ -446,7 +446,7 @@ Open Scope circ_scope.
    of f1 (=CNOT). *)
 
 Lemma U_deutsch_constant : forall U_f, U_constant U_f -> 
-                                ⟦U_deutsch U_f⟧ I1 = ∣0⟩⟨0∣.
+                                ⟦U_deutsch U_f⟧ (I 1) = ∣0⟩⟨0∣.
 Proof.
   Opaque apply_U.
   intros U_f H.
@@ -483,7 +483,7 @@ Proof.
 Qed.
   
 Lemma U_deutsch_balanced : forall U_f, U_balanced U_f -> 
-                                ⟦U_deutsch U_f⟧ I1 = ∣1⟩⟨1∣.
+                                ⟦U_deutsch U_f⟧ (I 1) = ∣1⟩⟨1∣.
 Proof.
   Opaque apply_U.
   intros U_f H.
@@ -523,7 +523,7 @@ Qed.
 
 (* Slightly faster to destruct 'balanced' last 
 Lemma deutsch_balanced'' : forall U_f, balanced U_f -> 
-                                ⟦deutsch U_f⟧ I1 = ∣1⟩⟨1∣.
+                                ⟦deutsch U_f⟧ (I 1) = ∣1⟩⟨1∣.
 Proof.
   intros U_f H.
   repeat (simpl; autounfold with den_db). 
@@ -585,10 +585,10 @@ Definition constant (f : bool -> bool) := f true = f false.
 Definition balanced (f : bool -> bool) := f true <> f false.
 
 Lemma deutsch_constant_concrete : forall f, constant f -> 
-                                  ⟦deutsch (fun_to_box f)⟧ I1 = ∣0⟩⟨0∣.
+                                  ⟦deutsch (fun_to_box f)⟧ (I 1) = ∣0⟩⟨0∣.
 Proof.
   intros f H.
-  unfold fun_to_box, constant' in *. 
+  unfold fun_to_box, constant in *. 
   destruct (f true), (f false); try discriminate H.
   - matrix_denote.
     Msimpl.
@@ -605,10 +605,10 @@ Proof.
 Qed.
 
 Lemma deutsch_balanced_concrete : forall f, balanced f -> 
-                                  ⟦deutsch (fun_to_box f)⟧ I1 = ∣1⟩⟨1∣.
+                                  ⟦deutsch (fun_to_box f)⟧ (I 1) = ∣1⟩⟨1∣.
 Proof.
   intros f H.
-  unfold fun_to_box, balanced' in *. 
+  unfold fun_to_box, balanced in *. 
   destruct (f true), (f false); try contradiction.
   - matrix_denote.
     Msimpl.
@@ -639,7 +639,7 @@ Definition EPR00 : Matrix 4 4 :=
              | _, _ => 0
              end.
 
-Lemma bell00_spec :  ⟦bell00⟧ I1  = EPR00.
+Lemma bell00_spec :  ⟦bell00⟧ (I 1)  = EPR00.
 Proof.
   repeat (simpl; autounfold with den_db). 
   Msimpl. 
@@ -762,7 +762,7 @@ Proof.
 Qed.
 
 Lemma superdense_distant_eq : forall b1 b2, 
-  ⟦superdense_distant b1 b2⟧ I1 = bools_to_matrix [b1; b2].
+  ⟦superdense_distant b1 b2⟧ (I 1) = bools_to_matrix [b1; b2].
 Proof.
   intros b1 b2.
   specialize (WF_bools_to_matrix ([b1;b2])) as WF.
