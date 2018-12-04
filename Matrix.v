@@ -1048,7 +1048,7 @@ Lemma Mscale_assoc : forall (m n : nat) (x y : C) (A : Matrix m n),
   x .* (y .* A) = (x * y) .* A.
 Proof.
   intros. unfold scale. prep_matrix_equality.
-  rewrite Cmult_assoc; easy.
+  rewrite Cmult_assoc; reflexivity.
 Qed.
 
 Lemma Mscale_plus_distr : forall (m n : nat) (x : C) (A B : Matrix m n),
@@ -1091,7 +1091,7 @@ Proof.
   unfold scale, kron.
   prep_matrix_equality.
   rewrite Cmult_assoc.
-  easy.
+  reflexivity.
 Qed.
 
 Lemma Mscale_kron_dist_r : forall (m n o p : nat) (x : C) (A : Matrix m n) (B : Matrix o p), 
@@ -1103,9 +1103,22 @@ Proof.
   rewrite Cmult_assoc.  
   rewrite (Cmult_comm (A _ _) x).
   rewrite Cmult_assoc.  
-  easy.
+  reflexivity.
 Qed.
 
+Lemma Mscale_trans : forall (m n : nat) (x : C) (A : Matrix m n),
+    (x .* A)⊤ = x .* A⊤.
+Proof. reflexivity. Qed.
+
+Lemma Mscale_adj : forall (m n : nat) (x : C) (A : Matrix m n),
+    (x .* A)† = x^* .* A†.
+Proof.
+  intros m n x A.
+  unfold scale, adjoint.
+  prep_matrix_equality.
+  rewrite Cconj_mult_distr.          
+  reflexivity.
+Qed.
 
 (* Inverses of square matrices *)
 
