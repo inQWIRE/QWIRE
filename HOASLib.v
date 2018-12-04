@@ -144,7 +144,7 @@ Definition inPar {w1 w2 w1' w2'}
     let_ p2'     ← unbox c2 p2; 
     (p1',p2').
 
-(* Idealized inPar 
+(* Iealized inPar 
 
 Unset Printing Notations.
 

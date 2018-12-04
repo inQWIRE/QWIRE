@@ -657,14 +657,14 @@ Definition random_denotation :=
 
 Check random_denotation.
 
-Eval simpl in (random_denotation (Id 1)).
-Eval compute in (random_denotation (Id 1)).
+Eval simpl in (random_denotation (I 1)).
+Eval compute in (random_denotation (I 1)).
 )
 
 Definition eq_denotation_qasm_simulator (gdb : GeneralDBCircuit) :=
   let dbc := (GeneralDBCircuit_to_DBCircuit gdb) in
   let denotation := (denote_db_circuit true O O dbc) in
-  let mat := denotation (Id 1) in
+  let mat := denotation (I 1) in
   (mat O O + mat 1%nat 1%nat) = 1?.
 
 QuickChick (forAll (genGeneralDBCircuitWTyped Qubit) eq_denotation_qasm_simulator).

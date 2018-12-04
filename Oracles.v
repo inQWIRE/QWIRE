@@ -3,6 +3,7 @@ Require Import Monad.
 Require Import HOASCircuits.
 Require Import HOASExamples.
 Require Import Denotation.
+Require Import Composition.
 Require Import DBCircuits.
 Require Import TypeChecking.
 Require Import Symmetric.
@@ -744,7 +745,7 @@ Qed.
 (*
 Fixpoint ctx_to_matrix (Γ : Ctx) (f : Var -> bool) {struct Γ} : Square (2^⟦Γ⟧) :=
   match Γ with 
-  | [] => 'I_1
+  | [] => I 1
   | None :: Γ' => ctx_to_matrix Γ' (fun v => f (S v))
   | Some W :: Γ' => bool_to_matrix (f O) ⊗ ctx_to_matrix Γ' (fun v => f (S v))
   end.
@@ -1089,7 +1090,7 @@ Proof.
     rewrite_inPar.
     repeat simpl_rewrite id_circ_spec; auto with wf_db.
     simpl_rewrite init1_spec.
-    replace (|1⟩⟨1|) with (bool_to_matrix true) by reflexivity.    
+    replace (∣1⟩⟨1∣) with (bool_to_matrix true) by reflexivity.    
     rewrite (IHb Γ f true H). rewrite xorb_true_l. (* yay! *)
     listify_kron.
     simpl_rewrite (CNOT_at_spec (¬ ⌈b | f⌉) t (S (S (⟦Γ⟧))) 1 0); trivial; try omega. 
@@ -1113,7 +1114,7 @@ Proof.
     unfold compose_super.
     repeat rewrite_inPar.    
     repeat rewrite strip_one_l_in_eq.
-    replace (ctx_to_matrix Γ f) with (Id 1 ⊗ ctx_to_matrix Γ f) by
+    replace (ctx_to_matrix Γ f) with (I 1 ⊗ ctx_to_matrix Γ f) by
         (Msimpl; easy).
     rewrite_inPar.    
     repeat simpl_rewrite id_circ_spec; auto with wf_db.
@@ -1124,13 +1125,13 @@ Proof.
         (destruct (⌈b1 | f⌉); easy).  
     rewrite_inPar.
     repeat rewrite strip_one_l_in_eq.
-    replace (ctx_to_matrix Γ f) with (Id 1 ⊗ ctx_to_matrix Γ f) by
+    replace (ctx_to_matrix Γ f) with (I 1 ⊗ ctx_to_matrix Γ f) by
         (Msimpl; easy).
     rewrite_inPar.
     rewrite_inPar.
     simpl_rewrite init0_spec.
     repeat simpl_rewrite id_circ_spec; auto with wf_db.
-    replace (|0⟩⟨0|) with (bool_to_matrix false) by reflexivity.
+    replace (∣0⟩⟨0∣) with (bool_to_matrix false) by reflexivity.
     simpl_rewrite IHb2; trivial.
     rewrite xorb_false_l.
     listify_kron.
@@ -1145,13 +1146,13 @@ Proof.
     rewrite_inPar.
     repeat simpl_rewrite id_circ_spec; auto with wf_db.
     rewrite xorb_nilpotent.
-    replace (bool_to_matrix false) with (|0⟩⟨0|) by easy.
+    replace (bool_to_matrix false) with (∣0⟩⟨0∣) by easy.
     simpl_rewrite assert0_spec.
     Msimpl.
     simpl_rewrite IHb1; trivial.
     rewrite_inPar.
     rewrite xorb_nilpotent.
-    replace (bool_to_matrix false) with (|0⟩⟨0|) by easy.
+    replace (bool_to_matrix false) with (∣0⟩⟨0∣) by easy.
     simpl_rewrite assert0_spec.
     simpl_rewrite id_circ_spec; auto with wf_db.
     Msimpl.
@@ -1233,7 +1234,7 @@ Proof.
     unfold compose_super.
     repeat rewrite_inPar.    
     repeat rewrite strip_one_l_in_eq.
-    replace (ctx_to_matrix Γ f) with (Id 1 ⊗ ctx_to_matrix Γ f) by
+    replace (ctx_to_matrix Γ f) with (I 1 ⊗ ctx_to_matrix Γ f) by
         (Msimpl; easy).
     rewrite_inPar.    
     repeat simpl_rewrite id_circ_spec; auto with wf_db.

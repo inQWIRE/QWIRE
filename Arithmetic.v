@@ -7,6 +7,7 @@ Require Import SemanticLib.
 Require Import Symmetric.
 Require Import Matrix.
 Require Import Denotation.
+Require Import Composition.
 Require Import Monad.
 Require Import Program.
 
@@ -59,7 +60,7 @@ Definition fun_of_bools (l : list bool) := fun n => nth n l false.
 (*
 Fixpoint bools_to_matrix (l : list bool) : Square (2^(length l)) := 
   match l with
-  | []      => Id 1
+  | []      => I 1
   | b :: bs => (bool_to_matrix b ⊗ bools_to_matrix bs)%M
   end.
 *)
@@ -1060,7 +1061,7 @@ Proof.
   induction n.
   - intros. simpl.
     specialize id_circ_spec as Iid. simpl in Iid. repeat rewrite Iid. clear Iid. reflexivity.
-    apply WF_kron; try reflexivity; try apply WF_bool_to_matrix; try apply WF_Id.
+    apply WF_kron; try reflexivity; try apply WF_bool_to_matrix; try apply WF_I.
   - intros. simpl_eq.
     replace (n - n + (n - n) + (n - n)) with 0 in * by omega.
     specialize inSeq_correct as IS. simpl in IS. rewrite IS. clear IS.

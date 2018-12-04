@@ -1,6 +1,7 @@
 Require Import DBCircuits.
 Require Import TypeChecking.
 Require Import Denotation.
+Require Import Composition.
 
 (*************************)
 (* Assertion Correctness *)
@@ -137,7 +138,7 @@ Proof.
     rewrite H. 
     easy.
     unfold Typed_Box in T. simpl in T. apply T.
-    (* Lemma to add to DBCircuits *)
+    (* This should be proven in DBCircuits *)
     admit.
   - intros H p Γ Γ0 T.
     simpl in *.
@@ -314,19 +315,15 @@ Proof.
     - dependent destruction p.
       dependent destruction t.
       simpl. erewrite VA. reflexivity.
+      unfold process_gate_state. simpl.
+      unfold process_gate_pat. simpl.
+      apply singleton_equiv in s. subst.
+      erewrite remove_bit_merge'. 
+      apply trim_types_circ. 
       eapply t0.
       2: constructor.
-      constructor.
-      validate.
-      rewrite merge_nil_l.
-      assert (t' : Γ ⊢ c () :Circ). apply (t0 ∅). split. 
-        validate. rewrite merge_nil_l. easy. constructor.
-      specialize (types_circ_types_pat w Γ (c ()) t') as [w' [p' TP]].  
-      unfold process_gate_state; simpl.
-      apply ctx_octx.
-      apply (remove_bit_merge _ _ w' p'); trivial. 
-      apply singleton_equiv in s. subst.
-      assumption.
+      split. validate. rewrite merge_nil_l. easy. 
+      easy.
     - dependent destruction AF. inversion H.
     - dependent destruction AF. inversion H.
   + dependent destruction AF.
@@ -344,23 +341,28 @@ Proof.
       dependent destruction p.
       dependent destruction t.
       apply singleton_equiv in s. subst.
-      specialize (types_circ_types_pat w Γ2 (c true) (t0 true)) as [w' [p' TP]].      
       destruct Γ2 as [|Γ2]; try invalid_contradiction.
-      rewrite (remove_bit_merge Γ2 Γ w' p'); easy. 
+      erewrite remove_bit_merge'. 
+      apply trim_types_circ. 
+      apply t0.
+      easy.
     * dependent destruction WT.
       dependent destruction p.
       dependent destruction t.
       apply singleton_equiv in s. subst.
-      specialize (types_circ_types_pat w Γ2 (c false) (t0 false)) as [w' [p' TP]].   
       destruct Γ2 as [|Γ2]; try invalid_contradiction.
-      rewrite (remove_bit_merge Γ2 Γ w' p'); easy. 
+      erewrite remove_bit_merge'. 
+      apply trim_types_circ. 
+      apply t0.
+      easy.
     * dependent destruction WT.
       dependent destruction p.
       dependent destruction t.
       apply singleton_equiv in s. subst.
-      specialize (types_circ_types_pat w Γ2 (c true) (t0 true)) as [w' [p' TP]].      
       destruct Γ2 as [|Γ2]; try invalid_contradiction.
-      rewrite (remove_bit_pred Γ2 Γ); easy.
+      rewrite (remove_bit_pred Γ2 Γ). 
+      easy. 
+      easy.
 Qed.
 
 Lemma ancilla_free_box_valid : forall W W' (c : Box W W'), 
@@ -374,5 +376,41 @@ Proof.
   apply ancilla_free_valid.
   apply H.
 Qed.
+
+(* ---------------------------------------------*)
+(*--------- Tactics for Valid Circuits ---------*)
+(* ---------------------------------------------*)
+
+(* It turns out, these generally aren't needed. *)
+Lemma valid_denote_true : forall W W' (c : Box W W') 
+  (ρ : Square (2^(⟦W⟧))) (ρ' : Square (2^(⟦W⟧))) (safe : bool), 
+  (* typically ancilla_free_box c, but we'll make it general *)
+  Typed_Box c ->
+  valid_ancillae_box c ->
+  denote_box true c ρ = ρ' ->
+  denote_box safe c ρ = ρ'. 
+Proof.
+  intros W W' c ρ ρ' safe T H D.
+  destruct safe; trivial.
+  rewrite <- H; assumption.
+Qed.  
+
+Lemma valid_denote_false : forall W W' (c : Box W W') 
+  (ρ : Square (2^(⟦W⟧))) (ρ' : Square (2^(⟦W⟧))) (safe : bool), 
+  Typed_Box c ->
+  valid_ancillae_box c ->
+  denote_box false c ρ = ρ' ->
+  denote_box safe c ρ = ρ'. 
+Proof.
+  intros W W' c ρ ρ' safe T H D.
+  destruct safe; trivial.
+  rewrite H; assumption.
+Qed.  
+
+Ltac case_safe := apply valid_denote_true; 
+                  try solve [type_check; apply ancilla_free_box_valid; repeat constructor].
+Ltac case_unsafe := apply valid_denote_false;
+                    try solve [type_check; apply ancilla_free_box_valid; repeat constructor].
+
 
 (* *)

@@ -56,6 +56,9 @@ Inductive OCtx :=
 | Invalid : OCtx 
 | Valid : Ctx -> OCtx.
 
+Lemma ctx_octx : forall Γ Γ', Valid Γ = Valid Γ' <-> Γ = Γ'.
+Proof. intuition; congruence. Defined.
+
 (* The size of a context is the number of wires it holds *)
 Fixpoint size_ctx (Γ : Ctx) : nat :=
   match Γ with
@@ -69,6 +72,9 @@ Definition size_octx (Γ : OCtx) : nat :=
   | Valid Γ' => size_ctx Γ'
   end.
 
+Lemma size_ctx_size_octx : forall (Γ : Ctx), size_ctx Γ = size_octx (Valid Γ).
+Proof. easy. Qed.
+
 Lemma size_ctx_app : forall (Γ1 Γ2 : Ctx),
       size_ctx (Γ1 ++ Γ2) = (size_ctx Γ1 + size_ctx Γ2)%nat.
 Proof.
@@ -77,8 +83,6 @@ Proof.
   rewrite IHΓ1; easy.
 Qed.
 
-Lemma ctx_octx : forall Γ Γ', Valid Γ = Valid Γ' <-> Γ = Γ'.
-Proof. intuition; congruence. Defined.
 
 (**********************)
 (* Singleton Contexts *)
@@ -963,6 +967,9 @@ Definition otrim (Γ : OCtx) :=
   | Valid Γ => Valid (trim Γ)
   end.
 
+Lemma trim_otrim : forall (Γ : Ctx), Valid (trim Γ) = otrim Γ.
+Proof. easy. Qed. 
+
 Lemma size_ctx_trim : forall Γ, size_ctx (trim Γ) = size_ctx Γ.
 Proof.
   induction Γ; auto.
@@ -1027,6 +1034,161 @@ Proof.
   destruct (trim Γ); easy. 
 Qed.
 
+
+Lemma trim_valid : forall (Γ : OCtx), is_valid Γ <-> is_valid (otrim Γ).
+Proof.
+  destruct Γ as [|Γ].
+  - simpl. easy.
+  - simpl. split; intros; apply valid_valid.
+Qed.
+
+(* I'm sure there's a more succint way to prove this. Maybe use cons_o? *)
+Lemma trim_merge_dist : forall Γ1 Γ2, otrim Γ1 ⋓ otrim Γ2 = otrim (Γ1 ⋓ Γ2).
+Proof.
+  destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try (simpl; easy).
+  gen Γ2.
+  induction Γ1 as [|o1 Γ1 IH].
+  - intros Γ2. easy. 
+  - intros Γ2.
+    destruct Γ2 as [|o2 Γ2].
+    rewrite 2 merge_nil_r. easy.
+    specialize (IH Γ2).
+    destruct (eq_dec_empty_ctx Γ1) as [E1 | NE1];
+    destruct (eq_dec_empty_ctx Γ2) as [E2 | NE2].
+    + repeat rewrite <- trim_otrim in *.
+      apply trim_empty in E1.
+      apply trim_empty in E2.
+      rewrite E1, E2 in *.
+      rewrite merge_nil_l in *.
+      destruct o1, o2.
+      * simpl. easy.
+      * simpl. rewrite E1, E2. simpl in IH. 
+        destruct (merge' Γ1 Γ2). inversion IH.
+        simpl in *.
+        inversion IH.
+        easy.
+      * simpl. rewrite E1, E2. simpl in IH. 
+        destruct (merge' Γ1 Γ2). inversion IH.
+        simpl in *.
+        inversion IH.
+        easy.
+      * simpl. rewrite E1, E2. simpl in IH.
+        destruct (merge' Γ1 Γ2). inversion IH.
+        simpl in *.
+        inversion IH.
+        easy.
+    + repeat rewrite <- trim_otrim in *.
+      apply trim_empty in E1.
+      rewrite E1 in *.
+      rewrite merge_nil_l in *.
+      eapply trim_cons_non_empty in NE2.
+      rewrite NE2 in *.
+      destruct o1, o2.
+      * simpl. easy.
+      * simpl in *. 
+        rewrite E1; simpl.
+        destruct (merge' Γ1 Γ2) eqn:M. inversion IH.
+        simpl. inversion IH. easy.
+      * simpl in *.
+        rewrite E1. simpl.
+        destruct (merge' Γ1 Γ2) eqn:M. inversion IH.
+        simpl. inversion IH. easy.
+      * simpl. simpl in IH.
+        rewrite E1. simpl. 
+        destruct (merge' Γ1 Γ2) eqn:M. inversion IH.
+        simpl. inversion IH.
+        simpl in *.
+        destruct (trim Γ2). inversion NE2.
+        easy.
+    + repeat rewrite <- trim_otrim in *.
+      apply trim_empty in E2.
+      rewrite E2 in *.
+      rewrite merge_nil_r in *.
+      eapply trim_cons_non_empty in NE1.
+      rewrite NE1 in *.
+      destruct o1, o2.
+      * simpl. easy.
+      * simpl in *. 
+        rewrite E2; simpl.
+        destruct (merge' Γ1 Γ2) eqn:M. inversion IH.
+        simpl. inversion IH. easy.
+      * simpl in *.
+        rewrite E2. simpl.
+        destruct (merge' Γ1 Γ2) eqn:M. inversion IH.
+        rewrite <- merge_merge'. rewrite merge_nil_r. 
+        simpl. inversion IH. easy.
+      * simpl. simpl in IH.
+        rewrite E2. simpl. 
+        destruct (merge' Γ1 Γ2) eqn:M. inversion IH.
+        simpl. inversion IH.
+        simpl in *.
+        destruct (trim Γ1). inversion NE1.
+        easy.
+    + repeat rewrite <- trim_otrim in *.
+      eapply trim_cons_non_empty in NE1.
+      rewrite NE1 in *.
+      eapply trim_cons_non_empty in NE2.
+      rewrite NE2 in *.
+      destruct o1, o2.
+      * simpl. easy.
+      * simpl in *. 
+        rewrite IH.
+        destruct (merge' Γ1 Γ2). easy.
+        simpl.
+        easy.
+      * simpl in *. 
+        rewrite IH.
+        destruct (merge' Γ1 Γ2). easy.
+        simpl.
+        easy.
+      * simpl in *.
+        rewrite IH.
+        destruct (merge' Γ1 Γ2) eqn:E. easy.
+        simpl in *.
+        destruct (trim c).
+        destruct (trim Γ1). inversion NE1. 
+        destruct (trim Γ2). inversion NE2.
+        simpl in IH. destruct (merge_wire o o0) eqn:EW. inversion IH.
+        destruct (merge' c0 c1) eqn:E'. inversion IH.
+        destruct o, o0;
+        simpl in EW; inversion EW as [S]; rewrite <- S in IH; inversion IH.
+        easy.
+Qed.
+
+Lemma trim_merge : forall Γ Γ1 Γ2, Γ == Γ1 ∙ Γ2 ->
+                              otrim Γ == otrim Γ1 ∙ otrim Γ2.
+Proof.
+  intros Γ Γ1 Γ2 M.
+  apply merge_fun_ind in M.
+  induction M.
+  - split. 
+    simpl; apply valid_valid. 
+    rewrite merge_nil_l; easy.
+  - split. 
+    simpl; apply valid_valid. 
+    rewrite merge_nil_r; easy.
+  - split.
+    simpl. apply valid_valid.
+    destruct (eq_dec_empty_ctx Γ).
+    + apply merge_ind_fun in M.
+      specialize (merge_empty _ _ _ M e) as [E1 E2]. 
+      inversion m; subst; simpl.
+      * repeat rewrite trim_empty; easy.
+      * repeat rewrite trim_empty; easy.
+      * repeat rewrite trim_empty; easy.
+    + apply trim_non_empty in n.
+      destruct IHM as [V IHM].
+      inversion m; subst; simpl in *.
+      * destruct (trim Γ) eqn:E. easy.
+        destruct (trim Γ1) eqn:E1, (trim Γ2) eqn:E2; 
+          simpl in *; inversion IHM; easy.
+      * destruct (trim Γ1) eqn:E1, (trim Γ2) eqn:E2; 
+          simpl in *; inversion IHM; easy.
+      * destruct (trim Γ1) eqn:E1, (trim Γ2) eqn:E2; 
+          simpl in *; inversion IHM; easy.
+Qed.        
+
+(*
 Lemma trim_merge : forall Γ Γ1 Γ2, Γ == Γ1 ∙ Γ2 ->
                             otrim Γ = otrim Γ1 ⋓ otrim Γ2.
 Proof.
@@ -1061,7 +1223,7 @@ Proof.
         -- simpl in *. inversion IHM; easy.
         -- simpl in *. inversion IHM; easy.
 Qed.        
-
+*)
 
 (* length is the actual length of the underlying list, as opposed to size, which
  * is the number of Some entries in the list 
