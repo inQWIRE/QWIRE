@@ -1150,11 +1150,6 @@ Proof.
         easy.
 Qed.
 
-(*
-Lemma trim_merge : forall (Γ Γ1 Γ2 : Ctx), Γ == Γ1 ∙ Γ2 -> trim Γ == trim Γ1 ∙ trim Γ2. 
-Admitted.
-*)
-
 Lemma trim_merge : forall Γ Γ1 Γ2, Γ == Γ1 ∙ Γ2 ->
                               otrim Γ == otrim Γ1 ∙ otrim Γ2.
 Proof.

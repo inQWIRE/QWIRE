@@ -13,7 +13,7 @@ Fixpoint print_bexp (bx : bexp) : string :=
   match bx with
   | BTrue => "true"
   | BFalse => "false"
-  | BId x => x
+  | BI x => x
   | BNot bx' => append "~" (print_bexp bx')
   | BAnd bx1 bx2 => append (print_bexp bx1) (append " ^ " (print_bexp bx2))
   end.

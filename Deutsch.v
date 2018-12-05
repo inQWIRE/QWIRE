@@ -99,8 +99,8 @@ Definition M_balanced_neg : Matrix 4 4 :=
                    ;[C0;C0;C0;C1]].
 Definition toUnitary (f : bool -> bool) : Matrix 4 4 :=
   match f true, f false with
-  | true, true => (* constant true *) Id 2 ⊗ σx
-  | false, false => (* constant false *) Id 4
+  | true, true => (* constant true *) I 2 ⊗ σx
+  | false, false => (* constant false *) I 4
   | true, false  => (* balanced id *)    cnot
   | false, true  => (* balanced flip *) M_balanced_neg
   end.
@@ -111,7 +111,7 @@ Proof.
   unfold toUnitary, WF_Unitary.
   destruct (f true), (f false); Msimpl.
   all: split; auto with wf_db.
-  replace (σx × σx) with ('I_2) by solve_matrix. rewrite id_kron. reflexivity.
+  replace (σx × σx) with (I 2) by solve_matrix. rewrite id_kron. reflexivity.
   solve_matrix.
   unfold M_balanced_neg.
   apply WF_list2D_to_matrix.
@@ -129,7 +129,7 @@ Lemma deutsch_constant : forall (f : bool -> bool)
       Typed_Box U ->
       (f = fun _ => true) \/ (f = fun _ => false) -> 
       (forall ρ, ⟦U⟧ ρ = (toUnitary f) × ρ × (toUnitary f)†) ->
-      ⟦deutsch U⟧ I1 = |0⟩⟨0|.
+      ⟦deutsch U⟧ (I 1) = ∣0⟩⟨0∣.
 Proof.
   intros f U pf_U pf_constant H_U.
 
@@ -182,7 +182,7 @@ Lemma deutsch_balanced : forall (f : bool -> bool) (U : Box (Qubit ⊗ Qubit)%qc
       Typed_Box U ->
       (f = fun x => x) \/ (f = fun x => negb x) ->
       (forall ρ, ⟦U⟧ ρ = (toUnitary f) × ρ × (toUnitary f)†) ->
-      ⟦deutsch U⟧ I1 = |1⟩⟨1|.
+      ⟦deutsch U⟧ (I 1) = ∣1⟩⟨1∣.
 Proof.
   intros f U pf_U pf_constant H_U.
 

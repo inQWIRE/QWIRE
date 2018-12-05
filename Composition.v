@@ -120,7 +120,7 @@ Fact inPar_correct : forall W1 W1' W2 W2' (f : Box W1 W1') (g : Box W2 W2') (saf
      WF_Matrix (2^⟦W1⟧) (2^⟦W1⟧) ρ1 -> 
      WF_Matrix (2^⟦W2⟧) (2^⟦W2⟧) ρ2 ->
      denote_box safe (inPar f g) (ρ1 ⊗ ρ2)%M = 
-    (denote_box safe f ρ1 ⊗ denote_box true g ρ2)%M.
+    (denote_box safe f ρ1 ⊗ denote_box safe g ρ2)%M.
 Proof.  
 (*
   intros W1 W1' W2 W2' f g safe ρ1 ρ2 types_f types_g mixed_ρ1 mixed_ρ2.

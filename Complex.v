@@ -462,6 +462,7 @@ Proof. intros c1 c2 H1 H2. destruct c1, c2. simpl in *. subst. reflexivity. Qed.
 
 Ltac clra := eapply c_proj_eq; simpl; lra.
 
+Lemma Ci2 : Ci * Ci = -C1. Proof. clra. Qed.
 Lemma Copp_mult_distr_r : forall c1 c2 : C, - (c1 * c2) = c1 * - c2.
 Proof. intros; clra. Qed.
 Lemma Copp_mult_distr_l : forall c1 c2 : C, - (c1 * c2) = - c1 * c2.
@@ -608,7 +609,7 @@ Lemma Cdiv_unfold : forall c1 c2, (c1 / c2 = c1 */ c2)%C. Proof. reflexivity. Qe
    and similar lemmas if we wanted to make it stronger *)
 Ltac nonzero := apply C0_fst; specialize Rlt_sqrt2_0; intros; simpl; Psatz.lra.
 
-Hint Rewrite Cminus_unfold Cdiv_unfold Cconj_R Cconj_opp Cconj_rad2 
+Hint Rewrite Cminus_unfold Cdiv_unfold Ci2 Cconj_R Cconj_opp Cconj_rad2 
      square_rad2 Cplus_div2
      Cplus_0_l Cplus_0_r Cplus_opp_r Cplus_opp_l Copp_0  Copp_involutive
      Cmult_0_l Cmult_0_r Cmult_1_l Cmult_1_r : C_db.
@@ -622,6 +623,10 @@ Hint Rewrite Cinv_mult_distr using nonzero : C_db.
 (* Light rewriting db *)
 Hint Rewrite Cplus_0_l Cplus_0_r Cmult_0_l Cmult_0_r Copp_0 
              Cconj_R Cmult_1_l Cmult_1_r : C_db_light.
+
+(* Distributing db *)
+Hint Rewrite Cmult_plus_distr_l Cmult_plus_distr_r Copp_plus_distr Copp_mult_distr_l Copp_involutive : Cdist_db.
+
 
 Ltac Csimpl := 
   repeat match goal with
