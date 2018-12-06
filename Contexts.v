@@ -49,7 +49,8 @@ Close Scope circ_scope.
 
 
 (** Variables **)
-Definition varNat := nat.
+
+Notation varNat := nat. (* Might remove these, useful for making the distinction, though *)
 Definition Ctx := list (option WType).
 
 Inductive OCtx := 
