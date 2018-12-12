@@ -47,7 +47,8 @@ Notation "'∣' x '⟩'" := (ket x).
 Notation "'⟨' x '∣'" := (bra x). (* This gives the Coq parser headaches *)
 
 Notation "∣ x , y , .. , z ⟩" := (kron .. (kron ∣x⟩ ∣y⟩) .. ∣z⟩) (at level 0).
-                                                           
+(* Alternative: |0⟩|1⟩. *)
+                                                                       
 Transparent bra.
 Transparent ket.
 Transparent qubit0.

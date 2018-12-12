@@ -1183,43 +1183,6 @@ Proof.
           simpl in *; inversion IHM; easy.
 Qed.        
 
-(*
-Lemma trim_merge : forall Γ Γ1 Γ2, Γ == Γ1 ∙ Γ2 ->
-                            otrim Γ = otrim Γ1 ⋓ otrim Γ2.
-Proof.
-  intros Γ Γ1 Γ2 M.
-  apply merge_fun_ind in M.
-  induction M.
-  - rewrite merge_nil_l; easy.
-  - rewrite merge_nil_r; easy.
-  - destruct (eq_dec_empty_ctx Γ).
-    + apply merge_ind_fun in M.
-      specialize (merge_empty _ _ _ M e) as [E1 E2]. 
-      inversion m; subst; simpl.
-      * repeat rewrite trim_empty; easy.
-      * repeat rewrite trim_empty; easy.
-      * repeat rewrite trim_empty; easy.
-    + apply trim_non_empty in n.
-      inversion m; subst; simpl in *.
-      * destruct (trim Γ) eqn:E. easy.
-        destruct (trim Γ1) eqn:E1, (trim Γ2) eqn:E2. 
-        -- inversion IHM.
-        -- simpl in *. inversion IHM; easy.
-        -- simpl in *. inversion IHM; easy.        
-        -- simpl in *. inversion IHM; easy.
-      * destruct (trim Γ1) eqn:E1, (trim Γ2) eqn:E2. 
-        -- simpl in *. inversion IHM; easy.
-        -- simpl in *. inversion IHM; easy.
-        -- simpl in *. inversion IHM; easy.
-        -- simpl in *. inversion IHM; easy.
-      * destruct (trim Γ1) eqn:E1, (trim Γ2) eqn:E2. 
-        -- simpl in *. inversion IHM; easy.
-        -- simpl in *. inversion IHM; easy.
-        -- simpl in *. inversion IHM; easy.
-        -- simpl in *. inversion IHM; easy.
-Qed.        
-*)
-
 (* length is the actual length of the underlying list, as opposed to size, which
  * is the number of Some entries in the list 
  *)
