@@ -1,4 +1,4 @@
-core: Oracles.vo
+core: Oracles.vo UnitarySemantics.vo
 all: Oracles.vo HOASProofs.vo Equations.vo Deutsch.vo Arithmetic.vo
 qasm: QASMExamples.vo
 
@@ -40,6 +40,9 @@ HOASExamples.vo: HOASExamples.v HOASLib.vo
 
 Denotation.vo: Denotation.v Quantum.vo DBCircuits.vo HOASLib.vo
 	coqc Denotation.v
+
+UnitarySemantics.vo : UnitarySemantics.v Denotation.vo
+	coqc UnitarySemantics.v
 
 SemanticLib.vo : SemanticLib.v Denotation.vo 
 	coqc SemanticLib.v
