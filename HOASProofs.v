@@ -428,9 +428,9 @@ Definition f2 : Matrix 4 4 := fun x y =>
 Definition f3 : Matrix 4 4 := I 2 ⊗ σx.
 
 Definition U_constant (U : Unitary (Qubit ⊗ Qubit)%qc) := 
-  apply_U 2 U [0;1]%nat = super f0 \/ apply_U 2 U [0;1]%nat = super f3.
+  apply_U 2 U [0;1]%nat = super f0 \/ apply_unitary 2 U [0;1]%nat = f3.
 Definition U_balanced (U : Unitary (Qubit ⊗ Qubit)%qc) := 
-  apply_U 2 U [0;1]%nat = super f1 \/ apply_U 2 U [0;1]%nat = super f2.
+  apply_U 2 U [0;1]%nat = super f1 \/ apply_unitary 2 U [0;1]%nat = f2.
 
 Lemma f2_WF : WF_Matrix 4 4 f2. Proof. show_wf. Qed.
 Hint Resolve f2_WF : wf_db.
@@ -447,13 +447,12 @@ Open Scope circ_scope.
 Lemma U_deutsch_constant : forall U_f, U_constant U_f -> 
                                 ⟦U_deutsch U_f⟧ (I 1) = ∣0⟩⟨0∣.
 Proof.
-  Opaque apply_U.
   intros U_f H.
   simpl.
   unfold denote_box. unfold denote_db_box. simpl.
   unfold subst_var. simpl.
+  unfold apply_U.
   destruct H; setoid_rewrite H.
-  Transparent apply_U.
   - (* f0 *)
     matrix_denote.
     Msimpl.
@@ -484,13 +483,12 @@ Qed.
 Lemma U_deutsch_balanced : forall U_f, U_balanced U_f -> 
                                 ⟦U_deutsch U_f⟧ (I 1) = ∣1⟩⟨1∣.
 Proof.
-  Opaque apply_U.
   intros U_f H.
   simpl.
   unfold denote_box. unfold denote_db_box. simpl.
   unfold subst_var. simpl.
+  unfold apply_U.
   destruct H; setoid_rewrite H.
-  Transparent apply_U.
   + (* f1 *)
     matrix_denote.
     Msimpl.
