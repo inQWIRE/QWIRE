@@ -106,5 +106,68 @@ Proof.
     unfold denote_u_db_box.
     simpl.
     remember (denote_u_db_circuit (size_wtype W) (hoas_to_db Γ (c0 p0))) as A.
-    Msimpl.
-    
+    destruct w1.
+    + simpl.
+      destruct (pat_to_list (subst_pat Γ p0)) eqn:E.
+      * simpl.
+        dependent destruction p0.
+        simpl in E. inversion E.
+      * simpl.
+        unfold apply_qubit_unitary.
+        simpl in *.
+        destruct (size_wtype W).
+        (* Incorrect number of arguments to gate application. 
+           Unfortunately, the failure modes don't currently correspond. 
+           Will update soon *)
+        admit.
+        unfold super.
+        repeat rewrite Mmult_assoc.
+        rewrite Mmult_adjoint.
+        replace (S n - v - 1)%nat with (n-v)%nat by omega.
+
+        unify_pows_two.
+        remember (I (2^v)) as I1.
+        remember (I (2^(n - v))) as I2.
+        remember (denote_unitary u) as U.
+
+        repeat rewrite <- Mmult_assoc.
+        apply f_equal2; trivial.
+        rewrite <- Mmult_assoc.
+        Set Printing All.
+        
+        rewrite <- (Mmult_assoc _ _ _ _ A
+           (@Mmult (Init.Nat.mul (Init.Nat.mul (Nat.pow (S (S O)) v) (S (S O))) (Nat.pow (S (S O)) (Init.Nat.sub n v)))
+             (Init.Nat.mul (Init.Nat.mul (Nat.pow (S (S O)) v) (S (S O))) (Nat.pow (S (S O)) (Init.Nat.sub n v)))
+             (Init.Nat.mul (Init.Nat.mul (Nat.pow (S (S O)) v) (S (S O))) (Nat.pow (S (S O)) (Init.Nat.sub n v)))
+             (@kron (Init.Nat.mul (Nat.pow (S (S O)) v) (S (S O))) (Init.Nat.mul (Nat.pow (S (S O)) v) (S (S O)))
+                (Nat.pow (S (S O)) (Init.Nat.sub n v)) (Nat.pow (S (S O)) (Init.Nat.sub n v))
+                (@kron (Nat.pow (S (S O)) v) (Nat.pow (S (S O)) v) (S (S O)) (S (S O)) I1 U) I2) ρ)
+          (@adjoint (Init.Nat.mul (Init.Nat.mul (Nat.pow (S (S O)) v) (S (S O))) (Nat.pow (S (S O)) (Init.Nat.sub n v)))
+             (Init.Nat.mul (Init.Nat.mul (Nat.pow (S (S O)) v) (S (S O))) (Nat.pow (S (S O)) (Init.Nat.sub n v)))
+             (@kron (Init.Nat.mul (Nat.pow (S (S O)) v) (S (S O))) (Init.Nat.mul (Nat.pow (S (S O)) v) (S (S O)))
+                (Nat.pow (S (S O)) (Init.Nat.sub n v)) (Nat.pow (S (S O)) (Init.Nat.sub n v))
+                (@kron (Nat.pow (S (S O)) v) (Nat.pow (S (S O)) v) (S (S O)) (S (S O)) I1 U) I2))).
+        apply f_equal2; trivial.
+        
+        reflexivity.
+        
+        rewrite (Mmult_assoc _ _ _ _ ρ ((I1 ⊗ U ⊗ I2) †) ((A) †)).
+
+        unify_pows_two.
+
+        remember (I (2 ^ v) ⊗ denote_unitary u ⊗ I (2 ^ (S n - v - 1))) as B.
+        reflexivity.
+        rewrite (kron_adjoint (I (2 ^ v) ⊗ denote_unitary u) ().
+        Msimpl.
+        reflexivity.
+        simpl.
+        (* LHS is borked either way. Problem is, we have three different ways of borking here,
+           and they don't correspond. Need to change two of them. *)
+
+  A
+    × (I (2 ^ v) ⊗ denote_unitary u ⊗ I (2 ^ (S n - v - 1))
+         × (ρ × (I (2 ^ v) ⊗ denote_unitary u ⊗ I (2 ^ (S n - v - 1))) †) × (A) †) =
+  A
+    × (I (2 ^ v) ⊗ denote_unitary u ⊗ I (2 ^ (S n - v - 1))
+         × (ρ × ((I (2 ^ v) ⊗ denote_unitary u ⊗ I (2 ^ (S n - v - 1))) † × (A) †)))
+        

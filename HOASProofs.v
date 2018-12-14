@@ -68,7 +68,6 @@ Proof.
   unfold compose_super, super, pad.
   repeat rewrite Nat.add_sub.
   rewrite Nat.sub_diag.
-  rewrite Nat.leb_refl.
   Msimpl.
   destruct W; try solve [inversion U].
   - simpl.
@@ -77,8 +76,7 @@ Proof.
     unfold swap_two; simpl.
     Msimpl.
     rewrite Mmult_assoc.
-    unfold apply_qubit_unitary.
-    unfold super. simpl.
+    unfold apply_U, super. simpl.
     destruct (unitary_gate_unitary U) as [WFU inv].
     assert (WFU' : WF_Matrix _ _ (⟦U⟧†)) by auto with wf_db.
     simpl_rewrite @denote_unitary_transpose.
@@ -95,8 +93,7 @@ Proof.
     remember (W1 ⊗ W2) as W.
     remember (pat_to_list (add_fresh_pat W [])) as li.
     destruct (denote_ctrls_unitary W (⟦W⟧) U li ) as [WFU inv].
-      apply forallb_forall. intros.
-      rewrite Nat.ltb_lt.
+      intros.
       rewrite Heqli in H.
       simpl.
       rewrite (ctx_wtype_size _ (add_fresh_pat W []) (add_fresh_state W [])).
@@ -115,9 +112,11 @@ Proof.
       rewrite size_wtype_length.
       easy.
     replace (size_wtype W1 + size_wtype W2)%nat with  (⟦ W ⟧) by (subst;easy).
+    unfold apply_U, apply_unitary, super.
+    destruct W; try solve [inversion HeqW].
     rewrite denote_ctrls_transpose.
-    remember (denote_ctrls (⟦ W ⟧) U li) as A.
-    remember (swap_list (⟦ W ⟧) li) as S.
+    remember (denote_ctrls (⟦ W3 ⊗ W4 ⟧) U li) as A.
+    remember (swap_list (⟦ W3 ⊗ W4 ⟧) li) as S.
     rewrite <- (Mmult_assoc _ _ _ _ _ (A × ρ) _).
     rewrite <- (Mmult_assoc _ _ _ _ _ A ρ).
     rewrite inv. Msimpl.
