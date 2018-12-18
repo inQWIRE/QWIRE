@@ -1,12 +1,95 @@
 Require Export HOASCircuits.
 
-(** Projecting out elements of tensors **)
+(** Projecting out elements of tensors - now harder! **)
 
 Open Scope circ_scope.
-Definition wproj {W1 W2} (p : Pat (W1 ⊗ W2)) : Pat W1 * Pat W2 :=
+
+Lemma max_dist : forall m n o, max (max m o) (max n o) = max (max m n) o.
+Proof.
+  intros m n o.
+  bdestruct (max m n <=? o).
+  - specialize (Nat.max_lub_r _ _ _ H) as H1.
+    specialize (Nat.max_lub_l _ _ _ H) as H2.
+    repeat rewrite (Nat.max_r _ o); easy.
+  - unfold gt in H.
+    rewrite (Nat.max_l (max m n) o) by omega.
+    apply Nat.max_lt_iff in H.
+    destruct H.
+    + rewrite (Nat.max_l m o) by omega.
+      rewrite (Nat.max_comm n o).
+      rewrite Nat.max_assoc.
+      rewrite (Nat.max_l m o) by omega.
+      reflexivity.
+    + rewrite (Nat.max_l n o) by omega.
+      rewrite <- Nat.max_assoc.
+      rewrite (Nat.max_r o n) by omega.
+      reflexivity.
+Qed.
+
+Program Fixpoint weaken {W m} (n : nat) (p : Pat m W) : Pat (max m n) W :=
   match p with
-  | pair p1 p2 => (p1, p2)  
+  | unit    => unit
+  | qubit x => qubit x  
+  | bit x   => bit x
+  | pair p1 p2 => pair (weaken n p1) (weaken n p2)
   end.
+Next Obligation. apply max_dist. Defined.
+
+Program Fixpoint unsafe_weaken {W m} (n : nat) (p : Pat m W) : Pat n W :=
+  match p with
+  | unit    => unit
+  | qubit x => qubit x  
+  | bit x   => bit x
+  | pair p1 p2 => pair (unsafe_weaken n p1) (unsafe_weaken n p2)
+  end.
+Next Obligation. apply Nat.max_id. Defined.
+
+Definition weak_proj1 {W1 W2 n} : Pat n (W1 ⊗ W2) -> Pat n W1.
+  intros p.
+  dependent destruction p.
+  apply (weaken n p1).
+Defined.  
+
+Definition weak_proj2 {W1 W2 n} : Pat n (W1 ⊗ W2) -> Pat n W2.
+  intros p.
+  dependent destruction p.
+  rewrite Nat.max_comm.
+  apply (weaken m p2).
+Defined.  
+
+Definition get_error {W n} (p : Pat n W) := n.
+
+Definition extract1 {W1 W2 n} (p : Pat n (W1 ⊗ W2)) : nat :=
+  match p with
+    pair p1 p2 => get_error p1
+  end.
+
+Definition extract2 {W1 W2 n} (p : Pat n (W1 ⊗ W2)) : nat :=
+  match p with
+    pair p1 p2 => get_error p2
+  end.
+
+Definition strong_proj1 {W1 W2 n} (p : Pat n (W1 ⊗ W2)) : Pat (extract1 p) W1.
+  dependent destruction p.
+  simpl.
+  unfold get_error.
+  apply p1.
+Defined.
+
+Definition strong_proj2 {W1 W2 n} (p : Pat n (W1 ⊗ W2)) : Pat (extract2 p) W2.
+  dependent destruction p.
+  simpl.
+  unfold get_error.
+  apply p2.
+Defined.
+
+Definition wproj {W1 W2 n} (p : Pat n (W1 ⊗ W2)) : Pat n W1 * Pat n W2.
+  dependent destruction p.
+  constructor.
+  apply (weaken n p1).
+  rewrite Nat.max_comm.
+  apply (weaken m p2).
+Defined.
 
 (*** Typechecking Tactic ***)
 
@@ -17,13 +100,15 @@ Global Opaque merge.
 Global Opaque Ctx.
 Global Opaque is_valid.
 
-Fixpoint pair_circ' {W1 W2} (p : Pat W1) (c2 : Circuit W2) : Circuit (W1 ⊗ W2) :=
+Fixpoint pair_circ' {W1 W2 n1 n2} (p : Pat n1 W1) (c2 : Circuit n2 W2) :
+  Circuit (max n1 n2) (W1 ⊗ W2) :=
   match c2 with
   | output p2   => output (pair p p2)
   | gate g p1 f => gate g p1 (fun p2 => pair_circ' p (f p2))
   | lift p1 f   => lift p1 (fun x => pair_circ' p (f x))
   end.
-Fixpoint pair_circ {W1 W2} (c1 : Circuit W1) (c2 : Circuit W2) : Circuit (W1 ⊗ W2) :=
+Fixpoint pair_circ {W1 W2 n1 n2} (c1 : Circuit n1 W1) (c2 : Circuit n2 W2) :
+  Circuit (max n1 n2) (W1 ⊗ W2) :=
   match c1 with
   | output p1   => pair_circ' p1 c2
   | gate g p1 f => gate g p1 (fun p2 => pair_circ (f p2) c2)
@@ -293,10 +378,17 @@ Ltac destruct_merges :=
 
 (* Three typing derivations for a simple circuit *)
 (* Corresponds to thesis figure 9.1 *)
-Definition cnot12 : Square_Box (Qubit ⊗ Qubit ⊗ Qubit) :=
+
+Definition U' := @U.
+Coercion U' : Unitary >-> Gate.
+
+Definition cnot12 (n : nat) : Square_Box n (Qubit ⊗ Qubit ⊗ Qubit) _ :=
   box_ (p0,p1,p2) ⇒ 
-    gate_ (p3,p4) ← CNOT @(p1,,p2);
+    gate_ (p3,p4) ← U CNOT @(p1,,p2);
     output (p0,,p3,,p4).
+
+Print cnot12.
+Eval simpl in (cnot12 4%nat).
 
 (* In functional syntax 
 Definition entangle23 : Square_Box (Qubit ⊗ Qubit ⊗ Qubit) :=
