@@ -259,6 +259,7 @@ Proof.
   unfold denote_db_box.
   unfold hoas_to_db_box.
 Abort.
+
 (*
   (* new proof *)
   
@@ -397,7 +398,7 @@ Abort.
       (* We need premises about the contents of gamma being bounded *)
       (* Specifically, k < [W] *)
       (* We know from pat_to_list_bounded that k < [Γ] (or [Γ] = k = 0) *)
-      (* We also have size_ctx (add_fresh_state w Γ) = (size_ctx Γ + size_wtype w)%nat *  
+      (* We also have size_ctx (add_fresh_state w Γ) = (size_ctx Γ + size_wtype w)%nat *)  
 
 (* old proof *)  
   destruct (add_fresh W []) as [p Γ].
