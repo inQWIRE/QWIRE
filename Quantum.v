@@ -255,12 +255,12 @@ Eval compute in (print_matrix (swap_two 1 0 2)).
 
 (** Well Formedness of Quantum States and Unitaries **)
 
-Lemma WF_bra0 : WF_Matrix 1 2 ⟨0∣. Proof. show_wf. Qed. 
-Lemma WF_bra1 : WF_Matrix 1 2 ⟨1∣. Proof. show_wf. Qed.
 Lemma WF_qubit0 : WF_Matrix 2 1 ∣0⟩. Proof. show_wf. Qed.
 Lemma WF_qubit1 : WF_Matrix 2 1 ∣1⟩. Proof. show_wf. Qed.
-Lemma WF_braqubit0 : WF_Matrix 2 2 ∣0⟩⟨0∣. Proof. show_wf. Qed.
-Lemma WF_braqubit1 : WF_Matrix 2 2 ∣1⟩⟨1∣. Proof. show_wf. Qed.
+Lemma WF_bra0 : WF_Matrix 1 2 ⟨0∣. Proof. show_wf. Qed. 
+Lemma WF_bra1 : WF_Matrix 1 2 ⟨1∣. Proof. show_wf. Qed.
+Lemma WF_braket0 : WF_Matrix 2 2 ∣0⟩⟨0∣. Proof. show_wf. Qed.
+Lemma WF_braket1 : WF_Matrix 2 2 ∣1⟩⟨1∣. Proof. show_wf. Qed.
 Lemma WF_bool_to_ket : forall b, WF_Matrix 2 1 (bool_to_ket b). 
 Proof. destruct b; show_wf. Qed.
 Lemma WF_bool_to_matrix : forall b, WF_Matrix 2 2 (bool_to_matrix b).
@@ -278,7 +278,7 @@ Proof.
   apply IHl.
 Qed.
 
-Hint Resolve WF_bra0 WF_bra1 WF_qubit0 WF_qubit1 WF_braqubit0 WF_braqubit1 : wf_db.
+Hint Resolve WF_bra0 WF_bra1 WF_qubit0 WF_qubit1 WF_braket0 WF_braket1 : wf_db.
 Hint Resolve WF_bool_to_ket WF_bool_to_matrix WF_bool_to_matrix' : wf_db.
 Hint Resolve WF_bools_to_matrix : wf_db.
 
@@ -682,128 +682,14 @@ Proof.
   easy.
 Qed.
 
-Lemma braqubit0_sa : ∣0⟩⟨0∣† = ∣0⟩⟨0∣. Proof. mlra. Qed.
-Lemma braqubit1_sa : ∣1⟩⟨1∣† = ∣1⟩⟨1∣. Proof. mlra. Qed.
+Lemma braket0_sa : ∣0⟩⟨0∣† = ∣0⟩⟨0∣. Proof. mlra. Qed.
+Lemma braket1_sa : ∣1⟩⟨1∣† = ∣1⟩⟨1∣. Proof. mlra. Qed.
 
 Hint Rewrite hadamard_sa σx_sa σy_sa σz_sa cnot_sa swap_sa 
-             braqubit1_sa braqubit0_sa control_adjoint phase_adjoint : M_db.
+             braket1_sa braket0_sa control_adjoint phase_adjoint : M_db.
 
 (* Rather use control_adjoint :
 Hint Rewrite control_sa using (autorewrite with M_db; reflexivity) : M_db. *)
-
-(************************************)
-(* Unitary Properties on Basis Kets *)
-(************************************)
-
-(*
-Definition plus_state := 1/√2 .* ∣0⟩ .+ 1/√2 .* ∣1⟩.
-Definition minus_state := 1/√2 .* ∣0⟩ .+ (-1/√2) .* ∣1⟩.
-
-Transparent plus_state.
-Transparent minus_state.
-                                                       
-Notation "∣+⟩" := plus_state.
-Notation "∣-⟩" := minus_state.
-*)
-
-Notation "∣+⟩" := (/√2 .* ∣0⟩ .+ /√2 .* ∣1⟩).
-Notation "∣-⟩" := (/√2 .* ∣0⟩ .+ (-/√2) .* ∣1⟩).
-
-(* Hadamard properties *)
-Lemma H0_spec : hadamard × ∣0⟩ = ∣+⟩.
-Proof. solve_matrix. Qed.
-
-Lemma H1_spec : hadamard × ∣1⟩ = ∣-⟩.
-Proof. solve_matrix. Qed.
-
-Lemma Hplus_spec : hadamard × ∣+⟩ = ∣0⟩.
-Proof. solve_matrix. Qed.
-
-Lemma Hminus_spec : hadamard × ∣-⟩ = ∣1⟩.
-Proof. solve_matrix.  Qed.
-
-(* X properties *)
-Lemma X0_spec : σx × ∣0⟩ = ∣1⟩.
-Proof. solve_matrix. Qed.
-
-Lemma X1_spec : σx × ∣1⟩ = ∣0⟩.
-Proof. solve_matrix. Qed.
-
-(* Y properties *)
-Lemma Y0_spec : σy × ∣0⟩ = Ci .* ∣1⟩.
-Proof. solve_matrix. Qed.
-
-Lemma Y1_spec : σy × ∣1⟩ = -Ci .* ∣0⟩.
-Proof. solve_matrix. Qed.
-
-(* Z properties *)
-Lemma Z0_spec : σz × ∣0⟩ = ∣0⟩.
-Proof. solve_matrix. Qed.
-
-Lemma Z1_spec : σz × ∣1⟩ = -C1 .* ∣1⟩.
-Proof. solve_matrix. Qed.
-
-(* CNOT properties *)
-
-Lemma CNOT_spec : forall (x y : nat), (x < 2)%nat -> (y < 2)%nat -> cnot × ∣x,y⟩ = ∣x, (x + y) mod 2⟩.
-Proof.
-  intros.
-  destruct x as [| [|x]], y as [| [|y]]; try omega; solve_matrix.
-Qed.
-
-Lemma CNOT00_spec : cnot × ∣0,0⟩ = ∣0,0⟩.
-Proof. solve_matrix. Qed.
-
-Lemma CNOT01_spec : cnot × ∣0,1⟩ = ∣0,1⟩.
-Proof. crunch_matrix. Qed.
-
-Lemma CNOT10_spec : cnot × ∣1,0⟩ = ∣1,1⟩.
-Proof. solve_matrix. Qed.
-                                        
-Lemma CNOT11_spec : cnot × ∣1,1⟩ = ∣1,0⟩.
-Proof. solve_matrix. Qed.
-
-(* SWAP properties *)
-
-Lemma SWAP_spec : forall x y, swap × ∣x,y⟩ = ∣y,x⟩.
-Proof. intros. destruct x,y; solve_matrix. Qed.
-
-(* Automation *)
-
-Hint Rewrite Mmult_plus_distr_l Mscale_plus_distr Mscale_mult_dist_r Mscale_mult_dist_l : ket_db.
-Hint Rewrite Mscale_assoc Mmult_assoc: ket_db.
-Hint Rewrite Mscale_0_l Mscale_1_l : ket_db.
-Hint Rewrite H0_spec H1_spec Hplus_spec Hminus_spec X0_spec X1_spec Y0_spec Y1_spec
-     Z0_spec Z1_spec : ket_db.
-
-Ltac ket_eq_solver :=
-  intros; autorewrite with ket_db C_db;
-  try match goal with
-  | [|- ?a .* ∣0⟩ .+ ?b .* ∣1⟩ = ?a' .* ∣0⟩ .+ ?b' .* ∣1⟩ ] =>
-    replace a with a'; try clra; replace b with b'; try clra; trivial
-  end.                                                           
-
-Lemma XYZ0 : -Ci .* σx × σy × σz × ∣0⟩ = ∣0⟩.
-Proof. autorewrite with ket_db C_db; easy. Qed.
-                                            
-Lemma XYZ1 : -Ci .* σx × σy × σz × ∣1⟩ = ∣1⟩.
-Proof. autorewrite with ket_db C_db; easy. Qed.
-
-Lemma XYZ : forall α β, -Ci .* σx × σy × σz × (α .* ∣0⟩ .+ β .* ∣1⟩) = α .* ∣0⟩ .+ β .* ∣1⟩.
-Proof.
-  ket_eq_solver.
-Qed.
-
-Proposition HZH : forall α β,
-  hadamard × σz × hadamard × (α .* ∣0⟩ .+ β .* ∣1⟩) = σx × (α .* ∣0⟩ .+ β .* ∣1⟩).
-Proof.
-  ket_eq_solver.
-Abort.
-
-(* Next up:
-   Multiqubit systems.
-   Have ket_eq_solver group ∣0⟩s and ∣1⟩s.
-*)
 
 (**************)
 (* Automation *)
@@ -833,28 +719,20 @@ Ltac Msimpl :=
 (*****************************)
 
 Definition positive_semidefinite {n} (A : Square n) : Prop :=
-  forall (z : Matrix n 1), WF_Matrix 2 1 z -> fst ((z† × A × z) O O) >= 0.  
+  forall (z : Matrix n 1), WF_Matrix n 1 z -> fst ((z† × A × z) O O) >= 0.  
 
-Lemma braqubit0_psd : positive_semidefinite ∣0⟩⟨0∣.
-Proof. 
-  intros z WFz. 
-  do 3 reduce_matrices. 
-  simpl.
+Lemma pure_psd : forall (n : nat) (ϕ : Vector n), (WF_Matrix n 1 ϕ) -> positive_semidefinite (ϕ × ϕ†). 
+Proof.
+  intros n ϕ WFϕ z WFZ.
+  repeat rewrite Mmult_assoc.
+  remember (ϕ† × z) as ψ.
+  repeat rewrite <- Mmult_assoc.
+  rewrite <- (adjoint_involutive _ _ ϕ).
+  rewrite <- Mmult_adjoint.
+  rewrite <- Heqψ.
+  unfold Mmult. simpl.
   rewrite <- Ropp_mult_distr_l.
-  unfold Rminus.
-  rewrite Ropp_involutive.
-  replace (fst (z 0%nat 0%nat) * fst (z 0%nat 0%nat))%R with ((fst (z 0%nat 0%nat))²) by easy. 
-  replace (snd (z 0%nat 0%nat) * snd (z 0%nat 0%nat))%R with ((snd (z 0%nat 0%nat))²) by easy. 
-  apply Rle_ge.
-  apply Rplus_le_le_0_compat; apply Rle_0_sqr.
-Qed.
-
-Lemma braqubit1_psd : positive_semidefinite ∣1⟩⟨1∣.
-Proof. 
-  intros z WFz. 
-  do 3 reduce_matrices. 
-  simpl.
-  rewrite <- Ropp_mult_distr_l.
+  rewrite Rplus_0_l.
   unfold Rminus.
   rewrite Ropp_involutive.
   replace (fst (z 1%nat 0%nat) * fst (z 1%nat 0%nat))%R with ((fst (z 1%nat 0%nat))²) by easy. 
@@ -863,57 +741,20 @@ Proof.
   apply Rplus_le_le_0_compat; apply Rle_0_sqr.
 Qed.
 
+Lemma braket0_psd : positive_semidefinite ∣0⟩⟨0∣.
+Proof. apply pure_psd. auto with wf_db. Qed.
+
+Lemma braket1_psd : positive_semidefinite ∣1⟩⟨1∣.
+Proof. apply pure_psd. auto with wf_db. Qed.
+
 Lemma H0_psd : positive_semidefinite (hadamard × ∣0⟩⟨0∣ × hadamard).
 Proof.
-  intros z WFz.
-  do 5 reduce_matrices.  
-  simpl.
-  autorewrite with R_db.
-  replace (√ 2 * / 2 * (√ 2 * / 2))%R with ((√ 2 / 2)²) by reflexivity.
-  rewrite Rsqr_div by lra.
-  rewrite Rsqr_sqrt by lra.
-  Search (_ * ?x + _ * ?x).
-  rewrite <- Rmult_plus_distr_r.
-  Search (- _ + - _).
-  rewrite <- Ropp_plus_distr.
-  repeat rewrite <- Ropp_mult_distr_l.
-  repeat rewrite Ropp_involutive.
-  rewrite <- Rmult_plus_distr_r.
-  rewrite (Rmult_comm _ (2/2²)).
-  rewrite (Rmult_comm _ (2/2²)).
-  repeat rewrite Rmult_assoc.
-  repeat rewrite <- Rmult_plus_distr_l.
-  apply Rle_ge.
-  apply Rmult_le_pos. 
-  left. 
-  apply Rmult_lt_0_compat. 
-  lra.
-  apply Rinv_0_lt_compat.
-  apply Rmult_lt_0_compat; lra.
-  Search ((_ + _) * _)%R.
-  repeat rewrite Rmult_plus_distr_r.
-  remember (fst (z 0 0)%nat) as a.
-  remember (snd (z 0 0)%nat) as b.
-  remember (fst (z 1 0)%nat) as c.
-  remember (snd (z 1 0)%nat) as d.
-  (* This is (a + b)² + (b + c)². *)
-  clear.
-  rewrite <- Rplus_assoc.
-  remember (a * a + c * a)%R as ac1. 
-  remember (b * b + d * b)%R as bd1. 
-  remember (a * c + c * c)%R as ac2. 
-  remember (b * d + d * d)%R as bd2.
-  rewrite (Rplus_assoc ac1).
-  rewrite (Rplus_comm bd1).
-  repeat rewrite <- Rplus_assoc.
-  rewrite (Rplus_assoc _ bd1).
-  apply Rplus_le_le_0_compat.
-  replace (ac1 + ac2)%R with ((a + c)²).
-  apply Rle_0_sqr.
-  unfold Rsqr. lra.
-  replace (bd1 + bd2)%R with ((b + d)²).
-  apply Rle_0_sqr.
-  unfold Rsqr. lra.
+  repeat rewrite Mmult_assoc.
+  rewrite <- hadamard_sa at 2.
+  rewrite <- Mmult_adjoint.
+  repeat rewrite <- Mmult_assoc.
+  apply pure_psd.
+  auto with wf_db.
 Qed.
     
 (*************************)

@@ -17,6 +17,9 @@ Matrix.vo: Matrix.v Complex.vo
 Quantum.vo: Quantum.v Matrix.vo
 	coqc Quantum.v
 
+Dirac.vo: Dirac.v Quantum.vo
+	coqc Dirac.v
+
 Monoid.vo : Monoid.v Monad.vo
 	coqc Monoid.v
 
