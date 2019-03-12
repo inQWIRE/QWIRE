@@ -99,8 +99,13 @@ Lemma id_circ_WT : forall W, Typed_Box (@id_circ W).
 Proof. type_check. Qed.
 
 Definition SWAP : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) := 
-  box_ p ⇒ let_ (p1,p2) ← p; (p2,p1).
+  box_ (p1,p2) ⇒ (p2,p1).
 Lemma WT_SWAP : Typed_Box SWAP. 
+Proof. type_check. Qed.
+
+Definition SWAP_GEN {W1 W2} : Box (W1 ⊗ W2) (W2 ⊗ W1) := 
+  box_ (p1,p2) ⇒ (p2,p1).
+Lemma WT_SWAP_GEN : forall W1 W2, Typed_Box (@SWAP_GEN W1 W2).
 Proof. type_check. Qed.
 
 

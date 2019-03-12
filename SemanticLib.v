@@ -64,7 +64,54 @@ Proof. destruct b; [apply init1_spec | apply init0_spec]. Qed.
 Lemma assert_spec : forall b safe, denote_box safe (assert b) (bool_to_matrix b) = I 1.
 Proof. destruct b; [apply assert1_spec | apply assert0_spec]. Qed.
 
+Lemma SWAP_spec : forall ρ safe, denote_box safe SWAP ρ = swap × ρ × swap.
+Proof. intros. matrix_denote. Msimpl. reflexivity. Qed.
 
+Lemma SWAP_spec_sep : forall (ρ1 ρ2 : Density 2) safe,
+  WF_Matrix _ _ ρ1 -> WF_Matrix _ _ ρ2 ->
+  denote_box safe SWAP (ρ1 ⊗ ρ2) = ρ2 ⊗ ρ1.
+Proof. intros. rewrite SWAP_spec. solve_matrix. Qed.
+
+(* MOVE THIS! *)
+Lemma fresh_wtype : forall (w : WType) (Γ : Ctx), add_fresh_state w Γ = Γ ++ (add_fresh_state w []).
+Proof.
+  intros. generalize dependent Γ.
+  induction w; unfold add_fresh_state; simpl; try reflexivity; intros.
+  - induction Γ; simpl; try reflexivity.
+    rewrite <- IHΓ. reflexivity.
+  - repeat rewrite add_fresh_split. simpl.
+    replace (add_fresh_state w2 (add_fresh_state w1 [])) with ((add_fresh_state w1 []) ++ (add_fresh_state w2 [])) by (rewrite <- IHw2; reflexivity).
+    rewrite IHw2. rewrite IHw1. rewrite app_assoc. reflexivity.
+Qed.
+
+
+Lemma SWAP_GEN_spec_same_sep : forall W (ρ1 ρ2 : Density (2^⟦W⟧)) safe,
+    denote_box safe (@SWAP_GEN W W) (ρ1 ⊗ ρ2) = ρ2 ⊗ ρ1.
+Proof.
+  matrix_denote.
+  repeat rewrite add_fresh_split.
+  unfold hoas_to_db. simpl.
+  Search subst_pat.
+  rewrite subst_pat_fresh.
+  rewrite pad_nothing.
+  unfold denote_pat. simpl.
+  rewrite subst_pat_no_gaps.
+
+  2:{ rewrite fresh_wtype. rewrite app_length.
+      Search Bounded_Pat.
+      apply bounded_pat_le with (length (add_fresh_state W [])). omega.
+      rewrite length_fresh_state with (w := W) (Γ' := add_fresh_state W []) (Γ := []) by easy.
+      apply add_fresh_pat_bounded.
+      constructor.
+  }
+
+  all: repeat apply add_fresh_state_no_gaps; try constructor.
+  Search pat_to_list add_fresh_pat.
+  repeat rewrite swap_fresh_seq. simpl.
+  Search length add_fresh_state.
+  erewrite length_fresh_state by reflexivity. simpl.
+Abort.
+  
 (* -----------------------------------------*)
 (*--------- Reversible Circuit Specs -------*)
 (* -----------------------------------------*)
