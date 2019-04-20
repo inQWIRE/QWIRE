@@ -109,7 +109,7 @@ Lemma toUnitary_unitary : forall f, WF_Unitary (toUnitary f).
 Proof.
   intros. 
   unfold toUnitary, WF_Unitary.
-  destruct (f true), (f false); Msimpl.
+  destruct (f true), (f false); restore_dims; Msimpl.
   all: split; auto with wf_db.
   replace (σx × σx) with (I 2) by solve_matrix. rewrite id_kron. reflexivity.
   solve_matrix.

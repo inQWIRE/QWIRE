@@ -78,7 +78,7 @@ Proof.
     rewrite Mmult_assoc.
     unfold apply_U, super. simpl.
     destruct (unitary_gate_unitary U) as [WFU inv].
-    assert (WFU' : WF_Matrix _ _ (⟦U⟧†)) by auto with wf_db.
+    assert (WFU' : WF_Matrix (⟦U⟧†)) by auto with wf_db.
     simpl_rewrite @denote_unitary_transpose.
     simpl in *. Msimpl.
     repeat rewrite Mmult_assoc. rewrite inv.
@@ -117,10 +117,10 @@ Proof.
     rewrite denote_ctrls_transpose.
     remember (denote_ctrls (⟦ W3 ⊗ W4 ⟧) U li) as A.
     remember (swap_list (⟦ W3 ⊗ W4 ⟧) li) as S.
-    rewrite <- (Mmult_assoc _ _ _ _ _ (A × ρ) _).
-    rewrite <- (Mmult_assoc _ _ _ _ _ A ρ).
+    rewrite <- (Mmult_assoc _ (A × ρ) _).
+    rewrite <- (Mmult_assoc _ A ρ).
     rewrite inv. Msimpl.
-    rewrite (Mmult_assoc _ _ _ _ ρ _ A).
+    rewrite (Mmult_assoc ρ _ A).
     rewrite inv. Msimpl.
     rewrite Mmult_assoc.
     easy.
@@ -151,20 +151,20 @@ Lemma bias1 : biased_coin 1 = ∣1⟩⟨1∣.
 Proof.
   unfold biased_coin.
   prep_matrix_equality; simpl.
-  destruct_m_eq; clra.
+  destruct_m_eq; lca.
 Qed.
 
 Lemma even_bias : biased_coin (1/2) = fair_coin.
 Proof. 
   unfold biased_coin, fair_coin.
   prep_matrix_equality; simpl.
-  destruct_m_eq; clra.
+  destruct_m_eq; lca.
 Qed.
 
 Lemma fair_toss : ⟦coin_flip⟧ (I 1)  = fair_coin.
 Proof. matrix_denote. Msimpl. solve_matrix. Qed.
 
-Lemma wf_biased_coin : forall c, WF_Matrix 2 2 (biased_coin c).
+Lemma wf_biased_coin : forall c, WF_Matrix (biased_coin c).
 Proof.
   intros; show_wf.
 Qed.
@@ -244,7 +244,7 @@ Proof.
       rewrite Cplus_assoc.
       rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
       rewrite <- Copp_mult_distr_r.
-      clra.
+      lca.
     - rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
       easy.
 Abort.
@@ -338,7 +338,7 @@ Fixpoint prepare (ls : list nat) : Matrix 1%nat (2^(length ls)) :=
 Definition pure {n} (vec : Matrix n 1%nat) : Matrix n n := vec × (vec †).
 
 Definition prep α β : Matrix 2 2 := pure ((α.*∣0⟩) .+ (β.*∣1⟩)).
-Lemma wf_prep : forall α β, WF_Matrix 2 2 (prep α β).
+Lemma wf_prep : forall α β, WF_Matrix (prep α β).
 Proof.
   intros. unfold prep, pure.
   show_wf.
@@ -432,7 +432,7 @@ Definition U_constant (U : Unitary (Qubit ⊗ Qubit)%qc) :=
 Definition U_balanced (U : Unitary (Qubit ⊗ Qubit)%qc) := 
   apply_U 2 U [0;1]%nat = super f1 \/ apply_unitary 2 U [0;1]%nat = f2.
 
-Lemma f2_WF : WF_Matrix 4 4 f2. Proof. show_wf. Qed.
+Lemma f2_WF : WF_Matrix f2. Proof. show_wf. Qed.
 Hint Resolve f2_WF : wf_db.
 
 Close Scope matrix_scope.
@@ -654,7 +654,7 @@ Definition M_alice (ρ : Matrix 4 4) : Matrix 4 4 :=
   | _, _ => 0
   end.
 
-Lemma alice_spec : forall (ρ : Density 4), WF_Matrix 4 4  ρ -> ⟦alice⟧ ρ = M_alice ρ.
+Lemma alice_spec : forall (ρ : Density 4), WF_Matrix ρ -> ⟦alice⟧ ρ = M_alice ρ.
 Proof.
   matrix_denote. Msimpl.
   repeat rewrite <- Mmult_assoc; Msimpl.
@@ -663,7 +663,7 @@ Proof.
   all: autorewrite with Cdist_db;
        repeat rewrite (Cmult_comm _ (/√2));
        repeat rewrite Cmult_assoc;
-       autorewrite with C_db; clra.
+       autorewrite with C_db; lca.
 Qed.    
 
 (* Spec computed rather than reasoned about - should confirm correct *)
@@ -676,7 +676,7 @@ Definition M_bob (ρ : Density 8) : Density 2 :=
           | _, _ => 0
           end.
 
-Lemma bob_spec : forall (ρ : Density 8), WF_Matrix 8 8 ρ -> ⟦bob⟧ ρ = M_bob ρ.
+Lemma bob_spec : forall (ρ : Density 8), WF_Matrix ρ -> ⟦bob⟧ ρ = M_bob ρ.
 Proof. matrix_denote. Msimpl. solve_matrix. Qed.  
 
 
@@ -713,7 +713,7 @@ Definition M_bob_distant (b1 b2 : bool) (ρ : Density 2) : Matrix 2 2 :=
 Close Scope matrix_scope.
 
 Definition bob_distant_spec : forall b1 b2 (ρ : Density 2), 
-    WF_Matrix 2 2 ρ -> 
+    WF_Matrix ρ -> 
     ⟦bob_distant b1 b2⟧ ρ = M_bob_distant b1 b2 ρ.
 Proof.
   intros.
@@ -744,18 +744,18 @@ Qed.
 
 Lemma superdense_eq : forall (ρ : Density 4),
   Classical ρ ->
-  WF_Matrix 4 4 ρ -> 
+  WF_Matrix ρ -> 
   ⟦superdense⟧ ρ = ρ.
 Proof.
   intros ρ CL WF.
   matrix_denote.
   Msimpl.
   solve_matrix.
-  all: try (rewrite CL by omega; easy).
+  all: try (rewrite CL by lia; easy).
   all: autorewrite with Cdist_db;
        repeat rewrite Cmult_assoc; autorewrite with C_db;
        repeat rewrite <- Cmult_assoc; autorewrite with C_db;    
-       clra.
+       lca.
 Qed.
 
 Lemma superdense_distant_eq : forall b1 b2, 

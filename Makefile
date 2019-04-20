@@ -103,5 +103,5 @@ FlatCircuits.vo: FlatCircuits.v HOASCircuits.vo Monad.vo
 #	coqc FlatProofs.v
 
 clean:
-	rm *.vo
+	rm *.vo *.glob
 

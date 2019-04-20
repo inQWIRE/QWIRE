@@ -2,11 +2,8 @@ Require Export Bool.
 Require Export Arith.
 Require Export Reals.
 Require Export Psatz.
-Require Export Omega.
 Require Export Program.
 Require Export List.
-Require Export Psatz.
-Require Import Monad. 
 
 Export ListNotations.
 
@@ -56,13 +53,24 @@ Ltac bdestruct X :=
     | destruct H as [H|H];
        [ | try first [apply not_lt in H | apply not_le in H]]].
 
-Ltac bdestructΩ X := bdestruct X; simpl; try omega.
+Ltac bdestructΩ X := bdestruct X; simpl; try lia.
 
 
 (* Distribute functions over lists *)
 
 Lemma if_dist : forall (A B : Type) (b : bool) (f : A -> B) (x y : A), f (if b then x else y) = if b then f x else f y.
 Proof. destruct b; reflexivity. Qed.
+
+Lemma if_dist2 : forall (A B C : Type) (b : bool) (f : A -> B -> C) (x y : A) (z : B), f (if b then x else y) z = if b then f x z else f y z.
+Proof. destruct b; reflexivity. Qed.
+
+(* f_equals in the other direction *)
+
+Lemma f_equal_inv : forall {A B} (x : A) (f g : A -> B), f = g -> f x = g x.
+Proof. intros. rewrite H. easy. Qed.
+
+Lemma f_equal2_inv : forall {A B C} x y (f g : A -> B -> C), f = g -> f x y = g x y.
+Proof. intros. rewrite H. easy. Qed.
 
 (* Currying *)
 
@@ -150,7 +158,7 @@ Proof.
   intros n L.
   destruct n; [inversion L|].  
   simpl.
-  rewrite IHm by omega.
+  rewrite IHm by lia. 
   reflexivity.
 Qed.
 
@@ -162,7 +170,7 @@ Proof.
   - apply firstn_nil.
   - destruct m; [inversion L|].
     simpl.
-    rewrite IHn by omega.
+    rewrite IHn by lia.
     reflexivity.
 Qed.
 
@@ -171,7 +179,7 @@ Proof.
   intros.
   bdestruct (m <=? n).
   - rewrite firstn_repeat_le, Min.min_l; easy.
-  - rewrite firstn_repeat_ge, Min.min_r; try omega; easy.
+  - rewrite firstn_repeat_ge, Min.min_r; trivial; lia.
 Qed.
 
 Lemma skipn_repeat : forall A (a : A) m n, skipn m (repeat a n) = repeat a (n-m).
@@ -305,16 +313,6 @@ Proof.
   reflexivity.
 Qed.
 
-
-Lemma inb_fmap_S : forall ls x,
-      inb (S x) (fmap S ls) = inb x ls.
-Proof.
-  induction ls; intros; simpl in *; auto.
-  simpl.
-  rewrite IHls.
-  reflexivity.
-Qed.
-
 (************************************)
 (* Helpful, general purpose tactics *)
 (************************************)
@@ -370,7 +368,7 @@ Tactic Notation "gen" ident(X1) ident(X2) ident(X3) ident(X4) ident(X5) :=
 (* Powers of 2 *)
 (***************)
 
-Lemma double_mult : forall (n : nat), (n + n = 2 * n)%nat. Proof. intros. omega. Qed.
+Lemma double_mult : forall (n : nat), (n + n = 2 * n)%nat. Proof. intros. lia. Qed.
 Lemma pow_two_succ_l : forall x, (2^x * 2 = 2 ^ (x + 1))%nat.
 Proof. intros. rewrite mult_comm. rewrite <- Nat.pow_succ_r'. intuition. Qed.
 Lemma pow_two_succ_r : forall x, (2 * 2^x = 2 ^ (x + 1))%nat.
@@ -379,6 +377,8 @@ Lemma double_pow : forall (n : nat), (2^n + 2^n = 2^(n+1))%nat.
 Proof. intros. rewrite double_mult. rewrite pow_two_succ_r. reflexivity. Qed.
 Lemma pow_components : forall (a b m n : nat), a = b -> m = n -> (a^m = b^n)%nat.
 Proof. intuition. Qed.
+Lemma pow_positive : forall a b, a <> 0 -> 0 < a ^ b.
+Proof. intros. induction b; simpl; try lia. apply Nat.lt_0_mul'. split; lia. Qed.  
 
 Ltac unify_pows_two :=
   repeat match goal with
@@ -393,5 +393,5 @@ Ltac unify_pows_two :=
   | [ |- context[ (2^?x + 2^?x)%nat]]       => rewrite double_pow 
   | [ |- context[ (2^?x * 2^?y)%nat]]       => rewrite <- Nat.pow_add_r 
   | [ |- context[ (?a + (?b + ?c))%nat ]]   => rewrite plus_assoc 
-  | [ |- (2^?x = 2^?y)%nat ]                => apply pow_components; try omega 
+  | [ |- (2^?x = 2^?y)%nat ]                => apply pow_components; try lia 
   end.

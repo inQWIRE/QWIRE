@@ -49,7 +49,7 @@ Instance Denote_Unitary W : Denote (Unitary W) (Square (2^⟦W⟧)) :=
     {| denote := denote_unitary |}.
 
 Lemma WF_Matrix_U : forall {W} (U : Unitary W), 
-      WF_Matrix (2^⟦W⟧) (2^⟦W⟧) (⟦U⟧).
+      WF_Matrix (⟦U⟧).
 Proof.
   induction U; simpl; auto with wf_db.
 Qed.
@@ -124,8 +124,7 @@ Qed.
 
 
 Lemma WF_denote_gate : forall safe n W1 W2 (g : Gate W1 W2) ρ,
-    WF_Matrix (2^⟦W1⟧ * 2^n) (2^⟦W1⟧ * 2^n) ρ 
-   -> WF_Matrix (2^⟦W2⟧ * 2^n) (2^⟦W2⟧ * 2^n) (denote_gate' safe n g ρ).
+    WF_Matrix ρ -> WF_Matrix (denote_gate' safe n g ρ).
 Proof.
   intros safe n W1 W2 g ρ wf_ρ.
   assert (0 < 2^n)%nat by apply pow_gt_0.
@@ -154,9 +153,9 @@ Proof.
   specialize (mixed_state_diag_in01 _ 1%nat M) as IN1.
   specialize (mixed_state_trace_1 _ M) as TR1.
   unfold trace in TR1. simpl in TR1.
-  replace (ρ 0%nat 0%nat) with (RtoC (fst (ρ 0%nat 0%nat))) by clra.
-  replace (ρ 1%nat 1%nat) with (RtoC (fst (ρ 1%nat 1%nat))) by clra.
-  replace (ρ 1%nat 1%nat) with (RtoC (1 - fst (ρ 0%nat 0%nat))) by (inversion TR1; clra).
+  replace (ρ 0%nat 0%nat) with (RtoC (fst (ρ 0%nat 0%nat))) by lca.
+  replace (ρ 1%nat 1%nat) with (RtoC (fst (ρ 1%nat 1%nat))) by lca.
+  replace (ρ 1%nat 1%nat) with (RtoC (1 - fst (ρ 0%nat 0%nat))) by (inversion TR1; lca).
   destruct (Req_dec (fst (ρ 0%nat 0%nat)) 0); [|destruct (Req_dec (fst (ρ 0%nat 0%nat)) 1)].
   - rewrite H, Mscale_0_l, Mplus_0_l, Rminus_0_r, Mscale_1_l.
     constructor; apply pure_id1.
@@ -224,12 +223,12 @@ Proof.
     replace (∣0⟩⟨0∣ × ρ × ∣0⟩⟨0∣) with (ρ 0%nat 0%nat .* ∣0⟩⟨0∣) by solve_matrix.
     replace (∣1⟩⟨1∣ × ρ × ∣1⟩⟨1∣) with (ρ 1%nat 1%nat .* ∣1⟩⟨1∣) by solve_matrix.
     specialize (mixed_state_trace_1 _ H) as TR1. unfold trace in TR1. simpl in TR1.
-    replace (ρ 1%nat 1%nat) with (1 - ρ O O) by (rewrite <- TR1; clra).
-    replace (ρ O O) with ((fst (ρ O O)), snd (ρ O O)) by clra. 
+    replace (ρ 1%nat 1%nat) with (1 - ρ O O) by (rewrite <- TR1; lca).
+    replace (ρ O O) with ((fst (ρ O O)), snd (ρ O O)) by lca. 
     rewrite mixed_state_diag_real by assumption.
     set (a := (ρ 0 0)%nat). replace (ρ 0 0)%nat with a in TR1 by reflexivity.
     set (b := (ρ 1 1)%nat). replace (ρ 1 1)%nat with b in TR1 by reflexivity.
-    replace (1 - (fst a, 0)) with (RtoC (1 - fst a)) by clra.
+    replace (1 - (fst a, 0)) with (RtoC (1 - fst a)) by lca.
     replace (fst a, 0) with (RtoC (fst a)) by reflexivity.
     destruct (Ceq_dec a C0) as [Z | NZ]; [|destruct (Ceq_dec a C1) as [O | NO]].
     * rewrite Z in *.
@@ -270,10 +269,10 @@ Proof.
     replace (∣0⟩⟨0∣ × ρ × ∣0⟩⟨0∣) with (ρ 0%nat 0%nat .* ∣0⟩⟨0∣) by solve_matrix.
     replace (∣1⟩⟨1∣ × ρ × ∣1⟩⟨1∣) with (ρ 1%nat 1%nat .* ∣1⟩⟨1∣) by solve_matrix.
     specialize (mixed_state_trace_1 _ H) as TR1. unfold trace in TR1. simpl in TR1.
-    replace (ρ 1%nat 1%nat) with (1 - ρ O O) by (rewrite <- TR1; clra).
-    replace (ρ O O) with ((fst (ρ O O)), snd (ρ O O)) by clra. 
+    replace (ρ 1%nat 1%nat) with (1 - ρ O O) by (rewrite <- TR1; lca).
+    replace (ρ O O) with ((fst (ρ O O)), snd (ρ O O)) by lca. 
     rewrite mixed_state_diag_real by assumption.
-    replace (1 - (fst (ρ O O), 0)) with (RtoC (1 - fst (ρ O O))) by clra.
+    replace (1 - (fst (ρ O O), 0)) with (RtoC (1 - fst (ρ O O))) by lca.
     replace (fst (ρ O O), 0) with (RtoC (fst (ρ O O))) by reflexivity.
     specialize (mixed_state_diag_in01 _ O H) as in01.
     destruct in01 as [[L|E0] [R|E1]]. 
@@ -378,8 +377,8 @@ Definition pad {m} n (A : Square (2^m)) : Square (2^n) := (A ⊗ I (2^ (n - m)))
 
 Lemma WF_pad : forall m n (A : Square m),
       (m <= n)%nat ->
-      WF_Matrix (2^m) (2^m) A ->
-      WF_Matrix (2^n) (2^n) (@pad m n A).
+      @WF_Matrix (2^m) (2^m) A ->
+      WF_Matrix (@pad m n A).
 Proof.
   intros. unfold pad.
   apply WF_kron; auto.
@@ -388,7 +387,7 @@ Proof.
   reflexivity.
   rewrite <- Nat.pow_add_r.
   replace (m + (n - m))%nat with n by omega.
-  reflexivity.
+  reflexivity. 
   apply WF_I.
 Qed.
 
@@ -432,7 +431,7 @@ Proposition swap_list_shift' : forall (n : nat) (ρ : Square 2) (A : Square (2^n
 
 Lemma WF_swap_to_0_aux : forall n i, 
   (i + 1 < n)%nat ->
-  WF_Matrix (2^n) (2^n) (swap_to_0_aux n i).
+  WF_Matrix (swap_to_0_aux n i).
 Proof.
   intros n i H.
   gen n.
@@ -447,7 +446,7 @@ Proof.
     apply IHi; omega.
 Qed.
 
-Lemma WF_swap_to_0 : forall i n, (i < n)%nat -> WF_Matrix (2^n) (2^n) (swap_to_0 n i).
+Lemma WF_swap_to_0 : forall i n, (i < n)%nat -> WF_Matrix (swap_to_0 n i).
 Proof.
   intros i n L.
   unfold swap_to_0.
@@ -457,7 +456,7 @@ Proof.
 Qed.  
 
 Lemma WF_swap_two_aux : forall n i j, (i < j < n)%nat -> 
-                                 WF_Matrix (2^n) (2^n)  (swap_two_aux n i j).
+                                 WF_Matrix (swap_two_aux n i j).
 Proof.
   intros n i.
   gen n.
@@ -476,7 +475,7 @@ Proof.
 Qed.
     
 Lemma WF_swap_two : forall n i j, (i < n)%nat -> (j < n)%nat ->
-                             WF_Matrix (2^n) (2^n) (swap_two n i j).
+                             WF_Matrix (swap_two n i j).
 Proof.
   intros n i j Lin Ljn.
   unfold swap_two.
@@ -489,7 +488,7 @@ Qed.
 Lemma WF_swap_list_aux : forall m n l, 
    (forall i j, In (i,j) l -> (i < n)%nat /\ (j < n)%nat) ->
    (m <= n)%nat -> 
-   WF_Matrix (2^n) (2^n) (swap_list_aux m n l).
+   WF_Matrix (swap_list_aux m n l).
 Proof.
   intros m n l Lall Lmn.
   gen l.
@@ -552,7 +551,7 @@ Qed.
 
 Lemma WF_swap_list : forall n l, (length l <= n)%nat -> 
                             (forall x, In x l -> x < n)%nat ->
-                            WF_Matrix (2^n) (2^n) (swap_list n l).
+                            WF_Matrix (swap_list n l).
 Proof.
   intros n l len Lall.
   unfold swap_list.
@@ -580,12 +579,12 @@ Proof.
   intros n i H.
   induction i; simpl.
   - specialize (kron_unitary swap (I (2^(n-2))))%nat.
-    unify_pows_two. rewrite <- le_plus_minus.
+    replace (2 * 2 * 2^(n-2))%nat with (2^1 * 2^1 * 2^(n-2))%nat by easy.
+    replace (2^1 * 2^1 * 2^(n-2))%nat with (2^n)%nat by unify_pows_two.
     intros KU.
     apply KU.
     apply swap_unitary.
     apply id_unitary.
-    omega.
   - unify_pows_two.
     replace (2^n)%nat with (2^(i + 1 + 2 + (n - S i - 2)))%nat by
       (apply f_equal2; trivial; try omega).
@@ -849,7 +848,7 @@ Proof.
 Qed.
 
 Lemma ctrl_list_to_unitary_false : forall m n (u : Matrix 2 2),
-  WF_Matrix 2 2 u ->
+  WF_Matrix u ->
   ctrl_list_to_unitary (repeat false m) (repeat false n) u = I  (2^m) ⊗ u ⊗ I  (2^n).
 Proof.
   induction m; intros.
@@ -862,13 +861,13 @@ Proof.
     | |- context [ @kron ?a1 ?a2 ?bc1 ?bc2 ?A (@kron ?b1 ?b2 ?c1 ?c2 ?B ?C)] => idtac B; 
       replace bc1 with (b1 * c1)%nat by (unify_pows_two); 
       replace bc2 with (b2 * c2)%nat by (unify_pows_two);
-      rewrite <- (kron_assoc a1 a2 b1 b2 c1 c2 A B C)
+      rewrite <- (kron_assoc A B C)
     end.
     match goal with
     | |- context [ @kron ?a1 ?a2 ?bc1 ?bc2 ?A (@kron ?b1 ?b2 ?c1 ?c2 ?B ?C)] => idtac B; 
       replace bc1 with (b1 * c1)%nat by (unify_pows_two); 
       replace bc2 with (b2 * c2)%nat by (unify_pows_two);
-      rewrite <- (kron_assoc a1 a2 b1 b2 c1 c2 A B C)
+      rewrite <- (kron_assoc A B C)
     end.
     rewrite id_kron.
     unify_pows_two.
@@ -975,13 +974,11 @@ Proof.
       rewrite Mmult_plus_distr_l, Mmult_plus_distr_r.
       rewrite Mmult_plus_distr_r.
       Msimpl.
-      setoid_rewrite kron_mixed_product.
       rewrite UU.
       replace (∣0⟩⟨0∣ × ∣1⟩⟨1∣) with (@Zero 2 2) by solve_matrix.
-      replace (∣1⟩⟨1∣ × ∣0⟩⟨0∣) with (@Zero 2 2) by solve_matrix.
+      replace (∣1⟩⟨1∣ × ∣0⟩⟨0∣) with (@Zero 2 2) by solve_matrix. 
       repeat rewrite kron_0_l.
       rewrite Mplus_0_r, Mplus_0_l.
-      Msimpl. 
       rewrite <- kron_plus_distr_r.
       replace (∣1⟩⟨1∣ × ∣1⟩⟨1∣ .+ ∣0⟩⟨0∣ × ∣0⟩⟨0∣) with (I 2) by solve_matrix.
       rewrite id_kron.
@@ -1160,8 +1157,8 @@ Proof.
       reflexivity.
   - simpl.
     destruct a.
-    + Msimpl. rewrite IHl. easy.
-    + Msimpl. rewrite IHl. easy.
+    + Msimpl. setoid_rewrite kron_adjoint. Msimpl. rewrite IHl. reflexivity.
+    + Msimpl. setoid_rewrite kron_adjoint. Msimpl. rewrite IHl. reflexivity.
 Qed.
 
 Lemma denote_ctrls_transpose: forall W (n : nat) (u : Unitary W) li, 
@@ -3117,8 +3114,8 @@ Qed.
 
 Proposition WF_denote_circuit : forall safe W (c : Circuit W) (Γ0 Γ : Ctx) ρ,
   Γ ⊢ c:Circ -> 
-  WF_Matrix (2^(⟦Γ0⟧ + ⟦Γ⟧)) (2^(⟦Γ0⟧ + ⟦Γ⟧)) ρ -> 
-  WF_Matrix (2^(⟦Γ0⟧ + ⟦W⟧)) (2^(⟦Γ0⟧ + ⟦W⟧)) (denote_circuit safe c Γ0 Γ ρ).
+  WF_Matrix ρ -> 
+  WF_Matrix (denote_circuit safe c Γ0 Γ ρ).
 Proof.
   intros safe W c.
   induction c.
@@ -3678,8 +3675,8 @@ Qed.
 
 Proposition WF_denote_box : forall safe W1 W2 (c : Box W1 W2) ρ,
   Typed_Box c ->
-  WF_Matrix (2^(⟦W1⟧)) (2^(⟦W1⟧)) ρ -> 
-  WF_Matrix (2^(⟦W2⟧)) (2^(⟦W2⟧)) (denote_box safe c ρ).
+  WF_Matrix ρ -> 
+  WF_Matrix (denote_box safe c ρ).
 Proof.
   intros safe W1 W2 c ρ T WF.
   destruct c.
@@ -4183,7 +4180,7 @@ Abort.
 (* I don't think we need ρ to be a Mixed State. 
    We might not even need it to be well-formed. *)
 Definition HOAS_Equiv {W1 W2} (c1 c2 : Box W1 W2) :=
-  forall ρ b, WF_Matrix (2 ^ ⟦ W1 ⟧) (2 ^ ⟦ W1 ⟧) ρ -> denote_box b c1 ρ = denote_box b c2 ρ .
+  forall ρ b, WF_Matrix ρ -> denote_box b c1 ρ = denote_box b c2 ρ .
 
 Locate "≡".
 Notation "a ≡ b" := (HOAS_Equiv a b) (at level 70) : circ_scope.
