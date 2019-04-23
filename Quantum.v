@@ -307,7 +307,7 @@ Proof.
   all: rewrite WFU; [reflexivity|lia].
 Qed.
 
-Hint Resolve WF_hadamard WF_σx WF_σy WF_σz WF_cnot WF_swap WF_phase WF_control : wf_db.
+Hint Resolve WF_hadamard WF_σx WF_σy WF_σz WF_cnot WF_swap WF_phase : wf_db.
 
 Hint Extern 2 (WF_Matrix (phase_shift _)) => apply WF_phase : wf_db.
 Hint Extern 2 (WF_Matrix (control _)) => apply WF_control : wf_db.

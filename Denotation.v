@@ -51,7 +51,7 @@ Instance Denote_Unitary W : Denote (Unitary W) (Square (2^⟦W⟧)) :=
 Lemma WF_Matrix_U : forall {W} (U : Unitary W), 
       WF_Matrix (⟦U⟧).
 Proof.
-  induction U; simpl; auto with wf_db.
+  induction U; simpl; try apply WF_control; auto with wf_db. (* try shouldn't be necessary *)
 Qed.
 Hint Resolve WF_Matrix_U : wf_db.
 Lemma unitary_gate_unitary : forall {W} (U : Unitary W), WF_Unitary (⟦U⟧).
