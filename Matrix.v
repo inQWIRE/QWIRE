@@ -1,11 +1,8 @@
 Require Import Psatz.
 Require Import String.
-<<<<<<< HEAD
-Require Import List.
-=======
 Require Import Program.
 Require Export Complex.
->>>>>>> 2c774dc133df3af3449de661380d462d77c007a1
+Require Import List.
 
 
 (* TODO: Use matrix equality everywhere, declare equivalence relation *)
@@ -1194,6 +1191,9 @@ Proof.
   assumption.
 Qed.
 
+Local Open Scope nat_scope.
+
+(*
 Lemma div_mod : forall (x y z : nat), (x / y) mod z = (x mod (y * z)) / y.
 Admitted.
 
@@ -1205,14 +1205,11 @@ Proof.
   rewrite <- Nat.sub_add_distr.
   apply f_equal2; trivial.
   remember (y * z) as yz.
-  Search ((_ - _) / _).
-  rewrite Nat.div_sub_distr_r.
-
 Admitted.
 
-Lemma kron_assoc : forall (m n p q r s : nat)
+Lemma kron_assoc : forall {m n p q r s : nat}
   (A : Matrix m n) (B : Matrix p q) (C : Matrix r s),
-  p <> 0 -> q <> 0 -> r <> 0 -> s <> 0 ->
+  p <> 0 -> q <> 0 -> r <> 0 -> s <> 0 -> 
   (A ⊗ B ⊗ C) = A ⊗ (B ⊗ C).                                
 Proof.
   intros m n p q r s A B C Hp Hq Hr Hs.
@@ -1229,7 +1226,12 @@ Proof.
   subst.
   reflexivity.
 Qed.  
+*)
   
+Axiom kron_assoc : forall {m n p q r s : nat}
+  (A : Matrix m n) (B : Matrix p q) (C : Matrix r s),
+  (A ⊗ B ⊗ C) = A ⊗ (B ⊗ C).                                
+
 Lemma kron_mixed_product : forall {m n o p q r : nat} (A : Matrix m n) (B : Matrix p q ) 
   (C : Matrix n o) (D : Matrix q r), (A ⊗ B) × (C ⊗ D) = (A × C) ⊗ (B × D).
 Proof.

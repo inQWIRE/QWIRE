@@ -721,7 +721,7 @@ Proof.
     intros i. apply (H0 i).
   - intros. simpl. 
     erewrite IHl1; auto. 
-    rewrite kron_assoc. 
+    rewrite kron_assoc; try apply Nat.pow_nonzero; try lia. 
     show_dimensions.
     rewrite app_length.
     rewrite 2 Nat.pow_add_r.

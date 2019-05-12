@@ -426,20 +426,12 @@ Proposition swap_list_shift' : forall (n : nat) (ρ : Square 2) (A : Square (2^n
 
 (* SWAP unit tests *)
 
+(* Not quite done:
 Example swap_list_test : swap ⊗ swap = (swap_list 4 [1;0;3;2]%nat).
 Proof.
   unfold swap_list, swap_list_aux, swap_two. simpl.
   Msimpl.
-  rewrite <- kron_assoc.
-  
-  autounfold with den_db.
-  solve_matrix.
-  autounfold with proof_db.
-  crunch_matrix.
-  
-  reduce_matrix.
-
-Eval crunch_matrix in (swap_list 4 [1;0;3;2]%nat).
+*)
 
 (***********************************)
 (* Swap structures are well-formed *)
@@ -861,7 +853,7 @@ Proof.
   - intros.
     simpl.
     rewrite IHn.
-    setoid_rewrite kron_assoc.
+    setoid_rewrite kron_assoc; try apply Nat.pow_nonzero; try lia.
     rewrite id_kron.
     unify_pows_two.
     reflexivity.
@@ -881,14 +873,14 @@ Proof.
     | |- context [ @kron ?a1 ?a2 ?bc1 ?bc2 ?A (@kron ?b1 ?b2 ?c1 ?c2 ?B ?C)] => idtac B; 
       replace bc1 with (b1 * c1)%nat by (unify_pows_two); 
       replace bc2 with (b2 * c2)%nat by (unify_pows_two);
-      rewrite <- (kron_assoc A B C)
+      rewrite <- (kron_assoc A B C); try (unify_pows_two; try apply Nat.pow_nonzero; lia)
     end.
     match goal with
     | |- context [ @kron ?a1 ?a2 ?bc1 ?bc2 ?A (@kron ?b1 ?b2 ?c1 ?c2 ?B ?C)] => idtac B; 
       replace bc1 with (b1 * c1)%nat by (unify_pows_two); 
       replace bc2 with (b2 * c2)%nat by (unify_pows_two);
-      rewrite <- (kron_assoc A B C)
-    end.
+      rewrite <- (kron_assoc A B C); try (unify_pows_two; try apply Nat.pow_nonzero; lia)
+    end.    
     rewrite id_kron.
     unify_pows_two.
     repeat rewrite Nat.add_1_r.
