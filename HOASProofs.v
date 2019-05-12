@@ -204,7 +204,7 @@ Proof.
       rewrite Cmult_assoc.
       autorewrite with C_db.
       rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
-      replace (/ 2^n) with (/2 * /2 ^ n + /2 */2^n) at 1 by clra.
+      replace (/ 2^n) with (/2 * /2 ^ n + /2 */2^n) at 1 by lca.
       rewrite Copp_plus_distr.
       repeat rewrite <- Cplus_assoc.
       autorewrite with C_db.
