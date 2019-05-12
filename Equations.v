@@ -34,10 +34,10 @@ Proof.
   rewrite Mmult_plus_distr_l.
   rewrite Mmult_plus_distr_r.
   repeat rewrite <- Mmult_assoc.
-  repeat rewrite (Mmult_assoc _ _ _ _ _ ⟨0∣ σx).
-  repeat rewrite (Mmult_assoc _ _ _ _ _ ⟨1∣ σx).
-  repeat rewrite (Mmult_assoc _ _ _ _ _ σx ∣0⟩).
-  repeat rewrite (Mmult_assoc _ _ _ _ _ σx ∣1⟩).
+  repeat rewrite (Mmult_assoc _ ⟨0∣ σx).
+  repeat rewrite (Mmult_assoc _ ⟨1∣ σx).
+  repeat rewrite (Mmult_assoc _ σx ∣0⟩).
+  repeat rewrite (Mmult_assoc _ σx ∣1⟩).
   Msimpl.
   rewrite Mplus_comm.
   reflexivity.
@@ -129,7 +129,7 @@ Proof.
     rewrite (Cmult_comm ((u 1%nat 0%nat) ^* )) in H.
     unfold u00, u10.
     rewrite H.                 
-    clra.
+    lca.
   rewrite <- 3 Cplus_assoc.
   rewrite (Cplus_assoc c111).
   replace (c111 + c110) with ρ11.
@@ -145,7 +145,7 @@ Proof.
     rewrite Cmult_comm in H.
     unfold u11, u01. 
     rewrite H.                 
-    clra.
+    lca.
   rewrite (Cplus_comm ρ11).
   rewrite <- Cplus_assoc.
   repeat rewrite (Cplus_assoc c011).
@@ -162,7 +162,7 @@ Proof.
     rewrite Cmult_comm in H.
     unfold u00, u01, u10, u11.
     rewrite H.                 
-    clra.
+    lca.
   rewrite Cplus_0_l.
   rewrite <- Cplus_assoc.
   repeat rewrite (Cplus_assoc c101).
@@ -179,7 +179,7 @@ Proof.
     rewrite Cmult_comm in H.
     unfold u00, u01, u10, u11.
     rewrite H.                 
-    clra.
+    lca.
   rewrite Cplus_0_l.
   reflexivity.
 Qed.
@@ -223,7 +223,7 @@ Lemma init_if_WT : forall W b (U V : Unitary W), Typed_Box (init_if b U V).
 Proof. type_check. Qed.
 
 Lemma init_if_true_qubit : forall (U V : Unitary Qubit) ρ,
-  WF_Matrix 2 2 ρ -> 
+  WF_Matrix ρ -> 
   ⟦init_if true U V⟧ ρ = (∣1⟩ ⊗ I 2 )%M × (⟦U⟧ × ρ × (⟦U⟧†)) × (⟨1∣ ⊗ I 2)%M. 
 Proof.
   intros U V ρ WF. simpl in *.
@@ -234,7 +234,7 @@ Proof.
 Qed.  
   
 Lemma init_if_false_qubit : forall (U V : Unitary Qubit) ρ,
-  WF_Matrix 2 2 ρ -> 
+  WF_Matrix ρ -> 
   ⟦init_if false U V⟧ ρ = (∣0⟩ ⊗ I 2 )%M × (⟦V⟧ × ρ × (⟦V⟧†)) × (⟨0∣ ⊗ I 2)%M. 
 Proof.
   intros U V ρ WF. simpl in *.
@@ -257,7 +257,7 @@ Proof.
     specialize (WF_Matrix_U U) as WFU. 
     specialize (WF_Matrix_U V) as WFV.
     simpl in *.
-    Msimpl.
+    replace 4%nat with (2 * 2)%nat by easy. Msimpl.
     solve_matrix.
   - matrix_denote. 
     match goal with 
@@ -269,7 +269,7 @@ Proof.
     specialize (WF_Matrix_U U) as WFU. 
     specialize (WF_Matrix_U V) as WFV.
     simpl in *.
-    Msimpl.
+    replace 4%nat with (2 * 2)%nat by easy. Msimpl.
     solve_matrix.
 Qed.
 
@@ -326,7 +326,7 @@ Hint Unfold Splus : den_db.
 
 Definition Classical {n} (ρ : Density n) := forall i j, i <> j -> ρ i j = 0.
 
-Lemma lift_new_new : forall (ρ : Density 2), WF_Matrix 2 2 ρ -> 
+Lemma lift_new_new : forall (ρ : Density 2), WF_Matrix ρ -> 
                                         Classical ρ -> 
                                         ⟦lift_new⟧ ρ = ⟦@id_circ Bit⟧ ρ.
 Proof. 
@@ -334,8 +334,8 @@ Proof.
   matrix_denote.
   Msimpl.
   solve_matrix.
-  rewrite C; trivial; omega.
-  rewrite C; trivial; omega.
+  rewrite C; trivial; lia.
+  rewrite C; trivial; lia.
 Qed.  
 
 (** Equation 7': meas q; lift x <- p; new x = meas q **)
@@ -409,7 +409,7 @@ Proof.
     unfold Cexp.
     rewrite cos_neg, sin_neg.
     rewrite cos_PI2, sin_PI2.
-    replace (0,-1)%core with (-Ci) by clra.
+    replace (0,-1)%core with (-Ci) by lca.
     repeat rewrite Cmult_plus_distr_r.
 
     (* maybe? If so, it's a mess *)
@@ -449,9 +449,9 @@ Proof.
   intros.
   Msimpl.
   repeat rewrite <- Mmult_assoc.
-  rewrite (Mmult_assoc _ _ _ _ _ _ hadamard).
-  rewrite (Mmult_assoc _ _ _ _ _ hadamard).
-  rewrite <- (Mmult_assoc _ _ _ _ hadamard).
+  rewrite (Mmult_assoc _ _ hadamard).
+  rewrite (Mmult_assoc _ hadamard).
+  rewrite <- (Mmult_assoc hadamard).
   replace (hadamard × σz × hadamard) with σx. easy.
   crunch_matrix.
 Qed.

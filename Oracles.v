@@ -13,6 +13,8 @@ Require Import List.
 Set Bullet Behavior "Strict Subproofs".
 Global Unset Asymmetric Patterns.
 
+Require Import Omega.
+
 (* --------------------------------*)
 (* Reversible bexps with variables *)
 (* --------------------------------*)
@@ -659,7 +661,7 @@ Proof.
   simpl. destruct a; simpl; rewrite IHΓ; easy.
 Qed.
 
-Lemma WF_ctx_to_matrix : forall Γ f, WF_Matrix (2^⟦Γ⟧) (2^⟦Γ⟧) (ctx_to_matrix Γ f).
+Lemma WF_ctx_to_matrix : forall Γ f, WF_Matrix (ctx_to_matrix Γ f).
 Proof.
   induction Γ; intros f.
   - auto with wf_db.
@@ -675,7 +677,7 @@ Proof.
     apply IHΓ.
 Qed.
 
-Lemma WF_ctx_to_mat_list : forall Γ f, WF_Matrix (2^⟦Γ⟧) (2^⟦Γ⟧) (big_kron (ctx_to_mat_list Γ f)).
+Lemma WF_ctx_to_mat_list : forall Γ f, @WF_Matrix (2^⟦Γ⟧) (2^⟦Γ⟧) (big_kron (ctx_to_mat_list Γ f)).
 Proof. apply WF_ctx_to_matrix. Qed.
 
 Hint Resolve WF_ctx_to_matrix WF_ctx_to_mat_list : wf_db.
@@ -710,8 +712,8 @@ Proof.
 Qed.
 
 Lemma big_kron_append : forall m n (l1 l2 : list (Matrix m n)) (A B : Matrix m n), 
-  (forall j, WF_Matrix m n (nth j l1 A)) ->
-  (forall j, WF_Matrix m n (nth j l2 B)) ->
+  (forall j, WF_Matrix (nth j l1 A)) ->
+  (forall j, WF_Matrix (nth j l2 B)) ->
   ⨂ (l1 ++ l2) = (⨂ l1) ⊗ (⨂ l2). 
 Proof.
   induction l1.
@@ -1001,7 +1003,7 @@ Proof.
     easy.
     subst.
     rewrite size_ntensor. simpl. rewrite Nat.mul_1_r. 
-    assert(WF2 : forall j, WF_Matrix 2 2 (nth j l2 B)).
+    assert(WF2 : forall j, WF_Matrix (nth j l2 B)).
       intros j. apply WF_Mixed. apply M2.
     eapply WF_big_kron. 
     apply WF2.

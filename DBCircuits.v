@@ -493,9 +493,9 @@ Qed.
 Lemma seq_S : forall len start, seq start (S len) = seq start len ++ [start + len].
 Proof.
   induction len; intros; simpl.
-  * f_equal. omega.
+  * f_equal. lia.
   * f_equal.
-    replace (start + S len) with (S start + len)%nat by omega.
+    replace (start + S len) with (S start + len)%nat by lia.
     rewrite <- IHlen.
     simpl.
     auto.

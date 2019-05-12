@@ -27,7 +27,7 @@ Proof.
 (* ---------------------------------------*)
 
 (* TODO: add lemmas to proof_db *)
-Lemma id_circ_spec : forall W ρ safe, WF_Matrix (2^⟦W⟧) (2^⟦W⟧) ρ -> 
+Lemma id_circ_spec : forall W ρ safe, WF_Matrix ρ -> 
   denote_box safe  (@id_circ W) ρ = ρ.
 Proof.
   intros W ρ safe H.
@@ -83,10 +83,10 @@ Lemma assert_spec : forall b safe, denote_box safe (assert b) (bool_to_matrix b)
 Proof. destruct b; [apply assert1_spec | apply assert0_spec]. Qed.
 
 Lemma SWAP_spec : forall ρ safe, denote_box safe SWAP ρ = swap × ρ × swap.
-Proof. intros. matrix_denote. Msimpl. reflexivity. Qed.
+Proof. intros. matrix_denote. Msimpl. setoid_rewrite swap_sa. reflexivity. Qed.
 
 Lemma SWAP_spec_sep : forall (ρ1 ρ2 : Density 2) safe,
-  WF_Matrix _ _ ρ1 -> WF_Matrix _ _ ρ2 ->
+  WF_Matrix ρ1 -> WF_Matrix ρ2 ->
   denote_box safe SWAP (ρ1 ⊗ ρ2) = ρ2 ⊗ ρ1.
 Proof. intros. rewrite SWAP_spec. solve_matrix. Qed.
 
@@ -117,7 +117,8 @@ Proof.
 
   2:{ rewrite fresh_wtype. rewrite app_length.
       Search Bounded_Pat.
-      apply bounded_pat_le with (length (add_fresh_state W [])). omega.
+      apply bounded_pat_le with (length (add_fresh_state W [])). 
+      lia.
       rewrite length_fresh_state with (w := W) (Γ' := add_fresh_state W []) (Γ := []) by easy.
       apply add_fresh_pat_bounded.
       constructor.

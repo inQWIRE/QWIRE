@@ -14,6 +14,8 @@ Set Bullet Behavior "Strict Subproofs".
 Global Unset Asymmetric Patterns.
 Delimit Scope matrix_scope with M.
 
+Require Import Omega.
+
 (**********************)
 (* Syntactic Property *)
 (**********************)
@@ -1100,7 +1102,7 @@ Proof.
     Msimpl.  
     match goal with
     | [|- @Mmult ?a ?b ?c ?A (@Mmult ?d ?e ?f ?B ?C) .+ _ = _] => 
-      setoid_rewrite <- (Mmult_assoc _ _ _ _ A B C)                                    
+      setoid_rewrite <- (Mmult_assoc A B C)                                    
     end.
     Msimpl.
     destruct b; simpl.
@@ -1110,7 +1112,6 @@ Proof.
       replace (⟨1∣ × ∣1⟩) with (I 1).
       2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
       Msimpl.
-      setoid_rewrite (id_kron (2^i) (2^(m-i))).
       rewrite Nat.mul_1_r.
       replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
       Msimpl.
@@ -1134,7 +1135,6 @@ Proof.
       replace (⟨0∣ × ∣0⟩) with (I 1).
       2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
       Msimpl.
-      setoid_rewrite (id_kron (2^i) (2^(m-i))).
       rewrite Nat.mul_1_r.
       replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
       Msimpl.
@@ -1147,14 +1147,13 @@ Proof.
     Msimpl.  
     match goal with
     | [|- @Mmult ?a ?b ?c ?A (@Mmult ?d ?e ?f ?B ?C) = _] => 
-      setoid_rewrite <- (Mmult_assoc _ _ _ _ A B C)                                    
+      setoid_rewrite <- (Mmult_assoc A B C)                                    
     end.
     Msimpl.
     destruct b; simpl.
     + replace (⟨1∣ × ∣1⟩) with (I 1).
       2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
       Msimpl.
-      setoid_rewrite (id_kron (2^i) (2^(m-i))).
       rewrite Nat.mul_1_r.
       replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
       Msimpl.
@@ -1162,7 +1161,6 @@ Proof.
     + replace (⟨0∣ × ∣0⟩) with (I 1).
       2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
       Msimpl.
-      setoid_rewrite (id_kron (2^i) (2^(m-i))).
       rewrite Nat.mul_1_r.
       replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
       Msimpl.
@@ -1252,7 +1250,7 @@ Qed.
 
 
 
-Lemma denote_box_id_circ : forall b w ρ, WF_Matrix _ _ ρ ->
+Lemma denote_box_id_circ : forall b w ρ, WF_Matrix ρ ->
       denote_box b (id_circ : Box w w) ρ = ρ.
 Proof.
   intros b w ρ.
