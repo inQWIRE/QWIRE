@@ -2,6 +2,7 @@ Require Import Reals.
 Require Import Complex.
 Require Import Psatz.
 Require Import String.
+Require Import List.
 
 Require Export Prelim.
 
@@ -97,7 +98,6 @@ Proof.
   - unfold list2D_to_matrix. 
     rewrite (nth_overflow _ C0).
     easy.
-    Search In nth.
     destruct (nth_in_or_default x li []) as [IN | DEF].
     apply F in IN.
     rewrite IN. apply r.
@@ -235,7 +235,7 @@ Ltac mlra :=
   autounfold with M_db;
   prep_matrix_equality;
   destruct_m_eq; 
-  clra.
+  lca.
 
 (******************************)
 (** Proofs about finite sums **)
@@ -1159,19 +1159,46 @@ Proof.
   assumption.
 Qed.
 
+Search Nat.modulo.
 
+Lemma div_mod : forall (x y z : nat), (x / y) mod z = (x mod (y * z)) / y.
+Admitted.
+
+Lemma mod_product : forall x y z, y <> 0 -> z <> 0 -> x mod (y * z) mod z = x mod z.
+Proof.
+  intros x y z H H0.
+  repeat rewrite Nat.mod_eq; trivial.
+  2: apply Nat.neq_mul_0; easy.
+  rewrite <- Nat.sub_add_distr.
+  apply f_equal2; trivial.
+  remember (y * z) as yz.
+  Search ((_ - _) / _).
+  rewrite Nat.div_sub_distr_r.
+
+Admitted.
+
+Lemma kron_assoc : forall (m n p q r s : nat)
+  (A : Matrix m n) (B : Matrix p q) (C : Matrix r s),
+  p <> 0 -> q <> 0 -> r <> 0 -> s <> 0 ->
+  (A ⊗ B ⊗ C) = A ⊗ (B ⊗ C).                                
+Proof.
+  intros m n p q r s A B C Hp Hq Hr Hs.
+  remember (A ⊗ B ⊗ C) as LHS.
+  prep_matrix_equality.
+  rename x into i, y into j.
+  unfold kron.  
+  rewrite (mult_comm p r) at 1 2.
+  rewrite (mult_comm q s) at 1 2.
+  rewrite <- 2 Nat.div_div by assumption.
+  rewrite <- 2 div_mod.
+  rewrite 2 mod_product by assumption.
+  rewrite Cmult_assoc.
+  subst.
+  reflexivity.
+Qed.  
+  
 Axiom kron_assoc : forall (m n o p q r : nat) (A : Matrix m n) (B : Matrix o p) 
   (C : Matrix q r), (A ⊗ B ⊗ C) = A ⊗ (B ⊗ C).
-
-(*
-Proposition mod_product : forall x y z, y <> 0 -> x mod (y * z) mod z = x mod z.
-Proof.  
-  induction z.
-  - intros. simpl. reflexivity.
-  - intros. simpl.
-    unfold Nat.modulo in IHz.
-Abort.
-*)    
 
 Lemma kron_mixed_product : forall (m n o p q r : nat) (A : Matrix m n) (B : Matrix p q ) 
   (C : Matrix n o) (D : Matrix q r), (A ⊗ B) × (C ⊗ D) = (A × C) ⊗ (B × D).

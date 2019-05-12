@@ -354,6 +354,8 @@ Fixpoint swap_list_aux (m n : nat) (l : list (nat * nat)) : Square  (2^n) :=
 
 Definition zip_to (m n : nat) (l : list nat) := combine (seq m n) l.
 
+Compute (zip_to 2 5 [1;2;3]%nat).
+
 (* for l[i]=x, swaps the position of qubits i and x in the n-qubit system *)
 (* Requires: length l <= n *)
 (* Requires: x ∈ l implies x < n *)
@@ -421,6 +423,24 @@ Proposition swap_list_shift : forall n (ρ : Square (2^1)%nat) (A : Square (2^n)
 Proposition swap_list_shift' : forall (n : nat) (ρ : Square 2) (A : Square (2^n)%nat),
   super (swap_list (S n) (n :: seq 0 n)) (A ⊗ ρ) = ρ ⊗ A.
 *)
+
+
+(* SWAP unit tests *)
+
+Example swap_list_test : swap ⊗ swap = (swap_list 4 [1;0;3;2]%nat).
+Proof.
+  unfold swap_list, swap_list_aux, swap_two. simpl.
+  Msimpl.
+  rewrite <- kron_assoc.
+  
+  autounfold with den_db.
+  solve_matrix.
+  autounfold with proof_db.
+  crunch_matrix.
+  
+  reduce_matrix.
+
+Eval crunch_matrix in (swap_list 4 [1;0;3;2]%nat).
 
 (***********************************)
 (* Swap structures are well-formed *)

@@ -4,6 +4,24 @@ Require Import TypeChecking.
 
 Open Scope matrix_scope.
 
+(***************************)
+(* Approximate Slide Lemma *)
+(***************************)
+
+Lemma slide : forall (p q : Pat Qubit) (Γ0 Γ : Ctx) (U V : Unitary Qubit), 
+  denote_circuit true (let_ p' ← U $ p; let_ q' ← V $ q; (p',q')) Γ0 Γ = 
+  denote_circuit true (let_ q' ← V $ q; let_ p' ← U $ p; (p',q')) Γ0 Γ.
+Proof.
+  intros p q Γ0 Γ U V. simpl. 
+  unfold denote_circuit.
+  simpl.
+  dependent destruction p.
+  dependent destruction q.
+  simpl.
+  autounfold with den_db. simpl.
+
+  
+
 (* ---------------------------------------*)
 (*--------- Boxed Circuit Specs ----------*)
 (* ---------------------------------------*)
