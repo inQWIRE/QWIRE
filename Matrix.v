@@ -236,8 +236,7 @@ Notation "⟨ A , B ⟩" := (inner_product A B) : matrix_scope.
 Notation "n ⨂ A" := (kron_n n A) (at level 30, no associativity) : matrix_scope.
 Notation "⨂ A" := (big_kron A) (at level 60): matrix_scope.
 
-Hint Unfold Zero I trace dot Mplus scale Mmult kron mat_equiv transpose 
-            adjoint : M_db.
+Hint Unfold Zero I trace dot Mplus scale Mmult kron transpose adjoint : M_db.
 
 (** ** Matrix Automation 1 *)
 
@@ -248,6 +247,10 @@ Ltac solve_end :=
                 
 Ltac by_cell := 
   intros;
+  let i := fresh "i" in 
+  let j := fresh "j" in 
+  let Hi := fresh "Hi" in 
+  let Hj := fresh "Hj" in 
   intros i j Hi Hj; try solve_end;
   repeat (destruct i as [|i]; simpl; [|apply lt_S_n in Hi]; try solve_end); clear Hi;
   repeat (destruct j as [|j]; simpl; [|apply lt_S_n in Hj]; try solve_end); clear Hj.
@@ -493,6 +496,24 @@ Proof.
   rewrite H; easy.
 Qed.
 
+Lemma scale_compat : forall {m n} (c c' : C) (A A' : Matrix m n),
+    c = c' -> A == A' -> c .* A == c' .* A'.
+Proof.
+  intros m n c c' A A' Hc HA.
+  intros i j Hi Hj.
+  unfold scale.
+  rewrite Hc, HA; easy.
+Qed.
+
+Lemma Mplus_compat : forall {m n}  (A A' B B': Matrix m n),
+  A == A' -> B == B' -> A .+ B ==  A' .+ B'.
+Proof.
+  intros m n A A' B B' HA HB i j Hi Hj.
+  unfold Mplus.
+  rewrite HA, HB; try lia.
+  easy.
+Qed.
+
 Lemma Mmult_compat : forall {m n o} (A A' : Matrix m n) (B B' : Matrix n o),
     A == A' -> B == B' -> A × B == A' × B'.
 Proof.
@@ -535,9 +556,18 @@ Proof.
   rewrite H; easy.
 Qed.
 
+
 Add Parametric Morphism n : (@trace n)
   with signature mat_equiv ==> eq as trace_mor.
 Proof. intros; apply trace_compat; easy. Qed.
+
+Add Parametric Morphism m n : (@scale m n)
+  with signature eq ==> mat_equiv ==> mat_equiv as Mscale_mor.
+Proof. intros; apply scale_compat; easy. Qed.
+
+Add Parametric Morphism m n : (@Mplus m n)
+  with signature mat_equiv ==> mat_equiv ==> mat_equiv as Mplus_mor.
+Proof. intros. apply Mplus_compat; easy. Qed.
 
 Add Parametric Morphism m n o : (@Mmult m n o)
   with signature mat_equiv ==> mat_equiv ==> mat_equiv as Mmult_mor.
@@ -554,6 +584,7 @@ Proof. intros. apply transpose_compat; easy. Qed.
 Add Parametric Morphism m n : (@adjoint m n)
   with signature mat_equiv ==> mat_equiv as adjoint_mor.
 Proof. intros. apply adjoint_compat; easy. Qed.
+
 
 (** * Matrix Identities **)
 
