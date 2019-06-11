@@ -1,6 +1,46 @@
 Require Export Contexts.
 Require Import List.
+Require Import Reals.
 Import ListNotations.
+
+Inductive Unitary : WType -> Set := 
+  | _H         : Unitary Qubit 
+  | _X         : Unitary Qubit
+  | _Y         : Unitary Qubit
+  | _Z         : Unitary Qubit
+  | _R_        : R -> Unitary Qubit 
+  | ctrl      : forall {W} (U : Unitary W), Unitary (Qubit ⊗ W) 
+  | bit_ctrl  : forall {W} (U : Unitary W), Unitary (Bit ⊗ W).
+
+(* Additional gate notations *)
+Notation CNOT := (ctrl _X).
+Notation CCNOT := (ctrl (ctrl _X)).
+
+Notation _S := (_R_ (PI / 2)). 
+Notation _T := (_R_ (PI / 4)). (* π / 8 gate *)
+
+Fixpoint trans {W} (U : Unitary W) : Unitary W :=
+  match U with
+  | _R_ ϕ       => _R_ (- ϕ)
+  | ctrl U'     => ctrl (trans U')
+  | bit_ctrl U' => bit_ctrl (trans U')
+  | U'          => U' (* our other unitaries are their own adjoints *)
+  end.
+
+Inductive Gate : WType -> WType -> Set := 
+  | U : forall {W} (u : Unitary W), Gate W W
+  | BNOT     : Gate Bit Bit
+  | init0   : Gate One Qubit
+  | init1   : Gate One Qubit
+  | new0    : Gate One Bit
+  | new1    : Gate One Bit
+  | meas    : Gate Qubit Bit
+  | measQ   : Gate Qubit Qubit
+  | discard : Gate Bit One
+  | assert0 : Gate Qubit One
+  | assert1 : Gate Qubit One.
+
+Coercion U : Unitary >-> Gate.
 
 Inductive Circuit (w : WType) : Set :=
 | output : Pat w -> Circuit w
