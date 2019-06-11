@@ -8,7 +8,10 @@ Monad.vo: Monad.v
 Prelim.vo: Prelim.v Monad.vo
 	coqc Prelim.v
 
-Complex.vo: Complex.v Prelim.vo 
+RealAux.vo: RealAux.v 
+	coqc RealAux.v
+
+Complex.vo: Complex.v RealAux.vo Prelim.vo 
 	coqc Complex.v
 
 Matrix.vo: Matrix.v Complex.vo 

@@ -204,23 +204,6 @@ Hint Unfold WF_Unitary : M_db.
 (* More precise *)
 (* Definition unitary_matrix' {n: nat} (A : Matrix n n): Prop := Minv A A†. *)
 
-Ltac group_radicals :=
-  repeat rewrite Cconj_opp;
-  repeat rewrite Cconj_rad2;
-  repeat rewrite <- Copp_mult_distr_l;
-  repeat rewrite <- Copp_mult_distr_r;
-  repeat match goal with
-  | _ => rewrite square_rad2
-  | |- context [ ?x * ?y ] => tryif has_term (√ 2) x then fail 
-                            else (has_term (√ 2) y; rewrite (Cmult_comm x y)) 
-  | |- context [ ?x * ?y * ?z ] =>
-    tryif has_term (√ 2) y then fail 
-    else (has_term (√ 2) x; has_term (√ 2) z; rewrite <- (Cmult_assoc x y z)) 
-  | |- context [ ?x * (?y * ?z) ] => 
-    has_term (√ 2) x; has_term (√ 2) y; rewrite (Cmult_assoc x y z)
-  end.    
-
-
 Lemma H_unitary : WF_Unitary hadamard.
 Proof. 
   by_cell; autounfold with M_db; simpl; group_radicals; lca.
@@ -752,22 +735,6 @@ Proof.
     rewrite IHM1, IHM2.
     rewrite H; lra.
 Qed.
-
-(* Move to Matrix.v *)
-Lemma scale_compat : forall {m n} (c c' : C) (A A' : Matrix m n),
-    c = c' -> A == A' -> c .* A == c' .* A'.
-Proof.
-  intros m n c c' A A' Hc HA.
-  intros i j Hi Hj.
-  unfold scale.
-  rewrite Hc, HA; easy.
-Qed.
-
-Require Import Setoid.
-
-Add Parametric Morphism m n : (@scale m n)
-  with signature eq ==> mat_equiv ==> mat_equiv as Mscale_mor.
-Proof. intros; apply scale_compat; easy. Qed.
 
 Lemma mixed_dim1 : forall (ρ : Square 1), Mixed_State ρ -> ρ == I  1.
 Proof.

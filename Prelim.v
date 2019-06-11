@@ -1,6 +1,5 @@
 Require Export Bool.
 Require Export Arith.
-Require Export Reals.
 Require Export Psatz.
 Require Export Program.
 Require Export List.
