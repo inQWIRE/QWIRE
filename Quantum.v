@@ -1,6 +1,6 @@
 Require Import Psatz.
 Require Import Reals.
-
+Require Import Setoid.
 Require Export Matrix.
 
 (* Using our (complex, unbounded) matrices, their complex numbers *)
@@ -95,6 +95,16 @@ Definition phase_shift (ϕ : R) : Square 2 :=
           else if (i =? 1) && (j =? 1) then Cexp ϕ
           else 0.
   
+(** X Lemmas - need in this file? *)
+Lemma MmultX1 : σx × ∣1⟩ == ∣0⟩. Proof. lma. Qed.  
+Lemma Mmult1X : ⟨1∣ × σx == ⟨0∣. Proof. lma. Qed.
+Lemma MmultX0 : σx × ∣0⟩ == ∣1⟩. Proof. lma. Qed.
+Lemma Mmult0X : ⟨0∣ × σx == ⟨1∣. Proof. lma. Qed.
+
+Hint Rewrite Mmult0X Mmult1X MmultX0 MmultX1 : M_db.
+
+(** Controlled unitaries *)
+
 Definition control {n : nat} (A : Matrix n n) : Matrix (2*n) (2*n) :=
   fun x y => if (x <? n) && (y =? x) then 1 else 
           if (n <=? x) && (n <=? y) then A (x-n)%nat (y-n)%nat else 0.
@@ -112,18 +122,23 @@ Proof. lma. Qed.
 Definition notc : Matrix (2*2) (2*2) :=
   fun i j => if (i + j =? 0) || (i + j =? 4) then 1 else 0.
 
+Lemma control_compat : forall n (A B : Matrix n n), A == B -> control A == control B.
+Proof.
+  intros n A B H i j Hi Hj.
+  unfold control.
+  destruct ((i <? n) && (j =? i)), ((n <=? i) && (n <=? j)); trivial.
+  rewrite H; trivial; lia.
+Qed.
+
+Add Parametric Morphism n : (@control n)
+  with signature mat_equiv ==> mat_equiv as control_mor.
+Proof. intros. apply control_compat; easy. Qed.
+  
+(** SWAP *)
+
 Definition swap : Matrix (2*2) (2*2) :=
   fun i j => if (i + j =? 0) || (i * j =? 2) || (i + j =? 6) then 1 else 0.
 
-(** X Lemmas - need in this file? *)
-Lemma MmultX1 : σx × ∣1⟩ == ∣0⟩. Proof. lma. Qed.  
-Lemma Mmult1X : ⟨1∣ × σx == ⟨0∣. Proof. lma. Qed.
-Lemma MmultX0 : σx × ∣0⟩ == ∣1⟩. Proof. lma. Qed.
-Lemma Mmult0X : ⟨0∣ × σx == ⟨1∣. Proof. lma. Qed.
-
-Hint Rewrite Mmult0X Mmult1X MmultX0 MmultX1 : M_db.
-
-(** SWAP Lemmas *)
 
 (* Does this overwrite the other Hint DB M? *)
 Hint Unfold qubit0 qubit1 hadamard σx σy σz phase_shift 
@@ -573,6 +588,11 @@ Proof.
   exists v. rewrite <- H. assumption.
 Qed.
 
+Add Parametric Morphism n : (@Pure_State n)
+  with signature mat_equiv ==> iff as pure_state_mor.
+Proof. intros; split; apply pure_state_compat; easy. Qed.
+
+
 Lemma mixed_state_compat : forall {n} (A B : Density n), 
   A == B -> Mixed_State A ->  Mixed_State B.
 Proof.
@@ -583,7 +603,36 @@ Proof.
     apply (Mix_S r _ A1 A2); trivial.
     rewrite <- E; assumption.
 Qed.
-  
+
+Add Parametric Morphism n : (@Mixed_State n)
+  with signature mat_equiv ==> iff as mixed_state_mor.
+Proof. intros; split; apply mixed_state_compat; easy. Qed.
+
+(* A convenient characterization: *)
+Lemma mixed_state_cond : forall {n} (a b : R) (A B : Square n),
+   0 <= a -> 
+   0 <= b ->
+   a + b = 1 -> 
+   Mixed_State A ->
+   Mixed_State B ->
+   Mixed_State (a .* A .+ b .* B).
+Proof.
+  intros n a b A B Pa Pb Sab MA MB.
+  destruct Pa; [destruct Pb|].
+  - eapply (Mix_S (RtoC a) _ A B); trivial.
+    + simpl. inversion Sab. lra.
+    + replace (1-a) with (RtoC b) by (rewrite <- Sab; lca).
+      reflexivity.
+  - rewrite <- H0 in *.
+    rewrite Cplus_0_r in Sab. rewrite Sab. 
+    rewrite Mscale_0_l, Mplus_0_r, Mscale_1_l.
+    easy.
+  - rewrite <- H in *.
+    rewrite Cplus_0_l in Sab. rewrite Sab. 
+    rewrite Mscale_0_l, Mplus_0_l, Mscale_1_l.
+    easy.
+Qed.
+
 Lemma pure0 : Pure_State ∣0⟩⟨0∣. 
 Proof. exists ∣0⟩. split; lma. Qed.
 
@@ -624,15 +673,13 @@ Proof.
   induction Mρ.
   induction Mφ.
   - apply Pure_S. apply pure_state_kron; easy.
-  - eapply mixed_state_compat.
-    rewrite H2.
+  - rewrite H2.
     rewrite kron_plus_distr_l.
-    rewrite 2 Mscale_kron_dist_r. easy.
+    rewrite 2 Mscale_kron_dist_r. 
     eapply (Mix_S p); easy.
-  - eapply mixed_state_compat. 
-    rewrite H1.
+  - rewrite H1.
     rewrite kron_plus_distr_r.
-    rewrite 2 Mscale_kron_dist_l. easy.
+    rewrite 2 Mscale_kron_dist_l. 
     eapply (Mix_S p); easy.
 Qed.
 
@@ -843,13 +890,11 @@ Proof.
   + apply Pure_S.
     apply pure_unitary; trivial.
   + unfold WF_Unitary, super in *.
-    eapply mixed_state_compat.
     rewrite H2.
     rewrite Mmult_plus_dist_l.
     rewrite Mmult_plus_dist_r.
     rewrite 2 Mscale_mult_dist_r.
     rewrite 2 Mscale_mult_dist_l.
-    reflexivity.
     eapply (Mix_S p); easy. 
 Qed.
 
