@@ -45,9 +45,6 @@ Proof.
   reflexivity.
 Qed.
 
-Close Scope circ_scope.
-
-
 (** Variables **)
 Definition Var := nat.
 Definition Ctx := list (option WType).
@@ -472,7 +469,7 @@ Record valid_merge Γ1 Γ2 Γ :=
   { pf_valid : is_valid Γ
   ; pf_merge : Γ = Γ1 ⋓ Γ2 }.
 
-Notation "Γ == Γ1 ∙ Γ2" := (valid_merge Γ1 Γ2 Γ) (at level 20).
+Notation "Γ == Γ1 ∙ Γ2" := (valid_merge Γ1 Γ2 Γ) (at level 20) : circ_scope.
 
 Lemma valid_valid : forall Γ, is_valid (Valid Γ). Proof. intros. exists Γ. reflexivity. Defined.
 

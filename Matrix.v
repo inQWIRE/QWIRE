@@ -27,7 +27,8 @@ Definition WF_Matrix {m n: nat} (A : Matrix m n) : Prop :=
 Definition mat_equiv {m n : nat} (A B : Matrix m n) : Prop := 
   forall i j, i < m -> j < n -> A i j = B i j.
 
-Infix "==" := mat_equiv (at level 80).
+Infix "==" := mat_equiv (at level 80) : matrix_scope.
+Open Scope matrix_scope.
 
 Lemma mat_equiv_refl : forall {m n} (A : Matrix m n), A == A.
 Proof. intros m n A i j Hi Hj. reflexivity. Qed.
@@ -223,7 +224,6 @@ Fixpoint big_kron {m n} (As : list (Matrix m n)) :
   end.
 
 (* Infix "≡" := mat_equiv (at level 70) : matrix_scope. *)
-Infix "==" := mat_equiv (at level 80) : matrix_scope.
 Notation "Σ^ n f" := (Csum f n) (at level 60) : matrix_scope.
 Infix ".+" := Mplus (at level 50, left associativity) : matrix_scope.
 Infix ".*" := scale (at level 40, left associativity) : matrix_scope.

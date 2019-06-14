@@ -48,12 +48,6 @@ Fixpoint denote_unitary {W} (U : Unitary W) : Square (2^⟦W⟧) :=
 Instance Denote_Unitary W : Denote (Unitary W) (Square (2^⟦W⟧)) := 
     {| denote := denote_unitary |}.
 
-Lemma WF_Matrix_U : forall {W} (U : Unitary W), 
-      WF_Matrix (⟦U⟧).
-Proof.
-  induction U; simpl; try apply WF_control; auto with wf_db. (* try shouldn't be necessary *)
-Qed.
-Hint Resolve WF_Matrix_U : wf_db.
 Lemma unitary_gate_unitary : forall {W} (U : Unitary W), WF_Unitary (⟦U⟧).
 Proof.
   induction U.
@@ -66,13 +60,16 @@ Proof.
   + simpl. apply control_unitary; assumption.
 Qed.
 
-Lemma denote_unitary_transpose : forall {W} (U : Unitary W), ⟦trans U⟧ = ⟦U⟧†.
+Open Scope matrix_scope.
+Close Scope circ_scope.
+Print Scopes.
+
+Lemma denote_unitary_transpose : forall {W} (U : Unitary W), mat_equiv (⟦trans U⟧) (⟦U⟧†).
 Proof.
-  induction U; simpl; Msimpl; trivial. 
+  induction U; simpl; Msimpl; try reflexivity.
   - simpl_rewrite IHU. setoid_rewrite control_adjoint. easy.
   - simpl_rewrite IHU. setoid_rewrite control_adjoint. easy.
 Qed.
-
 
 (* Hint Resolve unitary_gate_unitary. Do we need this? Where? *)
 Instance Denote_Unitary_Correct W : Denote_Correct (Denote_Unitary W) :=
@@ -122,20 +119,6 @@ Proof.
   simpl. apply gt_trans with (2^n)%nat; auto. omega.
 Qed.
 
-
-Lemma WF_denote_gate : forall safe n W1 W2 (g : Gate W1 W2) ρ,
-    WF_Matrix ρ -> WF_Matrix (denote_gate' safe n g ρ).
-Proof.
-  intros safe n W1 W2 g ρ wf_ρ.
-  assert (0 < 2^n)%nat by apply pow_gt_0.
-  assert (0 <> 2^n)%nat by omega.
-  destruct g; simpl; unfold super, Splus; try destruct safe; 
-    auto with wf_db; try omega.
-  specialize (WF_Matrix_U u). intros wf_u. auto with wf_db.
-  specialize (WF_Matrix_U u). intros wf_u. auto with wf_db.
-Qed.
-Hint Resolve WF_denote_gate : wf_db.
-
 Close Scope circ_scope.
 
 Lemma discard_qubit_correct : forall (ρ : Matrix 2 2),
@@ -143,31 +126,20 @@ Lemma discard_qubit_correct : forall (ρ : Matrix 2 2),
   Mixed_State (⟨0∣ × ρ × ∣0⟩ .+ ⟨1∣ × ρ × ∣1⟩).
 Proof.
   intros ρ M.
-  specialize (WF_Mixed _ M) as WF.
-  do 4 reduce_matrices.
-  replace (list2D_to_matrix [[ρ 0%nat 0%nat]]) with (ρ 0%nat 0%nat .* I  1) by solve_matrix.
-  replace (list2D_to_matrix [[ρ 1%nat 1%nat]]) with (ρ 1%nat 1%nat .* I  1) by solve_matrix.
-  specialize (mixed_state_diag_real _ 0%nat M) as R0.
-  specialize (mixed_state_diag_real _ 1%nat M) as R1.
-  specialize (mixed_state_diag_in01 _ 0%nat M) as IN0.
-  specialize (mixed_state_diag_in01 _ 1%nat M) as IN1.
+  apply mixed_state_compat with (A := ρ 0%nat 0%nat .* I 1 .+ ρ 1%nat 1%nat .* I 1); try lma.
+  specialize (mixed_state_diag_real _ _ Nat.lt_0_2 M) as R0.
+  specialize (mixed_state_diag_real _ _ Nat.lt_1_2 M) as R1.
+  specialize (mixed_state_diag_in01 _ 0%nat M Nat.lt_0_2) as IN0.
+  specialize (mixed_state_diag_in01 _ 1%nat M Nat.lt_1_2) as IN1.
   specialize (mixed_state_trace_1 _ M) as TR1.
-  unfold trace in TR1. simpl in TR1.
   replace (ρ 0%nat 0%nat) with (RtoC (fst (ρ 0%nat 0%nat))) by lca.
   replace (ρ 1%nat 1%nat) with (RtoC (fst (ρ 1%nat 1%nat))) by lca.
-  replace (ρ 1%nat 1%nat) with (RtoC (1 - fst (ρ 0%nat 0%nat))) by (inversion TR1; lca).
-  destruct (Req_dec (fst (ρ 0%nat 0%nat)) 0); [|destruct (Req_dec (fst (ρ 0%nat 0%nat)) 1)].
-  - rewrite H, Mscale_0_l, Mplus_0_l, Rminus_0_r, Mscale_1_l.
-    constructor; apply pure_id1.
-  - unfold Rminus.
-    rewrite H0, Mscale_1_l, Rplus_opp_r, Mscale_0_l, Mplus_0_r.
-    constructor; apply pure_id1.
-  - apply Mix_S.
-    lra.
-    constructor; apply pure_id1.
-    constructor; apply pure_id1.
-Qed.    
-
+  apply mixed_state_cond; simpl; try lra.
+  - inversion TR1; lca.
+  - constructor; apply pure_id1.
+  - constructor; apply pure_id1.
+Qed.
+      
 (* This is only true for "safe" gate denotation *)
 Lemma denote_gate_correct : forall {W1} {W2} (g : Gate W1 W2), 
                             WF_Superoperator (denote_gate true g). 
