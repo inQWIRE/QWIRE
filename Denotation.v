@@ -139,7 +139,30 @@ Proof.
   - constructor; apply pure_id1.
   - constructor; apply pure_id1.
 Qed.
-      
+
+Close Scope circ_scope.
+
+Goal forall {n} (U ρ : Square n), mat_equiv (U ⊗ I 1 × ρ × (U ⊗ I 1) †) (U × ρ × U†).
+Proof.                                          
+  intros.
+  rewrite kron_adjoint.
+  rewrite (kron_1_r U).
+  rewrite id_adjoint_eq.
+  rewrite (kron_1_r (U†)).
+  restore_dims_strong.
+  rewrite Nat.mul_1_r.
+  reflexivity.
+Qed.
+
+Print Instances Morphisms.Proper.
+Require Import Setoid.
+
+(*
+Add Parametric Morphism U : (@control n)
+  with signature mat_equiv ==> mat_equiv as control_mor.
+Proof. intros. apply control_compat; easy. Qed.
+*)
+
 (* This is only true for "safe" gate denotation *)
 Lemma denote_gate_correct : forall {W1} {W2} (g : Gate W1 W2), 
                             WF_Superoperator (denote_gate true g). 
@@ -148,7 +171,36 @@ Proof.
   intros.
   induction g.
   + simpl.
-    rewrite kron_1_r.
+    unfold super.
+    remember (denote_unitary u) as U.
+    rewrite Nat.mul_1_r.
+
+    (* setoid_rewrite (kron_1_r U). *)
+
+    eapply mixed_state_compat.
+    
+    apply Mmult_compat.
+    apply Mmult_compat.
+    instantiate (1:=U).
+    (* setoid_rewrite (kron_1_r U). *)
+
+    
+    assert (Morphisms.Proper (Morphisms.respectful mat_equiv (flip impl)) (mat_equiv U)).
+    unfold Morphisms.Proper.
+      unfold Morphisms.respectful.
+      unfold flip.
+      unfold impl.
+      intros.
+      rewrite H0.
+      assumption.
+
+      restore_dims_strong.
+      setoid_rewrite (kron_1_r U). flip impl
+    
+    Search (_ ⊗ _)†.
+    setoid_rewrite (kron_adjoint U (I 1)).
+    setoid_rewrite K at 1.
+    setoid_rewrite (kron_1_r (denote_unitary u)).
     rewrite Nat.mul_1_r.
     apply mixed_unitary.
     apply unitary_gate_unitary.
