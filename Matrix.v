@@ -1047,7 +1047,8 @@ Hint Rewrite @kron_1_l @kron_1_r @Mmult_1_l @Mmult_1_r @id_kron @id_adjoint_eq
 (* Automation *)
 (**************)
 
-Ltac unify_matrices := 
+Ltac unify_matrices := unify_pows_two; reflexivity.
+(*  simpl;
   match goal with
   | |- I ?n = I ?n' =>
     try replace n with n' by unify_pows_two;
@@ -1063,11 +1064,16 @@ Ltac unify_matrices :=
     try replace o with o' by unify_pows_two;
     try replace p with p' by unify_pows_two;
     reflexivity
-  | |- @adjoint ?m ?n ?A ?B = @adjoint ?m' ?n' ?A ?B => 
+  | |- @adjoint ?m ?n ?A = @adjoint ?m' ?n' ?A => 
+    try replace m with m' by unify_pows_two;
+    try replace n with n' by unify_pows_two;
+    reflexivity                               
+  | |- @mat_equiv ?m ?n ?A ?B = @mat_equiv ?m' ?n' ?A ?B => 
     try replace m with m' by unify_pows_two;
     try replace n with n' by unify_pows_two;
     reflexivity                               
   end.
+ *)
 
 (* restore_dims: Gives default dimensions to matrix expressions 
    (for concrete dimensions) *)
@@ -1091,8 +1097,14 @@ Ltac restore_dims :=
                                             end
   | [ |- context[@adjoint ?m ?n ?A]]       => progress match type of A with
                                             | Matrix ?m' ?n' =>
-                                              replace (@adjoint m n A) with (@adjoint m' n' A) by reflexivity
-                                            end
+                                              replace (@adjoint m n A) with
+                                                  (@adjoint m' n' A) by reflexivity
+                                                     end
+  | [ |- @mat_equiv ?m ?n ?A ?B ]          => progress match type of A with 
+                                            | Matrix ?m' ?n' =>
+                                              replace (@mat_equiv m n A B) with
+                                                  (@mat_equiv m' n' A B) by reflexivity 
+                                              end
          end.
 
 
@@ -1116,8 +1128,14 @@ Ltac restore_dims_strong :=
                                             end
   | [ |- context[@adjoint ?m ?n ?A]]       => progress match type of A with
                                             | Matrix ?m' ?n' =>
-                                              replace (@adjoint m n A) with (@adjoint m' n' A) by unify_matrices
+                                              replace (@adjoint m n A) with (@adjoint m' n' A)
+                                                by unify_matrices
                                             end
+  | [ |- @mat_equiv ?m ?n ?A ?B ]          => progress match type of A with 
+                                            | Matrix ?m' ?n' =>
+                                              replace (@mat_equiv m n A B) with
+                                                  (@mat_equiv m' n' A B) by unify_matrices 
+                                              end
          end.
 
 
@@ -1165,6 +1183,11 @@ Ltac Msimpl' :=
 
 
 (* Construct matrices full of evars *)
+Ltac mat_replace A B := 
+  match type of A with
+  | Matrix ?m ?n => setoid_replace A with B using relation (@mat_equiv m n); [|try solve [lma]]
+  end.
+
 Ltac mk_evar t T := match goal with _ => evar (t : T) end.
 
 Ltac evar_list n := 
@@ -1258,10 +1281,10 @@ Ltac reduce_aux M :=
   | ?A × ?B      => compound A; reduce_aux A
   | ?A × ?B      => compound B; reduce_aux B
   | @Mmult ?m ?n ?o ?A ?B      => let M' := evar_matrix m o in
-                                 replace M with M';
+                                 mat_replace M M';
                                  [| crunch_matrix ] 
   | @Mplus ?m ?n ?A ?B         => let M' := evar_matrix m n in
-                                 replace M with M';
+                                 mat_replace M M';
                                  [| crunch_matrix ] 
   end.
 
