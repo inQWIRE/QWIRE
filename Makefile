@@ -93,6 +93,9 @@ QASMExamples.vo : QASMExamples.v QASMPrinter.vo Arithmetic.vo
 FlatCircuits.vo: FlatCircuits.v HOASCircuits.vo Monad.vo
 	coqc FlatCircuits.v
 
+Reflection.vo : Reflection.v Matrix.vo Quantum.vo Monad.vo
+	coqc Reflection.v
+
 #MachineProofs.vo: MachineProofs.v MachineExamples.vo Denotation.vo
 #	coqc MachineProofs.v
 
