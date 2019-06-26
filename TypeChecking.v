@@ -237,7 +237,7 @@ Ltac type_check_once :=
   invert_patterns;
   repeat match goal with 
   | [ b : bool |- _ ]              => destruct b 
-  | [ H : _ == _ ∙ _ |- _ ]     => destruct H
+  | [ H : _ ≈ _ ∙ _ |- _ ]     => destruct H
     | H: @Types_Circuit _ _ ?c |- @Types_Circuit _ _ ?c 
                                => exact H
   | [ |- @Types_Circuit _ _ _ ] => econstructor; type_check_once
@@ -258,8 +258,8 @@ Ltac type_check_once :=
                                 => replace Γ2 with Γ1; [exact H | monoid]
 
   | [ |- Types_Pat _ _ ]        => econstructor; type_check_once
-  | [ |- ?Γ == ?Γ1 ∙ ?Γ2 ]      => has_evars (Γ1 ⋓ Γ2 ⋓ Γ)
-  | [ |- _ == _ ∙ _ ]           => solve_merge
+  | [ |- ?Γ ≈ ?Γ1 ∙ ?Γ2 ]      => has_evars (Γ1 ⋓ Γ2 ⋓ Γ)
+  | [ |- _ ≈ _ ∙ _ ]           => solve_merge
   end; 
   (* Runs monoid iff a single evar appears in context *)
   match goal with 
@@ -288,7 +288,7 @@ Ltac type_check := let n := numgoals in do n [> type_check_once..].
 
 Ltac destruct_merges :=
   repeat match goal with
-  | [ H : _ == _ ∙ _ |- _ ]  => destruct H
+  | [ H : _ ≈ _ ∙ _ |- _ ]  => destruct H
   end.
 
 (* Three typing derivations for a simple circuit *)
@@ -347,7 +347,7 @@ Proof.
       2: monoid. (* unifies ?Γ = Γ1 ⋓ Γ2 *)
       1: validate. (* solves is_valid (Γ1 ⋓ Γ2) *)
   Focus 2. (* 3 *)
-    split. (* _ == _ ∙ _ *) 
+    split. (* _ ≈ _ ∙ _ *) 
       2: monoid. (* unifies Γ0 ⋓ Γ1 ⋓ Γ2 = Γ1 ⋓ Γ2 ⋓ ?Γ *)
       1: validate. (* solves is_valid (Γ0 ⋓ Γ1 ⋓ Γ2) *)
   Focus 1. (* 2 *)

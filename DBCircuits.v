@@ -288,13 +288,13 @@ Inductive Types_DB {w} (Γ : Ctx) : DeBruijn_Circuit w -> Prop :=
 | types_db_gate   : forall (Γ1 Γ2 : Ctx) w1 w2 (g : Gate w1 w2) p c,
                     Types_Pat Γ1 p ->
                     Types_DB (process_gate_state g p Γ) c ->
-                    Γ == Γ1 ∙ Γ2 ->
+                    Γ ≈ Γ1 ∙ Γ2 ->
                     Types_DB Γ (db_gate g p c)
                              
 | types_db_lift   : forall (Γ1 Γ2 Γ' : Ctx) p f,
                     Types_Pat Γ1 p ->
                     (forall b, Types_DB Γ' (f b)) ->
-                    Γ == Γ1 ∙ Γ2 ->
+                    Γ ≈ Γ1 ∙ Γ2 ->
                     Γ' = remove_pat p Γ -> (* Γ' is NOT Γ2 *)
                     Types_DB Γ (db_lift p f)
 .
@@ -402,8 +402,8 @@ Lemma remove_indices_empty : forall Γ, remove_indices Γ [] = Γ.
 Proof. induction Γ; auto. Qed.
 
 Lemma remove_indices_merge : forall (Γ Γ1 Γ2 : Ctx) idxs, 
-  Γ == Γ1 ∙ Γ2 ->
-  remove_indices Γ idxs == (remove_indices Γ1 idxs) ∙ (remove_indices Γ2 idxs).
+  Γ ≈ Γ1 ∙ Γ2 ->
+  remove_indices Γ idxs ≈ (remove_indices Γ1 idxs) ∙ (remove_indices Γ2 idxs).
 Proof.
   intros.
   gen idxs.
