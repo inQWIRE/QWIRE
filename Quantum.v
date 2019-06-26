@@ -811,6 +811,10 @@ Proof.
   reflexivity.
 Qed.
 
+Add Parametric Morphism m n : (@super m n)
+  with signature mat_equiv ==> mat_equiv ==> mat_equiv as super_mor.
+Proof. intros. unfold super. rewrite H, H0. reflexivity. Qed.
+
 Lemma super_outer_product : forall m (φ : Matrix m 1) (U : Matrix m m), 
     super U (outer_product φ φ) == outer_product (U × φ) (U × φ).
 Proof.

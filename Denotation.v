@@ -142,7 +142,7 @@ Qed.
 
 Close Scope circ_scope.
 
-Goal forall {n} (U ρ : Square n), mat_equiv (U ⊗ I 1 × ρ × (U ⊗ I 1) †) (U × ρ × U†).
+Lemma dgc_aux :  forall {n} (U ρ : Square n), mat_equiv (U ⊗ I 1 × ρ × (U ⊗ I 1) †) (U × ρ × U†).
 Proof.                                          
   intros.
   rewrite kron_adjoint.
@@ -150,7 +150,6 @@ Proof.
   rewrite id_adjoint_eq.
   rewrite (kron_1_r (U†)).
   restore_dims_strong.
-  rewrite Nat.mul_1_r.
   reflexivity.
 Qed.
 
@@ -163,6 +162,33 @@ Add Parametric Morphism U : (@control n)
 Proof. intros. apply control_compat; easy. Qed.
 *)
 
+Lemma dgc_aux2 : forall W (u : Unitary W), mat_equiv ((denote_unitary u ⊗ I 1) † × (denote_unitary u ⊗ I 1)) (I (2 ^ size_wtype W)).
+Proof.
+  intros.
+  rewrite kron_adjoint.
+  rewrite (kron_1_r (denote_unitary u)).
+  rewrite id_adjoint_eq.
+  rewrite (kron_1_r (denote_unitary u)†).
+  rewrite Nat.mul_1_r.
+  apply unitary_gate_unitary.
+Qed.
+  
+Goal forall W (u : Unitary W), @mat_equiv (Nat.pow (S (S O)) (size_wtype W)) (Nat.pow (S (S O)) (size_wtype W))
+    (@Mmult (Nat.pow (S (S O)) (size_wtype W)) (Nat.pow (S (S O)) (size_wtype W))
+       (Nat.pow (S (S O)) (size_wtype W))
+       (@adjoint (Nat.pow (S (S O)) (size_wtype W)) (Nat.pow (S (S O)) (size_wtype W))
+          (@kron (Nat.pow (S (S O)) (size_wtype W)) (Nat.pow (S (S O)) (size_wtype W)) 
+             (S O) (S O) (@denote_unitary W u) (I (S O))))
+       (@kron (Nat.pow (S (S O)) (size_wtype W)) (Nat.pow (S (S O)) (size_wtype W)) 
+          (S O) (S O) (@denote_unitary W u) (I (S O)))) (I (Nat.pow (S (S O)) (size_wtype W))).
+Proof.
+  intros.
+  specialize (@dgc_aux2 W u) as H.
+  simpl in *.
+  restore_dims_strong.
+  apply H.
+Qed.
+
 (* This is only true for "safe" gate denotation *)
 Lemma denote_gate_correct : forall {W1} {W2} (g : Gate W1 W2), 
                             WF_Superoperator (denote_gate true g). 
@@ -171,12 +197,19 @@ Proof.
   intros.
   induction g.
   + simpl.
-    unfold super.
-    remember (denote_unitary u) as U.
     rewrite Nat.mul_1_r.
-
-    (* setoid_rewrite (kron_1_r U). *)
-
+    apply mixed_unitary.
+    unfold WF_Unitary.
+    restore_dims_strong.
+    rewrite kron_adjoint.
+    restore_dims_strong.
+    rewrite (kron_1_r (denote_unitary u)).
+    rewrite id_sa.
+    rewrite (kron_1_r ((denote_unitary u)†)).
+    restore_dims_strong.
+    apply unitary_gate_unitary.
+    assumption.
+(*
     eapply mixed_state_compat.
     
     apply Mmult_compat.
@@ -202,152 +235,110 @@ Proof.
     setoid_rewrite K at 1.
     setoid_rewrite (kron_1_r (denote_unitary u)).
     rewrite Nat.mul_1_r.
-    apply mixed_unitary.
-    apply unitary_gate_unitary.
-    assumption.
+
+*)
   + simpl.
-    rewrite kron_1_r.
     apply mixed_unitary.
-    apply σx_unitary.
+    lma.
     assumption.
   + simpl in *.
-    rewrite kron_1_r.
+    rewrite (kron_1_r ∣0⟩).
     unfold super.
     rewrite (mixed_dim1 ρ); trivial.
     rewrite Mmult_1_r.
     constructor; apply pure0.
-    auto with wf_db.
   + simpl in *.
-    rewrite kron_1_r.
+    rewrite (kron_1_r ∣1⟩).
     unfold super.
     rewrite (mixed_dim1 ρ); trivial.
     rewrite Mmult_1_r.
     constructor; apply pure1.
-    auto with wf_db.
   + simpl in *.
-    rewrite kron_1_r.
+    rewrite (kron_1_r ∣0⟩).
     unfold super.
     rewrite (mixed_dim1 ρ); trivial.
     rewrite Mmult_1_r.
     constructor; apply pure0.
-    auto with wf_db.
   + simpl in *.
-    rewrite kron_1_r.
+    rewrite (kron_1_r ∣1⟩).
     unfold super.
     rewrite (mixed_dim1 ρ); trivial.
     rewrite Mmult_1_r.
     constructor; apply pure1.
-    auto with wf_db.
   + simpl in *.
-    rewrite kron_1_r.
+    unfold Splus. 
+    rewrite (kron_1_r ∣0⟩⟨0∣).
+    rewrite (kron_1_r ∣1⟩⟨1∣).
     unfold super.
     Msimpl.
-    specialize (WF_Mixed _ H) as WF.
-    unfold Splus.
-    replace (∣0⟩⟨0∣ × ρ × ∣0⟩⟨0∣) with (ρ 0%nat 0%nat .* ∣0⟩⟨0∣) by solve_matrix.
-    replace (∣1⟩⟨1∣ × ρ × ∣1⟩⟨1∣) with (ρ 1%nat 1%nat .* ∣1⟩⟨1∣) by solve_matrix.
-    specialize (mixed_state_trace_1 _ H) as TR1. unfold trace in TR1. simpl in TR1.
-    replace (ρ 1%nat 1%nat) with (1 - ρ O O) by (rewrite <- TR1; lca).
-    replace (ρ O O) with ((fst (ρ O O)), snd (ρ O O)) by lca. 
-    rewrite mixed_state_diag_real by assumption.
-    set (a := (ρ 0 0)%nat). replace (ρ 0 0)%nat with a in TR1 by reflexivity.
-    set (b := (ρ 1 1)%nat). replace (ρ 1 1)%nat with b in TR1 by reflexivity.
-    replace (1 - (fst a, 0)) with (RtoC (1 - fst a)) by lca.
-    replace (fst a, 0) with (RtoC (fst a)) by reflexivity.
-    destruct (Ceq_dec a C0) as [Z | NZ]; [|destruct (Ceq_dec a C1) as [O | NO]].
-    * rewrite Z in *.
-      rewrite Mscale_0_l.
-      rewrite Mplus_0_l.
-      simpl. autorewrite with R_db.
-      rewrite Mscale_1_l.
-      apply Pure_S.
-      apply pure1.
-    * rewrite O in *.
-      rewrite Mscale_1_l.
-      simpl. unfold Rminus. rewrite Rplus_opp_r.
-      rewrite Mscale_0_l.
-      rewrite Mplus_0_r.
-      apply Pure_S.
-      apply pure0.
-    * apply Mix_S; [| apply Pure_S, pure0| apply Pure_S, pure1].     
-      unfold a in *.
-      specialize (mixed_state_diag_in01 ρ 0%nat H) as IN01.
-      destruct IN01 as [G L].
-      destruct G. 
-        Focus 2. 
-        contradict NZ; apply c_proj_eq. 
-        rewrite <- H0; reflexivity.
-        apply mixed_state_diag_real; easy.
-      destruct L. 
-        Focus 2. 
-        contradict NO; apply c_proj_eq. 
-        rewrite <- H1; reflexivity.
-        apply mixed_state_diag_real; easy.
-      lra.
+    mat_replace (∣0⟩⟨0∣ × ρ × ∣0⟩⟨0∣) (ρ 0%nat 0%nat .* ∣0⟩⟨0∣).
+    mat_replace (∣1⟩⟨1∣ × ρ × ∣1⟩⟨1∣) (ρ 1%nat 1%nat .* ∣1⟩⟨1∣).
+    specialize (mixed_state_diag_real _ _ Nat.lt_0_2 H) as R0.
+    specialize (mixed_state_diag_real _ _ Nat.lt_1_2 H) as R1.
+    specialize (mixed_state_diag_in01 _ 0%nat H Nat.lt_0_2) as IN0.
+    specialize (mixed_state_diag_in01 _ 1%nat H Nat.lt_1_2) as IN1.
+    specialize (mixed_state_trace_1 _ H) as TR1.
+    replace (ρ 0%nat 0%nat) with (RtoC (fst (ρ 0%nat 0%nat))) by lca.
+    replace (ρ 1%nat 1%nat) with (RtoC (fst (ρ 1%nat 1%nat))) by lca.
+    apply mixed_state_cond; simpl; try lra.
+    - inversion TR1; lca.
+    - constructor; apply pure0.
+    - constructor; apply pure1.
   + simpl in *.
-    rewrite kron_1_r.
+    unfold Splus. 
+    rewrite (kron_1_r ∣0⟩⟨0∣).
+    rewrite (kron_1_r ∣1⟩⟨1∣).
     unfold super.
     Msimpl.
-    specialize (WF_Mixed _ H) as WF.
+    mat_replace (∣0⟩⟨0∣ × ρ × ∣0⟩⟨0∣) (ρ 0%nat 0%nat .* ∣0⟩⟨0∣).
+    mat_replace (∣1⟩⟨1∣ × ρ × ∣1⟩⟨1∣) (ρ 1%nat 1%nat .* ∣1⟩⟨1∣).
+    specialize (mixed_state_diag_real _ _ Nat.lt_0_2 H) as R0.
+    specialize (mixed_state_diag_real _ _ Nat.lt_1_2 H) as R1.
+    specialize (mixed_state_diag_in01 _ 0%nat H Nat.lt_0_2) as IN0.
+    specialize (mixed_state_diag_in01 _ 1%nat H Nat.lt_1_2) as IN1.
+    specialize (mixed_state_trace_1 _ H) as TR1.
+    replace (ρ 0%nat 0%nat) with (RtoC (fst (ρ 0%nat 0%nat))) by lca.
+    replace (ρ 1%nat 1%nat) with (RtoC (fst (ρ 1%nat 1%nat))) by lca.
+    apply mixed_state_cond; simpl; try lra.
+    - inversion TR1; lca.
+    - constructor; apply pure0.
+    - constructor; apply pure1.
+  + simpl in *.
     unfold Splus.
-    replace (∣0⟩⟨0∣ × ρ × ∣0⟩⟨0∣) with (ρ 0%nat 0%nat .* ∣0⟩⟨0∣) by solve_matrix.
-    replace (∣1⟩⟨1∣ × ρ × ∣1⟩⟨1∣) with (ρ 1%nat 1%nat .* ∣1⟩⟨1∣) by solve_matrix.
-    specialize (mixed_state_trace_1 _ H) as TR1. unfold trace in TR1. simpl in TR1.
-    replace (ρ 1%nat 1%nat) with (1 - ρ O O) by (rewrite <- TR1; lca).
-    replace (ρ O O) with ((fst (ρ O O)), snd (ρ O O)) by lca. 
-    rewrite mixed_state_diag_real by assumption.
-    replace (1 - (fst (ρ O O), 0)) with (RtoC (1 - fst (ρ O O))) by lca.
-    replace (fst (ρ O O), 0) with (RtoC (fst (ρ O O))) by reflexivity.
-    specialize (mixed_state_diag_in01 _ O H) as in01.
-    destruct in01 as [[L|E0] [R|E1]]. 
-    * apply Mix_S. easy. apply Pure_S. apply pure0. apply Pure_S. apply pure1.
-    * rewrite E1. unfold Rminus. rewrite Rplus_opp_r. 
-      rewrite Mscale_0_l, Mscale_1_l, Mplus_0_r. apply Pure_S. apply pure0. 
-    * rewrite <- E0. rewrite Rminus_0_r. 
-      rewrite Mscale_0_l, Mscale_1_l. rewrite Mplus_0_l. apply Pure_S. apply pure1. 
-    * lra.      
-  + simpl in *.
-    unfold super, Splus.
+    rewrite (kron_1_r ⟨0∣).
+    rewrite (kron_1_r ⟨1∣).
+    unfold super.
     Msimpl.
-    specialize (WF_Mixed _ H) as WF.
-    repeat reduce_matrices.
-    constructor.
     apply mixed_state_trace_1 in H.
     unfold trace in H. simpl in H. rewrite Cplus_0_l in H.
-    rewrite H.
-    specialize (@WF_I 1%nat) as WFI. 
-    replace (list2D_to_matrix [[C1]]) with (I  1).     
-    apply pure_id1.
-    crunch_matrix. 
-    bdestruct (S (S x) <? 1). omega. rewrite andb_false_r. reflexivity.
-  + simpl in *.
-    unfold super, Splus.
-    Msimpl.
-    specialize (WF_Mixed _ H) as WF.
-    repeat reduce_matrices.
+    mat_replace (⟨0∣ × ρ × ∣0⟩ .+ ⟨1∣ × ρ × ∣1⟩) (I 1).
+    2:{ by_cell. autounfold with M_db. simpl. autorewrite with C_db. easy. }
     constructor.
+    apply pure_id1.
+  + simpl in *.
+    unfold Splus.
+    rewrite (kron_1_r ⟨0∣).
+    rewrite (kron_1_r ⟨1∣).
+    unfold super.
+    Msimpl.
     apply mixed_state_trace_1 in H.
     unfold trace in H. simpl in H. rewrite Cplus_0_l in H.
-    rewrite H.
-    specialize (@WF_I 1%nat) as WFI. 
-    replace (list2D_to_matrix [[C1]]) with (I  1).     
-    apply pure_id1.
-    crunch_matrix. 
-    bdestruct (S (S x) <? 1). omega. rewrite andb_false_r. reflexivity.
-  + simpl in *.
-    unfold super, Splus.
-    Msimpl.
-    specialize (WF_Mixed _ H) as WF.
-    repeat reduce_matrices.
+    mat_replace (⟨0∣ × ρ × ∣0⟩ .+ ⟨1∣ × ρ × ∣1⟩) (I 1).
+    2:{ by_cell. autounfold with M_db. simpl. autorewrite with C_db. easy. }
     constructor.
+    apply pure_id1.
+  + simpl in *.
+    unfold Splus.
+    rewrite (kron_1_r ⟨0∣).
+    rewrite (kron_1_r ⟨1∣).
+    unfold super.
+    Msimpl.
     apply mixed_state_trace_1 in H.
     unfold trace in H. simpl in H. rewrite Cplus_0_l in H.
-    rewrite H.
-    specialize (@WF_I 1%nat) as WFI. 
-    replace (list2D_to_matrix [[C1]]) with (I  1).     
+    mat_replace (⟨0∣ × ρ × ∣0⟩ .+ ⟨1∣ × ρ × ∣1⟩) (I 1).
+    2:{ by_cell. autounfold with M_db. simpl. autorewrite with C_db. easy. }
+    constructor.
     apply pure_id1.
-    crunch_matrix. 
-    bdestruct (S (S x) <? 1). omega. rewrite andb_false_r. reflexivity.
 Qed.
 
 Instance Denote_Gate W1 W2 : Denote (Gate W1 W2) (Superoperator (2^⟦W1⟧) (2^⟦W2⟧)):=
