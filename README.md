@@ -14,6 +14,7 @@ QWIRE is compatible with Coq 8.5 - 8.8.
 This version of the project has no dependencies. Run `make` to compile the core (preliminary and implementation) files and `make all` to compile the whole project. We recommend using [Company Coq][9] with QWIRE in light of its support for unicode.  
 
 
+
 Files in this repository
 ------------------------
 
@@ -51,6 +52,10 @@ Files in this repository
 - QASM.v : Compilation from QWIRE to QASM
 - QASMPrinter.v : A printer for compiled circuits, for execution on a quantum computer/simulator
 - QASMExamples.v : Examples of circuit compilation
+
+
+*The QWIRE project has benefited from the support of the Air Force Office of Scientific Research under the MURI grant number FA9550-16-1-0082 entitled, “Semantics, Formal Reasoning, and Tool Support for Quantum Programming” and the U.S. Department of Energy, Office of Science, Office of Advanced Scientific Computing Research, Quantum Testbed Pathfinder Program under Award Number DE-SC0019040.*
+
 
 
 [1]: http://dl.acm.org/citation.cfm?id=3009894
