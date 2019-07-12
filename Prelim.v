@@ -392,5 +392,6 @@ Ltac unify_pows_two :=
   | [ |- context[ (2^?x + 2^?x)%nat]]       => rewrite double_pow 
   | [ |- context[ (2^?x * 2^?y)%nat]]       => rewrite <- Nat.pow_add_r 
   | [ |- context[ (?a + (?b + ?c))%nat ]]   => rewrite plus_assoc 
+  | [ |- context[ (?n - ?n) ]]              => rewrite Nat.sub_diag
   | [ |- (2^?x = 2^?y)%nat ]                => apply pow_components; try lia 
   end.

@@ -1,6 +1,7 @@
 Require Import Datatypes.
 Require Export TypeChecking.
 Require Export HOASLib.
+Require Export Reals.
 Import ListNotations.
 Open Scope list_scope.
 

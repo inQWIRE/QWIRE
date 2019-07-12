@@ -376,46 +376,29 @@ Compute (zip_to 2 5 [1;2;3]%nat).
 Definition swap_list (n : nat) (l : list nat) : Square (2^n) := 
   swap_list_aux n n (zip_to 0 n l). 
 
-Lemma swap_list_swap : swap_list 2 [S O] = swap.
+Lemma swap_list_swap : mat_equiv (swap_list 2 [S O]) swap.
 Proof.
-  simpl.
   unfold swap_list, swap_list_aux.
   simpl.
   rewrite Mmult_1_r.
   apply swap_two_base. 
-  unfold swap_two.
-  simpl.
-  rewrite kron_1_r.
-  auto with wf_db.
 Qed.
 
 (* Requires m < n *)
 Definition pad {m} n (A : Square (2^m)) : Square (2^n) := (A ⊗ I (2^ (n - m))).
 
-Lemma WF_pad : forall m n (A : Square m),
-      (m <= n)%nat ->
-      @WF_Matrix (2^m) (2^m) A ->
-      WF_Matrix (@pad m n A).
-Proof.
-  intros. unfold pad.
-  apply WF_kron; auto.
-  rewrite <- Nat.pow_add_r.
-  replace (m + (n - m))%nat with n by omega.
-  reflexivity.
-  rewrite <- Nat.pow_add_r.
-  replace (m + (n - m))%nat with n by omega.
-  reflexivity. 
-  apply WF_I.
-Qed.
+Require Import Reflection.
 
-Lemma pad_nothing : forall m A, @pad m m A = A.
+
+Lemma pad_nothing : forall m A, mat_equiv (@pad m m A) A.
 Proof.
   intros.
   unfold pad.
-  rewrite Nat.sub_diag.
-  simpl.
-  autorewrite with M_db.
-  reflexivity.
+  reify_matrices.
+  apply RMatrix_eq; simpl; unify_pows_two.
+    Csimpl. Print unify_pows_two.
+    Csimpl. reflexivity.
+    unify_pows_two. Csimpl. reflexivity.
 Qed.
 
 (* These propositions about swap_list may prove useful

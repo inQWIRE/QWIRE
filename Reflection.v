@@ -10,7 +10,6 @@ Require Import Monad.
    The idea is to normalize this structure to a semi-canonical form
 *)
 
-Search "⊗" "×".
 (* The cateogry FdHilb is...
    - monoidal
    - has finite biproducts
@@ -57,7 +56,6 @@ Search "⊗" "×".
 
 
 *)
-Search "×" "⊗".
 
 
 (* Composition and addition form a non-commutative field
@@ -167,8 +165,8 @@ Ltac inversion_option :=
 
 Ltac reduce_beq :=
   repeat match goal with
-  | [ H : (_ =? _) = true |- _] => apply beq_nat_true in H; subst
-  | [ H : (_ =? _) = false |- _] => apply beq_nat_false in H
+  | [ H : (_ =? _) = true |- _] => repeat rewrite H; apply beq_nat_true in H; subst
+  | [ H : (_ =? _) = false |- _] => repeat rewrite H; apply beq_nat_false in H
   | _ => rewrite Nat.eqb_refl in *
   | [ H : context[?a =? ?b] |- _] => 
       let H' := fresh "H" in
@@ -230,7 +228,6 @@ Proof.
          simpl; repeat rewrite Nat.eqb_refl; reflexivity).
 Qed.
 
-Print RMatrix.
 Fixpoint reflect_RMatrix' (M : RMatrix) (m n : nat) :
          Matrix m n :=
   match M with 
@@ -309,28 +306,23 @@ Qed.
 
 (* Interpret as: A_Scale .* (A_Mat)^A_Adjoint *)
 Inductive Prim :=
-  | IPrim m n : Matrix m n -> Prim
-  | APrim m n : Matrix m n -> Prim
+  | IPrim m n (padl : nat) (padr : nat) : Matrix m n -> Prim
+  | APrim m n (padl : nat) (padr : nat) : Matrix m n -> Prim
 .
+
 Definition A_dimx (P : Prim) : nat :=
   match P with
-  | @IPrim m n _ => m
-  | @APrim m n _ => n
+  | @IPrim m n padl padr _ => padl * m * padr
+  | @APrim m n padl padr _ => padl * n * padr
   end.
 Definition A_dimy (P : Prim) : nat :=
   match P with
-  | @IPrim m n _ => n
-  | @APrim m n _ => m
-  end.
-
-Definition reflect_Prim (P : Prim) : RMatrix :=
-  match P with
-  | IPrim m n A => MPrim A
-  | APrim m n A => MAdjoint (MPrim A)
+  | @IPrim m n padl padr _ => padl * n * padr
+  | @APrim m n padl padr _ => padl * m * padr
   end.
 
 Inductive KronList :=
-  | LUnit : C (* scaling factor *) -> KronList
+  | LUnit (n : nat) : C (* scaling factor *) -> KronList
   | LKron : Prim -> (* dimensions of 2nd kronlist *) nat -> nat -> KronList -> KronList
 .
 Inductive MultList :=
@@ -342,9 +334,17 @@ Inductive SumList :=
   | LPlus : MultList -> SumList -> SumList
 .
 
+
+Definition RPad m n padl padr (R : RMatrix) : RMatrix :=
+    MKron padl padl (MI padl) (m*padr) (n*padr) (MKron m n R padr padr (MI padr)).
+Definition reflect_Prim (P : Prim) : RMatrix :=
+  match P with
+  | IPrim m n padl padr A => RPad m n padl padr (MPrim A)
+  | APrim m n padl padr A => MAdjoint (RPad m n padl padr (MPrim A))
+  end.
 Fixpoint reflect_KronList (K : KronList) : RMatrix :=
   match K with
-  | LUnit c => MScale c (MI 1)
+  | LUnit n c => MScale c (MI n)
   | LKron x mK nK K' => MKron (A_dimx x) (A_dimy x) (reflect_Prim x) mK nK (reflect_KronList K')
   end.
 Fixpoint reflect_MultList (M : MultList) : RMatrix :=
@@ -367,7 +367,7 @@ Coercion reflect_SumList : SumList >-> RMatrix.
 
 
 Definition KPrim {m n} (A : Matrix m n) : KronList :=
-  LKron (IPrim m n A) 1 1 (LUnit C1).
+  LKron (IPrim m n 1 1 A) 1 1 (LUnit 1 C1).
 Definition MultPrim {m n} (A : Matrix m n) : MultList :=
   LMult (KPrim A) n (LI n C1).
 Definition SPrim  {m n} (A : Matrix m n) : SumList :=
@@ -384,15 +384,39 @@ Proof.
   rewrite (Mscale_1_l (I n)).
 
   rewrite Mmult_1_r.
+  assert (H : I 1 ⊗ (A ⊗ I 1) ⊗ (1%R .* I 1) == A ⊗ I 1 ⊗ I 1).
+  {
+    rewrite Mscale_1_l.
+    autorewrite with M_db.
+    reflexivity.
+  } 
+  
+    repeat rewrite <- mult_assoc in *.
+    repeat rewrite mult_1_r in *.
+    repeat rewrite mult_1_l in *.
+    rewrite H.
+  clear H.
 
+    set (H' := kron_assoc A (I 1) (I 1)).
 
-  set (H' := Mscale_1_l (I 1)).
-  transitivity (A ⊗ I 1).
-  * solve_matrix.
-  * 
-  set (H'' := kron_1_r A).
-  repeat rewrite Nat.mul_1_r in H''.
-  apply H''.
+    repeat rewrite <- mult_assoc in *.
+    repeat rewrite mult_1_l in *.
+    repeat rewrite mult_1_r in *.
+  rewrite H'; clear H'.
+
+  assert (H : A ⊗ (I 1 ⊗ I 1) == A ⊗ I 1).
+  { Search (I _ ⊗ I _).
+    rewrite id_kron.
+    rewrite mult_1_l.
+    reflexivity.
+  }
+  rewrite (kron_1_r A) in H.
+
+    repeat rewrite <- mult_assoc in *.
+    repeat rewrite mult_1_l in *.
+    repeat rewrite mult_1_r in *.
+  rewrite H.
+  reflexivity.
 Qed.
 
   
@@ -400,11 +424,10 @@ Qed.
 
 Fixpoint KScale (c : C) (K : KronList) : KronList :=
   match K with
-  | LUnit c'   => LUnit (c*c')
+  | LUnit n c' => LUnit n (c*c')
   | LKron P mK nK  K' => (* c .* (P ⊗ K) == P ⊗ c.*K *)
     LKron P mK nK (KScale c K')
   end.
-Search ".+" ".*".
 Fixpoint MultScale (c : C) (M : MultList) : MultList :=
   match M with
   | LI n c'  => LI n (c*c')
@@ -422,7 +445,7 @@ Lemma KScale_Type : forall K c m n,
     RMatrix_Type (reflect_KronList K) m n ->
     RMatrix_Type (reflect_KronList (KScale c K)) m n.
 Proof.
-  induction K as [c' | P mK nK K']; intros c m n H.
+  induction K as [n0 c' | P mK nK K']; intros c m n H.
   - simpl in *.
     dependent destruction H.
     dependent destruction H.
@@ -457,9 +480,8 @@ Lemma KScaleEq : forall (K : KronList) c m n,
     RMatrix_Type (reflect_KronList K) m n ->
     reflect_KronList (KScale c K) ==_{m,n} MScale c (reflect_KronList K).
 Proof.
-  induction K as [c0 | M' m1 n1 K']; intros c m n H.
+  induction K as [n0 c0 | M' m1 n1 K']; intros c m n H.
   * simpl; repeat dependent destruction H.
-    Search (_ * _ .* _).
     rewrite Mscale_assoc.
     reflexivity.
   * simpl. dependent destruction H. 
@@ -498,8 +520,6 @@ Qed.
 (** Plus **)
 (**********)
 
-Print RMatrix.
-Print SumList.
 Fixpoint SPlus (S1 : SumList) (S2 : SumList) :=
   match  S1 with
   | LZero m n => S2
@@ -537,20 +557,15 @@ Proof.
     rewrite IHS1'; auto.
     repeat erewrite RMatrix_Type_size; eauto.
     repeat (simpl; rewrite Nat.eqb_refl).
-    Search (_ .+ _ .+ _).
     rewrite Mplus_assoc.
     reflexivity.
 Qed.
 
-Print RMatrix.
-Print SumList.
-Search ".+" "×".
 
 (**********)
 (** Mult **)
 (**********)
 
-Print MultList.
 Fixpoint MLMult (M1 M2 : MultList) : MultList :=
   match M1 with
   | LI n c => (* (c .* I) × M2 = c .* M2 *) 
@@ -619,8 +634,6 @@ Proof.
   induction M1 as [n1 c1 | K1 M1']; intros M2 m n o HM1 HM2.
   * simpl in *.
     dependent destruction HM1. dependent destruction HM1.
-    Search (I _ × _).
-    Search (_ .* (_ × _)).
     rewrite MultScaleEq; auto.
     simpl.
     rewrite Mscale_mult_dist_l.
@@ -641,13 +654,11 @@ Lemma MSMultEq : forall M1 S2 m n o,
 Proof.
   induction S2 as [m2 n2 | M2 S2']; intros m n o H1 H2;
     repeat dependent destruction H2; simpl.
-  * Search "×" Zero.
-    rewrite  Mmult_0_r.
+  * rewrite  Mmult_0_r.
     reflexivity.
   * rewrite IHS2'; eauto.
     rewrite MLMultEq; eauto.
     simpl.
-    Search (_ × (_ .+ _)).
     rewrite Mmult_plus_dist_l.
     reflexivity.
 Qed.
@@ -669,18 +680,113 @@ Proof.
     reflexivity.
 Qed.
 
+(*********)
+(** Pad **)
+(*********)
+
+Print KronList. Print Prim.
+Fixpoint PPad (lpad rpad : nat) (P : Prim) : Prim :=
+  match P with
+  | IPrim m n lpad' rpad' A => IPrim m n (lpad*lpad') (rpad'*rpad) A
+  | APrim m n lpad' rpad' A => APrim m n (lpad*lpad') (rpad'*rpad) A
+  end.
+Lemma PPad_Type : forall X lpad rpad m n,
+    RMatrix_Type (reflect_Prim X) m n ->
+    RMatrix_Type (reflect_Prim (PPad lpad rpad X)) (lpad*m*rpad) (lpad*n*rpad).
+Proof.
+Admitted.
+Hint Resolve PPad_Type.
+
+Lemma PPadEq : forall X lpad rpad m n,
+    RMatrix_Type (reflect_Prim X) m n ->
+    reflect_Prim (PPad lpad rpad X)
+ ==_{lpad*m*rpad,lpad*m*rpad} RPad m n lpad rpad (reflect_Prim X).
+Admitted.
+
+Search (_ ⊗ (_ ⊗ _)).
+Fixpoint KPad (lpad rpad : nat) (K : KronList) : KronList :=
+  match K with
+  | LUnit n c => (* I lpad ⊗ I n ⊗ I rpad == I (lpad*n*rpad) *)
+                 LUnit (lpad*n*rpad) c
+  | LKron X mK' nK' K' => (* I lpad ⊗ (X ⊗ K') ⊗ I rpad
+                          == (I lpad ⊗ X) ⊗ (K' ⊗ I rpad)
+                          *)
+    LKron (PPad lpad 1 X) (mK'*rpad) (nK'*rpad) (KPad 1 rpad K')
+  end.
+Lemma KPad_Type : forall K lpad rpad mM nM,
+    RMatrix_Type (reflect_KronList K) mM nM ->
+    RMatrix_Type (reflect_KronList (KPad lpad rpad K)) (lpad*mM*rpad) (lpad*nM*rpad).
+Proof.
+Admitted.
+Hint Resolve KPad_Type.
+Lemma KPadEq : forall K lpad rpad m n,
+    RMatrix_Type (reflect_KronList K) m n ->
+    reflect_KronList (KPad lpad rpad K)
+ ==_{lpad*m*rpad,lpad*n*rpad} RPad m n lpad rpad (reflect_KronList K).
+Admitted.
+
+Search (_ ⊗ (_ × _)).
+(* Produce I n ⊗ M  where M : Matrix mM nM *)
+Fixpoint MPad (lpad rpad : nat) (M : MultList) : MultList :=
+  match M with
+  | LI n' c    => (* I lpad ⊗ I n' ⊗ I rpad == I (lpad*n'*rpad) *)
+    LI (lpad*n'*rpad) c
+  | LMult K oM M' => (* I lpad ⊗ (K × M') ⊗ I rpad
+                     == ((I lpad ⊗ K) × (I lpad ⊗ M')) ⊗ I rpad
+                     == (I lpad ⊗ K ⊗ I rpad) × (I lpad ⊗ M' ⊗ I rpad)
+                     *)
+    LMult (KPad lpad rpad K) (lpad*oM*rpad) (MPad lpad rpad M')
+  end.
+Lemma MPad_Type : forall M lpad rpad m n,
+    RMatrix_Type (reflect_MultList M) m n ->
+    RMatrix_Type (reflect_MultList (MPad lpad rpad M)) (lpad*m*rpad) (lpad*n*rpad).
+Proof.
+(*  intros M n mM nM H.
+  dependent induction M; simpl; dependent destruction H;
+    auto with rtype.
+  * dependent destruction H; auto with rtype.*)
+Admitted.
+Hint Resolve MPad_Type : rtype.
+Lemma MPadEq : forall M lpad rpad m n,
+    RMatrix_Type (reflect_MultList M) m n ->
+    reflect_MultList (MPad lpad rpad M)
+ ==_{lpad*m*rpad,lpad*n*rpad} RPad m n lpad rpad (reflect_MultList M).
+Proof.
+  intros M n mM nM H.
+Admitted.
+
+Print SumList. Search (_ ⊗ (_ .+ _)).
+Fixpoint SPad (lpad rpad : nat) (S : SumList) : SumList :=
+  match S with
+  | LZero m n  => LZero (lpad*m*rpad) (lpad*m*rpad)
+  | LPlus M S' => LPlus (MPad lpad rpad M) (SPad lpad rpad S')
+  end.
+Lemma SPad_Type : forall S lpad rpad m n,
+    RMatrix_Type (reflect_SumList S) m n ->
+    RMatrix_Type (reflect_SumList (SPad lpad rpad S)) (lpad*m*rpad) (lpad*n*rpad).
+Proof.
+(*  intros M n mM nM H.
+  dependent induction M; simpl; dependent destruction H;
+    auto with rtype.
+  * dependent destruction H; auto with rtype.*)
+Admitted.
+Hint Resolve SPad_Type : rtype.
+Lemma SPadEq : forall S lpad rpad m n,
+    RMatrix_Type (reflect_SumList S) m n ->
+    reflect_SumList (SPad lpad rpad S)
+ ==_{lpad*m*rpad,lpad*n*rpad} RPad m n lpad rpad (reflect_SumList S).
+Proof.
+Admitted.
+
 
 
 (**********)
 (** Kron **)
 (**********)
 
-Print RMatrix.
-Print KronList.
-About kron_assoc.
 Fixpoint KKron (K1 : KronList) (mK2 nK2 : nat) (K2 : KronList) : KronList :=
   match K1 with
-  | LUnit c => KScale c K2
+  | LUnit n c => KPad n 1 (KScale c K2)
   | LKron X1 mK1 nK1 K1' => (* (X ⊗ K1') ⊗ K2 = X ⊗ (K1' ⊗ K2) *)
     LKron X1 (mK1*mK2) (nK1*nK2) (KKron K1' mK2 nK2 K2)
   end.
@@ -693,16 +799,7 @@ Proof.
   induction K1 as [c1 | X1 mK1 nK1 K1']; intros K2 m1 n1 m2 n2 H1 H2;
     repeat dependent destruction H1.
   * simpl.
-    repeat rewrite Nat.add_0_r.
-    apply KScale_Type; auto.
-  * simpl. Print MKron.
-    Print RMatrix_Type.
-    replace (A_dimx X1 * mK1 * m2) with (A_dimx X1 * (mK1 * m2)).
-    2:{ rewrite Nat.mul_assoc. reflexivity. }
-    replace (A_dimy X1 * nK1 * n2) with (A_dimy X1 * (nK1 * n2)).
-    2:{ rewrite Nat.mul_assoc. reflexivity. }
-    constructor; auto.
-Qed.
+Admitted.
 Hint Resolve KKron_Type : rtype.
 Lemma KKronEq : forall K1 K2 m1 n1 m2 n2,
     RMatrix_Type (reflect_KronList K1) m1 n1 ->
@@ -713,22 +810,16 @@ Proof.
   induction K1 as [c1 | X1 mK1 nK1 K1']; intros K2 m1 n1 m2 n2 H1 H2;
     repeat dependent destruction H1; simpl;
     repeat rewrite <- Nat.mul_assoc.
-  * rewrite KScaleEq; [ | repeat rewrite Nat.add_0_r; auto].
-    simpl. repeat rewrite Nat.add_0_r.
-    repeat rewrite Nat.mul_assoc.
-    remember (reflect_RMatrix' (reflect_KronList K2) m2 n2) as M.
-
-    set (H := Mscale_kron_dist_l c1 (I 1) M).
-    repeat rewrite Nat.mul_1_l in *.
-    rewrite H.
-    clear H.
-    
-    set (H := kron_1_l M).
-    repeat rewrite Nat.mul_1_l in *.
-    rewrite H.
-    clear H.
-
-    reflexivity.
+  * assert (H2' : RMatrix_Type (KScale c K2) m2 n2) by auto with rtype.
+    set (H := KPadEq (KScale c K2) c1 1 m2 n2 H2').
+    simpl in H; repeat rewrite mult_1_r in H; rewrite H; clear H.
+    rewrite Mscale_kron_dist_l.
+    rewrite <- Mscale_kron_dist_r.
+    apply kron_compat; [reflexivity | ].
+    set (H := KScaleEq K2 c m2 n2 H2); simpl in H; rewrite <- H; clear H.
+    set (H := kron_1_r (reflect_RMatrix' (KScale c K2) m2 n2));
+      repeat rewrite mult_1_r in H;
+      apply H.
   * rewrite IHK1'; auto.
     simpl.
     repeat rewrite Nat.mul_assoc.
@@ -736,183 +827,16 @@ Proof.
     reflexivity.
 Qed.
 
-
-(* Produce I n ⊗ M  where M : Matrix mM nM *)
-Fixpoint MPad_l (n : nat) (mM nM : nat) (M : MultList) : MultList :=
-  match M with
-  | LI n' c    => (* I n ⊗ I n' = I (n*n') *)
-    LI (n*n') c
-  | LMult K oM M' => (* I n ⊗ (K × M') = (I n ⊗ K) × (I n ⊗ M') *)
-                  LMult (LKron (IPrim n n (I n)) mM oM K) (n*oM) (MPad_l n oM nM M')
-  end.
-Lemma MPad_l_Type : forall M n mM nM,
-    RMatrix_Type (reflect_MultList M) mM nM ->
-    RMatrix_Type (reflect_MultList (MPad_l n mM nM M)) (n*mM) (n*nM).
-Proof. Print MultList.
-  induction M as [n0 c | K o M']; intros n mM nM H. 
-  * simpl; repeat dependent destruction H.
-    constructor. constructor.
-  * dependent destruction H.
-    simpl.
-    constructor.
-    + constructor; auto. constructor.
-    + apply IHM'; auto.
-Qed.
-Hint Resolve MPad_l_Type : rtype.
-Lemma MPad_l_Eq : forall M n mM nM,
-    RMatrix_Type (reflect_MultList M) mM nM ->
-    reflect_MultList (MPad_l n mM nM M)
- ==_{n*mM,n*nM} MKron n n (reflect_MultList (LI n C1)) mM nM (reflect_MultList M).
-Proof.
-  induction M as [n0 c | K o M']; intros n mM nM H.
-  * simpl; repeat dependent destruction H.
-    rewrite Mscale_1_l.
-    Search I "⊗".
-    rewrite <- id_kron.
-    Search (_ .* (_ ⊗ _)).
-    rewrite <- Mscale_kron_dist_r.
-    reflexivity.
-  * simpl. dependent destruction H.
-    rewrite IHM'; auto.
-    simpl.
-    rewrite Mscale_1_l.
-    Search (_ ⊗ (_ × _)).
-    rewrite kron_dist_r.
-    reflexivity.
-Qed.
-
-(* Produce K ⊗ (I n) *)
-Fixpoint KPad_r (K : KronList) (n : nat) : KronList :=
-  match K with
-  | LUnit c    => LKron (IPrim n n (I n)) 1 1 (LUnit c)
-  | LKron X mK nK K' => LKron X (mK*n) (nK*n) (KPad_r K' n)
-  end.
-
-Lemma KPad_r_Type : forall (K : KronList) mK nK n,
-    RMatrix_Type K mK nK ->
-    RMatrix_Type (KPad_r K n) (mK*n) (nK*n).
-Proof. 
-  induction K as [c | X mK' nK' K']; intros mK nK n H.
-  * repeat dependent destruction H.
-    simpl.
-    replace (n+0) with (n * 1). 2:{ rewrite Nat.add_0_r. rewrite Nat.mul_1_r. reflexivity. }
-    constructor; repeat constructor. 
-  * dependent destruction H.
-    simpl.
-    repeat rewrite <- Nat.mul_assoc.
-    constructor; auto.
-Qed.
-Hint Resolve KPad_r_Type : rtype.
-Lemma KPad_r_Eq : forall (K : KronList) mK nK n,
-    RMatrix_Type K mK nK -> 
-    KPad_r K n
- ==_{mK*n,nK*n} MKron mK nK K n n (LI n C1).
-Proof.
-Print KronList.
-  induction K as [c | X mK' nK' K']; intros mK nK n H.
-  * simpl; repeat dependent destruction H.
-    rewrite Mscale_1_l.
-    Search I "⊗". About id_kron.
-    set (H := @id_kron 1 n).
-    simpl in H.
-    rewrite Nat.add_0_r in H.
-    set (A := I 1) in *.
-    set (B := I n) in *.
-
-    set (H' := Mscale_kron_dist_r c B A).
-    rewrite Nat.mul_1_l in *.
-    rewrite Nat.mul_1_r in *.
-    rewrite H'.
-    clear H'.
-
-    set (H' := Mscale_kron_dist_l c A B).
-    rewrite Nat.mul_1_l in *.
-    rewrite H'.
-    clear H'.
-
-
-
-    unfold A, B.
-
-
-    set (H'' := @id_kron n 1).
-    rewrite Nat.mul_1_r in *.
-    rewrite H''.
-
-    set (H''' := @id_kron 1 n).
-    rewrite Nat.mul_1_l in *.
-    rewrite H'''.
-
-
-    reflexivity.    
-  * simpl. dependent destruction H.
-    specialize (IHK' _ _ n H0).
-    simpl in IHK'.
-    rewrite Mscale_1_l.
-    rewrite kron_assoc.
-    Search (_ ⊗ _ == _ ⊗ _).
-    repeat rewrite <- mult_assoc.
-    rewrite IHK'.
-    rewrite Mscale_1_l.
-    reflexivity.
-Qed.
-
-
-(* Produce M ⊗ (I n) *)
-Fixpoint MPad_r (M : MultList) (n : nat): MultList :=
-  match M with
-  | LI n' c' => (* I n ⊗ I n' = I (n*n') *)
-    LI (n'*n) c'
-  | LMult K o M' => (* (K × M') ⊗ I = (K ⊗ I) × (M' ⊗ I) *)
-                    LMult (KPad_r K n) (o*n) (MPad_r M' n)
-  end.
-Lemma MPad_r_Type : forall (M : MultList) mM nM n,
-    RMatrix_Type M mM nM ->
-    RMatrix_Type (MPad_r M n) (mM * n) (nM * n).
-Proof.
-    Print MultList.
-  induction M as [m c | K' o' M']; intros mM nM n H;
-    dependent destruction H.
-  - dependent destruction H.
-    simpl.
-    constructor. constructor.
-  - simpl.
-    constructor; auto.
-    apply KPad_r_Type; auto.
-Qed.
-Hint Resolve MPad_r_Type : rtype.
-Lemma MPad_r_Eq : forall (M : MultList) mM nM n,
-    RMatrix_Type M mM nM ->
-    MPad_r M n ==_{mM*n,nM*n} MKron mM nM M n n (MI n).
-Proof.
-  induction M as [m c | K' o' M']; intros mM nM n H;
-    dependent destruction H.
-  - dependent destruction H.
-    simpl.
-    Search I kron.
-    rewrite <- id_kron.
-    rewrite Mscale_kron_dist_l.
-    reflexivity.
-  - simpl in *.
-    rewrite IHM'; auto.
-    rewrite KPad_r_Eq; auto.
-    rewrite kron_dist_l.
-    simpl.
-    Search (C1 .* _).
-    rewrite Mscale_1_l.
-    reflexivity.
-Qed.
-
-
+Require Import Omega.
 (* K1 is an m1×n1 matrix, for some m1 *)
 (* M2 is an m2×n2 matrix *)
 (* K1 ⊗ M2 *)
 Definition KMKron (n1 : nat) (K1 : KronList) (m2 n2 : nat) (M2 : MultList) : MultList :=
   match M2 with
   | LI n c => (* K1 ⊗ (c .* I n) = c .* (K1 ⊗ I n) = (K1 × I n) × (c .* I (n1*n)) *)
-    LMult (KPad_r K1 n) (n1*n) (LI (n1*n) c)
+    LMult (KPad 1 n K1) (n1*n) (LI (n1*n) c)
   | LMult K2 o2 M2' => (* K1 ⊗ (K2 × M2') = (K1 ⊗ K2) × (I n1 ⊗ M2') *)
-    LMult (KKron K1 m2 o2 K2) (n1*o2) (MPad_l n1 o2 n2 M2')
+    LMult (KKron K1 m2 o2 K2) (n1*o2) (MPad n1 1 M2')
   end.
 Lemma KMKron_Type : forall m1 n1 (K1 : KronList) m2 n2 (M2 : MultList),
     RMatrix_Type K1 m1 n1 ->
@@ -922,6 +846,14 @@ Proof.
   dependent destruction M2; intros H1 H2;
     repeat dependent destruction H2;
     simpl; auto with rtype.
+  * constructor; auto with rtype.
+    replace (m1 * n) with (1 * m1 * n) by (rewrite mult_1_l; reflexivity).
+    replace (n1 * n) with (1 * n1 * n) by (rewrite mult_1_l; reflexivity).
+    apply KPad_Type; auto.
+  * constructor; auto with rtype.
+    replace (n1 * n) with (n1 * n * 1) by (rewrite mult_1_r; reflexivity).
+    replace (n1 * o) with (n1 * o * 1) by (rewrite mult_1_r; reflexivity).
+    apply MPad_Type; auto.
 Qed.
 Hint Resolve KMKron_Type : rtype.
 Lemma KMKronEq : forall m1 n1 (K1 : KronList) m2 n2 (M2 : MultList),
@@ -932,45 +864,58 @@ Proof.
   dependent destruction M2; intros H1 H2;
     repeat dependent destruction H2;
     simpl.
-  - rewrite KPad_r_Eq; auto; simpl.
-    rewrite Mscale_1_l.
-    Search (_ ⊗ _ × _).
-    Search I "⊗".
+  - replace (m1 * n) with (1 * m1 * n) by (rewrite mult_1_l; reflexivity).
+    replace (n1 * n) with (1 * n1 * n) by (rewrite mult_1_l; reflexivity).
+    rewrite KPadEq; auto; simpl.
+    set (H := kron_1_l (reflect_RMatrix' K1 m1 n1 ⊗ I n));
+      simpl in H;
+      repeat rewrite Nat.add_0_r in *;
+      rewrite H; clear H.
+
     rewrite <- id_kron.
     rewrite <- Mscale_kron_dist_r.
     rewrite kron_mixed_product.
-    Search (_ × I _).
     rewrite Mmult_1_r.
     rewrite Mmult_1_l.
     reflexivity.
   - rewrite KKronEq; auto.
-    rewrite MPad_l_Eq; auto.
+    replace (n1 * n) with (n1 * n * 1) by (rewrite mult_1_r; reflexivity).
+    replace (n1 * o) with (n1 * o * 1) by (rewrite mult_1_r; reflexivity).
+    rewrite MPadEq; auto.
     simpl.
-    rewrite Mscale_1_l.
-    autorewrite with M_db.
+    set (H := @kron_1_r _ _ (reflect_RMatrix' M2 n o));
+      repeat rewrite mult_1_r in *;
+      rewrite H;
+      clear H.
+    rewrite kron_dist_r.
     reflexivity.
 Qed.
-
-(*    autorewrite with M_db.*)
 
 
 
 Definition MLKron (m1 n1 : nat) (M1 : MultList) (m2 n2 : nat) (M2 : MultList) : MultList :=
   match M1 with
   | LI n c => (* I n ⊗ M1 *)
-    MultScale c (MPad_l n m2 n2 M2)
+    MultScale c (MPad n 1 M2)
   | LMult K1 o1 M1' => (* (K1 × M1') ⊗ M2 = (K1 ⊗ M2) × (M1' ⊗ I n2) *)
-    MLMult (KMKron o1 K1 m2 n2 M2) (MPad_r M1' n2)
+    MLMult (KMKron o1 K1 m2 n2 M2) (MPad 1 n2 M1')
   end.
 Lemma MLKron_Type : forall m1 n1 (M1 : MultList) m2 n2 (M2 : MultList),
     RMatrix_Type M1 m1 n1 ->
     RMatrix_Type M2 m2 n2 ->
     RMatrix_Type (MLKron m1 n1 M1 m2 n2 M2) (m1*m2) (n1*n2).
 Proof.
-Print MultList.
   destruct M1 as [n c | K' o' M']; intros m2 n2 M2 H1 H2;
     repeat dependent destruction H1;
     simpl; eauto with rtype.
+  - apply MultScale_Type.
+    replace (n*m2) with (n*m2*1) by (rewrite mult_1_r; reflexivity).
+    replace (n*n2) with (n*n2*1) by (rewrite mult_1_r; reflexivity).
+    auto with rtype.
+  - eapply MLMult_Type; eauto with rtype.
+    replace (o'*n2) with (1*o'*n2) by (rewrite mult_1_l; reflexivity).
+    replace (o*n2) with (1*o*n2) by (rewrite mult_1_l; reflexivity).
+    auto with rtype.
 Qed.
 Hint Resolve MLKron_Type : rtype.
 Lemma MLKronEq : forall m1 n1 (M1 : MultList) m2 n2 (M2 : MultList),
@@ -981,27 +926,42 @@ Proof.
   destruct M1 as [n c | K' o' M']; intros m2 n2 M2 H1 H2;
     repeat dependent destruction H1;
     simpl.
-  - rewrite MultScaleEq; auto with rtype.
+  -
+    replace (n*m2) with (n*m2*1) by (rewrite mult_1_r; reflexivity).
+    replace (n*n2) with (n*n2*1) by (rewrite mult_1_r; reflexivity).
+    rewrite MultScaleEq; auto with rtype.
     simpl.
-    rewrite MPad_l_Eq; [ | auto].
+    rewrite MPadEq; [ | auto].
     simpl.
-    Search (C1 .* _).
-    rewrite Mscale_1_l.
-    Search (_ .* (_ ⊗ _)).
+    set (H := kron_1_r (reflect_RMatrix' M2 m2 n2));
+      repeat rewrite mult_1_r in *;
+      rewrite H; clear H.
     rewrite Mscale_kron_dist_l.
     reflexivity.
-  - rewrite MLMultEq; auto with rtype.
+  - 
+    rewrite MLMultEq; eauto with rtype;
+      replace (o*n2) with (1*o*n2) by (rewrite mult_1_l; reflexivity);
+      replace (o'*n2) with (1*o'*n2) by (rewrite mult_1_l; reflexivity);
+      auto with rtype.
+
     simpl.
+    repeat rewrite Nat.add_0_r in *.
     rewrite KMKronEq; auto.
     simpl.
-    rewrite MPad_r_Eq; auto.
+      replace (o*n2) with (1*o*n2) by (rewrite mult_1_l; reflexivity);
+      replace (o'*n2) with (1*o'*n2) by (rewrite mult_1_l; reflexivity).
+
+    rewrite MPadEq; auto.
     simpl.
-    autorewrite with M_db.
+    set (H := kron_1_l (reflect_RMatrix' M' o' o ⊗ I n2));
+      repeat rewrite mult_1_l in *;
+      repeat rewrite Nat.add_0_r in *;
+      rewrite H; clear H.
+    rewrite kron_mixed_product.
+    rewrite Mmult_1_r.
     reflexivity.
 Qed.
 
-Print SumList.
-Search ".+" "⊗".
 
 Fixpoint MSKron (m1 n1 : nat) (M1 : MultList) (m2 n2 : nat) (S2 : SumList) : SumList :=
   match S2 with
@@ -1026,12 +986,10 @@ Lemma MSKronEq : forall m1 n1 (M1 : MultList) m2 n2 (S2 : SumList),
 Proof.
   dependent induction S2; intros H1 H2;
     repeat dependent destruction H2; simpl.
-  - Search (_ ⊗ Zero).
-    rewrite kron_0_r.
+  - rewrite kron_0_r.
     reflexivity.
   - rewrite MLKronEq; auto with rtype; simpl.
     rewrite IHS2; auto with rtype; simpl.
-    Search "⊗" ".+".
     rewrite <- kron_plus_distr_l.
     reflexivity.
 Qed.
@@ -1060,7 +1018,6 @@ Proof.
   dependent induction S1; intros m2 n2 S2 H1 H2;
     repeat dependent destruction H1; simpl.
   - autorewrite with M_db.
-    Search (Zero ⊗ _).
     rewrite kron_0_l.
     reflexivity.
   - rewrite SPlusEq; auto with rtype; simpl.
@@ -1070,38 +1027,31 @@ Proof.
     reflexivity.
 Qed.
 
-
-Print RMatrix.
-
-Print MultList.
-Print KronList. Search "†" "⊗".
-
-Print Prim.
 Definition PAdjoint (X : Prim) : Prim :=
   match X with
-  | IPrim m n A => APrim m n A
-  | APrim m n A => IPrim m n A
+  | IPrim m n padl padr A => APrim m n padl padr A
+  | APrim m n padl padr A => IPrim m n padl padr A
   end.
 Lemma PAdjoint_Type : forall (X : Prim) m n,
     RMatrix_Type X m n ->
     RMatrix_Type (PAdjoint X) n m.
 Proof.
-  destruct X as [mA nA A | mA nA A]; intros m n H;
+  destruct X as [mA nA padl padr A | mA nA padl padr A]; intros m' n' H;
     dependent destruction H; simpl; auto with rtype.
+  * constructor.
+    unfold RPad.
+    eauto with rtype.
 Qed.
 Hint Resolve PAdjoint_Type : rtype.
 Lemma PAdjointEq : forall (X : Prim) m n,
     RMatrix_Type X m n ->
     PAdjoint X ==_{n,m} MAdjoint X.
 Proof.
-  destruct X as [mA nA A | mA nA A]; intros m n H;
+  destruct X as [mA nA padl padr A | mA nA padl padr A]; intros m' n' H;
     dependent destruction H; simpl.
   - reflexivity.
-  - Search "†".
-    About adjoint_involutive.
-    dependent destruction H.
-    
-    rewrite (adjoint_involutive A).
+  - dependent destruction H.
+    autorewrite with M_db.
     reflexivity.
 Qed.
 
@@ -1119,7 +1069,7 @@ Qed.
 
 Fixpoint KAdjoint (K : KronList) : KronList :=
   match K with
-  | LUnit c    => LUnit (c^*)
+  | LUnit n c => LUnit n (c^*)
   | LKron X mK' nK' K' => (* (X ⊗ K')† = X† ⊗ K† *)
     LKron (PAdjoint X) nK' mK' (KAdjoint K')
   end.
@@ -1143,7 +1093,6 @@ Proof.
     dependent destruction H; simpl.
   - dependent destruction H. 
     autorewrite with M_db.
-    Search "†" ".*".
     rewrite Mscale_adj.
     autorewrite with M_db.
     reflexivity.
@@ -1178,9 +1127,8 @@ Lemma MLAdjointEq : forall (M : MultList) m n,
 Proof.
   induction M as [nM c | K' o' M']; intros m n H;
     dependent destruction H; simpl.
-  - dependent destruction H. Search (_ .* _)†. 
+  - dependent destruction H.
     rewrite Mscale_adj.
-    Search (I _)†.
     rewrite id_adjoint_eq.
     reflexivity.
   - rewrite MLMultEq; auto with rtype; simpl.
@@ -1188,7 +1136,6 @@ Proof.
     rewrite KAdjointEq; auto with rtype; simpl.
     rewrite IHM'; auto with rtype; simpl.
     autorewrite with M_db.
-    Search (C1 .* _).
     rewrite Mscale_1_l.
     rewrite Mmult_1_r.
     reflexivity.
@@ -1196,7 +1143,6 @@ Qed.
 
 
 
-Print SumList. Search "†" ".+".
 Fixpoint SAdjoint (m n : nat) (S : SumList) : SumList :=
   match S with
   | LZero _ _ => LZero n m
@@ -1206,7 +1152,6 @@ Fixpoint SAdjoint (m n : nat) (S : SumList) : SumList :=
 Lemma SAdjoint_Type : forall (S : SumList) m n,
     RMatrix_Type S m n ->
     RMatrix_Type (SAdjoint m n S) n m.
-Print SumList.
 Proof.
   induction S as [mS nS | M' S']; intros m n H;
     dependent destruction H; simpl; auto with rtype.
@@ -1218,7 +1163,7 @@ Lemma SAdjointEq : forall (S : SumList) m n,
 Proof.
   induction S as [mS nS | M' S']; intros m n H;
     dependent destruction H; simpl.
-  - autorewrite with M_db. Search Zero†.
+  - autorewrite with M_db.
     rewrite zero_adjoint_eq.
     reflexivity.
   - rewrite MLAdjointEq; auto.
@@ -1230,8 +1175,6 @@ Qed.
 
 
 
-
-Print RMatrix.
 
 Fixpoint reify_SumList (M : RMatrix) (m n : nat): SumList :=
   match M with
@@ -1252,16 +1195,18 @@ Proof.
   induction M; intros m' n' H;
     dependent destruction H; simpl; eauto with rtype.
   - repeat constructor.
-    assert (H : RMatrix_Type (MKron m n (MPrim m0) 1 1 (MScale 1%R (MI 1))) (m*1) (n*1))
-      by auto with rtype.
-    repeat rewrite Nat.mul_1_r in H.
-    exact H.
+    replace m with ((1*m*1)*1) at 4 by omega.
+    replace n with ((1*n*1)*1) at 4 by omega.
+    constructor; auto with rtype.
+    unfold RPad.
+    repeat rewrite <- mult_assoc.
+    auto with rtype.
 Qed.
 Hint Resolve reify_SumList_Type : rtype.
 
-Lemma reify_SumListEq : forall M m n,
+Lemma reify_SumListEq : forall (M : RMatrix) m n,
       RMatrix_Type M m n ->
-      M ==_{m,n} reify_SumList M m n.
+      reflect_RMatrix' M m n == reflect_RMatrix' (reify_SumList M m n) m n.
 Proof.
   induction M; intros m' n' H;
     dependent destruction H; simpl;
@@ -1271,13 +1216,38 @@ Proof.
   - rewrite Mplus_0_r.
     rewrite (Mscale_1_l (I n)).
     rewrite Mmult_1_r.
-    assert (H : @mat_equiv (m*1) (n*1) m0 (m0 ⊗ (C1 .* I 1))).
-    { rewrite Mscale_1_l. Search (_ ⊗ I _).
-      rewrite (kron_1_r m0).
-      reflexivity.
-    }
-    repeat rewrite Nat.mul_1_r in H.
-    apply H.
+
+    assert (H : I 1 ⊗ (m0 ⊗ I 1) ⊗ (C1 .* I 1) == I 1 ⊗ (m0 ⊗ I 1) ⊗ I 1).
+    { rewrite Mscale_1_l. reflexivity. }
+
+    repeat rewrite Nat.add_0_r in *;
+    repeat rewrite Nat.mul_1_r in *;
+    repeat rewrite Nat.add_0_l in *;
+    repeat rewrite Nat.mul_1_l in *.
+    rewrite H; clear H.
+
+    set (H := kron_1_r (I 1 ⊗ (m0 ⊗ I 1)));
+    repeat rewrite Nat.add_0_r in *;
+    repeat rewrite Nat.mul_1_r in *;
+    repeat rewrite Nat.add_0_l in *;
+    repeat rewrite Nat.mul_1_l in *.
+    rewrite H; clear H.
+
+    set (H := kron_1_l (m0 ⊗ I 1));
+    repeat rewrite Nat.add_0_r in *;
+    repeat rewrite Nat.mul_1_r in *;
+    repeat rewrite Nat.add_0_l in *;
+    repeat rewrite Nat.mul_1_l in *.
+    rewrite H; clear H.
+
+    set (H := kron_1_r m0);
+    repeat rewrite Nat.add_0_r in *;
+    repeat rewrite Nat.mul_1_r in *;
+    repeat rewrite Nat.add_0_l in *;
+    repeat rewrite Nat.mul_1_l in *.
+    rewrite H; clear H.
+
+    reflexivity.
   - reflexivity.
   - rewrite Mplus_0_r.
     rewrite Mscale_1_l.
@@ -1293,7 +1263,6 @@ Proof.
   - rewrite SAdjointEq; auto with rtype; simpl.
     reflexivity.
 Qed.
-
 
 
 
@@ -1334,7 +1303,6 @@ Ltac simplify_RMatrix_size :=
 *)
 
 
-Print RMatrix.
 (* If e is a matrix expression, produce an RMatrix expression *)
 Ltac reify_matrix e := 
   match e with
@@ -1376,21 +1344,46 @@ Ltac reify_matrices :=
                        let N := (reify_matrix B) in
                        match type of A with
                        | Matrix ?m ?n => 
-                         replace A with (reflect_RMatrix' M m n);
-                            [ | rewrite_with_eqb ]
+                         transitivity (reflect_RMatrix' M m n);
+                            [ rewrite_with_eqb | ]
                        end;
                        match type of B with
                        | Matrix ?m' ?n' => 
-                         replace B with (reflect_RMatrix' N m' n'); 
+                         transitivity (reflect_RMatrix' N m' n'); 
                            [ | rewrite_with_eqb ]
                        end
   end.
 
 
 
+
+
+Lemma reify_SumListEq' : forall M m n m' n',
+      RMatrix_Type M m n ->
+      m = m' -> n = n' ->
+      @mat_equiv m' n' (reflect_RMatrix' M m n) (reflect_RMatrix' (reify_SumList M m n) m n).
+Proof.
+  intros M m n m' n' H Hm Hn. subst.
+  apply reify_SumListEq; easy.
+Qed.
+
+
+Lemma RMatrix_eq : forall (M1 M2 : RMatrix) m1 n1 m2 n2 m n,
+    m = m1 -> m1 = m2 ->
+    n = n1 -> n1 = n2 ->
+    reify_SumList M1 m1 n1 = reify_SumList M2 m2 n2 ->
+    @mat_equiv m n (reflect_RMatrix' M1 m1 n1) (reflect_RMatrix' M2 m2 n2).
+Admitted.
+
 Ltac RMatrix_reflection :=
-  reify_matrices; 
+  reify_matrices;
+    try (apply RMatrix_eq; simpl; unify_pows_two; try lia; Csimpl; reflexivity).
+(*
   rewrite reify_SumListEq; [rewrite_with_eqb | apply RMatrix_size_Type; rewrite_with_eqb].
+*)
+
+
+
 
 Lemma foo : ∣0⟩ ⊗ ∣0⟩ == (⟨1∣×∣1⟩).
 Proof. 
@@ -1411,3 +1404,142 @@ Proof.
   intros.
   RMatrix_reflection.
 Qed.
+
+Definition pad {m} n (A : Square (2^m)) : Square (2^n) := (A ⊗ I (2^ (n - m))).
+
+Lemma pad_nothing_test : forall m A, mat_equiv (@pad m m A) A.
+Proof.
+  intros.
+  unfold pad.
+  RMatrix_reflection.
+Qed.
+
+(** Symmetry **)
+
+
+(** Sorted sum lists **)
+
+Print SumList.
+(* RemoveMS M S S' holds if S' ≡ M+S *)
+Inductive RemoveMS (M : MultList) : SumList -> SumList -> Set :=
+| MHere S : RemoveMS M (LPlus M S) S
+| MLater M' S' S'' : RemoveMS M S' S'' -> RemoveMS M (LPlus M' S') (LPlus M' S'')
+.
+Inductive SPermutation : SumList -> SumList -> Set :=
+| PZero m n : SPermutation (LZero m n) (LZero m n)
+| PCons M S1' S2 S2' : 
+          RemoveMS M S2 S2' ->
+          SPermutation S1' S2' ->
+          SPermutation (LPlus M S1') S2
+.
+Ltac proveMInS :=
+  match goal with
+  | [ |- MInS ?M (LPlus ?M ?S) ] => apply (MHere M S)
+  | [ |- MInS ?M (LPlus ?M' ?S') ] => apply (MLater M M' S'); proveMInS
+  end.
+
+
+
+
+(* Reorder a SumList according to the following metric. There may be different clauses with the same metric. *)
+Print KronList.
+Fixpoint KronListMetric (K : KronList) : nat :=
+  match K with
+  | LUnit _ _ => 1
+  | LKron _ _ _ K' => 1 + 2*(KronListMetric K')
+  end.
+Fixpoint MultListMetric (M : MultList) : nat :=
+  match M with
+  | LI _ _ => 1
+  | LMult K o M' => KronListMetric K + 2*(MultListMetric M')
+  end.
+
+Print SumList.
+Fixpoint insertWithMetric (M : MultList) (S : SumList) : list (list MultList) :=
+  match S with
+  | LZero m n   => [[M]]
+  | LPlus M' S' => if MultListMetric M <? MultListMetric M'
+                   then M :: 
+
+LPlus (MultListMetric M) (LPlus (MultListMetric M') S')
+                   else LPlus (MultListMetric
+
+
+(* Instead of RMatrixEq, the reified sumlists should be permutations of each other *)
+
+
+Print SumList.
+Definition MultListEquiv (M1 M2 : MultList) := (M1 = M2).
+
+
+Inductive RemoveFromSumList (M : MultList) : SumList -> SumList -> Prop :=
+| remove_here : forall S, RemoveFromSumList M (LPlus M S) S
+| remove_there : forall S S' M', RemoveFromSumList M S S' ->
+                                 RemoveFromSumList M (LPlus M' S) (LPlus M' S')
+.
+Inductive SumListEquiv : SumList -> SumList -> Prop :=
+| LZero_equiv : forall m n, SumListEquiv (LZero m n) (LZero m n)
+| LPlus_equiv : forall M S1' S2 S2',
+    RemoveFromSumList M S2 S2' ->
+    SumListEquiv S1' S2' ->
+    SumListEquiv (LPlus M S1') S2.
+
+
+Lemma RMatrix_equiv : forall (M1 M2 : RMatrix) m1 n1 m2 n2 m n,
+    m = m1 -> m1 = m2 ->
+    n = n1 -> n1 = n2 ->
+    SumListEquiv (reify_SumList M1 m1 n1) (reify_SumList M2 m2 n2) ->
+    @mat_equiv m n (reflect_RMatrix' M1 m1 n1) (reflect_RMatrix' M2 m2 n2).
+Admitted.
+
+    
+(* If M occurs in S, produce a pair (S',pf) where S' is a sumlist and pf is a
+proof that RemoveFromSumList M S S' holds. *)
+Ltac remove_from_SumList M S :=
+  match S with
+  | LPlus M   ?S' => idtac "Got: " S;
+                     constr:((S', remove_here S'))
+  | LPlus ?M' ?S' => idtac "Removing " M';
+                     match remove_from_SumList M S' with
+                     | ((?S'', ?pf)) => constr:((LPlus M' S'', remove_there S' S'' M'))
+                     end
+  end.
+
+(* If S1 is equivalent to S2, produce a proof of SumListEquiv S1 S2 *)
+Ltac SumList_permutation S1 S2 :=
+  match S1 with
+  | LZero ?m ?n  => match S2 with
+                    | LZero m n => constr:(LZero_equiv m n)
+                    end
+  | LPlus ?M ?S1' => match remove_from_SumList M S2 with
+                    | ((?S2', ?pfRm)) => 
+                      idtac "Removed " M " from " S2 " got " S2'; 
+                      let pfS2' := SumList_permutation S1' S2' in
+                       constr:(LPlus_equiv M S1' S2 S2' pfRm pfS2')
+                    end
+  end.
+
+  
+
+
+(* Currently does not work on symmetry! *)
+Lemma symm_test : forall {m n} (A B : Matrix  m n), A .+ B == B .+ A.
+Proof.
+  intros.
+  intros.
+  reify_matrices.
+  apply RMatrix_equiv; auto. 
+    simpl. repeat unfold MultPrim, SPrim, KPrim.
+
+  match goal with
+  | [ |- SumListEquiv ?S1 ?S2 ] => 
+    match SumList_permutation S1 S2 with
+    | ((_,?pf)) => apply pf
+    end
+  end.
+ 
+
+  match SumList_permutation 
+  RMatrix_reflection.
+    SumList_permutation (MPlus (MPrim A) (MPrim B)) (MPlus (MPrim B) (MPrim A)).
+Abort.
