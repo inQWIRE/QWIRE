@@ -394,11 +394,7 @@ Lemma pad_nothing : forall m A, mat_equiv (@pad m m A) A.
 Proof.
   intros.
   unfold pad.
-  reify_matrices.
-  apply RMatrix_eq; simpl; unify_pows_two.
-    Csimpl. Print unify_pows_two.
-    Csimpl. reflexivity.
-    unify_pows_two. Csimpl. reflexivity.
+  RMatrix_reflection.
 Qed.
 
 (* These propositions about swap_list may prove useful

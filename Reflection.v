@@ -108,9 +108,6 @@ Inductive RMatrix :=
 
 
 
-
-
-
 Inductive RMatrix_Type : RMatrix -> nat -> nat -> Set :=
   | tPrim m n (A : Matrix m n) : RMatrix_Type (MPrim A) m n
   | tZero m n : RMatrix_Type (MZero m n) m n
@@ -333,6 +330,7 @@ Inductive SumList :=
   | LZero (m n : nat) : SumList
   | LPlus : MultList -> SumList -> SumList
 .
+(* Robert: Should be Sum -> Kron -> Mult -> Prim *)
 
 
 Definition RPad m n padl padr (R : RMatrix) : RMatrix :=
@@ -1402,7 +1400,8 @@ Let foo' : forall m n o p (A : Matrix m n) (B : Matrix n o),
       A × (B × @Zero o p) == Zero.
 Proof.
   intros.
-  RMatrix_reflection.
+  reify_matrices.
+  apply RMatrix_eq; try trivial.
 Qed.
 
 Definition pad {m} n (A : Square (2^m)) : Square (2^n) := (A ⊗ I (2^ (n - m))).
@@ -1414,6 +1413,7 @@ Proof.
   RMatrix_reflection.
 Qed.
 
+(*
 (** Symmetry **)
 
 
@@ -1543,3 +1543,4 @@ Proof.
   RMatrix_reflection.
     SumList_permutation (MPlus (MPrim A) (MPrim B)) (MPlus (MPrim B) (MPrim A)).
 Abort.
+*)
