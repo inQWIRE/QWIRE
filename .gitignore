@@ -5,3 +5,4 @@
 extra/*
 *.bak
 *.v.d
+.lia.cache
