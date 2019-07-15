@@ -6,3 +6,8 @@ extra/*
 *.bak
 *.v.d
 .lia.cache
+
+# Ignore coq_makefile-generated files
+.coqdeps.d
+CoqMakefile
+CoqMakefile.conf
