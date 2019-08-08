@@ -239,11 +239,11 @@ Proof.
     rewrite scale_safe.
     setoid_rewrite IHn.
     solve_matrix.
-    - rewrite Cmult_plus_distr_l.
+    - rewrite Cmult_plus_dist_l.
       Csimpl.
       rewrite Cplus_assoc.
       rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
-      rewrite <- Copp_mult_distr_r.
+      rewrite <- Copp_mult_dist_r.
       lca.
     - rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
       easy.
@@ -271,9 +271,9 @@ Proof.
     solve_matrix.
     - rewrite (Cmult_comm _ a).
       repeat rewrite <- Cmult_assoc.
-      rewrite <- Cmult_plus_distr_l.
+      rewrite <- Cmult_plus_dist_l.
       autorewrite with C_db.
-      rewrite (Cmult_plus_distr_l (/2)).
+      rewrite (Cmult_plus_dist_l (/2)).
       autorewrite with C_db.
       rewrite Cplus_assoc.
       autorewrite with C_db.      
@@ -354,12 +354,12 @@ Proposition share_correct : forall n α β,
 Proof.
   induction n; intros.
   * repeat (autounfold with den_db; simpl).
-    autorewrite with M_db.
+    Msimpl.
     reflexivity.
   * repeat (autounfold with den_db; simpl).
-    autorewrite with M_db. 
+    Msimpl. 
     setoid_rewrite kron_adjoint.
-    autorewrite with M_db. 
+    Msimpl. 
 
     remember (singleton 1%nat Qubit) as Γ1.
     remember (singleton 0%nat Qubit) as Γ2.
@@ -531,7 +531,7 @@ Proof.
   all: destruct H; rewrite H; clear.  
   + (* Cell (0,0), f1 *)
     unfold f1.
-    autounfold with M_db.
+    autounfold with U_db.
     simpl.
     autorewrite with C_db.
     reflexivity.
@@ -541,7 +541,7 @@ Proof.
     reflexivity.
   + (* Cell (1,1), f1 *)
     unfold f1.
-    autounfold with M_db.
+    autounfold with U_db.
     simpl.
     autorewrite with C_db.
     rewrite (Cmult_comm (/ √2) _).

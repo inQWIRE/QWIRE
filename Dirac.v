@@ -107,7 +107,7 @@ Proof. intros. destruct x,y; solve_matrix. Qed.
 (* General matrix rewrites *)
 Hint Rewrite bra0_equiv bra1_equiv ket0_equiv ket1_equiv : ket_db.
 Hint Rewrite bra0ket0 bra0ket1 bra1ket0 bra1ket1 : ket_db.
-Hint Rewrite Mmult_plus_distr_l Mmult_plus_distr_r kron_plus_distr_l kron_plus_distr_r Mscale_plus_distr_r : ket_db.
+Hint Rewrite Mmult_plus_dist_l Mmult_plus_dist_r kron_plus_dist_l kron_plus_dist_r Mscale_plus_dist_r : ket_db.
 Hint Rewrite Mscale_mult_dist_l Mscale_mult_dist_r Mscale_kron_dist_l Mscale_kron_dist_r : ket_db.
 Hint Rewrite Mscale_assoc @Mmult_assoc : ket_db.
 (*Hint Rewrite <- Mplus_assoc kron_assoc : ket_db.*)
@@ -137,10 +137,10 @@ Ltac simpl_ket_1_qubit :=
   (match goal with
     (* combine like terms *)
     | [ |- context[ ?a .* ∣ ?x ⟩ .+ ?b .* ∣ ?x ⟩ ] ] => 
-          rewrite <- (Mscale_plus_distr_l _ _ a b ∣ x ⟩)
+          rewrite <- (Mscale_plus_dist_l _ _ a b ∣ x ⟩)
     | [ |- context[ (?a .+ ?b .* ∣ ?x ⟩) .+ ?c .* ∣ ?x ⟩ ] ] => 
           rewrite (Mplus_assoc _ _ a (b .* ∣ x ⟩) (c .* ∣ x ⟩));
-          rewrite <- (Mscale_plus_distr_l _ _ b c ∣ x ⟩)
+          rewrite <- (Mscale_plus_dist_l _ _ b c ∣ x ⟩)
     (* reorder terms *)
     | [ |- context[ ?a .* ∣ 1 ⟩ .+ ?b .* ∣ 0 ⟩ ] ] => 
           rewrite (Mplus_comm _ _ (a .* ∣ 1 ⟩) (b .* ∣ 0 ⟩))
@@ -160,10 +160,10 @@ Ltac simpl_ket_2_qubit :=
   (match goal with
     (* combine like terms *)
     | [ |- context[ ?a .* ∣ ?x,?y ⟩ .+ ?b .* ∣ ?x,?y ⟩ ] ] => 
-          rewrite <- (Mscale_plus_distr_l _ _ a b ∣ x,y ⟩)
+          rewrite <- (Mscale_plus_dist_l _ _ a b ∣ x,y ⟩)
     | [ |- context[ (?a .+ ?b .* ∣ ?x,?y ⟩) .+ ?c .* ∣ ?x,?y ⟩ ] ] => 
           rewrite (Mplus_assoc _ _ a (b .* ∣ x,y ⟩) (c .* ∣ x,y ⟩));
-          rewrite <- (Mscale_plus_distr_l _ _ b c ∣ x,y ⟩)
+          rewrite <- (Mscale_plus_dist_l _ _ b c ∣ x,y ⟩)
     (* reorder terms *)
     (* NOTE: we could also write explicit rules for 00, 01, 10, 11,
        but this seemed cleaner. I don't know how this style impacts

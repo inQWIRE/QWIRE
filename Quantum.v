@@ -142,7 +142,7 @@ Definition swap : Matrix (2*2) (2*2) :=
 
 (* Does this overwrite the other Hint DB M? *)
 Hint Unfold qubit0 qubit1 hadamard σx σy σz phase_shift 
-            control cnot notc swap bra ket : M_db.
+            control cnot notc swap bra ket : U_db.
 
 Lemma swap_swap : swap × swap == I (2*2). Proof. lma. Qed.
 
@@ -214,14 +214,15 @@ Fixpoint move_to (n i k : nat) : Matrix (2^n) (2^n) :=
 Definition WF_Unitary {n: nat} (U : Matrix n n): Prop :=
   U † × U == I n.
 
-Hint Unfold WF_Unitary : M_db.
+Hint Unfold WF_Unitary : U_db.
 
 (* More precise *)
 (* Definition unitary_matrix' {n: nat} (A : Matrix n n): Prop := Minv A A†. *)
 
 Lemma H_unitary : WF_Unitary hadamard.
-Proof. 
-  by_cell; autounfold with M_db; simpl; group_radicals; lca.
+Proof.
+  (* I'd like to switch this to use C_field as some point *)
+  by_cell; autounfold with U_db; simpl; group_radicals; lca.
 Qed.
 
 Lemma σx_unitary : WF_Unitary σx. Proof. lma. Qed.
@@ -230,7 +231,7 @@ Lemma σz_unitary : WF_Unitary σz. Proof. lma. Qed.
 
 Lemma phase_unitary : forall ϕ, @WF_Unitary 2 (phase_shift ϕ).
 Proof. 
-  by_cell; autounfold with M_db; simpl; try lca. 
+  by_cell; autounfold with U_db; simpl; try lca. 
   apply c_proj_eq; simpl; try lra.
   autorewrite with R_db.
   replace (cos ϕ * cos ϕ)%R with ((cos ϕ)²) by easy.
@@ -394,11 +395,12 @@ Lemma Mmult_unitary : forall (n : nat) (A : Square n) (B : Square n),
 Proof.
   intros n A B UA UB.
   unfold WF_Unitary in *.
-  autorewrite with M_db.
+  restore_dims.
+  Msimpl.
   rewrite Mmult_assoc.
   rewrite <- (Mmult_assoc A†).
   rewrite UA.
-  autorewrite with M_db.
+  Msimpl.
   apply UB.
 Qed.
 
@@ -408,27 +410,27 @@ Qed.
 
 (* Maybe change to "Hermitian?" *)
 
-Definition id_sa := @id_adjoint_eq.
+Definition id_adj := @id_adjoint_eq.
 
-Lemma hadamard_sa : hadamard† == hadamard.
+Lemma hadamard_adj : hadamard† == hadamard.
 Proof. lma. Qed.
 
-Lemma σx_sa : σx† == σx.
+Lemma σx_adj : σx† == σx.
 Proof. lma. Qed.
 
-Lemma σy_sa : σy† == σy.
+Lemma σy_adj : σy† == σy.
 Proof. lma. Qed.
 
-Lemma σz_sa : σz† == σz.
+Lemma σz_adj : σz† == σz.
 Proof. lma. Qed.
 
-Lemma cnot_sa : cnot† == cnot.
+Lemma cnot_adj : cnot† == cnot.
 Proof. lma. Qed.
 
-Lemma swap_sa : swap† == swap.
+Lemma swap_adj : swap† == swap.
 Proof. lma. Qed.
 
-Lemma control_adjoint : forall n (U : Square n), (control U)† == control (U†).
+Lemma control_adj : forall n (U : Square n), (control U)† == control (U†).
 Proof.
   intros n U i j Hi Hj.
   unfold control, adjoint.
@@ -443,7 +445,7 @@ Proof.
     reflexivity.
 Qed.
 
-(* Add that control is a morphism? *)
+(* 
 Lemma control_sa : forall (n : nat) (A : Square n), 
     A† == A -> (control A)† == (control A).
 Proof.
@@ -454,9 +456,9 @@ Proof.
   simpl.
   rewrite <- H by lia.
   easy.
-Qed.  
+Qed. Add that control is a morphism? *)
 
-Lemma phase_adjoint : forall ϕ, (phase_shift ϕ)† == phase_shift (-ϕ). 
+Lemma phase_adj : forall ϕ, (phase_shift ϕ)† == phase_shift (-ϕ). 
 Proof. 
   intros ϕ.
   unfold phase_shift, adjoint.
@@ -466,14 +468,14 @@ Proof.
   easy.
 Qed.
 
-Lemma braqubit0_sa : ∣0⟩⟨0∣† == ∣0⟩⟨0∣. Proof. lma. Qed.
-Lemma braqubit1_sa : ∣1⟩⟨1∣† == ∣1⟩⟨1∣. Proof. lma. Qed.
+Lemma braqubit0_adj : ∣0⟩⟨0∣† == ∣0⟩⟨0∣. Proof. lma. Qed.
+Lemma braqubit1_adj : ∣1⟩⟨1∣† == ∣1⟩⟨1∣. Proof. lma. Qed.
 
-Hint Rewrite hadamard_sa σx_sa σy_sa σz_sa cnot_sa swap_sa 
-             braqubit1_sa braqubit0_sa control_adjoint phase_adjoint : M_db.
+Hint Rewrite hadamard_adj σx_adj σy_adj σz_adj cnot_adj swap_adj 
+             braqubit1_adj braqubit0_adj control_adj phase_adj : M_db.
 
 (* Rather use control_adjoint :
-Hint Rewrite control_sa using (autorewrite with M_db; reflexivity) : M_db. *)
+Hint Rewrite control_adj using (Msimpl; reflexivity) : M_db. *)
 
 
 Lemma cnot_decomposition : ∣1⟩⟨1∣ ⊗ σx .+ ∣0⟩⟨0∣ ⊗ I 2 == cnot.
@@ -546,7 +548,7 @@ Lemma H0_psd : positive_semidefinite (hadamard × ∣0⟩⟨0∣ × hadamard).
 Proof.
   eapply positive_semidefinite_compat.
   - repeat rewrite Mmult_assoc.
-    rewrite <- hadamard_sa at 2.
+    rewrite <- hadamard_adj at 2.
     rewrite <- Mmult_adjoint.
     repeat rewrite <- Mmult_assoc.
     reflexivity.
@@ -674,11 +676,11 @@ Proof.
   induction Mφ.
   - apply Pure_S. apply pure_state_kron; easy.
   - rewrite H2.
-    rewrite kron_plus_distr_l.
+    rewrite kron_plus_dist_l.
     rewrite 2 Mscale_kron_dist_r. 
     eapply (Mix_S p); easy.
   - rewrite H1.
-    rewrite kron_plus_distr_r.
+    rewrite kron_plus_dist_r.
     rewrite 2 Mscale_kron_dist_l. 
     eapply (Mix_S p); easy.
 Qed.
@@ -807,7 +809,7 @@ Lemma super_I : forall n ρ,
 Proof.
   intros.
   unfold super.
-  autorewrite with M_db.
+  Msimpl.
   reflexivity.
 Qed.
 
@@ -819,7 +821,7 @@ Lemma super_outer_product : forall m (φ : Matrix m 1) (U : Matrix m m),
     super U (outer_product φ φ) == outer_product (U × φ) (U × φ).
 Proof.
   intros. unfold super, outer_product.
-  autorewrite with M_db.
+  Msimpl.
   repeat rewrite Mmult_assoc. reflexivity.
 Qed.
 
@@ -949,17 +951,15 @@ Proof.
   rewrite Mmult_assoc.
   repeat rewrite Mmult_assoc.
   rewrite (kron_assoc q0 q1).
-  restore_dims.
-  autorewrite with M_db.
-  replace 4%nat with (2*2)%nat by reflexivity.
+  Msimpl.
   repeat rewrite kron_assoc.
   restore_dims.
   rewrite <- (kron_assoc q0 q2).
-  autorewrite with M_db.
+  Msimpl.
   rewrite (kron_assoc q2 q0).
-  autorewrite with M_db.
+  Msimpl.
   rewrite <- (kron_assoc q0).
-  autorewrite with M_db.
+  Msimpl.
   rewrite (kron_assoc q1 q0).
   reflexivity.
 Qed.
@@ -1009,10 +1009,7 @@ Proof.
   unfold move_to_0, move_to_0_aux.
   repeat rewrite Mmult_assoc.
   rewrite (kron_assoc q0 q1).
-  simpl.
-  restore_dims.
-  replace 4%nat with (2*2)%nat by reflexivity.
-  Msimpl.
+  simpl. Msimpl.
   rewrite <- kron_assoc.
   restore_dims.
   repeat rewrite (kron_assoc _ q1). 

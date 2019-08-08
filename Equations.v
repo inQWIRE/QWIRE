@@ -31,8 +31,8 @@ Proof.
   matrix_denote.
   intros ρ b WF.
   Msimpl.
-  rewrite Mmult_plus_distr_l.
-  rewrite Mmult_plus_distr_r.
+  rewrite Mmult_plus_dist_l.
+  rewrite Mmult_plus_dist_r.
   repeat rewrite <- Mmult_assoc.
   repeat rewrite (Mmult_assoc _ ⟨0∣ σx).
   repeat rewrite (Mmult_assoc _ ⟨1∣ σx).
@@ -97,11 +97,11 @@ Proof.
   specialize (unitary_gate_unitary U); intros [WFU UU].
   simpl in *. 
   Msimpl.
-  rewrite Mmult_plus_distr_l.
-  rewrite Mmult_plus_distr_r.
+  rewrite Mmult_plus_dist_l.
+  rewrite Mmult_plus_dist_r.
   solve_matrix.
   remember (denote_unitary U) as u.
-  repeat rewrite Cmult_plus_distr_r.
+  repeat rewrite Cmult_plus_dist_r.
   set (u00 := u 0%nat 0%nat). set (u01 := u 0%nat 1%nat).
   set (u10 := u 1%nat 0%nat). set (u11 := u 1%nat 1%nat).
   set (ρ00 := ρ 0%nat 0%nat). set (ρ01 := ρ 0%nat 1%nat).
@@ -121,7 +121,7 @@ Proof.
   Focus 2.
     unfold c000, c001.
     repeat rewrite <- Cmult_assoc.
-    rewrite <- Cmult_plus_distr_l.
+    rewrite <- Cmult_plus_dist_l.
     assert (H : ((u † × u) 0 0 = I 2 0 0)%nat) by (rewrite <- UU; easy).
     unfold Mmult, I, adjoint in H. simpl in H.
     autorewrite with C_db in H.
@@ -136,7 +136,7 @@ Proof.
   Focus 2.
     unfold c111, c110.
     repeat rewrite <- Cmult_assoc.
-    rewrite <- Cmult_plus_distr_l.
+    rewrite <- Cmult_plus_dist_l.
     assert (H: ((u † × u) 1 1 = I 2 1 1)%nat) by (rewrite <- UU; easy).
     unfold Mmult, I, adjoint in H. simpl in H.
     autorewrite with C_db in H.
@@ -153,7 +153,7 @@ Proof.
   Focus 2.
     unfold c011, c010.
     repeat rewrite <- Cmult_assoc.
-    rewrite <- Cmult_plus_distr_l.
+    rewrite <- Cmult_plus_dist_l.
     assert (H : ((u† × u) 1 0 = I 2 1 0)%nat)  by (rewrite <- UU; easy).
     unfold Mmult, I, adjoint in H. simpl in H.
     autorewrite with C_db in H.
@@ -170,7 +170,7 @@ Proof.
   Focus 2.
     unfold c101, c100.
     repeat rewrite <- Cmult_assoc.
-    rewrite <- Cmult_plus_distr_l.
+    rewrite <- Cmult_plus_dist_l.
     assert (H : ((u † × u ) 0 1 = I 2 0 1)%nat) by (rewrite <- UU; easy).
     unfold Mmult, I, adjoint in H. simpl in H.
     autorewrite with C_db in H.
@@ -410,7 +410,7 @@ Proof.
     rewrite cos_neg, sin_neg.
     rewrite cos_PI2, sin_PI2.
     replace (0,-1)%core with (-Ci) by lca.
-    repeat rewrite Cmult_plus_distr_r.
+    repeat rewrite Cmult_plus_dist_r.
 
     (* maybe? If so, it's a mess *)
 Abort.

@@ -63,7 +63,10 @@ Proof. destruct b; reflexivity. Qed.
 Lemma if_dist2 : forall (A B C : Type) (b : bool) (f : A -> B -> C) (x y : A) (z : B), f (if b then x else y) z = if b then f x z else f y z.
 Proof. destruct b; reflexivity. Qed.
 
-(* f_equals in the other direction *)
+(* f_equal variants *)
+
+Lemma f_equal_gen : forall {A B} (f g : A -> B) a b, f = g -> a = b -> f a = g b.
+Proof. intros. subst. reflexivity. Qed.
 
 Lemma f_equal_inv : forall {A B} (x : A) (f g : A -> B), f = g -> f x = g x.
 Proof. intros. rewrite H. easy. Qed.

@@ -14,8 +14,6 @@ Import ListNotations.
 Set Bullet Behavior "Strict Subproofs".
 Global Unset Asymmetric Patterns.
 
-Local Opaque WF_Matrix.
-
 Class Denote source target := {denote : source -> target}.
 
 Notation "⟦ s ⟧" := (denote s) (at level 10).
@@ -67,8 +65,8 @@ Print Scopes.
 Lemma denote_unitary_transpose : forall {W} (U : Unitary W), ⟦trans U⟧ == ⟦U⟧†.
 Proof.
   induction U; simpl; Msimpl; try reflexivity.
-  - simpl_rewrite IHU. setoid_rewrite control_adjoint. easy.
-  - simpl_rewrite IHU. setoid_rewrite control_adjoint. easy.
+  - rewrite IHU. reflexivity. 
+  - rewrite IHU. reflexivity.
 Qed.
 
 (* Hint Resolve unitary_gate_unitary. Do we need this? Where? *)
@@ -149,9 +147,56 @@ Proof.
   rewrite (kron_1_r U).
   rewrite id_adjoint_eq.
   rewrite (kron_1_r (U†)).
-  restore_dims_strong.
+  restore_dims.
   reflexivity.
 Qed.
+
+Require Import Setoid.
+
+Lemma WF_Unitary_compat : forall n (A B : Square n), A == B -> 
+  WF_Unitary A <-> WF_Unitary B.
+Proof.
+  unfold WF_Unitary; split; intros.
+  - rewrite <- H. assumption.
+  - rewrite H. assumption.
+Qed.  
+
+Add Parametric Morphism n : (@WF_Unitary n)
+  with signature mat_equiv ==> iff as wfu_mor.
+Proof. intros; apply WF_Unitary_compat; easy. Qed.
+
+(* For Matrix.v *)
+Lemma kron_1_r' : forall {m n : nat} (A : Matrix m n), A ⊗ I 1 = A.
+Proof. 
+  intros m n A.
+  unfold I, kron.
+  apply functional_extensionality; intros.
+  apply functional_extensionality; intros.
+  rewrite 2 Nat.div_1_r.
+  rewrite 2 Nat.mod_1_r.
+  simpl; lca.
+Qed.
+
+Lemma kron_assoc' : forall {m n p q r s : nat}
+  (A : Matrix m n) (B : Matrix p q) (C : Matrix r s),
+  p <> O -> q <> O -> r <> O -> s <> O ->
+  (A ⊗ B ⊗ C) = A ⊗ (B ⊗ C).                                
+Proof.
+  intros. 
+  apply functional_extensionality; intros.
+  apply functional_extensionality; intros.
+  remember (A ⊗ B ⊗ C) as LHS.
+  unfold kron.  
+  rewrite (mult_comm p r) at 1 2.
+  rewrite (mult_comm q s) at 1 2.
+  rewrite <- 2 Nat.div_div by assumption.
+  rewrite <- 2 div_mod by assumption.
+  rewrite 2 mod_product  by assumption.
+  rewrite Cmult_assoc.
+  subst.
+  reflexivity.
+Qed.  
+
 
 (* This is only true for "safe" gate denotation *)
 Lemma denote_gate_correct : forall {W1} {W2} (g : Gate W1 W2), 
@@ -162,45 +207,9 @@ Proof.
   induction g.
   + simpl.
     rewrite Nat.mul_1_r.
-    apply mixed_unitary.
-    unfold WF_Unitary.
-    restore_dims_strong.
-    rewrite kron_adjoint.
-    restore_dims_strong.
-    rewrite (kron_1_r (denote_unitary u)).
-    rewrite id_sa.
-    rewrite (kron_1_r ((denote_unitary u)†)).
-    restore_dims_strong.
+    apply mixed_unitary; trivial.
+    rewrite kron_1_r'. (* normal version should work... *)
     apply unitary_gate_unitary.
-    assumption.
-(*
-    eapply mixed_state_compat.
-    
-    apply Mmult_compat.
-    apply Mmult_compat.
-    instantiate (1:=U).
-    (* setoid_rewrite (kron_1_r U). *)
-
-    
-    assert (Morphisms.Proper (Morphisms.respectful mat_equiv (flip impl)) (mat_equiv U)).
-    unfold Morphisms.Proper.
-      unfold Morphisms.respectful.
-      unfold flip.
-      unfold impl.
-      intros.
-      rewrite H0.
-      assumption.
-
-      restore_dims_strong.
-      setoid_rewrite (kron_1_r U). flip impl
-    
-    Search (_ ⊗ _)†.
-    setoid_rewrite (kron_adjoint U (I 1)).
-    setoid_rewrite K at 1.
-    setoid_rewrite (kron_1_r (denote_unitary u)).
-    rewrite Nat.mul_1_r.
-
-*)
   + simpl.
     apply mixed_unitary.
     lma.
@@ -235,8 +244,8 @@ Proof.
     rewrite (kron_1_r ∣1⟩⟨1∣).
     unfold super.
     Msimpl.
-    mat_replace (∣0⟩⟨0∣ × ρ × ∣0⟩⟨0∣) (ρ 0%nat 0%nat .* ∣0⟩⟨0∣).
-    mat_replace (∣1⟩⟨1∣ × ρ × ∣1⟩⟨1∣) (ρ 1%nat 1%nat .* ∣1⟩⟨1∣).
+    mat_replace (∣0⟩⟨0∣ × ρ × ∣0⟩⟨0∣) with (ρ 0%nat 0%nat .* ∣0⟩⟨0∣) by lma.
+    mat_replace (∣1⟩⟨1∣ × ρ × ∣1⟩⟨1∣) with (ρ 1%nat 1%nat .* ∣1⟩⟨1∣) by lma.
     specialize (mixed_state_diag_real _ _ Nat.lt_0_2 H) as R0.
     specialize (mixed_state_diag_real _ _ Nat.lt_1_2 H) as R1.
     specialize (mixed_state_diag_in01 _ 0%nat H Nat.lt_0_2) as IN0.
@@ -254,8 +263,8 @@ Proof.
     rewrite (kron_1_r ∣1⟩⟨1∣).
     unfold super.
     Msimpl.
-    mat_replace (∣0⟩⟨0∣ × ρ × ∣0⟩⟨0∣) (ρ 0%nat 0%nat .* ∣0⟩⟨0∣).
-    mat_replace (∣1⟩⟨1∣ × ρ × ∣1⟩⟨1∣) (ρ 1%nat 1%nat .* ∣1⟩⟨1∣).
+    mat_replace (∣0⟩⟨0∣ × ρ × ∣0⟩⟨0∣) with (ρ 0%nat 0%nat .* ∣0⟩⟨0∣) by lma.
+    mat_replace (∣1⟩⟨1∣ × ρ × ∣1⟩⟨1∣) with (ρ 1%nat 1%nat .* ∣1⟩⟨1∣) by lma.
     specialize (mixed_state_diag_real _ _ Nat.lt_0_2 H) as R0.
     specialize (mixed_state_diag_real _ _ Nat.lt_1_2 H) as R1.
     specialize (mixed_state_diag_in01 _ 0%nat H Nat.lt_0_2) as IN0.
@@ -275,8 +284,8 @@ Proof.
     Msimpl.
     apply mixed_state_trace_1 in H.
     unfold trace in H. simpl in H. rewrite Cplus_0_l in H.
-    mat_replace (⟨0∣ × ρ × ∣0⟩ .+ ⟨1∣ × ρ × ∣1⟩) (I 1).
-    2:{ by_cell. autounfold with M_db. simpl. autorewrite with C_db. easy. }
+    mat_replace (⟨0∣ × ρ × ∣0⟩ .+ ⟨1∣ × ρ × ∣1⟩) with (I 1).
+    2:{ by_cell. autounfold with U_db. simpl. autorewrite with C_db. easy. }
     constructor.
     apply pure_id1.
   + simpl in *.
@@ -287,8 +296,8 @@ Proof.
     Msimpl.
     apply mixed_state_trace_1 in H.
     unfold trace in H. simpl in H. rewrite Cplus_0_l in H.
-    mat_replace (⟨0∣ × ρ × ∣0⟩ .+ ⟨1∣ × ρ × ∣1⟩) (I 1).
-    2:{ by_cell. autounfold with M_db. simpl. autorewrite with C_db. easy. }
+    mat_replace (⟨0∣ × ρ × ∣0⟩ .+ ⟨1∣ × ρ × ∣1⟩) with (I 1).
+    2:{ by_cell. autounfold with U_db. simpl. autorewrite with C_db. easy. }
     constructor.
     apply pure_id1.
   + simpl in *.
@@ -299,8 +308,8 @@ Proof.
     Msimpl.
     apply mixed_state_trace_1 in H.
     unfold trace in H. simpl in H. rewrite Cplus_0_l in H.
-    mat_replace (⟨0∣ × ρ × ∣0⟩ .+ ⟨1∣ × ρ × ∣1⟩) (I 1).
-    2:{ by_cell. autounfold with M_db. simpl. autorewrite with C_db. easy. }
+    mat_replace (⟨0∣ × ρ × ∣0⟩ .+ ⟨1∣ × ρ × ∣1⟩) with (I 1).
+    2:{ by_cell. autounfold with U_db. simpl. autorewrite with C_db. easy. }
     constructor.
     apply pure_id1.
 Qed.
@@ -590,6 +599,8 @@ Definition super_Zero {m n} : Superoperator m n  := fun _ => Zero.
 
 (* Might be nice to make this use dummy matrices at some point.
    See ctrls_to_list_empty and denote_ctrls_empty, however *)
+(* TODO: Update so that it returns a Unitary Qubit, not a matrix. *)
+
 Fixpoint ctrls_to_list {W} (lb : list bool) (l : list nat) (g : Unitary W) {struct g}: 
   (nat * list bool * Square 2) :=
   match g with
@@ -671,60 +682,62 @@ Fixpoint apply_U {W} (n : nat) (U : Unitary W) (l : list nat)
 (* Lemmas about applying unitaries *)
 (***********************************)
 
+(* For Matrix.v *)
+Lemma id_kron' : forall (m n : nat),  n <> O -> I m ⊗ I n = I (m * n).
+Proof.
+  intros.
+  unfold I, kron.
+  apply functional_extensionality; intros i.
+  apply functional_extensionality; intros j.
+  bdestruct (i =? j).
+  - subst. rewrite <- 2 beq_nat_refl. lca.
+  - bdestruct (i / n =? j / n); simpl; try lca.
+    bdestruct (i mod n =? j mod n); simpl; try lca.
+    contradict H0.
+    rewrite (Nat.div_mod i n) by assumption. 
+    rewrite (Nat.div_mod j n) by assumption. 
+    rewrite H1, H2.
+    reflexivity.
+Qed.
+
 Lemma ctrl_list_to_unitary_r_false : forall n (u : Matrix 2 2),
-  ctrl_list_to_unitary_r (repeat false n) u == u ⊗ I  (2^n).
+  ctrl_list_to_unitary_r (repeat false n) u == u ⊗ I (2^n).
 Proof.
   induction n; intros.
-  - simpl. Msimpl. setoid_rewrite (kron_1_r u). reflexivity.
+  - simpl. Msimpl. rewrite (kron_1_r u). reflexivity.
   - intros.
     simpl.
     specialize (IHn u).
-    restore_dims_strong.
+    remember (ctrl_list_to_unitary_r (repeat false n) u) as A.
+    gen A. rewrite repeat_length. rewrite (plus_comm n). 
+    rewrite Nat.pow_add_r. intros. clear HeqA.
+    restore_dims.
     rewrite IHn.
-    rewrite repeat_length.
-    restore_dims_strong.
-    rewrite (kron_assoc u (I (2^n)) (I 2)); try apply Nat.pow_nonzero; try lia.
-    restore_dims_strong.
-    rewrite id_kron.
-    unify_pows_two.
+    rewrite kron_assoc. 
+    restore_dims; rewrite id_kron.
+    replace (2 ^ n * 2)%nat with (2 ^ n + (2 ^ n + 0))%nat by unify_pows_two.
     reflexivity.
 Qed.
 
 Lemma ctrl_list_to_unitary_false : forall m n (u : Matrix 2 2),
-  WF_Matrix u ->
   ctrl_list_to_unitary (repeat false m) (repeat false n) u == I (2^m) ⊗ u ⊗ I (2^n).
 Proof.
   induction m; intros.
   - simpl. 
     rewrite ctrl_list_to_unitary_r_false.
     rewrite repeat_length.
-    restore_dims_strong.
+    restore_dims.
     rewrite (kron_1_l u).
     reflexivity.
-  - simpl.
+  - simpl in *.
     rewrite IHm by easy.
     repeat rewrite repeat_length.
-    restore_dims_strong.
-    Set Printing All.
-
-(* Up to here. *)
-    rewrite <- (kron_assoc (I 2) (I (2 ^ m) ⊗ u) (I (2^n))).
-
-    match goal with
-    | |- context [ @kron ?a1 ?a2 ?bc1 ?bc2 ?A (@kron ?b1 ?b2 ?c1 ?c2 ?B ?C)] => idtac B; 
-      replace bc1 with (b1 * c1)%nat by (unify_pows_two); 
-      replace bc2 with (b2 * c2)%nat by (unify_pows_two);
-      rewrite <- (kron_assoc A B C); try (unify_pows_two; try apply Nat.pow_nonzero; lia)
-    end.
-    match goal with
-    | |- context [ @kron ?a1 ?a2 ?bc1 ?bc2 ?A (@kron ?b1 ?b2 ?c1 ?c2 ?B ?C)] => idtac B; 
-      replace bc1 with (b1 * c1)%nat by (unify_pows_two); 
-      replace bc2 with (b2 * c2)%nat by (unify_pows_two);
-      rewrite <- (kron_assoc A B C); try (unify_pows_two; try apply Nat.pow_nonzero; lia)
-    end.    
+    progress restore_dims.
+    specialize (pow_gt_0 m) as Gm.
+    specialize (pow_gt_0 n) as Gn. 
+    repeat rewrite <- kron_assoc'; try lia.
+    restore_dims.
     rewrite id_kron.
-    unify_pows_two.
-    repeat rewrite Nat.add_1_r.
     reflexivity.
 Qed.
          
@@ -759,21 +772,23 @@ Proof.
 Qed.
 *)
 
+Opaque rev skipn.
 Lemma denote_ctrls_qubit : forall n (u : Unitary Qubit) k,
   (k < n)%nat ->
-  denote_ctrls n u [k] = I (2^k) ⊗ ⟦u⟧ ⊗ I  (2^(n-k-1)).
+  denote_ctrls n u [k] == I (2^k) ⊗ ⟦u⟧ ⊗ I  (2^(n-k-1)).
 Proof.
   intros n u k L.
   remember Qubit as W.
-  induction u.
-  Opaque rev skipn.
-  1-5: unfold denote_ctrls; simpl;
-       rewrite firstn_repeat_le, skipn_repeat, rev_repeat by omega;
-       rewrite ctrl_list_to_unitary_false; auto with wf_db;
-       rewrite Nat.sub_succ_r, Nat.sub_1_r;
-       reflexivity.
-  1-2: inversion HeqW.
-Qed.
+  induction u; try discriminate.
+  all: unfold denote_ctrls; simpl;
+       rewrite firstn_repeat_le, skipn_repeat, rev_repeat by lia;
+       replace (n - k - 1)%nat with (n - S k)%nat by lia;
+       (* The parens here are annoying - otherwise it thinks the last command is 
+          part of the tactics. Change tactic level? *)
+       (restore_dims (repeat rewrite repeat_length; unify_pows_two; try lia));
+       apply ctrl_list_to_unitary_false.
+Qed.  
+Transparent rev skipn.
 
 Lemma ctrl_list_to_unitary_r_unitary : forall r (u : Square 2),
     WF_Unitary u -> WF_Unitary (ctrl_list_to_unitary_r r u).
@@ -784,20 +799,18 @@ Proof.
   destruct a.
   - simpl.
     assert (H : forall n (U : Square n), WF_Unitary U -> WF_Unitary (U ⊗ ∣1⟩⟨1∣ .+ I n ⊗ ∣0⟩⟨0∣)).
-    intros n U [WFU UU].
-    unfold WF_Unitary.
-    split; auto with wf_db.
+    intros n U UU.
+    unfold WF_Unitary in *.
     Msimpl.
-    rewrite Mmult_plus_distr_r, Mmult_plus_distr_l.
-    rewrite Mmult_plus_distr_l.
+    rewrite Mmult_plus_dist_r, Mmult_plus_dist_l.
+    rewrite Mmult_plus_dist_l.
     Msimpl.
     rewrite UU.
-    replace (∣0⟩⟨0∣ × ∣1⟩⟨1∣) with (@Zero 2 2) by solve_matrix.
-    replace (∣1⟩⟨1∣ × ∣0⟩⟨0∣) with (@Zero 2 2) by solve_matrix.
-    repeat rewrite kron_0_r.
-    rewrite Mplus_0_r, Mplus_0_l.
-    rewrite <- kron_plus_distr_l.
-    replace (∣1⟩⟨1∣ × ∣1⟩⟨1∣ .+ ∣0⟩⟨0∣ × ∣0⟩⟨0∣) with (I 2) by solve_matrix.
+    mat_replace (∣0⟩⟨0∣ × ∣1⟩⟨1∣) with (@Zero 2 2) by lma.
+    mat_replace (∣1⟩⟨1∣ × ∣0⟩⟨0∣) with (@Zero 2 2) by lma.
+    Msimpl.
+    rewrite <- kron_plus_dist_l.
+    mat_replace (∣1⟩⟨1∣ × ∣1⟩⟨1∣ .+ ∣0⟩⟨0∣ × ∣0⟩⟨0∣) with (I 2) by lma. 
     rewrite id_kron.
     reflexivity.
     specialize (H _ (ctrl_list_to_unitary_r r u)).
@@ -820,20 +833,18 @@ Proof.
     destruct a.
     + simpl.
       assert (H : forall n (U : Square n), WF_Unitary U -> WF_Unitary (∣1⟩⟨1∣ ⊗ U .+ ∣0⟩⟨0∣ ⊗ (I n))).
-      intros n U [WFU UU].
-      unfold WF_Unitary.
-      split; auto with wf_db.
+      intros n U UU.
+      unfold WF_Unitary in *.
       Msimpl.
-      rewrite Mmult_plus_distr_l, Mmult_plus_distr_r.
-      rewrite Mmult_plus_distr_r.
+      rewrite Mmult_plus_dist_l, Mmult_plus_dist_r.
+      rewrite Mmult_plus_dist_r.
       Msimpl.
       rewrite UU.
-      replace (∣0⟩⟨0∣ × ∣1⟩⟨1∣) with (@Zero 2 2) by solve_matrix.
-      replace (∣1⟩⟨1∣ × ∣0⟩⟨0∣) with (@Zero 2 2) by solve_matrix. 
-      repeat rewrite kron_0_l.
-      rewrite Mplus_0_r, Mplus_0_l.
-      rewrite <- kron_plus_distr_r.
-      replace (∣1⟩⟨1∣ × ∣1⟩⟨1∣ .+ ∣0⟩⟨0∣ × ∣0⟩⟨0∣) with (I 2) by solve_matrix.
+      mat_replace (∣0⟩⟨0∣ × ∣1⟩⟨1∣) with (@Zero 2 2) by lma.
+      mat_replace (∣1⟩⟨1∣ × ∣0⟩⟨0∣) with (@Zero 2 2) by lma.
+      Msimpl.
+      rewrite <- kron_plus_dist_r.
+      mat_replace (∣1⟩⟨1∣ × ∣1⟩⟨1∣ .+ ∣0⟩⟨0∣ × ∣0⟩⟨0∣) with (I 2) by lma. 
       rewrite id_kron.
       reflexivity.
       specialize (H _ (ctrl_list_to_unitary l r u)).
@@ -900,54 +911,35 @@ Proof.
 Qed.
 
 Lemma denote_ctrls_transpose_qubit : forall (n : nat) (u : Unitary Qubit) (li : list nat),
-  denote_ctrls n (trans u) li = (denote_ctrls n u li)†.
+  (forall x, In x li -> x < n)%nat -> 
+  denote_ctrls n (trans u) li == (denote_ctrls n u li)†.
 Proof.
   intros.
-  destruct li as [| k li].
-  rewrite 2 denote_ctrls_empty. rewrite zero_adjoint_eq. easy.
+  destruct li as [| k li].    
+  rewrite 2 denote_ctrls_empty; lma. 
+  specialize (H _ (in_eq _ _)).  
   dependent destruction u.
-  - simpl.
-    unfold denote_ctrls. subst; clear.
-    unfold ctrls_to_list.
-    rewrite skipn_repeat, rev_repeat, firstn_repeat.
-    simpl. rewrite ctrl_list_to_unitary_false by (auto with wf_db).    
-    repeat setoid_rewrite kron_adjoint.
-    Msimpl.
-    reflexivity.
-  - simpl.
-    unfold denote_ctrls. subst; clear.
-    unfold ctrls_to_list.
-    rewrite skipn_repeat, rev_repeat, firstn_repeat.
-    simpl. rewrite ctrl_list_to_unitary_false by (auto with wf_db).    
-    repeat setoid_rewrite kron_adjoint.
-    Msimpl.
-    reflexivity.
-  - simpl.
-    unfold denote_ctrls. subst; clear.
-    unfold ctrls_to_list.
-    rewrite skipn_repeat, rev_repeat, firstn_repeat.
-    simpl. rewrite ctrl_list_to_unitary_false by (auto with wf_db).    
-    repeat setoid_rewrite kron_adjoint.
-    Msimpl.
-    reflexivity.
-  - simpl.
-    unfold denote_ctrls. subst; clear.
-    unfold ctrls_to_list.
-    rewrite skipn_repeat, rev_repeat, firstn_repeat.
-    simpl. rewrite ctrl_list_to_unitary_false by (auto with wf_db).    
-    repeat setoid_rewrite kron_adjoint.
-    Msimpl.
-    reflexivity.
-  - simpl.
-    unfold denote_ctrls. subst; clear.
-    unfold ctrls_to_list.
-    rewrite skipn_repeat, rev_repeat, firstn_repeat.
-    simpl. rewrite 2 ctrl_list_to_unitary_false by (auto with wf_db).    
-    repeat setoid_rewrite kron_adjoint.
-    Msimpl.
-    reflexivity.
+  all: simpl;
+       unfold denote_ctrls, ctrls_to_list;
+       rewrite skipn_repeat, rev_repeat, firstn_repeat;
+       (restore_dims (repeat rewrite repeat_length; unify_pows_two; lia));
+       repeat rewrite ctrl_list_to_unitary_false;
+       (restore_dims (repeat rewrite repeat_length; unify_pows_two; lia));
+       simpl; Msimpl;
+       reflexivity.
 Qed.
 
+Lemma zero_adjoint_eq' : forall m n : nat, (@Zero m n) † = Zero.
+Proof. intros. unfold adjoint, Zero. rewrite Cconj_0. reflexivity. Qed.
+
+Lemma H_adjoint_eq' : hadamard † = hadamard.
+Proof. intros. unfold adjoint, hadamard.
+       do 2 (apply functional_extensionality; intros).
+       rewrite andb_comm. Search Cconj. rewrite (if_dist _ _ _ Cconj).
+       autorewrite with C_db. reflexivity.
+Qed.
+
+(* Uses strict equality. Could break up via and but rather rewrite.
 Lemma ctrls_to_list_transpose : forall W lb li (u : Unitary W) n lb' u', 
   ctrls_to_list lb li u = (n, lb', u') ->
   ctrls_to_list lb li (trans u) = (n, lb', u'†).
@@ -955,7 +947,7 @@ Proof.
   induction W; intros lb li u n lb' u' H; try solve [inversion u].
   - destruct li as [| k li].
     rewrite ctrls_to_list_empty in *.
-    inversion H; subst. rewrite zero_adjoint_eq. easy.
+    inversion H; subst. rewrite zero_adjoint_eq'. easy.
     dependent destruction u.
     + simpl in *.
       inversion H; subst.
@@ -988,37 +980,96 @@ Proof.
       inversion H; subst.
       easy.
 Qed.
+ *)
+
+Lemma ctrls_to_list_transpose_fst : forall W lb li (u : Unitary W), 
+  fst (ctrls_to_list lb li u) = fst (ctrls_to_list lb li (trans u)).
+Proof.                            
+  induction W; intros lb li u; try solve [inversion u].
+  - destruct li as [| k li].
+    repeat rewrite ctrls_to_list_empty. reflexivity.
+    dependent destruction u; simpl; reflexivity.
+  - dependent destruction u.
+    + simpl.
+      destruct li as [| k li]; trivial.
+      specialize (IHW2 lb li u).
+      destruct (ctrls_to_list lb li u) as [[j l] v] eqn:E.
+      destruct (ctrls_to_list lb li (trans u)) as [[j' l'] v'] eqn:E'.
+      inversion IHW2; subst.
+      reflexivity.
+    + simpl.
+      destruct li as [| k li]; trivial.
+      specialize (IHW2 lb li u).
+      destruct (ctrls_to_list lb li u) as [[j l] v] eqn:E.
+      destruct (ctrls_to_list lb li (trans u)) as [[j' l'] v'] eqn:E'.
+      inversion IHW2; subst.
+      reflexivity.
+Qed.
+
+Lemma ctrls_to_list_transpose_snd : forall W lb li (u : Unitary W), 
+  (snd (ctrls_to_list lb li u))† == snd (ctrls_to_list lb li (trans u)).
+Proof.                            
+  induction W; intros lb li u; try solve [inversion u].
+  - destruct li as [| k li].
+    repeat rewrite ctrls_to_list_empty. simpl; Msimpl. reflexivity.
+    dependent destruction u; simpl; Msimpl; reflexivity.
+  - dependent destruction u.
+    + simpl.
+      destruct li as [| k li]; simpl; try lma.
+      specialize (IHW2 lb li u).
+      destruct (ctrls_to_list lb li u) as [[j l] v] eqn:E.
+      destruct (ctrls_to_list lb li (trans u)) as [[j' l'] v'] eqn:E'.
+      simpl in *.
+      apply IHW2.
+    + simpl.
+      destruct li as [| k li]; simpl; try lma.
+      specialize (IHW2 lb li u).
+      destruct (ctrls_to_list lb li u) as [[j l] v] eqn:E.
+      destruct (ctrls_to_list lb li (trans u)) as [[j' l'] v'] eqn:E'.
+      simpl in *.
+      apply IHW2.
+Qed.
 
 Lemma ctrl_list_to_unitary_transpose : forall l r u, 
-  ctrl_list_to_unitary l r (u†) = (ctrl_list_to_unitary l r u)†.
+  ctrl_list_to_unitary l r (u†) == (ctrl_list_to_unitary l r u)†.
 Proof.                            
   intros l r u.
   induction l.
   simpl.
-  - induction r; trivial.
+  - induction r; try reflexivity.
     simpl.
-    destruct a.
-    + rewrite IHr.
-      match goal with
-      | [|- _ = (?A .+ ?B)† ] => setoid_rewrite (Mplus_adjoint _ _ A B)
-      end.
-      Msimpl.
-      reflexivity.
-    + rewrite IHr.
-      setoid_rewrite kron_adjoint.
-      Msimpl.
-      reflexivity.
+    destruct a; Msimpl; rewrite IHr; reflexivity.
   - simpl.
-    destruct a.
-    + Msimpl. setoid_rewrite kron_adjoint. Msimpl. rewrite IHl. reflexivity.
-    + Msimpl. setoid_rewrite kron_adjoint. Msimpl. rewrite IHl. reflexivity.
+    destruct a; Msimpl; rewrite IHl; reflexivity. 
 Qed.
 
 Lemma denote_ctrls_transpose: forall W (n : nat) (u : Unitary W) li, 
-  denote_ctrls n (trans u) li = (denote_ctrls n u li) †.
+  denote_ctrls n (trans u) li == (denote_ctrls n u li) †.
 Proof.
   intros.
   unfold denote_ctrls.
+  Search fst snd.
+  rewrite (surjective_pairing (ctrls_to_list (repeat false n) li (trans u))).
+  rewrite (surjective_pairing (ctrls_to_list (repeat false n) li u)).
+  rewrite <- ctrls_to_list_transpose_fst.
+  destruct (ctrls_to_list (repeat false n) li u) as [[j l] v] eqn:E.
+  Opaque skipn.
+  simpl.
+
+  match goal with
+  | |- ?A =>
+        let A' := restore_dims_rec idtac A in
+        replace
+        A
+        with
+        A'
+  end.
+  
+  rewrite <- ctrl_list_to_unitary_transpose.
+  
+  
+  rewrite <- ctrls_to_list_transpose_snd.
+  simpl.
   destruct (ctrls_to_list (repeat false n) li u) as [[j l] v] eqn:E.
   apply ctrls_to_list_transpose in E.
   rewrite E.
@@ -1177,13 +1228,13 @@ Proof.
     idtac.
     unfold outer_sum. simpl. Msimpl.
     rewrite Mplus_0_l.
-    rewrite <- kron_plus_distr_r, <- kron_plus_distr_l.
+    rewrite <- kron_plus_dist_r, <- kron_plus_dist_l.
     replace (∣0⟩⟨0∣ .+ ∣1⟩⟨1∣) with (I 2).
       Focus 2. crunch_matrix. bdestructΩ (S (S x) <? 2). rewrite andb_false_r. easy.
     repeat rewrite id_kron. easy.
   specialize (WFS OS ρ).
   unfold operator_sum, Splus, SZero, super, WF_Superoperator in WFS. simpl in WFS.
-  autorewrite with M_db in WFS.
+  Msimpl in WFS.
   rewrite Mplus_0_l in WFS.
   apply WFS.
   rewrite <- Nat.mul_assoc, (Nat.mul_comm 2%nat), Nat.mul_assoc.
@@ -1201,13 +1252,13 @@ Proof.
   assert (OS : outer_sum [I i ⊗ ∣0⟩⟨0∣ ⊗ I j; I i ⊗ ∣1⟩⟨1∣ ⊗ I j] = I  (i * 2 * j)).
     unfold outer_sum. simpl. Msimpl.
     rewrite Mplus_0_l.
-    rewrite <- kron_plus_distr_r, <- kron_plus_distr_l.
+    rewrite <- kron_plus_dist_r, <- kron_plus_dist_l.
     replace ((∣0⟩⟨0∣ × ∣0⟩⟨0∣ .+ ∣1⟩⟨1∣ × ∣1⟩⟨1∣)) with (I 2).
       Focus 2. crunch_matrix. bdestructΩ (S (S x) <? 2). rewrite andb_false_r. easy.
     repeat rewrite id_kron. easy.
   specialize (WFS OS ρ).
   unfold operator_sum, Splus, SZero, super, WF_Superoperator in WFS. simpl in WFS.
-  autorewrite with M_db in WFS.
+  Msimpl in WFS.
   rewrite Mplus_0_l in WFS.
   apply WFS.
   rewrite <- Nat.mul_assoc, (Nat.mul_comm 2%nat), Nat.mul_assoc.
@@ -1230,7 +1281,7 @@ Proof.
     repeat rewrite id_kron. easy.
   specialize (WFS OS ρ).
   unfold operator_sum, Splus, SZero, super, WF_Superoperator in WFS. simpl in WFS.
-  autorewrite with M_db in WFS.
+  Msimpl in WFS.
   rewrite Mplus_0_l in WFS.
   apply WFS.
   rewrite Nat.mul_1_r.
@@ -1253,7 +1304,7 @@ Proof.
     repeat rewrite id_kron. easy.
   specialize (WFS OS ρ).
   unfold operator_sum, Splus, SZero, super, WF_Superoperator in WFS. simpl in WFS.
-  autorewrite with M_db in WFS.
+  Msimpl in WFS.
   rewrite Mplus_0_l in WFS.
   apply WFS.
   rewrite Nat.mul_1_r.
@@ -1422,7 +1473,7 @@ Proof.
     rewrite IHl. 
     unfold swap_two. 
     rewrite <- beq_nat_refl. 
-    autorewrite with M_db.
+    Msimpl.
     reflexivity.
 Qed.
 
@@ -1443,7 +1494,7 @@ Proof.
   intros. unfold apply_U.
   rewrite swap_list_n_id.
   apply WF_pad with (n := n) in H; auto.
-  autorewrite with M_db.
+  Msimpl.
   reflexivity.
 Qed.
 
@@ -2965,591 +3016,6 @@ Proof.
     easy.
 Qed.
 
-Proposition WF_denote_circuit : forall safe W (c : Circuit W) (Γ0 Γ : Ctx) ρ,
-  Γ ⊢ c:Circ -> 
-  WF_Matrix ρ -> 
-  WF_Matrix (denote_circuit safe c Γ0 Γ ρ).
-Proof.
-  intros safe W c.
-  induction c.
-  - intros Γ0 Γ ρ WT WF.
-    dependent destruction WT.
-    unfold denote_circuit. simpl.
-    unfold denote_pat.
-    unfold pad.
-    subst.
-    rewrite (ctx_wtype_size w p Γ t).
-    rewrite Nat.add_sub.
-    apply WF_super; trivial.
-    apply WF_kron; unify_pows_two; auto with wf_db.
-    erewrite ctx_wtype_size by apply t.
-    apply WF_swap_list.
-    rewrite size_wtype_length.
-    erewrite ctx_wtype_size by apply t. omega.
-    intros x.
-    apply (pat_to_list_bounded _ Γ Γ []).
-    solve_merge.
-    easy.
-  - intros Γ0 Γ ρ WT WF.
-    dependent destruction WT.
-    unfold compose_super.
-    rename H into IH. 
-    unfold denote_circuit; simpl.
-    destruct g.
-    + simpl.
-      destruct pf1.
-      replace (size_ctx Γ) with (size_octx Γ) by easy.
-      rewrite pf_merge in *.
-      rewrite size_octx_merge by easy.
-      simpl_rewrite (octx_wtype_size W p Γ2 t).
-      (* rewrite leb_correct by omega. *)
-      unfold compose_super.
-      unfold denote_circuit in IH.
-      unfold process_gate_state. simpl.
-      rewrite Nat.add_sub.
-      rewrite <- size_octx_merge by easy.
-      rewrite <- pf_merge in *. simpl.
-      simpl in IH.
-      eapply (IH p); trivial. 
-      eapply t0; [|apply t].
-      split; easy.
-      unfold apply_U.
-      destruct W; try solve [inversion u].
-      * simpl.
-        unfold super.
-        specialize (size_wtype_length (subst_pat Γ p)) as L. simpl in L.
-        destruct (pat_to_list (subst_pat Γ p)) eqn:E; simpl in L; try omega. 
-        Msimpl.
-        assert (M : Γ == Γ2 ∙ Γ1) by (split; auto).
-        destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.
-        assert (IN : In v (pat_to_list (subst_pat Γ p))) by (rewrite E; simpl; auto).
-        specialize (pat_to_list_bounded Qubit _ _ _ p v M t IN) as LT.
-        replace (2^(size_ctx Γ0 + size_ctx Γ))%nat with 
-            (2 ^ v * 2 * 2 ^ (size_ctx Γ0 + size_ctx Γ - v - 1))%nat by unify_pows_two.
-        simpl.
-        apply WF_mult.
-        apply WF_mult.
-        apply WF_kron; trivial.
-        apply WF_kron; trivial; auto with wf_db.
-        apply (@unitary_gate_unitary Qubit).        
-        auto with wf_db.
-        unify_pows_two.
-        apply_with_obligations WF. simpl; unify_pows_two.
-        Msimpl.
-        apply WF_kron; trivial.
-        apply WF_kron; trivial; auto with wf_db.
-        apply WF_adjoint.
-        apply (@unitary_gate_unitary Qubit).        
-        auto with wf_db.
-      * unfold super.
-        apply WF_mult.
-        apply WF_mult.
-        apply denote_ctrls_unitary.
-        intros x IN.
-        apply Nat.lt_lt_add_l.
-        destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.        
-        eapply pat_to_list_bounded.
-        split; [apply pf_valid|apply pf_merge].
-        apply t.
-        easy.
-        rewrite size_wtype_length. easy.
-        apply WF.
-        apply WF_adjoint.
-        apply denote_ctrls_unitary.
-        intros x IN.
-        apply Nat.lt_lt_add_l.
-        destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.        
-        eapply pat_to_list_bounded.
-        split; [apply pf_valid|apply pf_merge].
-        apply t.
-        easy.
-        rewrite size_wtype_length. easy.
-    + simpl.
-      rewrite Nat.add_sub.
-      replace (size_ctx Γ0 + size_ctx Γ)%nat with (S (⟦Γ0⟧ + ⟦Γ1⟧))%nat.
-      Focus 2.
-        destruct pf1.
-        replace (size_ctx Γ) with (size_octx Γ) by easy.
-        rewrite pf_merge in *.
-        rewrite size_octx_merge by easy.
-        rewrite <- (octx_wtype_size Bit p Γ2 t).
-        simpl. omega.
-      unfold compose_super.
-      unfold denote_circuit in IH.
-      eapply IH.
-      eapply t0. apply pf1. easy.
-      unfold apply_U, apply_unitary, super.
-      specialize (size_wtype_length (subst_pat Γ p)) as L. simpl in L.
-      destruct (pat_to_list (subst_pat Γ p)) eqn:E; simpl in L; try omega. 
-      Msimpl.
-      destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.
-      assert (IN : In v (pat_to_list (subst_pat Γ p))) by (rewrite E; simpl; auto).
-      specialize (pat_to_list_bounded Bit _ _ _ p v pf1 t IN) as LT.
-      destruct pf1. 
-      replace (⟦Γ⟧) with (⟦Valid Γ⟧) by easy.
-      replace (size_ctx Γ) with (size_octx Γ) in LT by easy.
-      rewrite pf_merge in *.
-      rewrite size_octx_merge in * by easy.
-      rewrite <- (octx_wtype_size Bit p Γ2 t) in *.        
-      replace (hd O (v::l)) with v by easy.
-
-      simpl in *.
-      replace (2 ^ (size_ctx Γ0 + size_ctx Γ1) + (2 ^ (size_ctx Γ0 + size_ctx Γ1) + 0))%nat with
-          (2 ^ (size_ctx Γ0 + S (size_ctx Γ1)))%nat by unify_pows_two.
-      apply WF_mult.
-      apply WF_mult.
-      apply WF_kron; auto with wf_db.
-      destruct v; unify_pows_two.
-      destruct v; unify_pows_two.
-      apply size_octx_merge in pf_valid.
-      simpl in pf_valid.
-      replace (size_ctx Γ2) with (size_octx Γ2) in pf_valid by easy.      
-      rewrite <- (octx_wtype_size Bit p Γ2 t) in pf_valid.
-      simpl in pf_valid.
-      rewrite <- pf_merge in pf_valid.
-      rewrite <- pf_valid.
-      easy.
-      apply WF_adjoint; auto with wf_db.
-      apply WF_kron; auto with wf_db.      
-      destruct v; unify_pows_two.
-      destruct v; unify_pows_two.
-    + simpl.
-      dependent destruction t.
-      destruct pf1.
-      rewrite merge_nil_l in pf_merge. subst.
-      rewrite Nat.sub_0_r.
-      apply WF_compose_super; intros.
-      * apply WF.
-      * unfold apply_new0.
-        replace (2 ^ (size_ctx Γ0 + (size_ctx Γ + 1)))%nat with
-            (2 ^ (size_ctx Γ0 + size_ctx Γ) * 2)%nat by unify_pows_two.
-        apply WF_super.
-        auto with wf_db.
-        rewrite Nat.mul_1_r.
-        easy.
-      * replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Qubit]))). 
-          2: simpl; rewrite size_ctx_app; simpl; omega. 
-        eapply IH.
-        eapply t0. 
-        split. validate.
-        rewrite merge_comm. 
-        rewrite merge_singleton_append.
-        reflexivity.
-        constructor; apply singleton_singleton.
-        rewrite size_ctx_app; easy.
-    + simpl.
-      dependent destruction t.
-      destruct pf1.
-      rewrite merge_nil_l in pf_merge. subst.
-      rewrite Nat.sub_0_r.
-      apply WF_compose_super; intros.
-      * apply WF.
-      * unfold apply_new1.
-        replace (2 ^ (size_ctx Γ0 + (size_ctx Γ + 1)))%nat with
-            (2 ^ (size_ctx Γ0 + size_ctx Γ) * 2)%nat by unify_pows_two.
-        apply WF_super.
-        auto with wf_db.
-        rewrite Nat.mul_1_r.
-        easy.
-      * replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Qubit]))). 
-          2: simpl; rewrite size_ctx_app; simpl; omega. 
-        eapply IH.
-        eapply t0. 
-        split. validate.
-        rewrite merge_comm. 
-        rewrite merge_singleton_append.
-        reflexivity.
-        constructor; apply singleton_singleton.
-        rewrite size_ctx_app; easy.
-    + simpl.
-      dependent destruction t.
-      destruct pf1.
-      rewrite merge_nil_l in pf_merge. subst.
-      rewrite Nat.sub_0_r.
-      apply WF_compose_super; intros.
-      * apply WF.
-      * unfold apply_new0.
-        replace (2 ^ (size_ctx Γ0 + (size_ctx Γ + 1)))%nat with
-            (2 ^ (size_ctx Γ0 + size_ctx Γ) * 2)%nat by unify_pows_two.
-        apply WF_super.
-        auto with wf_db.
-        rewrite Nat.mul_1_r.
-        easy.
-      * replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Bit]))). 
-          2: simpl; rewrite size_ctx_app; simpl; omega. 
-        eapply IH.
-        eapply t0. 
-        split. validate.
-        rewrite merge_comm. 
-        rewrite merge_singleton_append.
-        reflexivity.
-        constructor; apply singleton_singleton.
-        rewrite size_ctx_app; easy.
-    + simpl.
-      dependent destruction t.
-      destruct pf1.
-      rewrite merge_nil_l in pf_merge. subst.
-      rewrite Nat.sub_0_r.
-      apply WF_compose_super; intros.
-      * apply WF.
-      * unfold apply_new1.
-        replace (2 ^ (size_ctx Γ0 + (size_ctx Γ + 1)))%nat with
-            (2 ^ (size_ctx Γ0 + size_ctx Γ) * 2)%nat by unify_pows_two.
-        apply WF_super.
-        auto with wf_db.
-        rewrite Nat.mul_1_r.
-        easy.
-      * replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Bit]))). 
-          2: simpl; rewrite size_ctx_app; simpl; omega. 
-        eapply IH.
-        eapply t0. 
-        split. validate.
-        rewrite merge_comm. 
-        rewrite merge_singleton_append.
-        reflexivity.
-        constructor; apply singleton_singleton.
-        rewrite size_ctx_app; easy.
-    + simpl.
-      dependent destruction t.
-      simpl.
-      rewrite Nat.add_sub.
-      apply WF_compose_super; intros.
-      * apply WF.
-      * unfold apply_meas.       
-        unfold Splus.
-        destruct Γ1 as [|Γ1]; try invalid_contradiction.
-        specialize (subst_qubit_bounded _ _ _ _ (types_qubit _ _ s) pf1) as LT. 
-        simpl in LT.
-        replace (2 ^ (size_ctx Γ0 + size_ctx Γ))%nat with
-          (2 ^ subst_var Γ x * 2 * 2 ^ (size_ctx Γ0 + size_ctx Γ - 
-          subst_var Γ x - 1))%nat in * by unify_pows_two. 
-        auto with wf_db.
-      * unfold denote_circuit in IH.
-        replace (size_ctx Γ) with (size_ctx (change_type x Bit Γ)).
-        Focus 2.
-          unfold change_type.
-          eapply denote_index_update_some.
-          eapply index_merge_l.
-          apply pf1.
-          apply singleton_index.
-          apply s.
-        eapply IH. 
-        unfold change_type.
-        eapply t0.
-        eapply update_at_merge.
-        apply s.
-        apply singleton_singleton.
-        easy.
-        constructor.
-        apply singleton_singleton.
-        unfold change_type.
-        erewrite denote_index_update_some.
-        apply H.
-        eapply index_merge_l.
-        apply pf1.
-        apply singleton_index.
-        apply s.
-    + (* Why isn't this case identical to apply_meas? *)
-      simpl.
-      rewrite Nat.add_sub.
-      specialize (size_wtype_length (subst_pat Γ p)) as L. simpl in L.
-      destruct (pat_to_list (subst_pat Γ p)) eqn:E; simpl in L; try omega. 
-      apply WF_compose_super; intros.
-      * easy.
-      * unfold apply_meas.
-        unfold Splus.
-        destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.   
-        assert (IN: In v (pat_to_list (subst_pat Γ p))).
-          rewrite E. simpl. auto.
-        specialize (pat_to_list_bounded _ _ _ _ _ _ pf1 t IN) as LT.
-        replace (2 ^ (size_ctx Γ0 + size_ctx Γ))%nat with
-          (2 ^ v * 2 * 2 ^ (size_ctx Γ0 + size_ctx Γ - v - 1))%nat in * 
-          by unify_pows_two. 
-        auto with wf_db.
-      * eapply (IH p). eapply t0. apply pf1. easy. easy.
-    + simpl in *.
-      apply WF_compose_super.
-      * easy.
-      * intros A WFA.
-        rewrite Nat.add_0_r.
-        replace (size_ctx Γ - 1)%nat with (size_octx Γ1) in *.
-        Focus 2.
-          simpl.
-          replace (size_ctx Γ) with (size_octx Γ) by easy.
-          destruct pf1.
-          rewrite pf_merge in *.
-          rewrite size_octx_merge by easy. 
-          dependent destruction t.
-          apply singleton_equiv in s. subst.
-          simpl. rewrite singleton_size.
-          omega.
-        simpl.
-        destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.   
-        dependent destruction t. simpl.
-        unfold apply_discard.
-        unfold Splus.
-        specialize (subst_bit_bounded _ _ _ _ (types_bit _ _ s) pf1) as LT. 
-        simpl in LT.
-        replace (size_ctx Γ) with (size_octx Γ) in * by easy.
-        destruct pf1. rewrite pf_merge in *.
-        rewrite size_octx_merge in * by easy.
-        apply singleton_equiv in s. subst.
-        simpl in *. rewrite singleton_size in *.
-        replace (2 ^ (size_ctx Γ0 + size_ctx Γ1))%nat with
-            (2 ^ subst_var Γ x * 1 * 2 ^ (size_ctx Γ0 + (1 + size_ctx Γ1) 
-             - subst_var Γ x - 1))%nat in * by unify_pows_two.
-        replace (2 ^ (size_ctx Γ0 + (1 + size_ctx Γ1)))%nat with (2 ^ subst_var Γ x * 2
-          * 2 ^ (size_ctx Γ0 + (1 + size_ctx Γ1) - subst_var Γ x - 1))%nat in WFA by
-          unify_pows_two.
-        apply WF_plus; auto with wf_db.
-      * rewrite Nat.add_0_r.
-        intros A.
-        destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.
-        replace (size_ctx Γ - 1)%nat with (size_octx Γ1) in *.
-        Focus 2.
-          simpl.
-          replace (size_ctx Γ) with (size_octx Γ) by easy.
-          destruct pf1.
-          rewrite pf_merge in *.
-          rewrite size_octx_merge by easy. 
-          dependent destruction t.
-          apply singleton_equiv in s. subst.
-          simpl. rewrite singleton_size.
-          omega.
-        intros WFA.
-        dependent destruction t.
-        apply singleton_equiv in s; subst.
-        assert (M: Γ1 == ∅ ∙ Γ1) by solve_merge.
-        specialize (t0 ∅ Γ1 unit M types_unit).
-        erewrite remove_bit_merge' by apply pf1.
-        specialize (IH unit Γ0 (trim Γ1) A). 
-        unfold denote_circuit in IH.
-        simpl in IH.
-        rewrite size_ctx_trim in IH.
-        apply IH. 
-        apply trim_types_circ. easy.
-        easy.
-    + simpl in *.
-      apply WF_compose_super.
-      * easy.
-      * intros A WFA.
-        rewrite Nat.add_0_r.
-        replace (size_ctx Γ - 1)%nat with (size_octx Γ1) in *.
-        Focus 2.
-          simpl.
-          replace (size_ctx Γ) with (size_octx Γ) by easy.
-          destruct pf1.
-          rewrite pf_merge in *.
-          rewrite size_octx_merge by easy. 
-          dependent destruction t.
-          apply singleton_equiv in s. subst.
-          simpl. rewrite singleton_size.
-          omega.
-        simpl.
-        destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.   
-        dependent destruction t. simpl.
-        unfold apply_assert0.
-        unfold Splus.
-        specialize (subst_qubit_bounded _ _ _ _ (types_qubit _ _ s) pf1) as LT. 
-        simpl in LT.
-        replace (size_ctx Γ) with (size_octx Γ) in * by easy.
-        destruct pf1. rewrite pf_merge in *.
-        rewrite size_octx_merge in * by easy.
-        apply singleton_equiv in s. subst.
-        simpl in *. rewrite singleton_size in *.
-        replace (2 ^ (size_ctx Γ0 + size_ctx Γ1))%nat with
-            (2 ^ subst_var Γ x * 1 * 2 ^ (size_ctx Γ0 + (1 + size_ctx Γ1) 
-             - subst_var Γ x - 1))%nat in * by unify_pows_two.
-        replace (2 ^ (size_ctx Γ0 + (1 + size_ctx Γ1)))%nat with (2 ^ subst_var Γ x * 2
-          * 2 ^ (size_ctx Γ0 + (1 + size_ctx Γ1) - subst_var Γ x - 1))%nat in WFA by
-          unify_pows_two.
-        destruct safe.
-        apply WF_plus; auto with wf_db.
-        auto with wf_db.
-      * rewrite Nat.add_0_r.
-        intros A.
-        destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.
-        replace (size_ctx Γ - 1)%nat with (size_octx Γ1) in *.
-        Focus 2.
-          simpl.
-          replace (size_ctx Γ) with (size_octx Γ) by easy.
-          destruct pf1.
-          rewrite pf_merge in *.
-          rewrite size_octx_merge by easy. 
-          dependent destruction t.
-          apply singleton_equiv in s. subst.
-          simpl. rewrite singleton_size.
-          omega.
-        intros WFA.
-        dependent destruction t.
-        apply singleton_equiv in s; subst.
-        assert (M: Γ1 == ∅ ∙ Γ1) by solve_merge.
-        specialize (t0 ∅ Γ1 unit M types_unit).
-        erewrite remove_qubit_merge' by apply pf1.
-        specialize (IH unit Γ0 (trim Γ1) A). 
-        unfold denote_circuit in IH.
-        simpl in IH.
-        rewrite size_ctx_trim in IH.
-        apply IH. 
-        apply trim_types_circ. easy.
-        easy.
-    + simpl in *.
-      apply WF_compose_super.
-      * easy.
-      * intros A WFA.
-        rewrite Nat.add_0_r.
-        replace (size_ctx Γ - 1)%nat with (size_octx Γ1) in *.
-        Focus 2.
-          simpl.
-          replace (size_ctx Γ) with (size_octx Γ) by easy.
-          destruct pf1.
-          rewrite pf_merge in *.
-          rewrite size_octx_merge by easy. 
-          dependent destruction t.
-          apply singleton_equiv in s. subst.
-          simpl. rewrite singleton_size.
-          omega.
-        simpl.
-        destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.   
-        dependent destruction t. simpl.
-        unfold apply_assert1.
-        unfold Splus.
-        specialize (subst_qubit_bounded _ _ _ _ (types_qubit _ _ s) pf1) as LT. 
-        simpl in LT.
-        replace (size_ctx Γ) with (size_octx Γ) in * by easy.
-        destruct pf1. rewrite pf_merge in *.
-        rewrite size_octx_merge in * by easy.
-        apply singleton_equiv in s. subst.
-        simpl in *. rewrite singleton_size in *.
-        replace (2 ^ (size_ctx Γ0 + size_ctx Γ1))%nat with
-            (2 ^ subst_var Γ x * 1 * 2 ^ (size_ctx Γ0 + (1 + size_ctx Γ1) 
-             - subst_var Γ x - 1))%nat in * by unify_pows_two.
-        replace (2 ^ (size_ctx Γ0 + (1 + size_ctx Γ1)))%nat with (2 ^ subst_var Γ x * 2
-          * 2 ^ (size_ctx Γ0 + (1 + size_ctx Γ1) - subst_var Γ x - 1))%nat in WFA by
-          unify_pows_two.
-        destruct safe.
-        apply WF_plus; auto with wf_db.
-        auto with wf_db.
-      * rewrite Nat.add_0_r.
-        intros A.
-        destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.
-        replace (size_ctx Γ - 1)%nat with (size_octx Γ1) in *.
-        Focus 2.
-          simpl.
-          replace (size_ctx Γ) with (size_octx Γ) by easy.
-          destruct pf1.
-          rewrite pf_merge in *.
-          rewrite size_octx_merge by easy. 
-          dependent destruction t.
-          apply singleton_equiv in s. subst.
-          simpl. rewrite singleton_size.
-          omega.
-        intros WFA.
-        dependent destruction t.
-        apply singleton_equiv in s; subst.
-        assert (M: Γ1 == ∅ ∙ Γ1) by solve_merge.
-        specialize (t0 ∅ Γ1 unit M types_unit).
-        erewrite remove_qubit_merge' by apply pf1.
-        specialize (IH unit Γ0 (trim Γ1) A). 
-        unfold denote_circuit in IH.
-        simpl in IH.
-        rewrite size_ctx_trim in IH.
-        apply IH. 
-        apply trim_types_circ. easy.
-        easy.
-  - intros Γ0 Γ ρ WT WF.
-    dependent destruction WT.
-    unfold denote_circuit in *.
-    dependent destruction t.
-    destruct Γ2 as [|Γ2]; try invalid_contradiction.
-    specialize (subst_bit_bounded _ _ _ _ (types_bit _ _ s) pf) as LT. 
-    simpl in *.
-    unfold Splus.
-    apply WF_plus.
-    + apply WF_compose_super.
-      * apply_with_obligations WF.
-        unify_pows_two.
-      * intros A WFA.
-        replace (2 ^ (size_ctx Γ0 + (size_ctx Γ - 1)))%nat with 
-            (2 ^ subst_var Γ x * 1 * 2 ^ (size_ctx Γ + size_ctx Γ0 - subst_var Γ x - 1))%nat
-        by unify_pows_two.
-        apply WF_super.
-        auto with wf_db.
-        apply_with_obligations WFA.
-      * intros A WFA.
-        replace (size_ctx Γ - 1)%nat with (size_octx Γ2) in *.
-        Focus 2.
-          simpl.
-          replace (size_ctx Γ) with (size_octx Γ) by easy.
-          destruct pf.
-          rewrite pf_merge in *.
-          rewrite size_octx_merge by easy. 
-          apply singleton_equiv in s. subst.
-          simpl. rewrite singleton_size.
-          omega.
-        apply singleton_equiv in s; subst.
-        specialize (t0 false).
-        erewrite remove_bit_merge'; [|apply pf].
-        specialize (H false Γ0 (trim Γ2)).
-        rewrite size_ctx_trim in H.
-        eapply H.
-        apply trim_types_circ. easy.
-        easy.
-    + apply WF_compose_super.
-      * apply_with_obligations WF.
-        unify_pows_two.
-      * intros A WFA.
-        replace (2 ^ (size_ctx Γ0 + (size_ctx Γ - 1)))%nat with 
-            (2 ^ subst_var Γ x * 1 * 2 ^ (size_ctx Γ + size_ctx Γ0 - subst_var Γ x - 1))%nat
-        by unify_pows_two.
-        apply WF_super.
-        auto with wf_db.
-        apply_with_obligations WFA.
-      * intros A WFA.
-        replace (size_ctx Γ - 1)%nat with (size_octx Γ2) in *.
-        Focus 2.
-          simpl.
-          replace (size_ctx Γ) with (size_octx Γ) by easy.
-          destruct pf.
-          rewrite pf_merge in *.
-          rewrite size_octx_merge by easy. 
-          apply singleton_equiv in s. subst.
-          simpl. rewrite singleton_size.
-          omega.
-        apply singleton_equiv in s; subst.
-        specialize (t0 true).
-        erewrite remove_bit_merge'; [|apply pf].
-        specialize (H true Γ0 (trim Γ2)).
-        rewrite size_ctx_trim in H.
-        eapply H.
-        apply trim_types_circ. easy.
-        easy.
-Qed.
-
-Proposition WF_denote_box : forall safe W1 W2 (c : Box W1 W2) ρ,
-  Typed_Box c ->
-  WF_Matrix ρ -> 
-  WF_Matrix (denote_box safe c ρ).
-Proof.
-  intros safe W1 W2 c ρ T WF.
-  destruct c.
-  unfold denote_box. simpl.
-  unfold denote_db_box.
-  simpl.
-  destruct (add_fresh W1 []) as [p Γ] eqn:E.
-  unfold Typed_Box in T.
-  symmetry in E. apply add_fresh_typed with (p0 := unit) in E; try constructor.
-  dependent destruction E.
-  specialize (T Γ2 p E2). simpl in T.
-  dependent destruction E1. rewrite merge_nil_l in e; subst.
-  specialize (WF_denote_circuit safe W2 (c p) [] Γ ρ T) as WFC.
-  unfold denote_circuit in WFC.
-  simpl in *.
-  rewrite (ctx_wtype_size _ _ _ E2) in *.
-  apply WFC.
-  easy.
-Qed.
-
 Inductive Static_Circuit {W} : Circuit W -> Prop := 
 | S_output : forall p, Static_Circuit (output p)
 | S_gate :   forall w1 w2 (g : Gate w1 w2) (p : Pat w1) (c' : Pat w2 -> Circuit W),
@@ -4033,7 +3499,7 @@ Abort.
 (* I don't think we need ρ to be a Mixed State. 
    We might not even need it to be well-formed. *)
 Definition HOAS_Equiv {W1 W2} (c1 c2 : Box W1 W2) :=
-  forall ρ b, WF_Matrix ρ -> denote_box b c1 ρ = denote_box b c2 ρ .
+  forall ρ b, denote_box b c1 ρ == denote_box b c2 ρ .
 
 Locate "≡".
 Notation "a ≡ b" := (HOAS_Equiv a b) (at level 70) : circ_scope.

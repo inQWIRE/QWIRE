@@ -242,10 +242,10 @@ Proof. apply injective_projections ; simpl ; apply Rplus_0_l. Qed.
 Lemma Cplus_opp_r (x : C) : x + -x = 0.
 Proof. apply injective_projections ; simpl ; apply Rplus_opp_r. Qed.
 
-Lemma Copp_plus_distr (z1 z2 : C) : - (z1 + z2) = (- z1 + - z2).
+Lemma Copp_plus_dist (z1 z2 : C) : - (z1 + z2) = (- z1 + - z2).
 Proof. apply injective_projections ; apply Ropp_plus_distr; auto. Qed.
 
-Lemma Copp_minus_distr (z1 z2 : C) : - (z1 - z2) = z2 - z1.
+Lemma Copp_minus_dist (z1 z2 : C) : - (z1 - z2) = z2 - z1.
 Proof. apply injective_projections ; apply Ropp_minus_distr; auto. Qed.
 
 Lemma Cmult_comm (x y : C) : x * y = y * x.
@@ -285,12 +285,12 @@ rewrite Cmult_comm.
 now apply Cinv_r.
 Qed.
 
-Lemma Cmult_plus_distr_l (x y z : C) : x * (y + z) = x * y + x * z.
+Lemma Cmult_plus_dist_l (x y z : C) : x * (y + z) = x * y + x * z.
 Proof.
   apply injective_projections ; simpl ; ring.
 Qed.
 
-Lemma Cmult_plus_distr_r (x y z : C) : (x + y) * z = x * z + y * z.
+Lemma Cmult_plus_dist_r (x y z : C) : (x + y) * z = x * z + y * z.
 Proof.
   apply injective_projections ; simpl ; ring.
 Qed.
@@ -399,7 +399,7 @@ exact Cplus_assoc.
 exact Cmult_1_l.
 exact Cmult_comm.
 exact Cmult_assoc.
-exact Cmult_plus_distr_r.
+exact Cmult_plus_dist_r.
 easy.
 exact Cplus_opp_r.
 intros H.
@@ -436,9 +436,9 @@ Proof. intros c1 c2 H1 H2. destruct c1, c2. simpl in *. subst. reflexivity. Qed.
 Ltac lca := eapply c_proj_eq; simpl; lra.
 
 Lemma Ci2 : Ci * Ci = -C1. Proof. lca. Qed.
-Lemma Copp_mult_distr_r : forall c1 c2 : C, - (c1 * c2) = c1 * - c2.
+Lemma Copp_mult_dist_r : forall c1 c2 : C, - (c1 * c2) = c1 * - c2.
 Proof. intros; lca. Qed.
-Lemma Copp_mult_distr_l : forall c1 c2 : C, - (c1 * c2) = - c1 * c2.
+Lemma Copp_mult_dist_l : forall c1 c2 : C, - (c1 * c2) = - c1 * c2.
 Proof. intros; lca. Qed.
 Lemma Cplus_opp_l : forall c : C, - c + c = 0. Proof. intros; lca. Qed.
 Lemma Cdouble : forall c : C, 2 * c = c + c. Proof. intros; lca. Qed.
@@ -454,7 +454,7 @@ Proof. intros c. intros N E. apply N. rewrite E. reflexivity. Qed.
 Lemma RtoC_neq : forall (r : R), r <> 0 -> RtoC r <> 0. 
 Proof. intros. apply C0_fst_neq. easy. Qed.
 
-Lemma Cinv_mult_distr : forall c1 c2 : C, c1 <> 0 -> c2 <> 0 -> / (c1 * c2) = / c1 * / c2.
+Lemma Cinv_mult_dist : forall c1 c2 : C, c1 <> 0 -> c2 <> 0 -> / (c1 * c2) = / c1 * / c2.
 Proof.
   intros.
   apply c_proj_eq.
@@ -501,8 +501,8 @@ Lemma Cconj_opp : forall C, (- C)^* = - (C^*). Proof. reflexivity. Qed.
 Lemma Cconj_rad2 : (/ √2)^* = / √2.       Proof. lca. Qed.
 Lemma Cplus_div2 : /2 + /2 = 1.           Proof. lca. Qed.
 Lemma Cconj_involutive : forall c, (c^*)^* = c. Proof. intros; lca. Qed.
-Lemma Cconj_plus_distr : forall (x y : C), (x + y)^* = x^* + y^*. Proof. intros; lca. Qed.
-Lemma Cconj_mult_distr : forall (x y : C), (x * y)^* = x^* * y^*. Proof. intros; lca. Qed.
+Lemma Cconj_plus_dist : forall (x y : C), (x + y)^* = x^* + y^*. Proof. intros; lca. Qed.
+Lemma Cconj_mult_dist : forall (x y : C), (x * y)^* = x^* * y^*. Proof. intros; lca. Qed.
 
 Lemma Cmult_conj_real : forall (c : C), snd (c * c^*) = 0.
 Proof.
@@ -633,18 +633,18 @@ Hint Rewrite Cminus_unfold Cdiv_unfold Ci2 Cconj_R Cconj_opp Cconj_rad2
      Cplus_0_l Cplus_0_r Cplus_opp_r Cplus_opp_l Copp_0  Copp_involutive
      Cmult_0_l Cmult_0_r Cmult_1_l Cmult_1_r : C_db.
 
-Hint Rewrite <- Copp_mult_distr_l Copp_mult_distr_r Cdouble : C_db.
+Hint Rewrite <- Copp_mult_dist_l Copp_mult_dist_r Cdouble : C_db.
 Hint Rewrite Csqrt_sqrt using Psatz.lra : C_db.
 Hint Rewrite Cinv_l Cinv_r using nonzero : C_db.
 (* Previously in the other direction *)
-Hint Rewrite Cinv_mult_distr using nonzero : C_db.
+Hint Rewrite Cinv_mult_dist using nonzero : C_db.
 
 (* Light rewriting db *)
 Hint Rewrite Cplus_0_l Cplus_0_r Cmult_0_l Cmult_0_r Copp_0 
              Cconj_R Cmult_1_l Cmult_1_r : C_db_light.
 
 (* Distributing db *)
-Hint Rewrite Cmult_plus_distr_l Cmult_plus_distr_r Copp_plus_distr Copp_mult_distr_l 
+Hint Rewrite Cmult_plus_dist_l Cmult_plus_dist_r Copp_plus_dist Copp_mult_dist_l 
               Copp_involutive : Cdist_db.
 
 
@@ -659,7 +659,7 @@ Ltac Csimpl :=
   | _ => rewrite Cconj_R
   end.
 
-Ltac C_field_simplify := repeat field_simplify_eq [Csqrt2_sqrt Csqrt2_inv].
+Ltac C_field_simplify := repeat field_simplify_eq [ Csqrt2_sqrt Csqrt2_inv Ci2]. 
 Ltac C_field := C_field_simplify; nonzero; trivial.
 
 Ltac has_term t exp  := 
@@ -670,8 +670,8 @@ Ltac has_term t exp  :=
 Ltac group_radicals :=
   repeat rewrite Cconj_opp;
   repeat rewrite Cconj_rad2;
-  repeat rewrite <- Copp_mult_distr_l;
-  repeat rewrite <- Copp_mult_distr_r;
+  repeat rewrite <- Copp_mult_dist_l;
+  repeat rewrite <- Copp_mult_dist_r;
   repeat match goal with
   | _ => rewrite Cinv_sqrt2_sqrt
   | |- context [ ?x * ?y ] => tryif has_term (√ 2) x then fail 
@@ -684,8 +684,8 @@ Ltac group_radicals :=
   end.    
 
 Ltac cancel_terms t := 
-  repeat rewrite Cmult_plus_distr_l;
-  repeat rewrite Cmult_plus_distr_r; 
+  repeat rewrite Cmult_plus_dist_l;
+  repeat rewrite Cmult_plus_dist_r; 
   repeat match goal with
   | _ => rewrite Cmult_1_l
   | _ => rewrite Cmult_1_r

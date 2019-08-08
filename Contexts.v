@@ -380,7 +380,7 @@ Definition cons_o (o : option WType) (Γ : OCtx) : OCtx :=
   | Valid Γ' => Valid (o :: Γ')
   end.
 
-Lemma cons_distr_merge : forall Γ1 Γ2,
+Lemma cons_dist_merge : forall Γ1 Γ2,
   cons_o None (Γ1 ⋓ Γ2) = cons_o None Γ1 ⋓ cons_o None Γ2.
 Proof. destruct Γ1; destruct Γ2; simpl; auto. Defined.
 
