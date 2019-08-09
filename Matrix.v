@@ -1126,7 +1126,12 @@ Ltac restore_dims_rec tac A :=
                match type of A' with
                | Matrix ?m' ?n' => constr:(@scale m' n' c A')
                end
-  (* New: deal with functions applied to matrices *)
+  (* For predicates (eg. Mixed_State) on Matrices *)
+  | ?P ?n ?A => let A' := restore_dims_rec tac A in 
+                match type of A' with
+                | Matrix ?m' ?n' => constr:(P m' A')
+                end  
+  (* Handle functions applied to matrices *)
   | ?f ?A    => let f' := restore_dims_rec tac f in 
                let A' := restore_dims_rec tac A in 
                constr:(f' A')
@@ -1142,7 +1147,7 @@ Ltac restore_dims tac :=
 
 Tactic Notation "restore_dims" tactic(tac) := restore_dims tac.
 
-Tactic Notation "restore_dims" := restore_dims (unify_pows_two; lia).
+Tactic Notation "restore_dims" := restore_dims (unify_pows_two; simpl; lia).
 
 (*************************)
 (* Matrix Simplification *)

@@ -9,11 +9,11 @@ Require Export Matrix.
 (* Quantum basis states *)
 (*******************************************)
 
-Notation qubit := (Vector 2).
+(* Notation qubit := (Vector 2). *)
 
 (* Maybe change to IF statements? *)
-Definition qubit0 : qubit := fun i j => if i =? 0 then 1 else 0.
-Definition qubit1 : qubit := fun i j => if i =? 1 then 1 else 0.
+Definition qubit0 : Vector 2 := fun i j => if i =? 0 then 1 else 0.
+Definition qubit1 : Vector 2 := fun i j => if i =? 1 then 1 else 0.
 
 (* Ket notation: \mid 0 \rangle *)
 Notation "∣0⟩" := qubit0.

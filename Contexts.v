@@ -469,7 +469,7 @@ Record valid_merge Γ1 Γ2 Γ :=
   { pf_valid : is_valid Γ
   ; pf_merge : Γ = Γ1 ⋓ Γ2 }.
 
-Notation "Γ ≈ Γ1 ∙ Γ2" := (valid_merge Γ1 Γ2 Γ) (at level 20) : circ_scope.
+Notation "Γ ⩵ Γ1 ∙ Γ2" := (valid_merge Γ1 Γ2 Γ) (at level 20) : circ_scope.
 
 Lemma valid_valid : forall Γ, is_valid (Valid Γ). Proof. intros. exists Γ. reflexivity. Defined.
 
@@ -609,7 +609,7 @@ Ltac invalid_contradiction :=
   (* don't want any of the proofs to be used in conclusion *)
   absurd False; [ inversion 1 | ]; 
   repeat match goal with
-  | [ H : ?Γ ≈ ?Γ1 ∙ ?Γ2 |- _ ] => destruct H
+  | [ H : ?Γ ⩵ ?Γ1 ∙ ?Γ2 |- _ ] => destruct H
   end;
   subst; simplify_invalid;
   match goal with
@@ -641,7 +641,7 @@ Proof. induction 1; auto. Qed.
 
 Lemma merge_ind_fun : forall Γ1 Γ2 Γ,
     merge_ind Γ1 Γ2 Γ ->
-    Γ ≈ Γ1 ∙ Γ2.
+    Γ ⩵ Γ1 ∙ Γ2.
 Proof.
   induction 1.
   * split; [apply valid_valid | auto ].
@@ -661,7 +661,7 @@ Proof.
 Qed.
 
 Lemma merge_fun_ind : forall Γ1 Γ2 Γ,
-    Γ ≈ Γ1 ∙ Γ2 ->
+    Γ ⩵ Γ1 ∙ Γ2 ->
     merge_ind Γ1 Γ2 Γ.
 Proof.
   intros [ | Γ1] [ | Γ2] [ | Γ]; intros; try invalid_contradiction.
@@ -699,10 +699,10 @@ Lemma merge_intersection : forall Γ1 Γ2 Γ3 Γ4,
   is_valid (Γ1 ⋓ Γ2) ->
   (Γ1 ⋓ Γ2) = (Γ3 ⋓ Γ4) ->
   { Γ13 : OCtx & { Γ14 : OCtx & { Γ23 : OCtx & { Γ24 : OCtx &
-  Γ1 ≈ Γ13 ∙ Γ14 /\ Γ2 ≈ Γ23 ∙ Γ24 /\ Γ3 ≈ Γ13 ∙ Γ23 /\ Γ4 ≈ Γ14 ∙ Γ24}}}}.
+  Γ1 ⩵ Γ13 ∙ Γ14 /\ Γ2 ⩵ Γ23 ∙ Γ24 /\ Γ3 ⩵ Γ13 ∙ Γ23 /\ Γ4 ⩵ Γ14 ∙ Γ24}}}}.
 Proof.
   intros Γ1 Γ2 Γ3 Γ4 V M.  
-  assert (H : (Γ1 ⋓ Γ2) ≈ Γ3 ∙ Γ4). constructor; assumption. 
+  assert (H : (Γ1 ⋓ Γ2) ⩵ Γ3 ∙ Γ4). constructor; assumption. 
   clear M V.
   apply merge_fun_ind in H.
   remember (Γ1 ⋓ Γ2) as Γ. 
@@ -741,7 +741,7 @@ Proof.
       repeat split; try apply valid_valid.      
       apply merge_ind_fun.
       constructor; assumption.
-    + assert (M12 : (Valid (o :: Γ) ≈ Valid (o1 :: Γ1) ∙ Valid (o2 :: Γ2))).
+    + assert (M12 : (Valid (o :: Γ) ⩵ Valid (o1 :: Γ1) ∙ Valid (o2 :: Γ2))).
       constructor. apply valid_valid. assumption.
       clear M.
       apply merge_fun_ind in M12.
@@ -921,7 +921,7 @@ Proof.
 Qed.
 
 Lemma merge_empty : forall (Γ Γ1 Γ2 : Ctx),
-  Γ ≈ Γ1 ∙ Γ2 ->
+  Γ ⩵ Γ1 ∙ Γ2 ->
   empty_ctx Γ ->
   empty_ctx Γ1 /\ empty_ctx Γ2.
 Proof.
@@ -1147,8 +1147,8 @@ Proof.
         easy.
 Qed.
 
-Lemma trim_merge : forall Γ Γ1 Γ2, Γ ≈ Γ1 ∙ Γ2 ->
-                              otrim Γ ≈ otrim Γ1 ∙ otrim Γ2.
+Lemma trim_merge : forall Γ Γ1 Γ2, Γ ⩵ Γ1 ∙ Γ2 ->
+                              otrim Γ ⩵ otrim Γ1 ∙ otrim Γ2.
 Proof.
   intros Γ Γ1 Γ2 M.
   apply merge_fun_ind in M.
@@ -1325,7 +1325,7 @@ Ltac validate :=
 Ltac has_evars term := 
   match term with
     | ?L = ?R         => has_evars (L ⋓ R)
-    | ?L ≈ ?R1 ∙ ?R2 => has_evars (L ⋓ R1 ⋓ R2)
+    | ?L ⩵ ?R1 ∙ ?R2 => has_evars (L ⋓ R1 ⋓ R2)
     | ?Γ1 ⋓ ?Γ2       => has_evar Γ1; has_evar Γ2
     | ?Γ1 ⋓ ?Γ2       => has_evars Γ1
     | ?Γ1 ⋓ ?Γ2       => has_evars Γ2
@@ -1342,11 +1342,11 @@ Ltac solve_merge :=
   | [ |- ?g ] => has_evars g
   | [ |- _  ] => 
     repeat match goal with
-    | [ H : _ ≈ _ ∙ _ |- _ ] => destruct H
+    | [ H : _ ⩵ _ ∙ _ |- _ ] => destruct H
     end;
     subst;
     repeat match goal with
-    | [ |- _ ≈ _ ∙ _ ] => split
+    | [ |- _ ⩵ _ ∙ _ ] => split
     | [ |- is_valid _ ] => validate
     | [ |- _ = _ ] => monoid
     end

@@ -81,17 +81,17 @@ Inductive Types_Circuit : OCtx -> forall {w}, Circuit w -> Set :=
                                          {p1 : Pat w1} {g : Gate w1 w2} ,
                Γ1 ⊢ p1 :Pat ->
 (*               Γ ⊢ f :Fun ->*)
-               (forall Γ2 Γ2' (p2 : Pat w2) {pf2 : Γ2' ≈ Γ2 ∙ Γ},
+               (forall Γ2 Γ2' (p2 : Pat w2) {pf2 : Γ2' ⩵ Γ2 ∙ Γ},
                        Γ2 ⊢ p2 :Pat -> Γ2' ⊢ f p2 :Circ) ->
-               forall {pf1 : Γ1' ≈ Γ1 ∙ Γ},
+               forall {pf1 : Γ1' ⩵ Γ1 ∙ Γ},
                Γ1' ⊢ gate g p1 f :Circ
 | types_lift : forall {Γ1 Γ2 Γ w } {p : Pat Bit} {f : bool -> Circuit w},
                Γ1 ⊢ p :Pat ->
                (forall b, Γ2 ⊢ f b :Circ) ->
-               forall {pf : Γ ≈ Γ1 ∙ Γ2},
+               forall {pf : Γ ⩵ Γ1 ∙ Γ2},
                Γ ⊢ lift p f :Circ
 where "Γ ⊢ c :Circ" := (Types_Circuit Γ c)
-and "Γ ⊢ f :Fun" := (forall Γ0 Γ0' p0, Γ0' ≈ Γ0 ∙ Γ ->
+and "Γ ⊢ f :Fun" := (forall Γ0 Γ0' p0, Γ0' ⩵ Γ0 ∙ Γ ->
                                             Γ0 ⊢ p0 :Pat ->
                                             Γ0' ⊢ f p0 :Circ ).
 
@@ -106,7 +106,7 @@ and "Γ ⊢ f :Fun" := (forall Γ0 Γ0' p0, Γ0' ≈ Γ0 ∙ Γ ->
 *)
 (*
 Notation "Γ ⊢ c :Circ" := (Types_Circuit Γ c) (at level 30).
-Notation "Γ ⊢ f :Fun" := (forall Γ0 Γ0' p0, Γ0' ≈ Γ0 ∙ Γ ->
+Notation "Γ ⊢ f :Fun" := (forall Γ0 Γ0' p0, Γ0' ⩵ Γ0 ∙ Γ ->
                                             Γ0 ⊢ p0 :Pat ->
                                             Γ0' ⊢ f p0 :Circ ) (at level 30).
 *)
@@ -128,7 +128,7 @@ Opaque is_valid.
 Lemma compose_typing : forall Γ1 Γ1' Γ W W' (c : Circuit W) (f : Pat W -> Circuit W'),
         Γ1 ⊢ c :Circ -> 
         Γ ⊢ f :Fun -> 
-        forall {pf : Γ1' ≈ Γ1 ∙ Γ},
+        forall {pf : Γ1' ⩵ Γ1 ∙ Γ},
         Γ1' ⊢ compose c f :Circ.
 Proof.
   do 7 intro. intros types_c.

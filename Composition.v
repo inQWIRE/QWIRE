@@ -9,8 +9,8 @@ Fact denote_compose : forall safe w (c : Circuit w) (Γ : Ctx),
   Γ ⊢ c :Circ ->
      forall w' (f : Pat w -> Circuit w') (Γ0 Γ1 Γ1' Γ01 : Ctx),
   Γ1 ⊢ f :Fun ->
-  Γ1' ≈ Γ1 ∙ Γ ->
-  Γ01 ≈ Γ0 ∙ Γ1 -> 
+  Γ1' ⩵ Γ1 ∙ Γ ->
+  Γ01 ⩵ Γ0 ∙ Γ1 -> 
       denote_circuit safe (compose c f) Γ0 Γ1'
     = compose_super 
         (denote_circuit safe (f (add_fresh_pat w Γ1)) Γ0 (add_fresh_state w Γ1)) 
@@ -50,10 +50,10 @@ Proof.
 (*
     evar (Γ4 : OCtx).
     set (Γ4' := process_gate_state g p1 Γ1').
-    assert (pf2 : Γ2' ≈ Γ2 ∙ Γ) by admit.
+    assert (pf2 : Γ2' ⩵ Γ2 ∙ Γ) by admit.
     assert (H_p2 : Γ2 ⊢ process_gate_pat g p1 Γ3' :Pat) by admit.
     assert (H_h : Γ3 ⊢ h :Fun) by auto.
-    assert (pf3 : Γ3'' ≈ Γ3 ∙ Γ2') by admit.
+    assert (pf3 : Γ3'' ⩵ Γ3 ∙ Γ2') by admit.
 
     specialize (H Γ2 Γ2' (process_gate_pat g p1 Γ3') pf2 H_p2 w' h Γ0 Γ3 Γ3'' H_h pf3).
     fold p2 in H.
