@@ -67,6 +67,10 @@ Qed.
 (* CMonoid Section *)
 (*******************)
 
+Require Import List.
+Require Import Multiset.
+Require Import Arith.
+
 Section CMonoid.
   Variable A : Type.
   Variable PCM_A : `{PCM A}.
@@ -226,7 +230,6 @@ Section CMonoid.
     | O => nil
     | S n' => O :: fmap S (nats_lt n')
     end.
-  Require Import List.
 
   Lemma index_wrt_cons : forall idx a values,
       index_wrt (a :: values) (fmap S idx) = index_wrt values idx.
@@ -322,9 +325,6 @@ Search (?a = ?b -> ?c = ?d -> ?f ?a ?c = ?f ?b ?d).
   Proof.
     intros. apply (permutation_Permutation PeanoNat.Nat.eq_dec); auto.
   Defined.
-
-  Require Import Multiset.
-  Require Import Arith.
 
   Notation contents := (list_contents eq Nat.eq_dec).
 
