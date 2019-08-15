@@ -14,7 +14,7 @@ Delimit Scope matrix_scope with M.
 (** EXAMPLES START **)
 (*****************************************************************************)
 
-Lemma init_qubit1 : ⟦init true⟧ (I 1) = ∣1⟩⟨1∣. 
+Lemma init_qubit1 : ⟦init true⟧ (I 1) == ∣1⟩⟨1∣. 
 Proof.
   matrix_denote.
   Msimpl.
@@ -25,19 +25,21 @@ Qed.
 (* Ientity circuits *)
 (*********************)
 
+(* Move to Quantum later. *)
+Arguments WF_Unitary {n} U /.
+
 (* Qubit form *) 
 Lemma unitary_transpose_id_qubit : forall (U : Unitary Qubit),
    unitary_transpose U ≡ id_circ.
 Proof.
-  Locate "≡".
   unfold HOAS_Equiv.
-  intros U ρ safe pf_ρ.
-  destruct (unitary_gate_unitary U) as [WF inv].
+  intros U ρ safe.
+  specialize (unitary_gate_unitary U) as inv.
   simpl in *.
   matrix_denote.
   setoid_rewrite denote_unitary_transpose.
   simpl in *; Msimpl.
-  repeat rewrite Mmult_assoc; try rewrite inv.
+  repeat rewrite Mmult_assoc; try rewrite inv.  
   repeat rewrite <- Mmult_assoc; try rewrite inv.
   Msimpl.     
   reflexivity.
@@ -56,11 +58,11 @@ Proof.
     unfold apply_to_first.
     unfold apply_qubit_unitary.
 *)    
-  
+
 Lemma unitary_transpose_id : forall W (U : Unitary W),
   unitary_transpose U ≡ id_circ.
 Proof.
-  intros W U ρ safe WF.
+  intros W U ρ safe.
   matrix_denote.
   rewrite add_fresh_split.
   rewrite subst_pat_fresh by constructor.
@@ -71,14 +73,10 @@ Proof.
   Msimpl.
   destruct W; try solve [inversion U].
   - simpl.
-    unfold denote_pat; simpl.
-    unfold swap_list; simpl.
-    unfold swap_two; simpl.
-    Msimpl.
+    matrix_denote.
+    Msimpl. 
     rewrite Mmult_assoc.
-    unfold apply_U, super. simpl.
-    destruct (unitary_gate_unitary U) as [WFU inv].
-    assert (WFU' : WF_Matrix (⟦U⟧†)) by auto with wf_db.
+    specialize (unitary_gate_unitary U) as inv. 
     simpl_rewrite @denote_unitary_transpose.
     simpl in *. Msimpl.
     repeat rewrite Mmult_assoc. rewrite inv.
@@ -92,8 +90,8 @@ Proof.
     unfold super. simpl.
     remember (W1 ⊗ W2) as W.
     remember (pat_to_list (add_fresh_pat W [])) as li.
-    destruct (denote_ctrls_unitary W (⟦W⟧) U li ) as [WFU inv].
-      intros.
+    assert (L : forall x : nat, List.In x li -> (x < ⟦ W ⟧)%nat).
+    { intros.
       rewrite Heqli in H.
       simpl.
       rewrite (ctx_wtype_size _ (add_fresh_pat W []) (add_fresh_state W [])).
@@ -107,21 +105,21 @@ Proof.
       rewrite subst_pat_fresh by constructor.
       easy.
       apply add_fresh_typed_empty.
-      rewrite add_fresh_split. easy.
-      subst.
-      rewrite size_wtype_length.
-      easy.
+      rewrite add_fresh_split. easy. }      
+    specialize (denote_ctrls_unitary W _ U _ L) as inv.  
     replace (size_wtype W1 + size_wtype W2)%nat with  (⟦ W ⟧) by (subst;easy).
     unfold apply_U, apply_unitary, super.
-    destruct W; try solve [inversion HeqW].
-    rewrite denote_ctrls_transpose.
+    destruct W; inversion HeqW. clear H0 H1 HeqW.    
+    rewrite denote_ctrls_transpose by (subst; try rewrite size_wtype_length; easy).
     remember (denote_ctrls (⟦ W3 ⊗ W4 ⟧) U li) as A.
     remember (swap_list (⟦ W3 ⊗ W4 ⟧) li) as S.
     rewrite <- (Mmult_assoc _ (A × ρ) _).
     rewrite <- (Mmult_assoc _ A ρ).
-    rewrite inv. Msimpl.
+    simpl in inv. rewrite inv by (subst; rewrite size_wtype_length; easy).
+    Msimpl.
     rewrite (Mmult_assoc ρ _ A).
-    rewrite inv. Msimpl.
+    rewrite inv by (subst; rewrite size_wtype_length; easy).
+    Msimpl.
     rewrite Mmult_assoc.
     easy.
 Qed.    
@@ -147,29 +145,15 @@ Definition biased_coin (c : C) : Matrix 2 2 :=
 Definition uniform (n : nat) : Matrix n n :=
   fun x y => if (x =? y) && (x <? n) then 1/(INR n) else 0.
 
-Lemma bias1 : biased_coin 1 = ∣1⟩⟨1∣.
-Proof.
-  unfold biased_coin.
-  prep_matrix_equality; simpl.
-  destruct_m_eq; lca.
-Qed.
+Lemma bias1 : biased_coin 1 == ∣1⟩⟨1∣.
+Proof. lma. Qed.
 
-Lemma even_bias : biased_coin (1/2) = fair_coin.
-Proof. 
-  unfold biased_coin, fair_coin.
-  prep_matrix_equality; simpl.
-  destruct_m_eq; lca.
-Qed.
+Lemma even_bias : biased_coin (1/2) == fair_coin.
+Proof. lma. Qed.
 
-Lemma fair_toss : ⟦coin_flip⟧ (I 1)  = fair_coin.
+Lemma fair_toss : ⟦coin_flip⟧ (I 1) == fair_coin.
 Proof. matrix_denote. Msimpl. solve_matrix. Qed.
 
-Lemma wf_biased_coin : forall c, WF_Matrix (biased_coin c).
-Proof.
-  intros; show_wf.
-Qed.
-
-Hint Resolve wf_biased_coin : wf_db.
 Hint Unfold super_Zero : den_db. 
 
 (* Uses denote_compose: *)
@@ -219,12 +203,20 @@ Abort.
 
 (* The following uses a lemma (scale_safe) that is worth proving, but not yet proven *)
 (* We abort this lemma and prove a more general version below *)
-Proposition flips_lift_correct : forall n, ⟦coin_flips_lift n⟧ (I 1) = biased_coin (1/(2^n)).
+Proposition flips_lift_correct : forall n, ⟦coin_flips_lift n⟧ (I 1) == biased_coin (1/(2^n)).
 Proof.
   induction n.
   + matrix_denote. Msimpl. solve_matrix.
   + simpl.
     matrix_denote.
+    restore_dims. 
+    repeat rewrite Mmult_1_l.
+    restore_dims. 
+    
+(* Looks like we need a denote_db_circuit morphism... *)
+    rewrite (kron_1_l ∣0⟩).
+    repeat rewrite kron_1_r'.
+    
     Msimpl.
     simpl in IHn. unfold denote_box, denote_db_box in IHn. simpl in IHn.
     unfold hoas_to_db_box in IHn. simpl in IHn.
