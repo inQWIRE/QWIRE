@@ -1201,7 +1201,7 @@ Proof.
   destruct Γ2 as [ | o2 Γ2]. 
   { simpl. left. apply valid_valid. }
   destruct (IHΓ1 Γ2) as [IH | IH].
-  - destruct o1 as [ | W1]; destruct o2 as [ | W2]; simpl in *. 
+  - destruct o1; destruct o2; simpl in *.
     { right; auto. }
     { left; destruct (merge' Γ1 Γ2); auto. apply valid_valid. }
     { left; destruct (merge' Γ1 Γ2); auto. apply valid_valid. }
@@ -1549,4 +1549,3 @@ Proof.
     eapply IHW1. apply E1.
     eapply IHW2. apply E2.
 Qed.
-
