@@ -4,21 +4,54 @@ Require Export HOASLib.
 Require Export DBCircuits.
 Require Export Quantum.
 Require Export Denotation.
+Require Import Setoid.
+
+(* Move to... composition? *)
+Lemma denote_box_compat : forall (safe : bool) (W1 W2 : WType) (c : Box W1 W2) ρ ρ',
+  ρ == ρ' ->
+  denote_box safe c ρ == denote_box safe c ρ'.
+Proof.
+  intros.
+  destruct c.
+  unfold denote_box; simpl.
+  rewrite add_fresh_split; simpl.
+  remember (add_fresh_pat W1 []) as p.
+  induction (c p).
+  - matrix_denote.
+  match goal with
+  | |- ?A =>
+        let A' := restore_dims_rec tac A in
+        replace
+        A
+        with
+        A'
+  end.
+  2:{ apply f_equal_gen; trivial.
+      apply f_equal_gen; trivial.
+      apply f_equal_gen; trivial.
+      apply f_equal_gen; trivial.
+      (* strange. should W1 be ∅ ? *)
+Admitted.
+
+Add Parametric Morphism b W1 W2 c : (@denote_box b W1 W2 c)
+  with signature mat_equiv ==> mat_equiv as denote_box_mor.
+Proof. intros. apply denote_box_compat; easy. Qed.
+
 
 Fact denote_compose : forall safe w (c : Circuit w) (Γ : Ctx), 
+     forall w' (f : Pat w -> Circuit w') (Γ0 Γ1 Γ1' Γ01 : Ctx) ρ,
   Γ ⊢ c :Circ ->
-     forall w' (f : Pat w -> Circuit w') (Γ0 Γ1 Γ1' Γ01 : Ctx),
   Γ1 ⊢ f :Fun ->
   Γ1' ⩵ Γ1 ∙ Γ ->
   Γ01 ⩵ Γ0 ∙ Γ1 -> 
-      denote_circuit safe (compose c f) Γ0 Γ1'
+      denote_circuit safe (compose c f) Γ0 Γ1' ρ
     = compose_super 
         (denote_circuit safe (f (add_fresh_pat w Γ1)) Γ0 (add_fresh_state w Γ1)) 
-        (denote_circuit safe c Γ01 Γ). 
+        (denote_circuit safe c Γ01 Γ) ρ. 
 Proof.
-  intros safe w c Γ TP.
+  intros safe w c Γ w' f Γ0 Γ1 Γ1' Γ01 ρ TP.
   dependent induction TP.
-  - intros w' f Γ0 Γ1 Γ1' Γ01 WT pf_merge1 pf_merge2.
+  - intros WT pf_merge1 pf_merge2.
     simpl.
     unfold compose_super.
     unfold denote_circuit.
@@ -37,15 +70,14 @@ Proof.
     (* ⟨ Γ0 | Γ1 ⋓ Γ2 ⊩ f p ⟩
     =  ⟨ Γ0 | fresh_state Γ2 ⊩ f (fresh_pat w Γ2) ⟩ ∘ ⟨ Γ1 ⊩ p ⟩ 
     *)
-  - intros w' h Γ3 Γ2 Γ3' Γ03 WT pf_merge1 pf_merge2.
-    replace (compose (gate g p1 f) h) 
-      with (gate g p1 (fun p2 => compose (f p2) h)) 
+  - intros WT pf_merge1 pf_merge2.
+    replace (compose (gate g p1 f0) f) 
+      with (gate g p1 (fun p2 => compose (f0 p2) f)) 
       by auto.
     repeat rewrite denote_gate_circuit; fold_denotation.
 
-
-    set (p2 := process_gate_pat g p1 Γ3').
-    set (Γ3'' := process_gate_state g p1 Γ3').
+    set (p2 := process_gate_pat g p1 Γ).
+    set (Γ3'' := process_gate_state g p1 Γ).
 
 (*
     evar (Γ4 : OCtx).
@@ -69,12 +101,12 @@ Admitted.
 (* Composition lemmas *)
 (**********************)
 
-Theorem inSeq_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2) (safe : bool),
+Theorem inSeq_correct : forall W1 W2 W3 (g : Box W2 W3) (f : Box W1 W2) (safe : bool) ρ,
       Typed_Box g -> Typed_Box f ->
-      denote_box safe (inSeq f g) = 
-      compose_super (denote_box safe g) (denote_box safe f).
+      denote_box safe (inSeq f g) ρ == 
+      compose_super (denote_box safe g) (denote_box safe f) ρ.
 Proof.
-  intros W1 W2 W3 g f safe types_g types_f.
+  intros W1 W2 W3 g f safe ρ types_g types_f.
   autounfold with den_db; simpl. 
 
   destruct f as [f]. 
@@ -101,7 +133,7 @@ Proof.
   specialize denote_compose as DC.
   unfold denote_circuit in DC.
 
-  rewrite DC with (Γ1 := []).
+  erewrite DC with (Γ1 := []) (Γ01 := []).
   simpl.
   unfold compose_super.
   rewrite H2, H3.
@@ -117,9 +149,7 @@ Qed.
 Fact inPar_correct : forall W1 W1' W2 W2' (f : Box W1 W1') (g : Box W2 W2') (safe : bool)
      (ρ1 : Square (2^⟦W1⟧)) (ρ2 : Square (2^⟦W2⟧)),
      Typed_Box f -> Typed_Box g ->
-     WF_Matrix ρ1 -> 
-     WF_Matrix ρ2 ->
-     denote_box safe (inPar f g) (ρ1 ⊗ ρ2)%M = 
+     denote_box safe (inPar f g) (ρ1 ⊗ ρ2)%M == 
     (denote_box safe f ρ1 ⊗ denote_box safe g ρ2)%M.
 Proof.  
 (*
@@ -188,13 +218,12 @@ Lemma HOAS_Equiv_inSeq : forall w1 w2 w3 (c1 c1' : Box w1 w2) (c2 c2' : Box w2 w
     c1 ≡ c1' -> c2 ≡ c2' -> (c2 · c1) ≡ (c2' · c1').
 Proof.
   intros w1 w2 w3 c1 c1' c2 c2' T1 T1' T2 T2' E1 E2.
-  intros ρ b Mρ.
+  intros ρ b.
   simpl_rewrite inSeq_correct; trivial.
   simpl_rewrite inSeq_correct; trivial.
   unfold compose_super.
-  rewrite E1 by easy.
+  unfold HOAS_Equiv in *.
   rewrite E2. 
-  easy. 
-  apply WF_denote_box; easy.
-Qed.
-
+  rewrite E1. (* uses denote_box morphism *)
+  reflexivity.
+Qed.  

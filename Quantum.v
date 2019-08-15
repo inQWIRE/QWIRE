@@ -685,6 +685,29 @@ Proof.
     eapply (Mix_S p); easy.
 Qed.
 
+Lemma pure_big_kron : forall (n : nat) (l : list (Square n)) (A : Square n),
+  (forall i : nat, Pure_State (nth i l A)) -> 
+  Pure_State (⨂ l).
+Proof.
+  induction l;  intros A H.
+  - simpl. apply pure_id1.
+  - simpl. apply pure_state_kron. apply (H O).
+    apply (IHl A).    
+    intros i.
+    apply (H (S i)).
+Qed.
+
+Lemma mixed_big_kron : forall (n : nat) (l : list (Square n)) (A : Square n),
+(forall i : nat, Mixed_State (nth i l A)) -> Mixed_State (⨂ l).
+Proof.
+  induction l;  intros A H.
+  - simpl. constructor. apply pure_id1.
+  - simpl. apply mixed_state_kron. apply (H O).
+    eapply IHl.
+    intros i.
+    apply (H (S i)).
+Qed.
+
 Lemma pure_state_trace_1 : forall {n} (ρ : Density n), Pure_State ρ -> trace ρ = 1.
 Proof.
   intros n ρ [u [Uu E]]. 
@@ -803,15 +826,8 @@ Definition WF_Superoperator {m n} (f : Superoperator m n) :=
 Definition super {m n} (M : Matrix m n) : Superoperator n m := fun ρ => 
   M × ρ × M†.
 
-Lemma super_I : forall n ρ,
-      WF_Matrix ρ ->
-      super (I n) ρ == ρ.
-Proof.
-  intros.
-  unfold super.
-  Msimpl.
-  reflexivity.
-Qed.
+Lemma super_I : forall n ρ, super (I n) ρ == ρ.
+Proof. intros. unfold super. Msimpl. reflexivity. Qed.
 
 Add Parametric Morphism m n : (@super m n)
   with signature mat_equiv ==> mat_equiv ==> mat_equiv as super_mor.
@@ -1002,10 +1018,9 @@ Proposition swap_two_spec : forall (q q0 : Matrix 2 1) (n0 n1 n2 n k : nat) (l0 
 
 
 Example move_to_0_test_24 : forall (q0 q1 q2 q3 : Vector 2), 
-  WF_Matrix q0 -> WF_Matrix q1 -> WF_Matrix q2 -> WF_Matrix q3 ->
   move_to_0 4 2 × (q0 ⊗ q1 ⊗ q2 ⊗ q3) == (q2 ⊗ q0 ⊗ q1 ⊗ q3). 
 Proof.
-  intros q0 q1 q2 q3 WF0 WF1 WF2 WF3.
+  intros q0 q1 q2 q3.
   unfold move_to_0, move_to_0_aux.
   repeat rewrite Mmult_assoc.
   rewrite (kron_assoc q0 q1).

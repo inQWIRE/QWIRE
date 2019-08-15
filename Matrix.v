@@ -676,6 +676,15 @@ Lemma kron_0_r : forall {m n o p : nat} (A : Matrix m n),
    A ⊗ @Zero o p == Zero.
 Proof. lma. Qed.
 
+Lemma kron_1_l : forall {m n : nat} (A : Matrix m n), I 1 ⊗ A == A.
+Proof.
+  intros m n A i j Hi Hj.
+  unfold I, kron.
+  rewrite 2 Nat.mod_small by lia.
+  rewrite 2 Nat.div_small by lia.
+  simpl; lca.
+Qed.
+
 Lemma kron_1_r : forall {m n : nat} (A : Matrix m n), A ⊗ I 1 == A.
 Proof. 
   intros m n A i j Hi Hj.
@@ -685,13 +694,49 @@ Proof.
   simpl; lca.
 Qed.
 
-(* This side is more limited *)
-Lemma kron_1_l : forall {m n : nat} (A : Matrix m n), I 1 ⊗ A == A.
+Lemma kron_1_l_inv : forall {m n} (A : Matrix m n),
+  A == I 1 ⊗ A.
 Proof.
-  intros m n A i j Hi Hj.
+  intros.   
+  specialize (kron_1_l A) as G.
+  rewrite 2 Nat.mul_1_l in *.
+  symmetry.
+  apply G.
+Qed.
+
+Lemma kron_1_r_inv : forall {m n} (A : Matrix m n),
+  A == A ⊗ I 1.
+Proof.
+  intros.   
+  specialize (kron_1_r A) as G.
+  rewrite 2 Nat.mul_1_r in *.
+  symmetry.
+  apply G.
+Qed.
+
+Goal forall m n (A B : Matrix m n), A == B ->
+  I 1 ⊗ A ⊗ I 1 == I 1 ⊗ B ⊗ I 1.                               
+Proof.
+  intros.
+  rewrite kron_1_l.
+  rewrite kron_1_l.
+  do 2 rewrite Nat.mul_1_l.
+  rewrite (kron_1_r A).
+  rewrite (kron_1_r B).
+  do 2 rewrite Nat.mul_1_r.
+  apply H.
+Qed.
+
+(* This lemma is between matrices of "different" dimensions,
+   so we often need strict equality *)
+Lemma kron_1_r' : forall {m n : nat} (A : Matrix m n), A ⊗ I 1 = A.
+Proof. 
+  intros m n A.
   unfold I, kron.
-  rewrite 2 Nat.mod_small by lia.
-  rewrite 2 Nat.div_small by lia.
+  apply functional_extensionality; intros.
+  apply functional_extensionality; intros.
+  rewrite 2 Nat.div_1_r.
+  rewrite 2 Nat.mod_1_r.
   simpl; lca.
 Qed.
 
@@ -936,6 +981,28 @@ Proof.
   reflexivity.
 Qed.  
 
+(* This lemma is between matrices of "different" dimensions,
+   so we often need strict equality *)
+Lemma kron_assoc' : forall {m n p q r s : nat}
+  (A : Matrix m n) (B : Matrix p q) (C : Matrix r s),
+  p <> O -> q <> O -> r <> O -> s <> O ->
+  (A ⊗ B ⊗ C) = A ⊗ (B ⊗ C).                                
+Proof.
+  intros. 
+  apply functional_extensionality; intros.
+  apply functional_extensionality; intros.
+  remember (A ⊗ B ⊗ C) as LHS.
+  unfold kron.  
+  rewrite (mult_comm p r) at 1 2.
+  rewrite (mult_comm q s) at 1 2.
+  rewrite <- 2 Nat.div_div by assumption.
+  rewrite <- 2 div_mod by assumption.
+  rewrite 2 mod_product  by assumption.
+  rewrite Cmult_assoc.
+  subst.
+  reflexivity.
+Qed.  
+
 Local Close Scope nat_scope.
   
 Lemma kron_mixed_product : forall {m n o p q r : nat} (A : Matrix m n) (B : Matrix p q ) 
@@ -1153,14 +1220,14 @@ Tactic Notation "restore_dims" := restore_dims (unify_pows_two; simpl; lia).
 (* Matrix Simplification *)
 (*************************)
 
-Hint Rewrite @kron_1_r @kron_1_l @Mmult_1_l @Mmult_1_r @Mscale_1_l 
+Hint Rewrite  @kron_1_l @kron_1_r' @Mmult_1_l @Mmult_1_r @Mscale_1_l 
      @id_adjoint_eq @id_transpose_eq : M_db_light.
 Hint Rewrite @kron_0_l @kron_0_r @Mmult_0_l @Mmult_0_r @Mplus_0_l @Mplus_0_r
      @Mscale_0_l @Mscale_0_r @zero_adjoint_eq @zero_transpose_eq : M_db_light.
 
 (* I don't like always doing restore_dims first, but otherwise sometimes leaves 
    unsolvable WF_Matrix goals. *)
-Ltac Msimpl_light := restore_dims; Msimpl_light.
+Ltac Msimpl_light := restore_dims; autorewrite with M_db_light.
 
 Hint Rewrite @Mmult_adjoint @Mplus_adjoint @kron_adjoint @kron_mixed_product
      @adjoint_involutive : M_db.
@@ -1511,13 +1578,20 @@ Ltac gridify :=
 
 
 (* Tactics to show implicit arguments *)
+
+Definition mat_equiv' := @mat_equiv. 
+Definition mat_equiv_shadow : @mat_equiv = mat_equiv' := eq_refl.
+
 Definition kron' := @kron.      
-Lemma kron_shadow : @kron = kron'. Proof. reflexivity. Qed.
+Definition kron_shadow : @kron = kron' := eq_refl.
 
 Definition Mmult' := @Mmult.
-Lemma Mmult_shadow : @Mmult = Mmult'. Proof. reflexivity. Qed.
+Definition Mmult_shadow : @Mmult = Mmult' := eq_refl.
 
-Ltac show_dimensions := try rewrite kron_shadow in *; 
+Ltac show_dimensions := try rewrite mat_equiv_shadow in *; 
+                        try rewrite kron_shadow in *; 
                         try rewrite Mmult_shadow in *.
-Ltac hide_dimensions := try rewrite <- kron_shadow in *; 
+
+Ltac hide_dimensions := try rewrite <- mat_equiv_shadow in *; 
+                        try rewrite <- kron_shadow in *; 
                         try rewrite <- Mmult_shadow in *.

@@ -1,3 +1,4 @@
+Require Import Reals.
 Require Import Datatypes.
 Require Export TypeChecking.
 Require Export HOASLib.

@@ -61,7 +61,6 @@ Qed.
 
 Open Scope matrix_scope.
 Close Scope circ_scope.
-Print Scopes.
 
 Lemma denote_unitary_transpose : forall {W} (U : Unitary W), ⟦trans U⟧ == ⟦U⟧†.
 Proof.
@@ -152,39 +151,6 @@ Qed.
 Add Parametric Morphism n : (@WF_Unitary n)
   with signature mat_equiv ==> iff as wfu_mor.
 Proof. intros; apply WF_Unitary_compat; easy. Qed.
-
-(* For Matrix.v *)
-Lemma kron_1_r' : forall {m n : nat} (A : Matrix m n), A ⊗ I 1 = A.
-Proof. 
-  intros m n A.
-  unfold I, kron.
-  apply functional_extensionality; intros.
-  apply functional_extensionality; intros.
-  rewrite 2 Nat.div_1_r.
-  rewrite 2 Nat.mod_1_r.
-  simpl; lca.
-Qed.
-
-Lemma kron_assoc' : forall {m n p q r s : nat}
-  (A : Matrix m n) (B : Matrix p q) (C : Matrix r s),
-  p <> O -> q <> O -> r <> O -> s <> O ->
-  (A ⊗ B ⊗ C) = A ⊗ (B ⊗ C).                                
-Proof.
-  intros. 
-  apply functional_extensionality; intros.
-  apply functional_extensionality; intros.
-  remember (A ⊗ B ⊗ C) as LHS.
-  unfold kron.  
-  rewrite (mult_comm p r) at 1 2.
-  rewrite (mult_comm q s) at 1 2.
-  rewrite <- 2 Nat.div_div by assumption.
-  rewrite <- 2 div_mod by assumption.
-  rewrite 2 mod_product  by assumption.
-  rewrite Cmult_assoc.
-  subst.
-  reflexivity.
-Qed.  
-
 
 (* This is only true for "safe" gate denotation *)
 Lemma denote_gate_correct : forall {W1} {W2} (g : Gate W1 W2), 
@@ -690,7 +656,7 @@ Lemma ctrl_list_to_unitary_r_false : forall n (u : Matrix 2 2),
   ctrl_list_to_unitary_r (repeat false n) u == u ⊗ I (2^n).
 Proof.
   induction n; intros.
-  - simpl. Msimpl. rewrite (kron_1_r u). reflexivity.
+  - simpl. rewrite (kron_1_r u). reflexivity. (* interesting *)
   - intros.
     simpl.
     specialize (IHn u).
@@ -1282,11 +1248,10 @@ Lemma init0_end_superoperator : forall (n i : nat) (ρ : Square (2 ^ n)),
 Proof.    
   intros; subst.
   rewrite <- (kron_1_r ρ).
+  repeat rewrite kron_mixed_product.
   Msimpl.
-  apply (mixed_state_kron _ _ ρ (∣0⟩⟨0∣)).
-  easy.
-  constructor.
-  apply pure0.
+  apply mixed_state_kron; trivial.
+  constructor. apply pure0.
 Qed.
 
 Lemma init1_end_superoperator : forall (n i : nat) (ρ : Square (2 ^ n)),
@@ -1296,11 +1261,10 @@ Lemma init1_end_superoperator : forall (n i : nat) (ρ : Square (2 ^ n)),
 Proof.    
   intros; subst.
   rewrite <- (kron_1_r ρ).
+  repeat rewrite kron_mixed_product.
   Msimpl.
-  apply (mixed_state_kron _ _ ρ (∣1⟩⟨1∣)).
-  easy.
-  constructor.
-  apply pure1.
+  apply mixed_state_kron; trivial.
+  constructor. apply pure1.
 Qed.  
 
 (* Connected to our semantics for discard, measure and init gates *)
@@ -1454,7 +1418,6 @@ Qed.
 
 (* No longer needed swap lemmas
 Lemma apply_U_σ : forall m n (U : Square (2^m)),
-      WF_Matrix (2^m) (2^m) U ->
       (m <= n)%nat -> 
       @apply_U m n U (σ_{n}) = super (pad n U).
 Proof.

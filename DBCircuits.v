@@ -240,6 +240,18 @@ Proof.
   easy.
 Qed.
 
+Lemma fresh_wtype : forall (w : WType) (Γ : Ctx), add_fresh_state w Γ = Γ ++ (add_fresh_state w []).
+Proof.
+  intros. generalize dependent Γ.
+  induction w; unfold add_fresh_state; simpl; try reflexivity; intros.
+  - induction Γ; simpl; try reflexivity.
+    rewrite <- IHΓ. reflexivity.
+  - repeat rewrite add_fresh_split. simpl.
+    replace (add_fresh_state w2 (add_fresh_state w1 [])) with ((add_fresh_state w1 []) ++ (add_fresh_state w2 [])) by (rewrite <- IHw2; reflexivity).
+    rewrite IHw2. rewrite IHw1. rewrite app_assoc. reflexivity.
+Qed.
+
+
 Definition remove_var (v : Var) (Γ : Ctx) : Ctx := trim (update_at Γ v None).  
 
 Definition change_type (v : Var) (w : WType) (Γ : Ctx) := update_at Γ v (Some w).
@@ -322,6 +334,15 @@ Fixpoint maps_to (x : nat) (Γ : Ctx) : option nat :=
 
 Lemma maps_to_singleton : forall v W, maps_to v (singleton v W) = Some O.
 Proof. induction v; auto. Qed.
+
+Lemma maps_to_repeat : forall v n W, v < n ->
+                                maps_to v (repeat (Some W) n) = Some v.
+Proof.
+  induction v; intros n W L; auto.
+  - destruct n; try lia. easy.
+  - destruct n; try lia.
+    simpl. rewrite IHv by lia. easy.
+Qed.
 
 Definition subst_var (Γ : Ctx) (x : Var) : Var :=
   match maps_to x Γ with

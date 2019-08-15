@@ -1084,90 +1084,59 @@ Abort.
 *)    
 
 
-Lemma assert_init_at_id : forall b m i, i < S m ->
-    (assert_at b m i · init_at b m i  ≡ id_circ)%qc.
+Lemma assert_init_at_id : forall b m i, i <= m ->
+  assert_at b m i · init_at b m i  ≡ id_circ.
 Proof. 
-  intros b m i Lt ρ safe M. simpl.
-  simpl_rewrite id_circ_spec; auto with wf_db.
+  intros b m i Lt ρ safe. simpl.
+  simpl_rewrite id_circ_spec.
   simpl_rewrite inSeq_correct; [ | apply assert_at_WT | apply init_at_WT].
   unfold compose_super.
-  rewrite size_ntensor, Nat.mul_1_r in M.
-  simpl_rewrite (init_at_spec_strong b m i); [|omega]. 
+  rewrite (init_at_spec_strong b m i); [|omega]. 
   destruct safe.
   - (* safe case *)
-    simpl_rewrite (assert_at_spec_safe b m i); [|omega].
-    gen ρ. rewrite size_ntensor. simpl. rewrite Nat.mul_1_r.
-    intros ρ M.
-    repeat rewrite Mmult_assoc.
-    Msimpl.  
-    match goal with
-    | [|- @Mmult ?a ?b ?c ?A (@Mmult ?d ?e ?f ?B ?C) .+ _ = _] => 
-      setoid_rewrite <- (Mmult_assoc A B C)                                    
-    end.
-    Msimpl.
-    destruct b; simpl.
-    + replace (⟨0∣ × ∣1⟩) with (@Zero 1 1) by crunch_matrix.
-      rewrite kron_0_r, kron_0_l. 
-      rewrite Mmult_0_l, Mplus_0_l. (* add to dbs *)
-      replace (⟨1∣ × ∣1⟩) with (I 1).
-      2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
+    rewrite (assert_at_spec_safe b m i); [|omega].
+    remember_differences.
+    gen ρ. rewrite size_ntensor. simpl. rewrite Nat.mul_1_r. rewrite Lt.
+      rewrite Nat.pow_add_r, <- (Nat.mul_1_r (2 ^i)). intros ρ.
+    repeat rewrite Nat.mul_1_r.
+    restore_dims (try rewrite size_ntensor; unify_pows_two; simpl; try lia).
+    repeat rewrite Mmult_assoc. Msimpl.
+    repeat rewrite <- Mmult_assoc. Msimpl.
+    destruct b; simpl; Msimpl.
+    + mat_replace (⟨0∣ × ∣1⟩) with (@Zero 1 1) by lma.
+      mat_replace (⟨1∣ × ∣1⟩) with (I 1) by lma.
       Msimpl.
-      rewrite Nat.mul_1_r.
-      replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
+      restore_dims.
+      rewrite id_kron' by (apply Nat.pow_nonzero; lia).
       Msimpl.
-      rewrite <- Mmult_assoc.
-      setoid_rewrite kron_mixed_product.
-      Msimpl.
-      setoid_rewrite kron_mixed_product.
-      Msimpl.
-      replace (⟨1∣ × ∣1⟩) with (I 1).
-      2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
-      rewrite id_kron.
-      rewrite Nat.mul_1_r.
-      rewrite id_kron.
-      unify_pows_two.
-      replace (i + (m - i)) with m by omega.    
-      rewrite Mmult_1_l by (auto with wf_db).
       reflexivity.
-    + replace (⟨0∣ × ∣1⟩) with (@Zero 1 1) by crunch_matrix.
-      rewrite kron_0_r, kron_0_l. 
-      repeat rewrite Mmult_0_r. rewrite Mplus_0_r.
-      replace (⟨0∣ × ∣0⟩) with (I 1).
-      2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
+    + mat_replace (⟨0∣ × ∣1⟩) with (@Zero 1 1) by lma.
+      mat_replace (⟨0∣ × ∣0⟩) with (I 1) by lma.
       Msimpl.
-      rewrite Nat.mul_1_r.
-      replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
+      restore_dims.
+      rewrite id_kron' by (apply Nat.pow_nonzero; lia).
       Msimpl.
       reflexivity.
   - (* unsafe (easy) case *)
-    simpl_rewrite (assert_at_spec_unsafe b m i); [|omega].
-    gen ρ. rewrite size_ntensor. simpl. rewrite Nat.mul_1_r.
-    intros ρ M.
-    repeat rewrite Mmult_assoc.
-    Msimpl.  
-    match goal with
-    | [|- @Mmult ?a ?b ?c ?A (@Mmult ?d ?e ?f ?B ?C) = _] => 
-      setoid_rewrite <- (Mmult_assoc A B C)                                    
-    end.
-    Msimpl.
-    destruct b; simpl.
-    + replace (⟨1∣ × ∣1⟩) with (I 1).
-      2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
-      Msimpl.
-      rewrite Nat.mul_1_r.
-      replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
+    rewrite (assert_at_spec_unsafe b m i); [|omega].
+    remember_differences.
+    gen ρ. rewrite size_ntensor. simpl. rewrite Nat.mul_1_r. rewrite Lt.
+      rewrite Nat.pow_add_r, <- (Nat.mul_1_r (2 ^i)). intros ρ.
+    repeat rewrite Nat.mul_1_r.
+    restore_dims (try rewrite size_ntensor; unify_pows_two; simpl; try lia).
+    repeat rewrite Mmult_assoc. Msimpl.
+    repeat rewrite <- Mmult_assoc. Msimpl.
+    destruct b; simpl; Msimpl.
+    + mat_replace (⟨1∣ × ∣1⟩) with (I 1) by lma.
+      repeat rewrite id_kron.
       Msimpl.
       reflexivity.
-    + replace (⟨0∣ × ∣0⟩) with (I 1).
-      2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
-      Msimpl.
-      rewrite Nat.mul_1_r.
-      replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
+    + mat_replace (⟨0∣ × ∣0⟩) with (I 1) by lma.
+      repeat rewrite id_kron.
       Msimpl.
       reflexivity.
 Qed.
 
-Close Scope matrix_scope.
 Open Scope circ_scope.
 
 Fact init_assert_at_valid : forall b m i W1 (c : Box W1 (S m ⨂ Qubit)), 
@@ -1249,13 +1218,11 @@ Proof.
 Qed.
 
 
-
-Lemma denote_box_id_circ : forall b w ρ, WF_Matrix ρ ->
-      denote_box b (id_circ : Box w w) ρ = ρ.
+Lemma denote_box_id_circ : forall b w ρ, 
+      denote_box b (id_circ : Box w w) ρ == ρ.
 Proof.
   intros b w ρ.
   simpl. autounfold with den_db. simpl.
-  Search subst_pat.
   rewrite add_fresh_split; simpl.
   rewrite subst_pat_fresh_empty.
   rewrite denote_pat_fresh_id.
@@ -1267,8 +1234,7 @@ Lemma valid_id_circ : forall w, valid_ancillae_box' (@id_circ w).
 Proof.
   intros w ρ T Hρ.
   rewrite denote_box_id_circ.
-  * apply mixed_state_trace_1; auto.
-  * apply WF_Mixed; auto.
+  apply mixed_state_trace_1; auto.
 Qed.
 
 (* unsure how to prove - may need a stronger notion of noop *)
@@ -1362,7 +1328,6 @@ Fact ancilla_free_seq : forall W W' W'' (c1 : Box W W') (c2 : Box W' W''),
   ancilla_free_box (c1 ;; c2).
 Admitted.
 
-
 Theorem source_symmetric_valid : forall (n t : nat) (c : Square_Box ((n + t) ⨂ Qubit)),
   source_symmetric n t c -> 
   valid_ancillae_box c.
@@ -1373,88 +1338,88 @@ Proof.
     constructor.     
     constructor.
   - inversion g0.
-    + unfold valid_ancillae_box. intros TB.
-      apply functional_extensionality. intros ρ.
-      repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; 
+    + unfold valid_ancillae_box. intros ρ TB.
+      repeat (rewrite inSeq_correct; try unfold compose_super); try apply inSeq_WT; 
         try apply unitary_at1_WT; try apply source_symmetric_WT; trivial.
-      unfold compose_super.
       apply source_symmetric_WT in H.
+      unfold valid_ancillae_box in IHsource_symmetric.
       rewrite IHsource_symmetric; trivial.
-      rewrite ancilla_free_box_valid; [|apply ancilla_free_X_at | type_check  ]. 
+      specialize @ancilla_free_box_valid as AV. unfold valid_ancillae_box in AV.
+      do 2 (rewrite AV; [|apply ancilla_free_X_at | type_check]). 
       reflexivity.
-    + unfold valid_ancillae_box. intros TB.
-      apply functional_extensionality. intros ρ.
-      repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; try apply CNOT_at_WT;
-        try apply source_symmetric_WT; trivial.
-      unfold compose_super.
+    + unfold valid_ancillae_box. intros ρ TB.
+      repeat (rewrite inSeq_correct; try unfold compose_super); try apply inSeq_WT; 
+        try apply CNOT_at_WT; try apply source_symmetric_WT; trivial.
       apply source_symmetric_WT in H.
+      unfold valid_ancillae_box in IHsource_symmetric.
       rewrite IHsource_symmetric; trivial.
-      rewrite ancilla_free_box_valid; [|apply ancilla_free_CNOT_at | type_check]. 
+      specialize @ancilla_free_box_valid as AV. unfold valid_ancillae_box in AV.
+      do 2 (rewrite AV; [|apply ancilla_free_CNOT_at | type_check]). 
       reflexivity.
-    + unfold valid_ancillae_box. intros TB.
-      apply functional_extensionality. intros ρ.
-      repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; 
+    + unfold valid_ancillae_box. intros ρ TB.
+      repeat (rewrite inSeq_correct; try unfold compose_super); try apply inSeq_WT; 
         try apply Toffoli_at_WT; try apply source_symmetric_WT; trivial.
-      unfold compose_super.
       apply source_symmetric_WT in H.
+      unfold valid_ancillae_box in IHsource_symmetric.
       rewrite IHsource_symmetric; trivial.
-      rewrite ancilla_free_box_valid; [|apply ancilla_free_Toffoli_at | type_check]. 
+      specialize @ancilla_free_box_valid as AV. unfold valid_ancillae_box in AV.
+      do 2 (rewrite AV; [|apply ancilla_free_Toffoli_at | type_check]). 
       reflexivity.
   - inversion g0.
-    + unfold valid_ancillae_box. intros TB.
-      apply functional_extensionality. intros ρ.
-      repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; 
+    + unfold valid_ancillae_box. intros ρ TB.
+      repeat (rewrite inSeq_correct; try unfold compose_super); try apply inSeq_WT; 
         try apply unitary_at1_WT; try apply source_symmetric_WT; trivial.
-      unfold compose_super.
       apply source_symmetric_WT in H.
+      unfold valid_ancillae_box in IHsource_symmetric.
       rewrite IHsource_symmetric; trivial.
-      rewrite ancilla_free_box_valid; [|apply ancilla_free_X_at | type_check  ]. 
+      specialize @ancilla_free_box_valid as AV. unfold valid_ancillae_box in AV.
+      rewrite AV; [|apply ancilla_free_X_at | type_check]. 
       reflexivity.
-    + unfold valid_ancillae_box. intros TB.
-      apply functional_extensionality. intros ρ.
-      repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; try apply CNOT_at_WT;
-        try apply source_symmetric_WT; trivial.
-      unfold compose_super.
+    + unfold valid_ancillae_box. intros ρ TB.
+      repeat (rewrite inSeq_correct; try unfold compose_super); try apply inSeq_WT; 
+        try apply CNOT_at_WT; try apply source_symmetric_WT; trivial.
       apply source_symmetric_WT in H.
+      unfold valid_ancillae_box in IHsource_symmetric.
       rewrite IHsource_symmetric; trivial.
-      rewrite ancilla_free_box_valid; [|apply ancilla_free_CNOT_at | type_check]. 
+      specialize @ancilla_free_box_valid as AV. unfold valid_ancillae_box in AV.
+      rewrite AV; [|apply ancilla_free_CNOT_at | type_check]. 
       reflexivity.
-    + unfold valid_ancillae_box. intros TB.
-      apply functional_extensionality. intros ρ.
-      repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; 
+    + unfold valid_ancillae_box. intros ρ TB.
+      repeat (rewrite inSeq_correct; try unfold compose_super); try apply inSeq_WT; 
         try apply Toffoli_at_WT; try apply source_symmetric_WT; trivial.
-      unfold compose_super.
       apply source_symmetric_WT in H.
+      unfold valid_ancillae_box in IHsource_symmetric.
       rewrite IHsource_symmetric; trivial.
-      rewrite ancilla_free_box_valid; [|apply ancilla_free_Toffoli_at | type_check]. 
+      specialize @ancilla_free_box_valid as AV. unfold valid_ancillae_box in AV.
+      rewrite AV; [|apply ancilla_free_Toffoli_at | type_check]. 
       reflexivity.
   - inversion g0.
-    + unfold valid_ancillae_box. intros TB.
-      apply functional_extensionality. intros ρ.
-      repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; 
+    + unfold valid_ancillae_box. intros ρ TB.
+      repeat (rewrite inSeq_correct; try unfold compose_super); try apply inSeq_WT; 
         try apply unitary_at1_WT; try apply source_symmetric_WT; trivial.
-      unfold compose_super.
       apply source_symmetric_WT in H.
+      unfold valid_ancillae_box in IHsource_symmetric.
       rewrite IHsource_symmetric; trivial.
-      rewrite ancilla_free_box_valid; [|apply ancilla_free_X_at | type_check  ]. 
+      specialize @ancilla_free_box_valid as AV. unfold valid_ancillae_box in AV.
+      rewrite AV; [|apply ancilla_free_X_at | type_check]. 
       reflexivity.
-    + unfold valid_ancillae_box. intros TB.
-      apply functional_extensionality. intros ρ.
-      repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; try apply CNOT_at_WT;
-        try apply source_symmetric_WT; trivial.
-      unfold compose_super.
+    + unfold valid_ancillae_box. intros ρ TB.
+      repeat (rewrite inSeq_correct; try unfold compose_super); try apply inSeq_WT; 
+        try apply CNOT_at_WT; try apply source_symmetric_WT; trivial.
       apply source_symmetric_WT in H.
+      unfold valid_ancillae_box in IHsource_symmetric.
       rewrite IHsource_symmetric; trivial.
-      rewrite ancilla_free_box_valid; [|apply ancilla_free_CNOT_at | type_check]. 
+      specialize @ancilla_free_box_valid as AV. unfold valid_ancillae_box in AV.
+      rewrite AV; [|apply ancilla_free_CNOT_at | type_check]. 
       reflexivity.
-    + unfold valid_ancillae_box. intros TB.
-      apply functional_extensionality. intros ρ.
-      repeat simpl_rewrite inSeq_correct; try apply inSeq_WT; 
+    + unfold valid_ancillae_box. intros ρ TB.
+      repeat (rewrite inSeq_correct; try unfold compose_super); try apply inSeq_WT; 
         try apply Toffoli_at_WT; try apply source_symmetric_WT; trivial.
-      unfold compose_super.
       apply source_symmetric_WT in H.
+      unfold valid_ancillae_box in IHsource_symmetric.
       rewrite IHsource_symmetric; trivial.
-      rewrite ancilla_free_box_valid; [|apply ancilla_free_Toffoli_at | type_check]. 
+      specialize @ancilla_free_box_valid as AV. unfold valid_ancillae_box in AV.
+      rewrite AV; [|apply ancilla_free_Toffoli_at | type_check]. 
       reflexivity.
   - (* only interesting case *)
     specialize (source_symmetric_noop (S n) t c) as SSN.

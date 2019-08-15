@@ -29,14 +29,15 @@ Inductive ancilla_free {W} : Circuit W -> Prop :=
 Inductive ancilla_free_box {W1 W2} : Box W1 W2 -> Prop :=
   | af_box : forall c, (forall p, ancilla_free (c p)) -> ancilla_free_box (box c).
 
-Definition valid_ancillae {W} (c : Circuit W) : Prop := forall (Γ Γ0 : Ctx), 
+Definition valid_ancillae {W} (c : Circuit W) : Prop := forall (Γ Γ0 : Ctx) ρ, 
   (* Γ' == Γ0 ∙ Γ -> *) (* necessary? *)
   Γ ⊢ c:Circ -> (* <- is this right? *)
-  ⟨ Γ0 | Γ ⊩ c ⟩ = ⟨! Γ0 | Γ ⊩ c !⟩.
+  ⟨ Γ0 | Γ ⊩ c ⟩ ρ == ⟨! Γ0 | Γ ⊩ c !⟩ ρ.
 
-Definition valid_ancillae_box {W1 W2} (c : Box W1 W2) := 
+
+Definition valid_ancillae_box {W1 W2} (c : Box W1 W2) := forall ρ, 
   Typed_Box c -> (* why are we including typing judgments? *)
-  denote_box true c = denote_box false c.
+  denote_box true c ρ == denote_box false c ρ.
 
 Definition valid_ancillae' {W} (c : Circuit W) := forall (Γ Γ0 : Ctx) ρ, 
   Γ ⊢ c:Circ -> (* <- is this right? *)
@@ -62,12 +63,11 @@ Proof.
     admit.
   - induction c as [| W' W0 g p c IH | IH]. 
     + reflexivity.
-    + intros H Γ Γ0 H'.    
+    + intros H Γ Γ0 ρ H'.    
       replace (gate g p c) with (compose (gate g p (fun p' => output p')) c) by auto.
       dependent destruction H'.
       destruct Γ1 as [|Γ1]; try invalid_contradiction.
       erewrite denote_compose with (Γ1:=[]); trivial.        
-      Locate ":Fun".
       Focus 3.
         intros Γ3 Γ0' p0 H0 H1.
         destruct H0.
@@ -127,7 +127,7 @@ Proof.
   unfold denote_db_box.
   unfold hoas_to_db_box.  
   split.
-  - intros H T.
+  - intros H ρ T.
     specialize (H (add_fresh_pat W []) (add_fresh_state W []) []).
     simpl in *.
     rewrite size_fresh_ctx in H.
@@ -167,8 +167,8 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma update_merge : forall (Γ Γ' :Ctx) W W' v, Γ' == singleton v W ∙ Γ ->
-   Valid (update_at Γ' v (Some W')) == singleton v W' ∙ Γ.
+Lemma update_merge : forall (Γ Γ' :Ctx) W W' v, Γ' ⩵ singleton v W ∙ Γ ->
+   Valid (update_at Γ' v (Some W')) ⩵ singleton v W' ∙ Γ.
 Proof.
   intros Γ Γ' W W' v H.
   generalize dependent Γ.
@@ -249,16 +249,15 @@ Proof.
       apply H1.
     clear H.  
     unfold valid_ancillae in *. 
-    intros Γ0 Γ1 WT.
+    intros Γ0 Γ1 ρ WT.
     dependent destruction WT.
     destruct Γ as [|Γ], Γ2 as [|Γ2]; try invalid_contradiction.
     erewrite 2 denote_gate_circuit; try apply pf1; try apply t. 
     destruct g.
-    - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
-    - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
-    - simpl. erewrite VA. reflexivity.
-      eapply t0.
-      2: constructor; apply singleton_singleton.
+    - simpl. unfold compose_super. erewrite VA. easy. eapply t0; [apply pf1|apply t].
+    - simpl. unfold compose_super. erewrite VA. easy. eapply t0; [apply pf1|apply t].
+    - simpl. unfold compose_super. erewrite VA. easy. 
+      eapply t0; [| constructor; apply singleton_singleton].
       dependent destruction p.
       dependent destruction t.
       destruct pf1.
@@ -267,7 +266,7 @@ Proof.
       split. validate.
       rewrite merge_comm, merge_singleton_append.
       easy.
-    - simpl. erewrite VA. reflexivity.      
+    - simpl. unfold compose_super. erewrite VA. reflexivity.      
       eapply t0. 
       2: constructor; apply singleton_singleton.
       dependent destruction p.
@@ -278,9 +277,8 @@ Proof.
       split. validate.
       rewrite merge_comm, merge_singleton_append.
       easy.
-    - simpl. erewrite VA. reflexivity.      
-      eapply t0. 
-      2: constructor; apply singleton_singleton.
+    - simpl. unfold compose_super. erewrite VA. easy. 
+      eapply t0; [| constructor; apply singleton_singleton].
       dependent destruction p.
       dependent destruction t.
       destruct pf1.
@@ -289,9 +287,8 @@ Proof.
       split. validate.
       rewrite merge_comm, merge_singleton_append.
       easy.
-    - simpl. erewrite VA. reflexivity.
-      eapply t0. 
-      2: constructor; apply singleton_singleton.
+    - simpl. unfold compose_super. erewrite VA. easy. 
+      eapply t0; [| constructor; apply singleton_singleton].
       dependent destruction p.
       dependent destruction t.
       destruct pf1.
@@ -302,26 +299,24 @@ Proof.
       easy.
     - dependent destruction p.
       dependent destruction t.
-      simpl. erewrite VA. reflexivity.
-      eapply t0.      
-      2: constructor; apply singleton_singleton.
+      simpl. unfold compose_super. erewrite VA. easy. 
+      eapply t0; [| constructor; apply singleton_singleton].
       apply singleton_equiv in s; subst.
       unfold process_gate_state. simpl.
       split. validate. 
       unfold change_type.
       eapply update_merge.
       apply pf1.
-    - simpl. erewrite VA. reflexivity. eapply t0; [apply pf1|apply t].
+    - simpl. unfold compose_super. erewrite VA. easy. eapply t0; [apply pf1|apply t].
     - dependent destruction p.
       dependent destruction t.
-      simpl. erewrite VA. reflexivity.
+      simpl. unfold compose_super. erewrite VA. reflexivity.
       unfold process_gate_state. simpl.
       unfold process_gate_pat. simpl.
       apply singleton_equiv in s. subst.
       erewrite remove_bit_merge'. 
       apply trim_types_circ. 
-      eapply t0.
-      2: constructor.
+      eapply t0; [|constructor].
       split. validate. rewrite merge_nil_l. easy. 
       easy.
     - dependent destruction AF. inversion H.
@@ -330,12 +325,12 @@ Proof.
     assert (forall b, valid_ancillae (c b)) as VA. intros; apply H; apply H0.
     clear H.
     unfold valid_ancillae in *.      
-    intros Γ Γ0 WT.
+    intros Γ Γ0 ρ WT.
     unfold denote_circuit in *.
     simpl in *.
     replace (size_ctx Γ - 1)%nat with (size_ctx (DBCircuits.remove_pat p Γ)).
-    erewrite VA.
-    erewrite VA.
+    unfold compose_super, Splus.
+    erewrite 2 VA.
     reflexivity.
     * dependent destruction WT.
       dependent destruction p.
@@ -387,11 +382,12 @@ Lemma valid_denote_true : forall W W' (c : Box W W')
   (* typically ancilla_free_box c, but we'll make it general *)
   Typed_Box c ->
   valid_ancillae_box c ->
-  denote_box true c ρ = ρ' ->
-  denote_box safe c ρ = ρ'. 
+  denote_box true c ρ == ρ' ->
+  denote_box safe c ρ == ρ'. 
 Proof.
   intros W W' c ρ ρ' safe T H D.
   destruct safe; trivial.
+  unfold valid_ancillae_box in H.
   rewrite <- H; assumption.
 Qed.  
 
@@ -399,11 +395,12 @@ Lemma valid_denote_false : forall W W' (c : Box W W')
   (ρ : Square (2^(⟦W⟧))) (ρ' : Square (2^(⟦W⟧))) (safe : bool), 
   Typed_Box c ->
   valid_ancillae_box c ->
-  denote_box false c ρ = ρ' ->
-  denote_box safe c ρ = ρ'. 
+  denote_box false c ρ == ρ' ->
+  denote_box safe c ρ == ρ'. 
 Proof.
   intros W W' c ρ ρ' safe T H D.
   destruct safe; trivial.
+  unfold valid_ancillae_box in H.
   rewrite H; assumption.
 Qed.  
 

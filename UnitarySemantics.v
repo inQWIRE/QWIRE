@@ -71,7 +71,7 @@ Definition denote_unitary_box {W} (c : Box W W) : Square (2^⟦W⟧) :=
 
 Lemma denote_unitary_box_eq : forall W safe (c : Box W W) ρ,
     Unitary_Box c ->
-    denote_box safe c ρ = denote_unitary_box c × ρ × (denote_unitary_box c)†.
+    denote_box safe c ρ == denote_unitary_box c × ρ × (denote_unitary_box c)†.
 Proof.
   intros W safe [c] ρ pf.
   simpl in pf.
@@ -82,7 +82,8 @@ Proof.
   specialize (pf p).
   gen ρ.
   induction (c p).
-  - unfold denote_u_db_box.
+  - intros ρ.
+    unfold denote_u_db_box.
     simpl.
     rewrite pad_nothing.
     reflexivity.
@@ -229,7 +230,7 @@ Definition denote_isometry_box {W W'} (c : Box W W') :=
 
 Lemma denote_unitary_isometry_box_eq : forall W (c : Box W W),
     Unitary_Box c ->
-    denote_unitary_box c = denote_isometry_box c.
+    denote_unitary_box c == denote_isometry_box c.
 Proof.
   intros W [f] pf.
   unfold Unitary_Box in pf.
@@ -251,7 +252,7 @@ Qed.
 
 Lemma denote_isometry_box_eq : forall W W' (c : Box W W') ρ,
     Isometry_Box c ->
-    denote_box false c ρ = denote_isometry_box c × ρ × (denote_isometry_box c)†.
+    denote_box false c ρ == denote_isometry_box c × ρ × (denote_isometry_box c)†.
 Proof.
   intros W W' [f] ρ pf.
   simpl in pf.
