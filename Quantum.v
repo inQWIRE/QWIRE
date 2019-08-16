@@ -86,7 +86,7 @@ Definition pauli_z : Matrix 2 2 := fun x y => if (x =? y) && (x <? 2)
 *)
 
 Definition σx : Square 2 := fun i j => if i + j =? 1 then 1 else 0.
-Definition σy : Square 2 := fun i j => if i + j =? 1 then (-1) ^ i * Ci else 0.
+Definition σy : Square 2 := fun i j => if i + j =? 1 then (-1) ^ j * Ci else 0.
 Definition σz : Square 2 := fun i j => if i =? j then (-1) ^ i else 0.
 
 (* Could do [i =? j then Cexp i] but not worth having to simplify *)

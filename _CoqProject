@@ -1,4 +1,5 @@
 -R . Top
+-arg -profile-ltac
 
 Ancilla.v
 Complex.v
