@@ -1120,87 +1120,87 @@ Ltac unify_matrix_dims tac :=
   repeat (apply f_equal_gen; try reflexivity; 
           try (is_nat_equality; tac)).
 
-Ltac restore_dims_rec tac A :=
+Ltac restore_dims_rec A :=
    match A with
 (* special cases *)
-  | ?A × I _          => let A' := restore_dims_rec tac A in 
+  | ?A × I _          => let A' := restore_dims_rec A in 
                         match type of A' with 
                         | Matrix ?m' ?n' => constr:(@Mmult m' n' n' A' (I n'))
                         end
-  | I _ × ?B          => let B' := restore_dims_rec tac B in 
+  | I _ × ?B          => let B' := restore_dims_rec B in 
                         match type of B' with 
                         | Matrix ?n' ?o' => constr:(@Mmult n' n' o' (I n')  B')
                         end
-  | ?A × @Zero ?n ?n  => let A' := restore_dims_rec tac A in 
+  | ?A × @Zero ?n ?n  => let A' := restore_dims_rec A in 
                         match type of A' with 
                         | Matrix ?m' ?n' => constr:(@Mmult m' n' n' A' (@Zero n' n'))
                         end
-  | @Zero ?n ?n × ?B  => let B' := restore_dims_rec tac B in 
+  | @Zero ?n ?n × ?B  => let B' := restore_dims_rec B in 
                         match type of B' with 
                         | Matrix ?n' ?o' => constr:(@Mmult n' n' o' (@Zero n' n') B')
                         end
-  | ?A × @Zero ?n ?o  => let A' := restore_dims_rec tac A in 
+  | ?A × @Zero ?n ?o  => let A' := restore_dims_rec A in 
                         match type of A' with 
                         | Matrix ?m' ?n' => constr:(@Mmult m' n' o A' (@Zero n' o))
                         end
-  | @Zero ?m ?n × ?B  => let B' := restore_dims_rec tac B in 
+  | @Zero ?m ?n × ?B  => let B' := restore_dims_rec B in 
                         match type of B' with 
                         | Matrix ?n' ?o' => constr:(@Mmult n' n' o' (@Zero m n') B')
                         end
-  | ?A .+ @Zero ?m ?n => let A' := restore_dims_rec tac A in 
+  | ?A .+ @Zero ?m ?n => let A' := restore_dims_rec A in 
                         match type of A' with 
                         | Matrix ?m' ?n' => constr:(@Mplus m' n' A' (@Zero m' n'))
                         end
-  | @Zero ?m ?n .+ ?B => let B' := restore_dims_rec tac B in 
+  | @Zero ?m ?n .+ ?B => let B' := restore_dims_rec B in 
                         match type of B' with 
                         | Matrix ?m' ?n' => constr:(@Mplus m' n' (@Zero m' n') B')
                         end
 (* general cases *)
-  | ?A == ?B  => let A' := restore_dims_rec tac A in 
-                let B' := restore_dims_rec tac B in 
+  | ?A == ?B  => let A' := restore_dims_rec A in 
+                let B' := restore_dims_rec B in 
                 match type of A' with 
                 | Matrix ?m' ?n' => constr:(@mat_equiv m' n' A' B')
                   end
-  | ?A × ?B   => let A' := restore_dims_rec tac A in 
-                let B' := restore_dims_rec tac B in 
+  | ?A × ?B   => let A' := restore_dims_rec A in 
+                let B' := restore_dims_rec B in 
                 match type of A' with 
                 | Matrix ?m' ?n' =>
                   match type of B' with 
                   | Matrix ?n'' ?o' => constr:(@Mmult m' n' o' A' B')
                   end
                 end 
-  | ?A ⊗ ?B   => let A' := restore_dims_rec tac A in 
-                let B' := restore_dims_rec tac B in 
+  | ?A ⊗ ?B   => let A' := restore_dims_rec A in 
+                let B' := restore_dims_rec B in 
                 match type of A' with 
                 | Matrix ?m' ?n' =>
                   match type of B' with 
                   | Matrix ?o' ?p' => constr:(@kron m' n' o' p' A' B')
                   end
                 end
-  | ?A †      => let A' := restore_dims_rec tac A in 
+  | ?A †      => let A' := restore_dims_rec A in 
                 match type of A' with
                 | Matrix ?m' ?n' => constr:(@adjoint m' n' A')
                 end
-  | ?A .+ ?B => let A' := restore_dims_rec tac A in 
-               let B' := restore_dims_rec tac B in 
+  | ?A .+ ?B => let A' := restore_dims_rec A in 
+               let B' := restore_dims_rec B in 
                match type of A' with 
                | Matrix ?m' ?n' =>
                  match type of B' with 
                  | Matrix ?m'' ?n'' => constr:(@Mplus m' n' A' B')
                  end
                end
-  | ?c .* ?A => let A' := restore_dims_rec tac A in 
+  | ?c .* ?A => let A' := restore_dims_rec A in 
                match type of A' with
                | Matrix ?m' ?n' => constr:(@scale m' n' c A')
                end
   (* For predicates (eg. Mixed_State) on Matrices *)
-  | ?P ?n ?A => let A' := restore_dims_rec tac A in 
+  | ?P ?n ?A => let A' := restore_dims_rec A in 
                 match type of A' with
                 | Matrix ?m' ?n' => constr:(P m' A')
                 end  
   (* Handle functions applied to matrices *)
-  | ?f ?A    => let f' := restore_dims_rec tac f in 
-               let A' := restore_dims_rec tac A in 
+  | ?f ?A    => let f' := restore_dims_rec f in 
+               let A' := restore_dims_rec A in 
                constr:(f' A')
   (* default *)
   | ?A       => A
@@ -1208,13 +1208,13 @@ Ltac restore_dims_rec tac A :=
 
 Ltac restore_dims tac := 
   match goal with
-  | |- ?A      => let A' := restore_dims_rec tac A in 
+  | |- ?A      => let A' := restore_dims_rec A in 
                 replace A with A' by unify_matrix_dims tac
   end.
 
 Tactic Notation "restore_dims" tactic(tac) := restore_dims tac.
 
-Tactic Notation "restore_dims" := restore_dims (unify_pows_two; simpl; lia).
+Tactic Notation "restore_dims" := restore_dims (try ring; unify_pows_two; simpl; lia).
 
 (*************************)
 (* Matrix Simplification *)

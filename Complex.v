@@ -644,11 +644,7 @@ Hint Rewrite Cplus_0_l Cplus_0_r Cmult_0_l Cmult_0_r Copp_0
              Cconj_R Cmult_1_l Cmult_1_r : C_db_light.
 
 (* Distributing db *)
-<<<<<<< HEAD
 Hint Rewrite Cmult_plus_dist_l Cmult_plus_dist_r Copp_plus_dist Copp_mult_dist_l 
-=======
-Hint Rewrite Cmult_plus_distr_l Cmult_plus_distr_r Copp_plus_distr Copp_mult_distr_l 
->>>>>>> master
               Copp_involutive : Cdist_db.
 
 
@@ -663,11 +659,7 @@ Ltac Csimpl :=
   | _ => rewrite Cconj_R
   end.
 
-<<<<<<< HEAD
 Ltac C_field_simplify := repeat field_simplify_eq [ Csqrt2_sqrt Csqrt2_inv Ci2]. 
-=======
-Ltac C_field_simplify := repeat field_simplify_eq [Csqrt2_sqrt Csqrt2_inv].
->>>>>>> master
 Ltac C_field := C_field_simplify; nonzero; trivial.
 
 Ltac has_term t exp  := 
@@ -678,13 +670,8 @@ Ltac has_term t exp  :=
 Ltac group_radicals :=
   repeat rewrite Cconj_opp;
   repeat rewrite Cconj_rad2;
-<<<<<<< HEAD
   repeat rewrite <- Copp_mult_dist_l;
   repeat rewrite <- Copp_mult_dist_r;
-=======
-  repeat rewrite <- Copp_mult_distr_l;
-  repeat rewrite <- Copp_mult_distr_r;
->>>>>>> master
   repeat match goal with
   | _ => rewrite Cinv_sqrt2_sqrt
   | |- context [ ?x * ?y ] => tryif has_term (√ 2) x then fail 
