@@ -6,7 +6,6 @@ Require Export Quantum.
 Require Export Denotation.
 Require Import Setoid.
 
-(* Move to... composition? *)
 Lemma denote_box_compat : forall (safe : bool) (W1 W2 : WType) (c : Box W1 W2) ρ ρ',
   ρ == ρ' ->
   denote_box safe c ρ == denote_box safe c ρ'.
@@ -20,7 +19,7 @@ Proof.
   - matrix_denote.
   match goal with
   | |- ?A =>
-        let A' := restore_dims_rec tac A in
+        let A' := restore_dims_rec A in
         replace
         A
         with
