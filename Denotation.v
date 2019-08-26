@@ -853,7 +853,7 @@ Proof.
   - intros.
     simpl.
     rewrite IHn.
-    setoid_rewrite kron_assoc; try apply Nat.pow_nonzero; try lia.
+    setoid_rewrite (kron_assoc u (I (2^n)) (I 2)).
     rewrite id_kron.
     unify_pows_two.
     reflexivity.
