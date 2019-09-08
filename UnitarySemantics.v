@@ -362,7 +362,7 @@ Abort.
       unfold compose_super, super.
       rewrite Nat.add_0_r.
       replace (size_wtype W - 1)%nat with (⟦(size_wtype W - 1) ⨂ Qubit⟧)%qc.
-      Focus 2. rewrite size_ntensor. simpl. omega.
+      Focus 2. rewrite size_ntensor. simpl. lia.
       rewrite H; auto.
       Focus 2. rewrite size_ntensor. simpl.
       rewrite <- SE. rewrite Nat.mul_1_r. dependent destruction p.
@@ -370,7 +370,7 @@ Abort.
       (* nope. Need a lot more info about Γ. *)
 
       Search size_ctx remove_pat. 
-      omega.
+      lia.
       simpl.
       rewrite size_ntensor. simpl.
       rewrite Nat.mul_1_r.
@@ -494,7 +494,7 @@ Abort.
       rewrite Nat.add_0_r.
       Search size_wtype NTensor.
       replace (size_wtype W - 1)%nat with (⟦(size_wtype W - 1) ⨂ Qubit⟧)%qc.
-      Focus 2. Search size_wtype NTensor. rewrite size_ntensor. simpl. omega.
+      Focus 2. Search size_wtype NTensor. rewrite size_ntensor. simpl. lia.
       rewrite H by auto.
       simpl.
       rewrite size_ntensor. simpl.

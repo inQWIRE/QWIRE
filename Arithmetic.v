@@ -498,6 +498,7 @@ Proof.
       simpl in *. unfold kron at 5.
       unfold kron in H at 4.
       rewrite H1 in H. unfold list_of_Qubits in H.
+      rewrite ctx_to_mat_list_length. simpl.
       rewrite H.
       clear H1 H.
       simpl_rewrite id_circ_spec.
@@ -515,8 +516,10 @@ Proof.
         simpl in *. unfold kron at 5.
         unfold kron in H at 5.
         rewrite H1 in H. unfold list_of_Qubits in H.
+        rewrite size_ntensor, Nat.mul_1_r.
         apply H.
       * apply WF_bool_to_matrix.
+    + auto 100 with wf_db.
 Qed.
 Close Scope matrix_scope.
 
@@ -686,10 +689,25 @@ Open Scope matrix_scope.
 
 (* For n-adder specification *)
 
+(* Very simple pure state and mixed state tactics *)
+Ltac show_pure := 
+  match goal with
+  | |- Pure_State ?A => apply pure_bool_to_matrix
+  | |- Pure_State ?A  => apply pure0
+  | |- Pure_State ?A => apply pure1
+  | |- Pure_State ?A => apply pure_id1
+  end.
+
+Ltac show_mixed := 
+  match goal with
+  | |- Mixed_State ?A => apply Pure_S; show_pure
+  end.
+
+
 Lemma mixed_state_big_kron_ctx_to_mat_list : forall n f,  Mixed_State (⨂ ctx_to_mat_list (list_of_Qubits n) f).
 Proof.
   induction n.
-  - intros. simpl. show_mixed.
+  - intros. simpl. show_mixed. 
   - intros. simpl.
     specialize (mixed_state_kron 2) as H. apply H.
     + show_mixed.

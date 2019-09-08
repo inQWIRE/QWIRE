@@ -615,11 +615,11 @@ Proof.
   intros n A B [WFA UA] [WFB UB].
   split.
   auto with wf_db.
-  autorewrite with M_db.
+  Msimpl.
   rewrite Mmult_assoc.
   rewrite <- (Mmult_assoc A†).
   rewrite UA.
-  autorewrite with M_db.
+  Msimpl.
   apply UB.
 Qed.
 
@@ -719,6 +719,51 @@ Proof. solve_matrix. Qed.
 Lemma notc_decomposition : σx ⊗ ∣1⟩⟨1∣ .+ I 2 ⊗ ∣0⟩⟨0∣ = notc.
 Proof. solve_matrix. Qed.                                               
 
+(******************)
+(** Phase Lemmas **)
+(******************)
+
+Lemma phase_0 : phase_shift 0 = I 2.
+Proof. 
+  unfold phase_shift, I. 
+  rewrite Cexp_0.
+  solve_matrix.
+Qed.
+
+Lemma phase_2pi : phase_shift (2 * PI) = I 2.
+  unfold phase_shift, I. 
+  rewrite Cexp_2PI.
+  solve_matrix.
+Qed.
+
+Lemma phase_pi : phase_shift PI = σz.
+Proof.
+  unfold phase_shift, σz.
+  rewrite Cexp_PI.
+  replace (RtoC (-1)) with (Copp (RtoC 1)) by lca.
+  reflexivity.
+Qed.
+
+Lemma phase_neg_pi : phase_shift (-PI) = σz.
+Proof.
+  unfold phase_shift, σz.
+  rewrite Cexp_neg.
+  rewrite Cexp_PI.
+  replace (/ -1) with (Copp (RtoC 1)) by lca.
+  reflexivity.
+Qed.
+
+Lemma phase_mul : forall θ θ', phase_shift θ × phase_shift θ' = phase_shift (θ + θ').
+Proof.
+  intros. solve_matrix. rewrite Cexp_add. reflexivity.
+Qed.  
+
+Lemma phase_PI4_m8 : forall k,
+  phase_shift (IZR k * PI / 4) = phase_shift (IZR (k - 8) * PI / 4).
+Proof.
+  intros. unfold phase_shift. rewrite Cexp_PI4_m8. reflexivity.
+Qed.
+
 
 (*****************************)
 (* Positive Semidefiniteness *)
@@ -812,7 +857,7 @@ Lemma pure_state_kron : forall m n (ρ : Square m) (φ : Square n),
 Proof.
   intros m n ρ φ [u [[WFu Pu] Eρ]] [v [[WFv Pv] Eφ]].
   exists (u ⊗ v).
-  split; [split |]; restore_dims.
+  split; [split |]. 
   - replace (S O) with (S O * S O)%nat by reflexivity.
     apply WF_kron; auto.
   - Msimpl. rewrite Pv, Pu. Msimpl. easy.
@@ -967,7 +1012,7 @@ Lemma super_I : forall n ρ,
 Proof.
   intros.
   unfold super.
-  autorewrite with M_db.
+  Msimpl.
   reflexivity.
 Qed.
 
@@ -1142,23 +1187,16 @@ Proof.
   intros q0 q1 q2 q3 WF0 WF1 WF2 WF3.
   unfold swap_to_0, swap_to_0_aux.
   simpl.
-  restore_dims.
   rewrite Mmult_assoc.
   repeat rewrite Mmult_assoc.
   rewrite (kron_assoc q0 q1).
-  restore_dims.
-  autorewrite with M_db.
+  Msimpl.
   replace 4%nat with (2*2)%nat by reflexivity.
   repeat rewrite kron_assoc.
   restore_dims.
-  rewrite <- (kron_assoc q0 q2).
-  autorewrite with M_db.
-  rewrite (kron_assoc q2).
-  autorewrite with M_db.
-  rewrite <- kron_assoc.
-  restore_dims.
-  autorewrite with M_db.
-  restore_dims.
+  rewrite <- (kron_assoc q0 q2). Msimpl.
+  rewrite (kron_assoc q2). Msimpl.
+  rewrite <- kron_assoc. Msimpl.
   repeat rewrite <- kron_assoc.
   reflexivity.
 Qed.
@@ -1167,10 +1205,11 @@ Lemma swap_two_base : swap_two 2 1 0 = swap.
 Proof. unfold swap_two. simpl. apply kron_1_r. Qed.
 
 Lemma swap_second_two : swap_two 3 1 2 = I 2 ⊗ swap.
-Proof. unfold swap_two.
-       simpl.
-       rewrite kron_1_r.
-       reflexivity.
+Proof.
+  unfold swap_two.
+  simpl.
+  rewrite kron_1_r.
+  reflexivity.
 Qed.
 
 Lemma swap_0_2 : swap_two 3 0 2 = (I 2 ⊗ swap) × (swap ⊗ I 2) × (I 2 ⊗ swap).

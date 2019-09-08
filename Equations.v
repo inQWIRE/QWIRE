@@ -31,6 +31,8 @@ Proof.
   matrix_denote.
   intros ρ b WF.
   Msimpl.
+  restore_dims.
+  repeat rewrite σx_sa.
   rewrite Mmult_plus_distr_l.
   rewrite Mmult_plus_distr_r.
   repeat rewrite <- Mmult_assoc.
@@ -40,6 +42,7 @@ Proof.
   repeat rewrite (Mmult_assoc _ σx ∣1⟩).
   Msimpl.
   rewrite Mplus_comm.
+  restore_dims.
   reflexivity.
 Qed.
 
@@ -228,8 +231,8 @@ Lemma init_if_true_qubit : forall (U V : Unitary Qubit) ρ,
 Proof.
   intros U V ρ WF. simpl in *.
   matrix_denote.
-  Msimpl.
   specialize (WF_Matrix_U U) as WFU. simpl in WFU.
+  Msimpl. 
   solve_matrix.
 Qed.  
   
@@ -239,8 +242,8 @@ Lemma init_if_false_qubit : forall (U V : Unitary Qubit) ρ,
 Proof.
   intros U V ρ WF. simpl in *.
   matrix_denote.
-  Msimpl.
   specialize (WF_Matrix_U V) as WFV. simpl in WFV.
+  Msimpl.
   solve_matrix.
 Qed.  
 
@@ -405,7 +408,7 @@ Proof.
   Msimpl.
   unfold super.
   solve_matrix.
-  - rewrite eulers_identity2.
+  - rewrite Cexp_PI2.
     unfold Cexp.
     rewrite cos_neg, sin_neg.
     rewrite cos_PI2, sin_PI2.
@@ -427,11 +430,10 @@ Proof.
   repeat rewrite super_super.
   Msimpl.
   apply super_eq; trivial.
+  Msimpl.
+  restore_dims.
   solve_matrix.
-  all: repeat rewrite <- Cmult_assoc;
-       autorewrite with C_db;
-       repeat (rewrite (Cmult_assoc 2 (/2)); autorewrite with C_db);
-       easy.
+  all: C_field.
 Qed.  
 
 (***********************)
@@ -448,6 +450,8 @@ Proof.
   matrix_denote.
   intros.
   Msimpl.
+  restore_dims.
+  rewrite σx_sa, σz_sa, hadamard_sa.
   repeat rewrite <- Mmult_assoc.
   rewrite (Mmult_assoc _ _ hadamard).
   rewrite (Mmult_assoc _ hadamard).

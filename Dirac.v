@@ -215,6 +215,71 @@ Proof.
 Abort.
 
  *)
-                                                                             
+
+(* Additional tactics for ∣0⟩, ∣1⟩, cnot and σx. *)
+
+Lemma Mmult00 : ⟨0∣ × ∣0⟩ = I 1. Proof. solve_matrix. Qed.
+Lemma Mmult01 : ⟨0∣ × ∣1⟩ = Zero. Proof. solve_matrix. Qed.
+Lemma Mmult10 : ⟨1∣ × ∣0⟩ = Zero. Proof. solve_matrix. Qed.
+Lemma Mmult11 : ⟨1∣ × ∣1⟩ = I 1. Proof. solve_matrix. Qed.
+
+Lemma σx_on_right0 : forall (q : Vector 2), (q × ⟨0∣) × σx = q × ⟨1∣.
+Proof. intros. rewrite Mmult_assoc, Mmult0X. reflexivity. Qed.
+
+Lemma σx_on_right1 : forall (q : Vector 2), (q × ⟨1∣) × σx = q × ⟨0∣.
+Proof. intros. rewrite Mmult_assoc, Mmult1X. reflexivity. Qed.
+
+Lemma σx_on_left0 : forall (q : Matrix 1 2), σx × (∣0⟩ × q) = ∣1⟩ × q.
+Proof. intros. rewrite <- Mmult_assoc, MmultX0. reflexivity. Qed.
+
+Lemma σx_on_left1 : forall (q : Matrix 1 2), σx × (∣1⟩ × q) = ∣0⟩ × q.
+Proof. intros. rewrite <- Mmult_assoc, MmultX1. reflexivity. Qed.
+
+Lemma cancel00 : forall (q1 : Matrix 2 1) (q2 : Matrix 1 2), 
+  WF_Matrix q2 ->
+  (q1 × ⟨0∣) × (∣0⟩ × q2) = q1 × q2.
+Proof. 
+  intros. 
+  rewrite Mmult_assoc. 
+  rewrite <- (Mmult_assoc ⟨0∣).
+  rewrite Mmult00.             
+  Msimpl; reflexivity.
+Qed.
+
+Lemma cancel01 : forall (q1 : Matrix 2 1) (q2 : Matrix 1 2), 
+  (q1 × ⟨0∣) × (∣1⟩ × q2) = Zero.
+Proof. 
+  intros. 
+  rewrite Mmult_assoc. 
+  rewrite <- (Mmult_assoc ⟨0∣).
+  rewrite Mmult01.             
+  Msimpl_light; reflexivity.
+Qed.
+
+Lemma cancel10 : forall (q1 : Matrix 2 1) (q2 : Matrix 1 2), 
+  (q1 × ⟨1∣) × (∣0⟩ × q2) = Zero.
+Proof. 
+  intros. 
+  rewrite Mmult_assoc. 
+  rewrite <- (Mmult_assoc ⟨1∣).
+  rewrite Mmult10.             
+  Msimpl_light; reflexivity.
+Qed.
+
+Lemma cancel11 : forall (q1 : Matrix 2 1) (q2 : Matrix 1 2), 
+  WF_Matrix q2 ->
+  (q1 × ⟨1∣) × (∣1⟩ × q2) = q1 × q2.
+Proof. 
+  intros. 
+  rewrite Mmult_assoc. 
+  rewrite <- (Mmult_assoc ⟨1∣).
+  rewrite Mmult11.             
+  Msimpl; reflexivity.
+Qed.
+
+Hint Rewrite Mmult00 Mmult01 Mmult10 Mmult11 Mmult0X MmultX0 Mmult1X MmultX1 : cnot_db.
+Hint Rewrite σx_on_right0 σx_on_right1 σx_on_left0 σx_on_left1 : cnot_db.
+Hint Rewrite cancel00 cancel01 cancel10 cancel11 using (auto with wf_db) : cnot_db.
+
 
 

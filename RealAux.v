@@ -28,6 +28,9 @@ Notation "√ n" := (sqrt n) (at level 20) : R_scope.
 
 (* Useful Lemmas *)
 
+Lemma Rmult_div_assoc : forall (x y z : R), x * (y / z) = x * y / z.
+Proof. intros. unfold Rdiv. rewrite Rmult_assoc. reflexivity. Qed.
+
 Lemma Rmult_div : forall r1 r2 r3 r4 : R, r2 <> 0 -> r4 <> 0 -> 
   r1 / r2 * (r3 / r4) = r1 * r3 / (r2 * r4). 
 Proof. intros. unfold Rdiv. rewrite Rinv_mult_distr; trivial. lra. Qed.

@@ -24,20 +24,22 @@ Close Scope matrix_scope.
 Open Scope circ_scope.
 Open Scope nat_scope.
 
+Require Import Omega.
+
 Definition unitary_at1 n (U : Unitary Qubit) (i : Var) (pf : i < n)
         : Box (n ⨂ Qubit) (n ⨂ Qubit).
 Proof.
   gen n U.
   induction i as [ | i]; intros n pf U.
-  * destruct n as [ | n]; [omega | ]. simpl.
+  * destruct n as [ | n]; [exfalso;lia | ]. simpl.
     refine (box_ q ⇒ let_ (q,qs) ← q; 
                      let_ q ← _X $q; 
                      (q,qs)).
-  * destruct n as [ | n]; [omega | ]. simpl.
+  * destruct n as [ | n]; [exfalso;lia | ]. simpl.
     refine (box_ q ⇒ let_ (q,qs) ← q; 
                      let_ qs ← IHi n _ U $ qs;
                      (q,qs)). 
-    omega.
+    lia.
 Defined.
 
 Lemma unitary_at1_WT : forall n (U : Unitary Qubit) i (pf : i < n),
@@ -45,9 +47,9 @@ Lemma unitary_at1_WT : forall n (U : Unitary Qubit) i (pf : i < n),
 Proof.
   intros n U i pf. gen n U. 
   induction i; intros n pf U.
-  * simpl. destruct n as [ | n]; [omega | ].
+  * simpl. destruct n as [ | n]; [exfalso;lia | ].
     type_check.
-  * simpl. destruct n as [ | n]; [omega | ]. simpl.
+  * simpl. destruct n as [ | n]; [exfalso;lia | ]. simpl.
     type_check.
     apply IHi.
     type_check.
@@ -58,7 +60,7 @@ Proof. intros; apply unitary_at1_WT. Qed.
 
 Lemma lt_leS_le : forall i j k,
     i < j -> j <= S k -> i <= k.
-Proof. intros. omega. Qed.
+Proof. intros. lia. Qed.
 
 Lemma strong_induction' : 
   forall P : nat -> Type,
@@ -104,9 +106,9 @@ Proof.
   * dependent destruction pf1.
     + dependent destruction pf2. 
       ++ reflexivity.
-      ++ omega.
+      ++ exfalso;lia.
     + dependent destruction pf2.
-      ++ omega.
+      ++ exfalso;lia.
       ++ apply f_equal. apply IHb.
 Qed.
 
@@ -136,14 +138,14 @@ Definition CNOT_at_i0 (n j : nat) (pf_j : 0 < j) (pf_n : j < n)
 Proof.
   gen n.
   induction j as [ | [ | j']]; intros n pf_n.
-  * (* i = 0, j = 0 *) omega. 
+  * (* i = 0, j = 0 *) exfalso;lia. 
   * (* i = 0, j = 1 *)
-    destruct n as [ | [ | n']]; try omega.
+    destruct n as [ | [ | n']]; try (exfalso;lia).
     exact (box_ q ⇒ let_ (q0,(q1,qs)) ← q; 
                      let_ (q0,q1) ← CNOT $(q0,q1);
                      (q0,(q1,qs))).
   * (* i = 0, j = S (S j') *)
-    destruct n as [ | [ | n']]; try omega.
+    destruct n as [ | [ | n']]; try (exfalso;lia).
     refine (box_ q ⇒ let_ (q0,(q1,qs)) ← q;
                      let_ (q0,qs) ← IHj _ (S n') _ $ (q0,qs);
                      (q0,(q1,qs))).
@@ -198,14 +200,14 @@ Definition CNOT_at_j0 (n i : nat) (pf_j : 0 < i) (pf_n : i < n)
 Proof.
   gen n.
   induction i as [ | [ | i']]; intros n pf_n.
-  * (* i = 0, j = 0 *) omega.
+  * (* i = 0, j = 0 *) exfalso;lia.
   * (* i = 1, j = 0 *)
-    destruct n as [ | [ | n']]; try omega.
+    destruct n as [ | [ | n']]; try (exfalso;lia).
     exact (box_ q ⇒ let_ (q0,(q1,qs)) ← q; 
                      let_ (q1,q0) ← CNOT $(q1,q0);
                      (q0,(q1,qs))).
   * (* i = S (S i'), j = 0 *)
-    destruct n as [ | [ | n']]; try omega.
+    destruct n as [ | [ | n']]; try (exfalso;lia).
     refine (box_ q ⇒ let_ (q0,(q1,qs)) ← q;
                      let_ (q0,qs) ← IHi _ (S n') _ $(q0,qs);
                      (q0,(q1,qs))).
@@ -220,12 +222,12 @@ Proof.
   intros n i pf_i.
   gen n.
   induction i as [ | [ | i']]; intros n pf_n.
-  * (* i = 0, j = 0 *) omega.
+  * (* i = 0, j = 0 *) exfalso;lia.
   * (* i = 1, j = 0 *)
-    destruct n as [ | [ | n']]; try omega.
+    destruct n as [ | [ | n']]; try (exfalso;lia).
     simpl. type_check.
   * (* i = S (S i'), j = 0 *)
-    destruct n as [ | [ | n']]; try omega. 
+    destruct n as [ | [ | n']]; try (exfalso;lia). 
     set (pf_i' := (Nat.lt_0_succ _ : 0 < S i')).
     set (pf_n' := (lt_S_n _ _ pf_n : S i' < S n')).
     specialize (IHi pf_i' _ pf_n').
@@ -255,7 +257,7 @@ Definition CNOT_at' (n i j : nat)
                     : Box (n ⨂ Qubit) (n ⨂ Qubit).
 Proof.
   dependent induction n.
-  - (* n = 0 *) omega.
+  - (* n = 0 *) exfalso;lia.
   - destruct i as [ | i'], j as [ | j'].
     * (* i = 0, j = 0 *) contradiction.
     * (* i = 0, j = S j' *) refine (CNOT_at_i0 (S n) (S j') _ pf_j).
@@ -276,7 +278,7 @@ Defined.
 Definition CNOT_at'' (n i j : nat) 
                      (pf_i : i < n) (pf_j : j < n) (pf_i_j : i <> j) 
                      : Box (n ⨂ Qubit) (n ⨂ Qubit).
-induction i as [|[|i]]; induction j as [|[|j]]; destruct n as [|[|n]]; try omega.
+induction i as [|[|i]]; induction j as [|[|j]]; destruct n as [|[|n]]; try lia.
 - (* i = 0, j = 1 *)
   exact (box_ q ⇒ let_ (q0,(q1,qs)) ← q; 
                    let_ (q0,q1) ← CNOT $(q0,q1);
@@ -284,7 +286,7 @@ induction i as [|[|i]]; induction j as [|[|j]]; destruct n as [|[|n]]; try omega
 - (* i = 0, j > 1 *)
   refine (box_ q ⇒ let_ (q0,(q1,qs)) ← q;
                    let_ (q1,(q0,qs)) ← IHj _ _ $ (q1,(q0,qs));
-                   (q0,(q1,qs))); omega.
+                   (q0,(q1,qs))); lia.
 - (* i = 1, j = 0 *)
   exact (box_ q ⇒ let_ (q0,(q1,qs)) ← q; 
                   let_ (q1,q0) ← CNOT $(q1,q0);
@@ -292,7 +294,7 @@ induction i as [|[|i]]; induction j as [|[|j]]; destruct n as [|[|n]]; try omega
 - (* i = 1, j > 1 *)
     refine (box_ q ⇒ let_ (q0,(q1,qs)) ← q;
                    let_ (q1,(q0,qs)) ← IHi _ _ $ (q1,(q0,qs));
-                   (q0,(q1,qs))); omega.
+                   (q0,(q1,qs))); lia.
 *)
 
 Opaque CNOT_at_i0.
@@ -363,8 +365,8 @@ Proof.
   intros. 
   unfold CNOT_at.
   simpl. 
-  destruct (lt_dec (S (S j')) (S (S n'))); [ | omega].
-  destruct (lt_dec (S j') (S n')); [ | omega].
+  destruct (lt_dec (S (S j')) (S (S n'))); [ | lia].
+  destruct (lt_dec (S j') (S n')); [ | lia].
   erewrite CNOT_at_i0_SS. reflexivity.
 Qed.
   
@@ -377,21 +379,18 @@ Proof.
   intros.
   unfold CNOT_at.
   simpl. 
-  destruct (lt_dec (S (S i')) (S (S n'))); [ | omega].
-  destruct (lt_dec (S i') (S n')); [ | omega].
+  destruct (lt_dec (S (S i')) (S (S n'))); [ | lia].
+  destruct (lt_dec (S i') (S n')); [ | lia].
   erewrite CNOT_at_j0_SS. reflexivity.
 Qed.
-
-
-
 
 Lemma CNOT_at_at' : forall n i j (pfi : i < n) (pfj : j < n) (pf_i_j : i <> j),
       CNOT_at n i j = CNOT_at' n i j pfi pfj pf_i_j.
 Proof.
   intros. unfold CNOT_at.
-  destruct (lt_dec i n); [ | omega].
-  destruct (lt_dec j n); [ | omega].
-  destruct (Nat.eq_dec i j); [omega | ].
+  destruct (lt_dec i n); [ | exfalso;lia].
+  destruct (lt_dec j n); [ | exfalso;lia].
+  destruct (Nat.eq_dec i j); [exfalso;lia | ].
   replace l with pfi by apply lt_hprop.
   replace l0 with pfj by apply lt_hprop.
   replace n0 with pf_i_j by apply nat_neq_hprop.
@@ -410,10 +409,7 @@ Proof.
   simpl.
   erewrite CNOT_at_at'.
   reflexivity.
-  Unshelve.
-  * omega.
-  * omega.
-  * omega.
+  Unshelve. all: lia.
 Qed.
 
 (* i and j are the controls, k is the target *)
@@ -422,12 +418,12 @@ Qed.
 Definition TOF_at_ij01 (n k : nat) (pf_j : 1 < k) (pf_n : k < n) 
   : Box (n ⨂ Qubit) (n ⨂ Qubit).
   gen n.
-  induction k as [| [| [|k]]]; intros; try omega.
-  - destruct n as [| [| [|n]]]; try omega.
+  induction k as [| [| [|k]]]; intros; try (exfalso;lia).
+  - destruct n as [| [| [|n]]]; try (exfalso;lia).
     exact (box_ q ⇒ let_ (q0,(q1,(q2,qs))) ← q; 
                     let_ (q0,(q1,q2)) ← CCNOT $(q0,(q1,q2));
                     (q0,(q1,(q2,qs)))).
-  - destruct n as [| [| [|n]]]; try omega.
+  - destruct n as [| [| [|n]]]; try (exfalso;lia).
     refine (box_ q ⇒ let_ (q0,(q1,(q2,qs))) ← q;
                      let_ (q0,(q1,qs)) ← IHk _ (S (S n)) _ $ (q0,(q1,qs));
                      (q0,(q1,(q2,qs)))); auto with arith.
@@ -435,7 +431,7 @@ Defined.
 Lemma TOF_at_ij01_WT : forall n k pf_j pf_n, Typed_Box (TOF_at_ij01 n k pf_j pf_n).
 Proof.
   intros n k. gen n.
-  induction k as [| [| [|k]]]; intros; destruct n as [| [| [|n]]]; try omega.
+  induction k as [| [| [|k]]]; intros; destruct n as [| [| [|n]]]; try (exfalso;lia).
   type_check.
   set( pf_j' := gt_le_S 1 (S (S k)) (lt_n_S 0 (S k) (Nat.lt_0_succ k))).
   set (pf_n' := gt_le_S (S (S k)) (S (S n)) (gt_S_le (S (S (S k))) (S (S n)) pf_n)).
@@ -447,12 +443,12 @@ Qed.
 Definition TOF_at_ik01 (n j : nat) (pf_j : 1 < j) (pf_n : j < n) 
   : Box (n ⨂ Qubit) (n ⨂ Qubit).
   gen n.
-  induction j as [| [| [|j]]]; intros; try omega.
-  - destruct n as [| [| [|n]]]; try omega.
+  induction j as [| [| [|j]]]; intros; try (exfalso;lia).
+  - destruct n as [| [| [|n]]]; try (exfalso;lia).
     exact (box_ q ⇒ let_ (q0,(q1,(q2,qs))) ← q; 
                     let_ (q0,(q2,q1)) ← CCNOT $(q0,(q2,q1));
                     (q0,(q1,(q2,qs)))).
-  - destruct n as [| [| [|n]]]; try omega.
+  - destruct n as [| [| [|n]]]; try (exfalso;lia).
     refine (box_ q ⇒ let_ (q0,(q1,(q2,qs))) ← q;
                      let_ (q0,(q1,qs)) ← IHj _ (S (S n)) _ $ (q0,(q1,qs));
                      (q0,(q1,(q2,qs)))); auto with arith.
@@ -460,7 +456,7 @@ Defined.
 Lemma TOF_at_ik01_WT : forall n j pf_j pf_n, Typed_Box (TOF_at_ik01 n j pf_j pf_n).
 Proof.
   intros n j. gen n.
-  induction j as [| [| [|j]]]; intros; destruct n as [| [| [|n]]]; try omega.
+  induction j as [| [| [|j]]]; intros; destruct n as [| [| [|n]]]; try (exfalso;lia).
   type_check.
   set( pf_j' := gt_le_S 1 (S (S j)) (lt_n_S 0 (S j) (Nat.lt_0_succ j))).
   set (pf_n' := gt_le_S (S (S j)) (S (S n)) (gt_S_le (S (S (S j))) (S (S n)) pf_n)).
@@ -473,12 +469,12 @@ Qed.
 Definition TOF_at_ki01 (n j : nat) (pf_j : 1 < j) (pf_n : j < n) 
   : Box (n ⨂ Qubit) (n ⨂ Qubit).
   gen n.
-  induction j as [| [| [|j]]]; intros; try omega.
-  - destruct n as [| [| [|n]]]; try omega.
+  induction j as [| [| [|j]]]; intros; try (exfalso;lia).
+  - destruct n as [| [| [|n]]]; try (exfalso;lia).
     exact (box_ q ⇒ let_ (q0,(q1,(q2,qs))) ← q; 
                     let_ (q1,(q2,q0)) ← CCNOT $(q1,(q2,q0));
                     (q0,(q1,(q2,qs)))).
-  - destruct n as [| [| [|n]]]; try omega.
+  - destruct n as [| [| [|n]]]; try (exfalso;lia).
     refine (box_ q ⇒ let_ (q0,(q1,(q2,qs))) ← q;
                      let_ (q0,(q1,qs)) ← IHj _ (S (S n)) _ $ (q0,(q1,qs));
                      (q0,(q1,(q2,qs)))); auto with arith.
@@ -486,7 +482,7 @@ Defined.
 Lemma TOF_at_ki01_WT : forall n j pf_j pf_n, Typed_Box (TOF_at_ki01 n j pf_j pf_n).
 Proof.
   intros n j. gen n.
-  induction j as [| [| [|j]]]; intros; destruct n as [| [| [|n]]]; try omega.
+  induction j as [| [| [|j]]]; intros; destruct n as [| [| [|n]]]; try (exfalso;lia).
   type_check.
   set( pf_j' := gt_le_S 1 (S (S j)) (lt_n_S 0 (S j) (Nat.lt_0_succ j))).
   set (pf_n' := gt_le_S (S (S j)) (S (S n)) (gt_S_le (S (S (S j))) (S (S n)) pf_n)).
@@ -497,11 +493,11 @@ Qed.
 (* i = 0 *)
 Definition TOF_at_i0 (n j k : nat) (pf_ij : 0 < j) (pf_ik : 0 < k) (pf_jk : j <> k) (pf_jn : j < n) (pf_kn : k < n)
   : Box (n ⨂ Qubit) (n ⨂ Qubit).
-  gen n k. induction j as [| [|j]]; intros; try omega.
-  - apply (TOF_at_ij01 n k); omega.
-  - gen n. destruct k as [| [|k]]; intros; try omega.
-    + apply (TOF_at_ik01 n (S (S j))); omega.
-    + destruct n as [| [| [|n]]]; try omega.
+  gen n k. induction j as [| [|j]]; intros; try (exfalso;lia).
+  - apply (TOF_at_ij01 n k); lia.
+  - gen n. destruct k as [| [|k]]; intros; try (exfalso;lia).
+    + apply (TOF_at_ik01 n (S (S j))); try lia.
+    + destruct n as [| [| [|n]]]; try (exfalso;lia).
       refine (box_ q ⇒ let_ (q0,(q1,qs)) ← q;
                        let_ (q0,qs) ← IHj _ (S (S n)) _ (S k) _ _ _ $ (q0,qs);
                        (q0,(q1,qs))); auto with arith.
@@ -509,11 +505,11 @@ Defined.
 Lemma TOF_at_i0_WT : forall n j k pf_ij pf_ik pf_jk pf_jn pf_kn,
     Typed_Box (TOF_at_i0 n j k pf_ij pf_ik pf_jk pf_jn pf_kn).
 Proof.
-  intros n j. gen n. induction j as [| [|j]]; intros; try omega.
+  intros n j. gen n. induction j as [| [|j]]; intros; try (exfalso;lia).
   apply TOF_at_ij01_WT.
-  destruct k as [| [|k]]; intros; try omega.
+  destruct k as [| [|k]]; intros; try (exfalso;lia).
   apply TOF_at_ik01_WT.
-  destruct n as [| [| [|n]]]; try omega.
+  destruct n as [| [| [|n]]]; try (exfalso;lia).
   specialize (IHj (S (S n)) (S k)).
   (* (Nat.lt_0_succ _) (Nat.lt_0_succ _)). *)
   epose (pf_ij' := _ : 0 < S j).
@@ -529,10 +525,10 @@ Qed.
 (* k = 0 *)
 Definition TOF_at_k0 (n i j : nat) (pf_ij : i < j) (pf_ik : 0 < i) (pf_jk : 0 < j) (pf_in : i < n) (pf_jn : j < n)
   : Box (n ⨂ Qubit) (n ⨂ Qubit).
-  gen n j. induction i as [| [|i]]; intros; try omega.
-  - apply (TOF_at_ki01 n j); omega.
-  - destruct j as [|[|j]]; try omega.
-    destruct n as [| [| [|n]]]; try omega.
+  gen n j. induction i as [| [|i]]; intros; try (exfalso;lia).
+  - apply (TOF_at_ki01 n j); try lia.
+  - destruct j as [|[|j]]; try (exfalso;lia).
+    destruct n as [| [| [|n]]]; try (exfalso;lia).
     refine (box_ q ⇒ let_ (q0,(q1,qs)) ← q;
                      let_ (q0,qs) ← IHi _ (S (S n)) _ (S j) _ _ _ $ (q0,qs);
                      (q0,(q1,qs))); auto with arith.
@@ -540,10 +536,10 @@ Defined.
 Lemma TOF_at_k0_WT  : forall n i j pf_ij pf_ik pf_jk pf_in pf_jn,
   Typed_Box (TOF_at_k0 n i j pf_ij pf_ik pf_jk pf_in pf_jn).
 Proof.
-  intros n i. gen n. induction i as [| [|i]]; intros; try omega.
+  intros n i. gen n. induction i as [| [|i]]; intros; try (exfalso;lia).
   apply TOF_at_ki01_WT.
-  destruct j as [| [|j]]; intros; try omega.
-  destruct n as [| [| [|n]]]; try omega.
+  destruct j as [| [|j]]; intros; try (exfalso;lia).
+  destruct n as [| [| [|n]]]; try (exfalso;lia).
   specialize (IHi (S (S n)) (S j)).
   epose (pf_ij' := _ : S i < S j).
   epose (pf_ik' := _ : 0 < S i).
@@ -555,27 +551,28 @@ Proof.
   type_check.
 Qed.
 
-Definition Toffoli_at' (n : nat) (i j k : Var) (pf_i : i < n) (pf_j : j < n) (pf_k : k < n)
+(* lia fails if we call i j and k `Var`s? *)
+Definition Toffoli_at' (n : nat) (i j k : nat) (pf_i : i < n) (pf_j : j < n) (pf_k : k < n)
                                       (pf_i_j : i <> j) (pf_i_k : i <> k) (pf_j_k : j <> k) :
     Box (n ⨂ Qubit) (n ⨂ Qubit).
 gen i j k.
-induction n; intros; try omega.
-destruct i; [|destruct j; [|destruct k]]; try omega.
-- apply (TOF_at_i0 (S n) j k); omega.
-- apply (TOF_at_i0 (S n) (S i) k); omega.
+induction n; intros; try (exfalso;lia).
+destruct i; [|destruct j; [|destruct k]]; try (exfalso;lia).
+- apply (TOF_at_i0 (S n) j k); lia. 
+- apply (TOF_at_i0 (S n) (S i) k); unfold Var in *; lia. 
 - destruct (lt_dec i j).
-  + apply (TOF_at_k0 (S n) (S i) (S j)); omega.
-  + apply (TOF_at_k0 (S n) (S j) (S i)); omega.
+  + apply (TOF_at_k0 (S n) (S i) (S j)); lia.
+  + apply (TOF_at_k0 (S n) (S j) (S i)); unfold Var in *; lia.
 - refine (box_ q ⇒ let_ (q0,qs) ← q;
                    let_ qs ← IHn i _ j _ _ k _ _ _ $ qs;
                    (q0,qs)); auto with arith.
 Defined.
-Lemma Toffoli_at'_WT : forall n (i j k : Var) (pf_i : i < n) (pf_j : j < n) (pf_k : k < n)
+Lemma Toffoli_at'_WT : forall n (i j k : nat) (pf_i : i < n) (pf_j : j < n) (pf_k : k < n)
                              (pf_i_j : i <> j) (pf_i_k : i <> k) (pf_j_k : j <> k),
       Typed_Box (Toffoli_at' n i j k pf_i pf_j pf_k pf_i_j pf_i_k pf_j_k).
 Proof.
-  induction n; intros; try omega.
-  destruct i; [|destruct j; [|destruct k]]; try omega.
+  induction n; intros; try (exfalso;lia).
+  destruct i; [|destruct j; [|destruct k]]; try (exfalso;lia).
   - apply TOF_at_i0_WT.
   - apply TOF_at_i0_WT.
 - Opaque TOF_at_k0. simpl. destruct (lt_dec i j).
@@ -742,7 +739,7 @@ Definition in_target (n t i : nat) := (n <= i).
 Definition in_source (n t i : nat) := i < n.
 Lemma in_source_in_scope : forall n t i, in_source n t i -> in_scope n t i.
 Proof.
-  intros. apply lt_le_trans with (m := n); auto. omega. 
+  intros. apply lt_le_trans with (m := n); auto. lia. 
 Qed.
 
 Inductive gate_acts_on {m} k : Box (m ⨂ Qubit) (m ⨂ Qubit) -> Set :=
@@ -870,7 +867,7 @@ Proof.
     rewrite pad_nothing.
     subst.
     rewrite ctx_dom_repeat.
-    repeat rewrite subst_var_σ_n by omega.
+    repeat rewrite subst_var_σ_n by lia.
 
 (* Show that apply_U CNOT [0; n] has desired behavior *)
     remember (S (length l2)) as n.
@@ -882,7 +879,7 @@ Proof.
     super (control σx) (bool_to_matrix b ⊗ bool_to_matrix t)
                            = (bool_to_matrix b ⊗ bool_to_matrix (xorb b t)))
     by (vector_denote; destruct b, t; unfold bool_to_ket; simpl; Msimpl; solve_matrix).  
-    assert ((0 + length l2 + 0 + 2)%nat = S n)%nat as E. omega.
+    assert ((0 + length l2 + 0 + 2)%nat = S n)%nat as E. lia.
     
     (* breaks here *)
 
@@ -927,12 +924,12 @@ Proof.
     Focus 2. apply WT. simpl. rewrite repeat_length. econstructor.
     Focus 3.
       replace ([Some Qubit]) with (repeat (Some Qubit) 1) by reflexivity.
-      apply types_pat_fresh_ntensor. omega.      
+      apply types_pat_fresh_ntensor. lia.      
     3: constructor; apply singleton_singleton.
     2: reflexivity.
     replace (S n') with (length ((repeat None 1) ++ repeat (Some Qubit) n')).
     rewrite merge_singleton_append. apply valid_valid.    
-    rewrite app_length. repeat rewrite repeat_length. omega.
+    rewrite app_length. repeat rewrite repeat_length. lia.
     
     Focus 3.
       constructor. apply valid_valid.
@@ -941,7 +938,7 @@ Proof.
       unlock_merge. simpl. rewrite repeat_length.   
       replace ([Some Qubit]) with (repeat (Some Qubit) 1) by reflexivity.
       rewrite repeat_combine. rewrite Nat.add_1_r. reflexivity.
-      rewrite app_length. repeat rewrite repeat_length. omega.    
+      rewrite app_length. repeat rewrite repeat_length. lia.    
     Focus 2.
       intros.
       simpl.
@@ -973,11 +970,11 @@ Proof.
       repeat rewrite seq_shift.      
       replace (0%nat :: seq 1 (S n')) with (σ_{2+n'}) by reflexivity.
       rewrite repeat_length.
-      rewrite subst_var_σ_n by omega.
-      rewrite subst_var_σ_n by omega.
+      rewrite subst_var_σ_n by lia.
+      rewrite subst_var_σ_n by lia.
       rewrite merge_nil_l.
       replace ([Some Qubit]) with (repeat (Some Qubit) 1) by reflexivity.
-      rewrite ntensor_pat_to_list_shifted by omega.
+      rewrite ntensor_pat_to_list_shifted by lia.
       unfold size_octx. simpl.
       specialize (merge_singleton_append Qubit (repeat (Some Qubit) n')) as MSA.
       simpl in MSA. rewrite repeat_length in MSA. 
@@ -1027,8 +1024,8 @@ Proof.
       subst.
       rewrite Nat.add_1_r in IH. simpl in IH.
       repeat rewrite kron_assoc in IH.
-      assert (k < n')%nat as Lt' by (clear -Lt; omega).
-      assert (length l1 = k)%nat as L1' by (clear -L1; omega). clear Lt L1.
+      assert (k < n')%nat as Lt' by (clear -Lt; lia).
+      assert (length l1 = k)%nat as L1' by (clear -L1; lia). clear Lt L1.
       specialize (IH Lt' L1' L2).
       replace (2 ^ length l2 * 2 + (2 ^ length l2 * 2 + 0))%nat with 
           (2 * (2 ^ length l2 * 2))%nat by unify_pows_two.
@@ -1092,10 +1089,10 @@ Proof.
   simpl_rewrite inSeq_correct; [ | apply assert_at_WT | apply init_at_WT].
   unfold compose_super.
   rewrite size_ntensor, Nat.mul_1_r in M.
-  simpl_rewrite (init_at_spec_strong b m i); [|omega]. 
+  simpl_rewrite (init_at_spec_strong b m i); [|lia]. 
   destruct safe.
   - (* safe case *)
-    simpl_rewrite (assert_at_spec_safe b m i); [|omega].
+    simpl_rewrite (assert_at_spec_safe b m i); [|lia].
     gen ρ. rewrite size_ntensor. simpl. rewrite Nat.mul_1_r.
     intros ρ M.
     repeat rewrite Mmult_assoc.
@@ -1110,7 +1107,7 @@ Proof.
       rewrite kron_0_r, kron_0_l. 
       rewrite Mmult_0_l, Mplus_0_l. (* add to dbs *)
       replace (⟨1∣ × ∣1⟩) with (I 1).
-      2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
+      2: crunch_matrix; bdestruct (S x <? 1); [lia|rewrite andb_false_r; easy].
       Msimpl.
       rewrite Nat.mul_1_r.
       replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
@@ -1118,51 +1115,38 @@ Proof.
       rewrite <- Mmult_assoc.
       setoid_rewrite kron_mixed_product.
       Msimpl.
-      setoid_rewrite kron_mixed_product.
-      Msimpl.
-      replace (⟨1∣ × ∣1⟩) with (I 1).
-      2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
+      replace (⟨1∣ × ∣1⟩) with (I 1) by solve_matrix.
       rewrite id_kron.
       rewrite Nat.mul_1_r.
       rewrite id_kron.
       unify_pows_two.
-      replace (i + (m - i)) with m by omega.    
-      rewrite Mmult_1_l by (auto with wf_db).
+      Msimpl.
       reflexivity.
     + replace (⟨0∣ × ∣1⟩) with (@Zero 1 1) by crunch_matrix.
-      rewrite kron_0_r, kron_0_l. 
-      repeat rewrite Mmult_0_r. rewrite Mplus_0_r.
-      replace (⟨0∣ × ∣0⟩) with (I 1).
-      2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
-      Msimpl.
-      rewrite Nat.mul_1_r.
-      replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
+      rewrite kron_0_r, kron_0_l.
+      repeat Msimpl. 
+      replace (⟨0∣ × ∣0⟩) with (I 1) by solve_matrix.
+      repeat rewrite id_kron.
       Msimpl.
       reflexivity.
   - (* unsafe (easy) case *)
-    simpl_rewrite (assert_at_spec_unsafe b m i); [|omega].
+    simpl_rewrite (assert_at_spec_unsafe b m i); [|lia].
     gen ρ. rewrite size_ntensor. simpl. rewrite Nat.mul_1_r.
     intros ρ M.
     repeat rewrite Mmult_assoc.
-    Msimpl.  
+    Msimpl.
     match goal with
     | [|- @Mmult ?a ?b ?c ?A (@Mmult ?d ?e ?f ?B ?C) = _] => 
       setoid_rewrite <- (Mmult_assoc A B C)                                    
     end.
     Msimpl.
     destruct b; simpl.
-    + replace (⟨1∣ × ∣1⟩) with (I 1).
-      2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
-      Msimpl.
-      rewrite Nat.mul_1_r.
-      replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
+    + replace (⟨1∣ × ∣1⟩) with (I 1) by solve_matrix.
+      repeat rewrite id_kron.
       Msimpl.
       reflexivity.
-    + replace (⟨0∣ × ∣0⟩) with (I 1).
-      2: crunch_matrix; bdestruct (S x <? 1); [omega|rewrite andb_false_r; easy].
-      Msimpl.
-      rewrite Nat.mul_1_r.
-      replace (2^i * 2^(m-i)) with (2^m) by unify_pows_two. 
+    + replace (⟨0∣ × ∣0⟩) with (I 1) by solve_matrix.
+      repeat rewrite id_kron.
       Msimpl.
       reflexivity.
 Qed.
@@ -1229,7 +1213,7 @@ Proof.
   set (ASSERT := assert_at b (n+t) x).
   assert (H' : c1 · INIT ≡ INIT · ASSERT · c1 · INIT).
   { symmetry. apply init_assert_at_valid.
-    + omega.
+    + lia.
     + apply H_c1; auto.
   }
   apply valid_ancillae_box'_equiv 
@@ -1238,7 +1222,7 @@ Proof.
     apply HOAS_Equiv_inSeq; simple_typing False; try easy. 
     apply HOAS_Equiv_inSeq; simple_typing False; try easy. 
   }
-  assert (x < S (n+t)) by omega. 
+  assert (x < S (n+t)) by lia. 
   assert (typed_init : Typed_Box INIT) by simple_typing False.
   assert (typed_assert : Typed_Box ASSERT) by simple_typing False.
   apply valid_inSeq.
@@ -1301,7 +1285,7 @@ Proof.
   * (* id *) destruct n as [ | n]; simpl; auto; intros x pf_x b. fold plus.
     rewrite inSeq_id_l.
     apply valid_ancillae_box'_equiv with (b2 := id_circ).
-    + apply assert_init_at_id. omega.
+    + apply assert_init_at_id. lia.
     + apply valid_id_circ.
   * (* sym_source *)
     assert (Typed_Box g) by (eapply gate_acts_on_WT; eauto).
@@ -1313,16 +1297,16 @@ Proof.
     + eapply gate_acts_on_WT; eauto.
     + destruct n as [ | n]; simpl; auto; intros i pf_i. fold plus.
       apply gate_acts_on_noop_at with (k := k); auto. 
-      ++ omega.
-      ++ omega.
+      ++ lia.
+      ++ lia.
   * (* sym_target_r *)
     apply noop_source_inSeq; auto.
     + eapply gate_acts_on_WT; eauto.
     + apply source_symmetric_WT; auto.
     + destruct n as [ | n]; simpl; auto; intros i pf_i. fold plus.
       apply gate_acts_on_noop_at with (k := k); auto. 
-      ++ omega.
-      ++ omega.
+      ++ lia.
+      ++ lia.
   * (* sym_ancilla *)
     apply symmetric_ancilla_noop_source; auto.
 Qed.
@@ -1343,10 +1327,10 @@ Proof.
   intros n i. gen n.
   induction i as [ | i]; intros n pf.
   - unfold X_at, unitary_at1; simpl.
-    destruct n; try omega.
+    destruct n; try (exfalso;lia).
     show_ancilla_free.
-  - destruct n; try omega.
-    unshelve epose (pf' := _ : i < n); try omega.
+  - destruct n; try (exfalso;lia).
+    unshelve epose (pf' := _ : i < n); try lia.
     specialize (IHi n pf'). (* annoying case *)
 Admitted.
 
@@ -1463,7 +1447,7 @@ Proof.
     unfold noop_on in SSN.
     apply valid_ancillae_box_equal.
     apply SSN; trivial.
-    omega.
+    lia.
 Qed.
 
 (* The noop property implies actual reversibility *)
@@ -1536,7 +1520,7 @@ Proof.
       apply HOAS_Equiv_inSeq'; [ | reflexivity].
       apply HOAS_Equiv_inSeq'; [ | reflexivity ].
       apply init_assert_at_valid.
-      { omega. }
+      { lia. }
       set (H := source_symmetric_noop (S n) t c pf_sym).
       simpl in H.
       apply H; auto.
@@ -1548,6 +1532,6 @@ Proof.
    }
    rewrite inSeq_id_l.
    apply assert_init_at_id.
-   omega.
+   lia.
 Qed.
 Close Scope circ_scope.

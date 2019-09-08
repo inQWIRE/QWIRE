@@ -35,13 +35,14 @@ complete space. *)
 
 Definition C := (R * R)%type.
 
+Declare Scope C_scope.
 Open Scope nat_scope.
 Open Scope R_scope.
-
+Open Scope C_scope.
 Bind Scope nat_scope with nat.
 Bind Scope R_scope with R.
 Bind Scope C_scope with C.
-
+Delimit Scope C_scope with C.
 
 Definition RtoC (x : R) : C := (x,0).
 Coercion RtoC : R >-> C.
@@ -75,8 +76,6 @@ Definition Cmult (x y : C) : C := (fst x * fst y - snd x * snd y, fst x * snd y 
 Definition Cinv (x : C) : C := (fst x / (fst x ^ 2 + snd x ^ 2), - snd x / (fst x ^ 2 + snd x ^ 2)).
 Definition Cdiv (x y : C) : C := Cmult x (Cinv y).
 
-Delimit Scope C_scope with C.
-Open Scope C_scope.
 
 Infix "+" := Cplus : C_scope.
 Notation "- x" := (Copp x) : C_scope.
@@ -525,23 +524,6 @@ Proof.
   lra.
 Qed.
 
-(* e^(iθ) *)
-Definition Cexp (θ : R) : C := (cos θ, sin θ).
-
-Lemma eulers_identity : Cexp PI = -1.
-Proof. unfold Cexp. rewrite cos_PI, sin_PI. easy. Qed.
-
-Lemma eulers_identity2 : Cexp (PI/2) = Ci.
-Proof. unfold Cexp. rewrite cos_PI2, sin_PI2. easy. Qed.
-
-Lemma eulers0 : Cexp 0 = 1.
-Proof. unfold Cexp. rewrite cos_0, sin_0. easy. Qed.
-
-
-(*
-Definition Cexp' (θ : R) : C := cos θ + Ci * (sin θ).
-Lemma Cexp_eq : forall θ, Cexp θ = Cexp' θ. Proof. intros. lca. Qed.
-*)
 
 (****************)
 (* Square Roots *)
@@ -608,25 +590,23 @@ Qed.
 Lemma Cminus_unfold : forall c1 c2, (c1 - c2 = c1 + -c2)%C. Proof. reflexivity. Qed.
 Lemma Cdiv_unfold : forall c1 c2, (c1 / c2 = c1 */ c2)%C. Proof. reflexivity. Qed.
 
-(* Intentionally very limited tactic. Could have it call Cpow_nonzero 
-   and similar lemmas if we wanted to make it stronger *)
-(*
-Ltac nonzero := apply C0_fst_neq; specialize Rlt_sqrt2_0; intros; simpl; Psatz.lra.
-*)
 
 Ltac nonzero :=
   repeat split;
-  try match goal with
-  | |- ?x <> RtoC 0  => apply RtoC_neq
-  end;
-  repeat match goal with 
-  | |- √?x <> 0      => apply sqrt_neq_0_compat
-  | |- (/?x)%R <> 0  => apply Rinv_neq_0_compat
-  end; 
-  match goal with 
-  | |- _ <> _        => lra
-  | |- _ < _        => lra
-  end.
+   try match goal with
+       | |- not (@eq _ ?x (RtoC (IZR Z0))) => apply RtoC_neq
+       | |- not (@eq _ (Cpow _ _) (RtoC (IZR Z0))) => apply Cpow_nonzero; try apply RtoC_neq
+       | |- not (@eq _ Ci (RtoC (IZR Z0))) => apply C0_snd_neq; simpl
+       end;
+   repeat
+    match goal with
+    | |- not (@eq _ (pow _ _) (IZR Z0)) => apply pow_nonzero; try apply RtoC_neq
+    | |- not (@eq _ (sqrt ?x) (IZR Z0)) => apply sqrt_neq_0_compat
+    | |- not (@eq _ (Rinv ?x) (IZR Z0)) => apply Rinv_neq_0_compat
+    end; match goal with
+         | |- not (@eq _ _ _) => lra
+         | |- Rlt _ _ => lra
+         end.
 
 Hint Rewrite Cminus_unfold Cdiv_unfold Ci2 Cconj_R Cconj_opp Cconj_rad2 
      Cinv_sqrt2_sqrt Cplus_div2
@@ -659,7 +639,7 @@ Ltac Csimpl :=
   | _ => rewrite Cconj_R
   end.
 
-Ltac C_field_simplify := repeat field_simplify_eq [Csqrt2_sqrt Csqrt2_inv].
+Ltac C_field_simplify := repeat field_simplify_eq [ Csqrt2_sqrt Csqrt2_inv Ci2].
 Ltac C_field := C_field_simplify; nonzero; trivial.
 
 Ltac has_term t exp  := 
@@ -701,29 +681,178 @@ Ltac cancel_terms t :=
                                     rewrite <- (Cmult_assoc x y z)
   end.  
 
+(****************************)
+(** Complex Exponentiation **)
+(****************************)
 
-(* Older versions of group_radicals *)
+(* e^(iθ) *)
+Definition Cexp (θ : R) : C := (cos θ, sin θ).
+
+Lemma Cexp_add: forall (x y : R), Cexp (x + y) = Cexp x * Cexp y.
+Proof.
+  intros.
+  unfold Cexp.
+  apply c_proj_eq; simpl.
+  - apply cos_plus.
+  - rewrite sin_plus. field.
+Qed.
+
+Lemma Cexp_neg : forall θ, Cexp (- θ) = / Cexp θ.
+Proof.
+  intros θ.
+  unfold Cexp.
+  rewrite sin_neg, cos_neg.
+  apply c_proj_eq; simpl.
+  - replace (cos θ * (cos θ * 1) + sin θ * (sin θ * 1))%R with 
+        (cos θ ^ 2 + sin θ ^ 2)%R by reflexivity.
+    repeat rewrite <- Rsqr_pow2.
+    rewrite Rplus_comm.
+    rewrite sin2_cos2.
+    field.
+  - replace ((cos θ * (cos θ * 1) + sin θ * (sin θ * 1)))%R with 
+        (cos θ ^ 2 + sin θ ^ 2)%R by reflexivity.
+    repeat rewrite <- Rsqr_pow2.
+    rewrite Rplus_comm.
+    rewrite sin2_cos2.
+    field.
+Qed.
+
+Lemma Cexp_mul_neg_l : forall θ, Cexp (- θ) * Cexp θ = 1.
+Proof.  
+  unfold Cexp. intros R.
+  eapply c_proj_eq; simpl.
+  - rewrite cos_neg, sin_neg.
+    field_simplify_eq.
+    repeat rewrite <- Rsqr_pow2.
+    rewrite Rplus_comm.
+    apply sin2_cos2.
+  - rewrite cos_neg, sin_neg. field.
+Qed.
+
+Lemma Cexp_mul_neg_r : forall θ, Cexp θ * Cexp (-θ) = 1.
+Proof. intros. rewrite Cmult_comm. apply Cexp_mul_neg_l. Qed.
+
+(* Special cases *)
+
+(* Euler's Identity *) 
+Lemma Cexp_PI : Cexp PI = -1.
+Proof. unfold Cexp. rewrite cos_PI, sin_PI. easy. Qed.
+
+Lemma Cexp_PI2 : Cexp (PI/2) = Ci.
+Proof. unfold Cexp. rewrite cos_PI2, sin_PI2. easy. Qed.
+
+Lemma Cexp_0 : Cexp 0 = 1.
+Proof. unfold Cexp. rewrite cos_0, sin_0. easy. Qed.
+
+Lemma Cexp_2PI : Cexp (2 * PI) = 1.
+Proof.
+  unfold Cexp.
+  rewrite sin_2PI, cos_2PI.
+  reflexivity.
+Qed.
+
+Lemma Cexp_PI4 : Cexp (PI / 4) = /√2 + /√2 * Ci.
+Proof.
+  unfold Cexp.
+  rewrite sin_PI4, cos_PI4.
+  eapply c_proj_eq; simpl.
+  field_simplify_eq; trivial; apply sqrt2_neq_0.
+  field_simplify_eq; trivial; apply sqrt2_neq_0.
+Qed.
+
+Lemma Cexp_PIm4 : Cexp (- PI / 4) = /√2 - /√2 * Ci.
+Proof.
+  unfold Cexp. 
+  rewrite Ropp_div.
+  rewrite sin_antisym.
+  rewrite cos_neg.
+  rewrite sin_PI4, cos_PI4.
+  eapply c_proj_eq; simpl.
+  field_simplify_eq; trivial; apply sqrt2_neq_0.
+  field_simplify_eq; trivial; apply sqrt2_neq_0.
+Qed.
+
+Lemma Cexp_0PI4 : Cexp (0 * PI / 4) = 1.
+Proof. rewrite <- Cexp_0. apply f_equal. lra. Qed.
+
+Lemma Cexp_1PI4 : Cexp (1 * PI / 4) = /√2 + /√2 * Ci.
+Proof. rewrite <- Cexp_PI4. apply f_equal. lra. Qed.
+
+Lemma Cexp_2PI4 : Cexp (2 * PI / 4) = Ci.
+Proof. rewrite <- Cexp_PI2. apply f_equal. lra. Qed.
+
+(* Note: cos3PI4 are sin3PI4 deprecated in 8.10 by our own pull requests.
+   Don't update until Coq 8.11 release. *)
+Lemma Cexp_3PI4 : Cexp (3 * PI / 4) = -/√2 + /√2 * Ci.
+Proof.
+  unfold Cexp.
+  rewrite <- Rmult_div_assoc.
+  rewrite cos3PI4, sin3PI4.
+  eapply c_proj_eq; simpl.
+  R_field_simplify; nonzero. 
+  R_field_simplify; nonzero. 
+Qed.
+
+Lemma Cexp_4PI4 : Cexp (4 * PI / 4) = -1.
+Proof. rewrite <- Cexp_PI. apply f_equal. lra. Qed.
+  
+Lemma Cexp_5PI4 : Cexp (5 * PI / 4) = -/√2 - /√2 * Ci.
+Proof.
+  unfold Cexp.
+  rewrite <- Rmult_div_assoc.
+  rewrite cos_5PI4, sin_5PI4.
+  eapply c_proj_eq; simpl.
+  R_field_simplify; nonzero. 
+  R_field_simplify; nonzero. 
+Qed.
+
+Lemma Cexp_6PI4 : Cexp (6 * PI / 4) = -Ci.
+Proof.
+  unfold Cexp.
+  replace (6 * PI / 4)%R with (3 * (PI/2))%R by lra.  
+  rewrite cos_3PI2, sin_3PI2.
+  lca.
+Qed.
+  
+Lemma Cexp_7PI4 : Cexp (7 * PI / 4) = /√2 - /√2 * Ci.
+Proof.
+  unfold Cexp.
+  replace (7 * PI / 4)%R with (- PI / 4 + 2 * INR 1 * PI)%R.
+  2:{ R_field_simplify. rewrite Rmult_1_r. lra. }
+  rewrite cos_period, sin_period.
+  rewrite Ropp_div.
+  rewrite cos_neg, sin_neg.
+  rewrite sin_PI4, cos_PI4.
+  eapply c_proj_eq; simpl.
+  R_field_simplify; nonzero. 
+  R_field_simplify; nonzero. 
+Qed.    
+
+Lemma Cexp_8PI4 : Cexp (8 * PI / 4) = 1.
+Proof. rewrite <- Cexp_2PI. apply f_equal. lra. Qed.
+  
+Lemma Cexp_PI4_m8 : forall k, Cexp (IZR (k - 8) * PI / 4) = Cexp (IZR k * PI / 4).
+Proof.
+  intros.
+  unfold Rdiv.
+  rewrite minus_IZR.
+  unfold Rminus.
+  repeat rewrite Rmult_plus_distr_r.
+  replace (- (8) * PI * / 4)%R with (-(2 * PI))%R by lra.
+  rewrite Cexp_add, Cexp_neg, Cexp_2PI.
+  lca.
+Qed.
+
+
+Hint Rewrite Cexp_0 Cexp_PI Cexp_PI2 Cexp_2PI Cexp_PI4 Cexp_PIm4
+  Cexp_1PI4 Cexp_2PI4 Cexp_3PI4 Cexp_4PI4 Cexp_5PI4 Cexp_6PI4 Cexp_7PI4 Cexp_8PI4
+  Cexp_add Cexp_neg : Cexp_db.
+
+
 (*
-Ltac group_radicals := 
-  repeat match goal with
-  | _ => rewrite Cinv_sqrt2_sqrt
-  | |- context[(?x * ?y)%C] => tryif has_term (√2) x then fail else (has_term (√2) y; 
-                             rewrite (Cmult_comm x y))
-  | |- context[(?x * ?y * ?z)%C] => tryif has_term (√2) y then fail else (has_term (√2) x; has_term (√2) z; 
-                                  rewrite <- (Cmult_assoc x y z))
-  | |- context[(?x * (?y * ?z))%C] => has_term (√2) x; has_term (√2) y; 
-                                    rewrite (Cmult_assoc x y z)
-  end.  
-
-
-Ltac group_radicals_old := 
-  repeat (
-  match goal with
-    | [ |- context[(?r1 * √ ?r2)%R] ] => rewrite (Rmult_comm r1 (√r2)) 
-    | [ |- context[(?r1 * (√ ?r2 * ?r3))%R] ] => rewrite <- (Rmult_assoc _ (√ r2) _)
-    | [ |- context[((√?r * ?r1) + (√?r * ?r2))%R ] ] => 
-        rewrite <- (Rmult_plus_distr_l r r1 r2)
-  end).
+Definition Cexp' (θ : R) : C := cos θ + Ci * (sin θ).
+Lemma Cexp_eq : forall θ, Cexp θ = Cexp' θ. Proof. intros. lca. Qed.
 *)
+
 
 Opaque C.

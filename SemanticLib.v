@@ -47,7 +47,7 @@ Qed.
 
 Lemma X_spec : forall (b safe : bool), denote_box safe (boxed_gate _X) (bool_to_matrix b) = 
                                bool_to_matrix (¬ b).
-Proof. intros. vector_denote. destruct b; unfold bool_to_ket; simpl; Msimpl; easy. Qed.
+Proof. intros. vector_denote. destruct b; solve_matrix. Qed.
 
 Lemma init0_spec : forall safe, denote_box safe init0 (I (2^0)) = ∣0⟩⟨0∣.
 Proof. intros. matrix_denote. Msimpl. reflexivity. Qed.
@@ -145,11 +145,11 @@ Qed.
 
 Lemma TRUE_spec : forall z safe, 
   denote_box safe TRUE (bool_to_matrix z) = bool_to_matrix (true ⊕ z). 
-Proof. vector_denote. destruct z; unfold bool_to_ket; simpl; Msimpl; reflexivity. Qed.
+Proof. vector_denote. destruct z; solve_matrix. Qed.
 
 Lemma FALSE_spec : forall z safe, 
     denote_box safe FALSE (bool_to_matrix z) = bool_to_matrix (false ⊕ z). 
-Proof. vector_denote. destruct z; unfold bool_to_ket; simpl; Msimpl; reflexivity. Qed.
+Proof. vector_denote. destruct z; solve_matrix. Qed.
 
 Lemma NOT_spec : forall (x z : bool), 
   forall safe, denote_box safe NOT (bool_to_matrix x ⊗ bool_to_matrix z) = 
