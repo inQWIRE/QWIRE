@@ -534,7 +534,7 @@ Proof.
   all: destruct H; rewrite H; clear.  
   + (* Cell (0,0), f1 *)
     unfold f1.
-    autounfold with M_db.
+    autounfold with U_db.
     simpl.
     autorewrite with C_db.
     reflexivity.
@@ -544,7 +544,7 @@ Proof.
     reflexivity.
   + (* Cell (1,1), f1 *)
     unfold f1.
-    autounfold with M_db.
+    autounfold with U_db.
     simpl.
     autorewrite with C_db.
     rewrite (Cmult_comm (/ √2) _).

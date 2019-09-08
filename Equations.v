@@ -40,9 +40,8 @@ Proof.
   repeat rewrite (Mmult_assoc _ ⟨1∣ σx).
   repeat rewrite (Mmult_assoc _ σx ∣0⟩).
   repeat rewrite (Mmult_assoc _ σx ∣1⟩).
-  Msimpl.
+  Qsimpl.
   rewrite Mplus_comm.
-  restore_dims.
   reflexivity.
 Qed.
 
@@ -292,19 +291,15 @@ Proof. type_check. Qed.
 Lemma init_X_init : forall b, init_X b ≡ init (negb b).
 Proof.
   destruct b; simpl.
-  - repeat (autounfold with den_db; intros; simpl).
-    Msimpl.
-    repeat rewrite <- Mmult_assoc.
-    Msimpl.
-    repeat rewrite Mmult_assoc.
-    Msimpl.
+  - matrix_denote. intros.
+    Qsimpl.
+    repeat rewrite <- Mmult_assoc; Qsimpl.
+    repeat rewrite Mmult_assoc; Qsimpl.
     reflexivity.    
-  - repeat (autounfold with den_db; intros; simpl).
-    Msimpl.
-    repeat rewrite <- Mmult_assoc.
-    Msimpl.
-    repeat rewrite Mmult_assoc.
-    Msimpl.
+  - matrix_denote. intros.
+    Qsimpl.
+    repeat rewrite <- Mmult_assoc; Qsimpl.
+    repeat rewrite Mmult_assoc; Qsimpl.
     reflexivity.    
 Qed.
   

@@ -171,14 +171,80 @@ Definition swap : Matrix (2*2) (2*2) :=
           end.
 
 (* Does this overwrite the other Hint DB M? *)
-Hint Unfold qubit0 qubit1 hadamard σx σy σz control cnot swap bra ket : M_db.
+Hint Unfold qubit0 qubit1 hadamard σx σy σz control cnot swap bra ket : U_db.
 
 (* Lemmas *)
+
+(* Additional tactics for ∣0⟩, ∣1⟩, cnot and σx. *)
+
+Lemma Mmult00 : ⟨0∣ × ∣0⟩ = I 1. Proof. solve_matrix. Qed.
+Lemma Mmult01 : ⟨0∣ × ∣1⟩ = Zero. Proof. solve_matrix. Qed.
+Lemma Mmult10 : ⟨1∣ × ∣0⟩ = Zero. Proof. solve_matrix. Qed.
+Lemma Mmult11 : ⟨1∣ × ∣1⟩ = I 1. Proof. solve_matrix. Qed.
+
 Lemma MmultX1 : σx × ∣1⟩ = ∣0⟩. Proof. solve_matrix. Qed.
 Lemma Mmult1X : ⟨1∣ × σx = ⟨0∣. Proof. solve_matrix. Qed.
 Lemma MmultX0 : σx × ∣0⟩ = ∣1⟩. Proof. solve_matrix. Qed.
 Lemma Mmult0X : ⟨0∣ × σx = ⟨1∣. Proof. solve_matrix. Qed.
-Hint Rewrite Mmult0X Mmult1X MmultX0 MmultX1 : M_db.
+
+Lemma σx_on_right0 : forall (q : Vector 2), (q × ⟨0∣) × σx = q × ⟨1∣.
+Proof. intros. rewrite Mmult_assoc, Mmult0X. reflexivity. Qed.
+
+Lemma σx_on_right1 : forall (q : Vector 2), (q × ⟨1∣) × σx = q × ⟨0∣.
+Proof. intros. rewrite Mmult_assoc, Mmult1X. reflexivity. Qed.
+
+Lemma σx_on_left0 : forall (q : Matrix 1 2), σx × (∣0⟩ × q) = ∣1⟩ × q.
+Proof. intros. rewrite <- Mmult_assoc, MmultX0. reflexivity. Qed.
+
+Lemma σx_on_left1 : forall (q : Matrix 1 2), σx × (∣1⟩ × q) = ∣0⟩ × q.
+Proof. intros. rewrite <- Mmult_assoc, MmultX1. reflexivity. Qed.
+
+Lemma cancel00 : forall (q1 : Matrix 2 1) (q2 : Matrix 1 2), 
+  WF_Matrix q2 ->
+  (q1 × ⟨0∣) × (∣0⟩ × q2) = q1 × q2.
+Proof. 
+  intros. 
+  rewrite Mmult_assoc. 
+  rewrite <- (Mmult_assoc ⟨0∣).
+  rewrite Mmult00.             
+  Msimpl; reflexivity.
+Qed.
+
+Lemma cancel01 : forall (q1 : Matrix 2 1) (q2 : Matrix 1 2), 
+  (q1 × ⟨0∣) × (∣1⟩ × q2) = Zero.
+Proof. 
+  intros. 
+  rewrite Mmult_assoc. 
+  rewrite <- (Mmult_assoc ⟨0∣).
+  rewrite Mmult01.             
+  Msimpl_light; reflexivity.
+Qed.
+
+Lemma cancel10 : forall (q1 : Matrix 2 1) (q2 : Matrix 1 2), 
+  (q1 × ⟨1∣) × (∣0⟩ × q2) = Zero.
+Proof. 
+  intros. 
+  rewrite Mmult_assoc. 
+  rewrite <- (Mmult_assoc ⟨1∣).
+  rewrite Mmult10.             
+  Msimpl_light; reflexivity.
+Qed.
+
+Lemma cancel11 : forall (q1 : Matrix 2 1) (q2 : Matrix 1 2), 
+  WF_Matrix q2 ->
+  (q1 × ⟨1∣) × (∣1⟩ × q2) = q1 × q2.
+Proof. 
+  intros. 
+  rewrite Mmult_assoc. 
+  rewrite <- (Mmult_assoc ⟨1∣).
+  rewrite Mmult11.             
+  Msimpl; reflexivity.
+Qed.
+
+Hint Rewrite Mmult00 Mmult01 Mmult10 Mmult11 Mmult0X MmultX0 Mmult1X MmultX1 : Q_db.
+Hint Rewrite σx_on_right0 σx_on_right1 σx_on_left0 σx_on_left1 : Q_db.
+Hint Rewrite cancel00 cancel01 cancel10 cancel11 using (auto with wf_db) : Q_db.
+
 
 Lemma swap_swap : swap × swap = I (2*2). Proof. solve_matrix. Qed.
 
@@ -193,7 +259,7 @@ Proof.
   reflexivity.
 Qed.
 
-Hint Rewrite swap_swap swap_swap_r using (auto 100 with wf_db): M_db.
+Hint Rewrite swap_swap swap_swap_r using (auto 100 with wf_db): Q_db.
 
 
 
@@ -319,7 +385,7 @@ Hint Extern 2 (WF_Matrix (control _)) => apply WF_control : wf_db.
 Definition WF_Unitary {n: nat} (U : Matrix n n): Prop :=
   WF_Matrix U /\ U † × U = I n.
 
-Hint Unfold WF_Unitary : M_db.
+Hint Unfold WF_Unitary : U_db.
 
 (* More precise *)
 (* Definition unitary_matrix' {n: nat} (A : Matrix n n): Prop := Minv A A†. *)
@@ -330,7 +396,7 @@ Proof.
   show_wf.
   unfold Mmult, I.
   prep_matrix_equality.
-  autounfold with M_db.
+  autounfold with U_db.
   destruct x as [| [|x]]; destruct y as [|[|y]]; simpl; autorewrite with C_db; 
     try reflexivity.
   replace ((S (S x) <? 2)) with false by reflexivity.
@@ -707,7 +773,7 @@ Lemma braqubit0_sa : ∣0⟩⟨0∣† = ∣0⟩⟨0∣. Proof. lma. Qed.
 Lemma braqubit1_sa : ∣1⟩⟨1∣† = ∣1⟩⟨1∣. Proof. lma. Qed.
 
 Hint Rewrite hadamard_sa σx_sa σy_sa σz_sa cnot_sa swap_sa 
-             braqubit1_sa braqubit0_sa control_adjoint phase_adjoint : M_db.
+             braqubit1_sa braqubit0_sa control_adjoint phase_adjoint : Q_db.
 
 (* Rather use control_adjoint :
 Hint Rewrite control_sa using (autorewrite with M_db; reflexivity) : M_db. *)
@@ -763,6 +829,8 @@ Lemma phase_PI4_m8 : forall k,
 Proof.
   intros. unfold phase_shift. rewrite Cexp_PI4_m8. reflexivity.
 Qed.
+
+Hint Rewrite phase_0 phase_2pi phase_pi phase_neg_pi : Q_db.
 
 
 (*****************************)
@@ -1029,7 +1097,7 @@ Lemma super_outer_product : forall m (φ : Matrix m 1) (U : Matrix m m),
     super U (outer_product φ φ) = outer_product (U × φ) (U × φ).
 Proof.
   intros. unfold super, outer_product.
-  autorewrite with M_db.
+  autorewrite with M_db Q_db.
   repeat rewrite Mmult_assoc. reflexivity.
 Qed.
 
@@ -1150,6 +1218,13 @@ Proof.
 Qed.
 *)
 
+(**************)
+(* Automation *)
+(**************)
+
+Ltac Qsimpl := try restore_dims; autorewrite with M_db_light M_db Q_db.
+
+
 (****************************************)
 (* Tests and Lemmas about swap matrices *)
 (****************************************)
@@ -1178,7 +1253,7 @@ Proof.
     lca.
 Qed.  
 
-Hint Rewrite swap_spec using (auto 100 with wf_db) : M_db.
+Hint Rewrite swap_spec using (auto 100 with wf_db) : Q_db.
 
 Example swap_to_0_test_24 : forall (q0 q1 q2 q3 : Vector 2), 
   WF_Matrix q0 -> WF_Matrix q1 -> WF_Matrix q2 -> WF_Matrix q3 ->
@@ -1189,14 +1264,13 @@ Proof.
   simpl.
   rewrite Mmult_assoc.
   repeat rewrite Mmult_assoc.
-  rewrite (kron_assoc q0 q1).
-  Msimpl.
+  rewrite (kron_assoc q0 q1). Qsimpl.
   replace 4%nat with (2*2)%nat by reflexivity.
   repeat rewrite kron_assoc.
   restore_dims.
-  rewrite <- (kron_assoc q0 q2). Msimpl.
-  rewrite (kron_assoc q2). Msimpl.
-  rewrite <- kron_assoc. Msimpl.
+  rewrite <- (kron_assoc q0 q2). Qsimpl.
+  rewrite (kron_assoc q2). Qsimpl.
+  rewrite <- kron_assoc. Qsimpl.
   repeat rewrite <- kron_assoc.
   reflexivity.
 Qed.
@@ -1216,7 +1290,7 @@ Lemma swap_0_2 : swap_two 3 0 2 = (I 2 ⊗ swap) × (swap ⊗ I 2) × (I 2 ⊗ s
 Proof.
   unfold swap_two.
   simpl.
-  Msimpl.
+  Qsimpl.
   reflexivity.
 Qed.
 
@@ -1248,12 +1322,14 @@ Proof.
   simpl.
   restore_dims.
   replace 4%nat with (2*2)%nat by reflexivity.
-  Msimpl.
+  Qsimpl.
   rewrite <- kron_assoc.
   restore_dims.
   repeat rewrite (kron_assoc _ q1). 
-  Msimpl.
+  Qsimpl.
   reflexivity.
 Qed.
 
 (* *)
+
+

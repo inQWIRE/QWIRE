@@ -19,13 +19,6 @@ Close Scope circ_scope.
 Open Scope matrix_scope.
 Open Scope C_scope.
 
-Lemma arithmetic_fact :   2 * (2 * (/ √ 2 * (2 * (/ 2 * / 2))) * / √ 2) = 1. 
-Proof.
-  rewrite (Cmult_comm (/√2) _).
-  repeat (rewrite (Cmult_assoc 2 (/2)); autorewrite with C_db).
-  easy.
-Qed.
-
 Lemma size_octx_0 : forall Γ, Γ = ∅ -> size_octx Γ = 0%nat.
 Proof.
   intros. 
@@ -109,7 +102,7 @@ Lemma toUnitary_unitary : forall f, WF_Unitary (toUnitary f).
 Proof.
   intros. 
   unfold toUnitary, WF_Unitary.
-  destruct (f true), (f false); restore_dims; Msimpl.
+  destruct (f true), (f false); restore_dims; Qsimpl.
   all: split; auto with wf_db.
   replace (σx × σx) with (I 2) by solve_matrix. rewrite id_kron. reflexivity.
   solve_matrix.
@@ -122,7 +115,7 @@ Proof.
   solve_matrix.
 Qed.  
 
-  Hint Unfold apply_box : den_db.
+Hint Unfold apply_box : den_db.
 
 Lemma deutsch_constant : forall (f : bool -> bool) 
                                 (U : Box (Qubit ⊗ Qubit)%qc (Qubit ⊗ Qubit)%qc),
@@ -160,7 +153,7 @@ Proof.
 
     (* simplify the goal *)
     destruct (toUnitary_unitary f) as [WFU UU]; simpl in WFU.
-    Msimpl.
+    Qsimpl.
 
     (* if f is constant, then it is either always true or false *)
     destruct pf_constant as [pf_true | pf_false].
@@ -168,12 +161,12 @@ Proof.
       subst. unfold toUnitary. 
       solve_matrix.
       (* Arithmetic: 2 * 2 * 1/√2 * 2 * 1/2 * 1/2 * 1/√2 = 1 *)
-      apply arithmetic_fact.
+      C_field. 
    + (* f = fun _ => false *)
      subst. unfold toUnitary.
      solve_matrix.
       (* Arithmetic: 2 * 2 * 1/√2 * 2 * 1/2 * 1/2 * 1/√2 = 1 *)
-     apply arithmetic_fact.
+     C_field.
 Qed.
 
 
@@ -187,8 +180,8 @@ Proof.
   intros f U pf_U pf_constant H_U.
 
    (* simplify definition of deutsch U *)
-    repeat (simpl; autounfold with den_db).
-    Msimpl.
+    matrix_denote.
+    Qsimpl.
 
   compose_denotations.
   - unfold Γ. apply pf_U.
@@ -213,7 +206,7 @@ Proof.
 
     (* simplify the goal *)
     destruct (toUnitary_unitary f) as [WFU UU]; simpl in WFU.
-    Msimpl.
+    Qsimpl.
 
     (* if f is balanced, then it is either always identity or negation *)
     destruct pf_constant as [pf_id | pf_neg].
@@ -221,12 +214,12 @@ Proof.
       subst. unfold toUnitary. 
       solve_matrix.
       (* Arithmetic: 2 * 2 * 1/√2 * 2 * 1/2 * 1/2 * 1/√2 = 1 *)
-      apply arithmetic_fact.
+      C_field. 
    + (* f = fun x => ¬ x *)
      subst. unfold toUnitary. simpl. unfold M_balanced_neg, list2D_to_matrix. simpl.
      solve_matrix.
       (* Arithmetic: 2 * 2 * 1/√2 * 2 * 1/2 * 1/2 * 1/√2 = 1 *)
-      apply arithmetic_fact.
+     C_field.
 Qed.        
 
 End Deutsch.

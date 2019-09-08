@@ -66,7 +66,7 @@ Qed.
 
 Lemma denote_unitary_transpose : forall {W} (U : Unitary W), ⟦trans U⟧ = ⟦U⟧†.
 Proof.
-  induction U; simpl; Msimpl; trivial. 
+  induction U; simpl; Qsimpl; trivial. 
   - simpl_rewrite IHU. easy.
   - simpl_rewrite IHU. easy.
 Qed.
@@ -1061,7 +1061,7 @@ Proof.
     rewrite skipn_repeat, rev_repeat, firstn_repeat.
     simpl. rewrite ctrl_list_to_unitary_false by (auto with wf_db).    
     repeat setoid_rewrite kron_adjoint.
-    Msimpl.
+    Qsimpl.
     reflexivity.
   - simpl.
     unfold denote_ctrls. subst; clear.
@@ -1069,7 +1069,7 @@ Proof.
     rewrite skipn_repeat, rev_repeat, firstn_repeat.
     simpl. rewrite ctrl_list_to_unitary_false by (auto with wf_db).    
     repeat setoid_rewrite kron_adjoint.
-    Msimpl.
+    Qsimpl.
     reflexivity.
   - simpl.
     unfold denote_ctrls. subst; clear.
@@ -1077,7 +1077,7 @@ Proof.
     rewrite skipn_repeat, rev_repeat, firstn_repeat.
     simpl. rewrite ctrl_list_to_unitary_false by (auto with wf_db).    
     repeat setoid_rewrite kron_adjoint.
-    Msimpl.
+    Qsimpl.
     reflexivity.
   - simpl.
     unfold denote_ctrls. subst; clear.
@@ -1085,7 +1085,7 @@ Proof.
     rewrite skipn_repeat, rev_repeat, firstn_repeat.
     simpl. rewrite ctrl_list_to_unitary_false by (auto with wf_db).    
     repeat setoid_rewrite kron_adjoint.
-    Msimpl.
+    Qsimpl.
     reflexivity.
   - simpl.
     unfold denote_ctrls. subst; clear.
@@ -1093,7 +1093,7 @@ Proof.
     rewrite skipn_repeat, rev_repeat, firstn_repeat.
     simpl. rewrite 2 ctrl_list_to_unitary_false by (auto with wf_db).    
     repeat setoid_rewrite kron_adjoint.
-    Msimpl.
+    Qsimpl.
     reflexivity.
 Qed.
 
@@ -1108,19 +1108,19 @@ Proof.
     dependent destruction u.
     + simpl in *.
       inversion H; subst.
-      Msimpl. easy.
+      Qsimpl. easy.
     + simpl in *.
       inversion H; subst.
-      Msimpl. easy.
+      Qsimpl. easy.
     + simpl in *.
       inversion H; subst.
-      Msimpl. easy.
+      Qsimpl. easy.
     + simpl in *.
       inversion H; subst.
-      Msimpl. easy.
+      Qsimpl. easy.
     + simpl in *.
       inversion H; subst.
-      Msimpl. easy.
+      Qsimpl. easy.
   - clear IHW1.
     destruct li as [| k li].
     rewrite ctrls_to_list_empty in *.
@@ -1147,16 +1147,8 @@ Proof.
   - induction r; trivial.
     simpl.
     destruct a.
-    + rewrite IHr.
-      match goal with
-      | [|- _ = (?A .+ ?B)† ] => setoid_rewrite (Mplus_adjoint _ _ A B)
-      end.
-      Msimpl.
-      reflexivity.
-    + rewrite IHr.
-      setoid_rewrite kron_adjoint.
-      Msimpl.
-      reflexivity.
+    + rewrite IHr. Msimpl. reflexivity.
+    + rewrite IHr. Msimpl. reflexivity.
   - simpl.
     destruct a.
     + Msimpl. rewrite IHl. reflexivity.

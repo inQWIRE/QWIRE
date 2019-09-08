@@ -223,7 +223,7 @@ Notation "Σ^ n f" := (Csum f n) (at level 60) : matrix_scope.
 Notation "n ⨂ A" := (kron_n n A) (at level 30, no associativity) : matrix_scope.
 Notation "⨂ A" := (big_kron A) (at level 60): matrix_scope.
 Hint Unfold Zero I trace dot Mplus scale Mmult kron mat_equiv transpose 
-            adjoint : M_db.
+            adjoint : U_db.
   
 Ltac destruct_m_1 :=
   match goal with
@@ -235,7 +235,7 @@ Ltac destruct_m_1 :=
 Ltac destruct_m_eq := repeat (destruct_m_1; simpl).
 
 Ltac lma := 
-  autounfold with M_db;
+  autounfold with U_db;
   prep_matrix_equality;
   destruct_m_eq; 
   lca.
@@ -1704,7 +1704,7 @@ Ltac crunch_matrix :=
                              end; 
                       simpl;
                       unfold list2D_to_matrix;    
-                      autounfold with M_db;
+                      autounfold with U_db;
                       prep_matrix_equality;
                       simpl;
                       destruct_m_eq';
