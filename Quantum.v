@@ -187,6 +187,13 @@ Lemma Mmult1X : ⟨1∣ × σx = ⟨0∣. Proof. solve_matrix. Qed.
 Lemma MmultX0 : σx × ∣0⟩ = ∣1⟩. Proof. solve_matrix. Qed.
 Lemma Mmult0X : ⟨0∣ × σx = ⟨1∣. Proof. solve_matrix. Qed.
 
+Lemma MmultXX : σx × σx = I 2. Proof. solve_matrix. Qed.
+Lemma MmultYY : σy × σy = I 2. Proof. solve_matrix. Qed.
+Lemma MmultZZ : σz × σz = I 2. Proof. solve_matrix. Qed.
+Lemma MmultHH : hadamard × hadamard = I 2. Proof. solve_matrix. Qed.
+Lemma Mplus01 : ∣0⟩⟨0∣ .+ ∣1⟩⟨1∣ = I 2. Proof. solve_matrix. Qed.
+Lemma Mplus10 : ∣1⟩⟨1∣ .+ ∣0⟩⟨0∣ = I 2. Proof. solve_matrix. Qed.
+                            
 Lemma σx_on_right0 : forall (q : Vector 2), (q × ⟨0∣) × σx = q × ⟨1∣.
 Proof. intros. rewrite Mmult_assoc, Mmult0X. reflexivity. Qed.
 
@@ -242,8 +249,10 @@ Proof.
 Qed.
 
 Hint Rewrite Mmult00 Mmult01 Mmult10 Mmult11 Mmult0X MmultX0 Mmult1X MmultX1 : Q_db.
+Hint Rewrite MmultXX MmultYY MmultZZ MmultHH Mplus01 Mplus10 : Q_db.
 Hint Rewrite σx_on_right0 σx_on_right1 σx_on_left0 σx_on_left1 : Q_db.
 Hint Rewrite cancel00 cancel01 cancel10 cancel11 using (auto with wf_db) : Q_db.
+
 
 
 Lemma swap_swap : swap × swap = I (2*2). Proof. solve_matrix. Qed.

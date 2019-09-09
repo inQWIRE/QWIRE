@@ -1493,17 +1493,20 @@ Ltac restore_dims_rec A :=
                | Matrix ?m' ?n' => constr:(@scale m' n' c A')
                end
   (* For predicates (eg. WF_Matrix, Mixed_State) on Matrices *)
-  | ?P ?m ?n ?A => let _ := match goal with _ => is_nat m end in
-                  let _ := match goal with _ => is_nat n end in
-                  let A' := restore_dims_rec A in 
-                  match type of A' with
-                  | Matrix ?m' ?n' => constr:(P m' n' A')
-                  end  
-  | ?P ?n ?A => let _ := match goal with _ => is_nat n end in
-               let A' := restore_dims_rec A in 
-               match type of A' with
-               | Matrix ?m' ?n' => constr:(P m' A')
-               end  
+  | ?P ?m ?n ?A => match type of P with
+                  | nat -> nat -> Matrix _ _ -> Prop =>
+                    let A' := restore_dims_rec A in 
+                    match type of A' with
+                    | Matrix ?m' ?n' => constr:(P m' n' A')
+                    end
+                  end
+  | ?P ?n ?A => match type of P with
+                  | nat -> Matrix _ _ -> Prop =>
+                    let A' := restore_dims_rec A in 
+                    match type of A' with
+                    | Matrix ?m' ?n' => constr:(P m' A')
+                    end
+               end
   (* Handle functions applied to matrices *)
   | ?f ?A    => let f' := restore_dims_rec f in 
                let A' := restore_dims_rec A in 
