@@ -35,14 +35,15 @@ complete space. *)
 
 Definition C := (R * R)%type.
 
-Declare Scope C_scope.
+(* 8.10: Declare Scope C_scope. *)
+Delimit Scope C_scope with C.
+
 Open Scope nat_scope.
 Open Scope R_scope.
 Open Scope C_scope.
 Bind Scope nat_scope with nat.
 Bind Scope R_scope with R.
 Bind Scope C_scope with C.
-Delimit Scope C_scope with C.
 
 Definition RtoC (x : R) : C := (x,0).
 Coercion RtoC : R >-> C.

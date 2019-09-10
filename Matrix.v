@@ -12,9 +12,9 @@ Require Import List.
 (** Matrix Definitions and Infrastructure **)
 (*******************************************)
 
-Declare Scope matrix_scope.
-Open Scope matrix_scope.
+(* 8.10: Declare Scope matrix_scope. *)
 Delimit Scope matrix_scope with M.
+Open Scope matrix_scope.
 
 Local Open Scope nat_scope.
 
@@ -1501,11 +1501,11 @@ Ltac restore_dims_rec A :=
                     end
                   end
   | ?P ?n ?A => match type of P with
-                  | nat -> Matrix _ _ -> Prop =>
-                    let A' := restore_dims_rec A in 
-                    match type of A' with
-                    | Matrix ?m' ?n' => constr:(P m' A')
-                    end
+               | nat -> Matrix _ _ -> Prop =>
+                 let A' := restore_dims_rec A in 
+                 match type of A' with
+                 | Matrix ?m' ?n' => constr:(P m' A')
+                 end
                end
   (* Handle functions applied to matrices *)
   | ?f ?A    => let f' := restore_dims_rec f in 

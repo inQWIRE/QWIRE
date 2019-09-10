@@ -19,7 +19,7 @@ Require Import Omega.
 (* Reversible bexps with variables *)
 (* --------------------------------*)
 
-Declare Scope bexp_scope.
+(* 8.10: Declare Scope bexp_scope. *)
 Delimit Scope bexp_scope with bx.
 Open Scope bexp_scope.
 Open Scope circ_scope.
