@@ -12,8 +12,6 @@ Export ListNotations.
 Notation "¬ b" := (negb b) (at level 10).
 Infix  "⊕" := xorb (at level 20).
 
-Search xorb andb.
-
 Lemma xorb_nb_b : forall b, ¬ b ⊕ b = true. Proof. destruct b; easy. Qed.
 Lemma xorb_b_nb : forall b, b ⊕ ¬ b = true. Proof. destruct b; easy. Qed.
 
