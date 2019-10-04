@@ -1394,6 +1394,23 @@ Proof.
   reflexivity.
 Qed.
 
+(* Useful kron_n identity. *)
+Lemma kron_n_assoc :
+  forall n {m1 m2} (A : Matrix m1 m2), WF_Matrix A -> (S n) ⨂ A = A ⊗ (n ⨂ A).
+Proof.
+  intros. induction n.
+  - simpl. 
+    rewrite kron_1_r. 
+    rewrite kron_1_l; try assumption.
+    reflexivity.
+  - simpl.
+    replace (m1 * (m1 ^ n)) with ((m1 ^ n) * m1) by apply Nat.mul_comm.
+    replace (m2 * (m2 ^ n)) with ((m2 ^ n) * m2) by apply Nat.mul_comm.
+    rewrite <- kron_assoc.
+    rewrite <- IHn.
+    reflexivity.
+Qed.
+
 (* Note on "using [tactics]": Most generated subgoals will be of the form 
    WF_Matrix M, where auto with wf_db will work.
    Occasionally WF_Matrix M will rely on rewriting to match an assumption in the 
