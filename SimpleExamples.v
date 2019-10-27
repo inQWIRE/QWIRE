@@ -53,34 +53,18 @@ Definition bob_distant {n} (u v : bool) : Box n Qubit (2 + n) Qubit :=
     gate_ b ← (if u then Z else I) @b;
     output b.
 
-Definition teleport_distant {n} : Box n Qubit _ _ :=
+Definition teleport_distant {n} : Box n Qubit 4 Qubit :=
   box_ q ⇒
     let_ (a,b)  ← unbox bell00 ();
     let_ (x,y)  ← unbox alice (q,,a);
     lift_ (u,v) ← (x,y);
-    output b.
+    unbox (bob_distant u v) b.
 
 Check teleport_distant.
 
-let_ (x,y)  ← unbox alice (q,,a);
-    lift_ (u,v) ← output (x,,y);
-    unbox (bob_distant u v) b.
-
-
-Definition teleport_distant {n} : Box _ Qubit _ Qubit :=
-  box_ q ⇒
-    let_ (a,b)  ← unbox bell00 ();
-    let_ (x,y)  ← unbox alice (q,,a);
-    lift_ (u,v) ← output (x,,y);
-    unbox (bob_distant u v) b.
-
-Lemma teleport_distant_WT : Typed_Box teleport_distant.
-Proof. type_check. Qed.
-
-
 (* Now with error correction! *)
 
-Definition bell00' : Box 0 One 2 (Qubit ⊗ Qubit) :=
+Definition bell_EC : Box 0 One 2 (Qubit ⊗ Qubit) :=
   box_ () ⇒  
     gate_ a ← init0 @();
     gate_ b ← init0 @();
@@ -88,7 +72,7 @@ Definition bell00' : Box 0 One 2 (Qubit ⊗ Qubit) :=
     gate_ (a,b) ← CNOT @(a,,b); 
     output (a,,b).
 
-Definition alice' {n} : Box n (Qubit ⊗ Qubit) 0 (Bit ⊗ Bit) :=
+Definition alice_EC {n} : Box n (Qubit ⊗ Qubit) 0 (Bit ⊗ Bit) :=
   box_ qa ⇒ 
     gate_ (q,a) ← CNOT @qa;
     gate_ q     ← EC   @q;
@@ -97,18 +81,25 @@ Definition alice' {n} : Box n (Qubit ⊗ Qubit) 0 (Bit ⊗ Bit) :=
     gate_ y     ← meas @a;
     output (x,,y).
 
-Program Definition bob' : Box 2 (Bit ⊗ Bit ⊗ Qubit) 1 Qubit :=
+(* Doesn't work! Even after error correction on b, (x,m) has 2 errors! *)
+Fail Definition bob_EC : Box 2 (Bit ⊗ Bit ⊗ Qubit) 1 Qubit :=
   box_ (x,y,b) ⇒ 
     gate_ (y,b)    ← U (bit_ctrl _X) @(y,,b);
-    gate_ x        ← EC              @x;
     gate_ b        ← EC              @b;
     gate_ (x,b)    ← U (bit_ctrl _Z) @(x,,b);
     discard_ (x,y) ;  
     output b.
-Next Obligation. rewrite Nat.max_id. rewrite Nat.max_r; omega. Defined.
 
-Definition teleport {n} : Box n Qubit 4 Qubit :=
+Definition bob_distant_EC (u v : bool) : Box 2 Qubit 1 Qubit :=
+  box_ b ⇒
+    gate_ b ← (if v then X else I) @b;
+    gate_ b ← EC                   @b;
+    gate_ b ← (if u then Z else I) @b;
+    output b.
+
+Definition teleport_distant_EC {n} : Box n Qubit 1 Qubit :=
   box_ q ⇒
-    let_ (a,b) ← unbox bell00 () ;
-    let_ (x,y) ← unbox alice (q,,a) ;
-    unbox bob (x,,y,,b).
+    let_ (a,b)  ← unbox bell_EC ();
+    let_ (x,y)  ← unbox alice_EC (q,,a);
+    lift_ (u,v) ← (x,y);
+    unbox (bob_distant_EC u v) b.
