@@ -8,16 +8,16 @@ Open Scope circ_scope.
 
 (* Example circuits *)
 
-Definition new_discard : Box One One := 
+Definition new_discard {n} : Box n One 0 One := 
   box_ () ⇒ 
-    let_ b ← new0 $();
+    let_ b ← (@boxed_gate _ _ n 0) new0 $();
     discard_ b;
     (). 
-Lemma new_discard_WT : Typed_Box new_discard.
-Proof. type_check. Qed.
+(* Lemma new_discard_WT : Typed_Box new_discard. Proof. type_check. Qed. *)
 
-Definition init_discard : Box One One:= 
-  box_ () ⇒ discard $ meas $ init0 $ ().
+(*
+Definition init_discard {n} : Box n One 0 One := 
+  box_ () ⇒ boxed_gate discard $ boxed_gate meas $ boxed_gate init0 $ ().
 Lemma init_discard_WT : Typed_Box init_discard.
 Proof. type_check. Qed.
 
@@ -137,15 +137,15 @@ Proof.
     all: type_check.
     apply types_units.
 Qed.
-
+*)
 
 (*******************)
 (** Teleportation **)
 (*******************)
 
-Definition bell00 : Box One (Qubit ⊗ Qubit) :=
+Definition bell00 : Box 0 One 2 (Qubit ⊗ Qubit) :=
   box_ () ⇒  
-    let_ a ← _H $ init0 $();
+    let_ a ← boxed_gate (U _H) $ boxed_gate init0 $();
     let_ b ← init0 $();
     CNOT $ (a,b).
 Lemma bell00_WT : Typed_Box bell00.

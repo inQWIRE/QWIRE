@@ -128,7 +128,7 @@ Notation letpair p1 p2 p c := (let (p1,p2) := wproj p in c).
 
 Notation "'box_' p ⇒ C" := (box (fun p => C)) 
     (at level 13) : circ_scope.
-Notation "'box_' () ⇒ C" := (box (fun _ => C)) 
+Notation "'box_' () ⇒ C" := (box (fun (_ : Pat 0 One)  => C)) 
     (at level 13) : circ_scope.
 Notation "'box_' ( p1 , p2 ) ⇒ C" := (box (fun p => letpair p1 p2 p C)) 
     (at level 13) : circ_scope.
@@ -147,7 +147,7 @@ Notation "'box_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ⇒ C" := (box (fun x =>
     (at level 13) : circ_scope.
 
 (* Notations for patterns *)
-Notation "()" := unit : circ_scope.
+Notation "()" := (@unit 0) : circ_scope.
 (* Now a bit ugly, since we tend to use (a,b) with the newer $ notation *)
 Notation "( x ,, y ,, .. ,, z )" := (pair .. (pair x y) .. z) (at level 0) : circ_scope.
 
@@ -395,9 +395,10 @@ Definition entangle23 : Square_Box (Qubit ⊗ Qubit ⊗ Qubit) :=
   box_ (p0,p1,p2) ⇒ 
     let_ (p3,p4) ← CNOT $ (p1,p2);
     (p0,p3,p4).
-*)
+ *)
 
-Lemma cnot12_WT_manual : Typed_Box cnot12.
+(*
+Lemma cnot12_WT_manual : forall n, Typed_Box (cnot12 n).
 Proof.    
   (* manual - no evars *)
   unfold Typed_Box, cnot12. 
@@ -505,3 +506,4 @@ Proof.
   (* using only type_check *)
   type_check.
 Qed.
+*)

@@ -1216,6 +1216,15 @@ Defined.
 
 (* n refers to the number of errors on the wire *)
 Open Scope circ_scope.
+
+(* Without errors on Unit and Bit:
+Inductive Pat : nat -> WType -> Set :=
+| unit : Pat 0 One
+| qubit : forall {n}, Var -> Pat n Qubit
+| bit : Var -> Pat 0 Bit
+| pair : forall {W1 W2 m n}, Pat m W1 -> Pat n W2 -> Pat (Nat.max m n) (W1 ⊗ W2).
+*)
+
 Inductive Pat : nat -> WType -> Set :=
 | unit : forall {n}, Pat n One
 | qubit : forall {n}, Var -> Pat n Qubit
@@ -1403,17 +1412,18 @@ Fixpoint trans {W n} (U : Unitary n W) : Unitary n W :=
 Inductive Gate : nat -> WType -> nat -> WType -> Set := 
   | U       : forall {W n k} (u : Unitary k W), Gate n W (k + n) W
   | BNOT    : forall {n}, Gate n Bit (S n) Bit
-  | init0   : forall {n}, Gate n One 1 Qubit (* look at other models *)
-  | init1   : forall {n}, Gate n One 1 Qubit
-  | new0    : forall {n}, Gate n One 1 Bit
-  | new1    : forall {n}, Gate n One 1 Bit
-  | meas    : forall {n}, Gate n Qubit (S n) Bit
-  | measQ   : forall {n}, Gate n Qubit (S n) Qubit
+  | init0   : forall {n}, Gate n One 0 Qubit (* look at other models *)
+  | init1   : forall {n}, Gate n One 0 Qubit
+  | new0    : forall {n}, Gate n One 0 Bit
+  | new1    : forall {n}, Gate n One 0 Bit
+  | meas    : forall {n}, Gate n Qubit 0 Bit
+  | measQ   : forall {n}, Gate n Qubit 0 Qubit
   | discard : forall {n}, Gate n Bit 0 One
   | assert0 : forall {n}, Gate n Qubit 0 One
-  | assert1 : forall {n}, Gate n Qubit 0 One.
+  | assert1 : forall {n}, Gate n Qubit 0 One
+  | EC      : forall {n}, Gate n Qubit (if n <=? 3 then 0 else n) Qubit.
 
-Coercion U : Unitary >-> Gate.
+Coercion U : Unitary >-> Gate. (* fails uniform inheritance condition *)
 Close Scope circ_scope.
 
 

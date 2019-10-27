@@ -4,28 +4,32 @@ Import ListNotations.
 Open Scope list_scope.
 Open Scope circ_scope.
  
-Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Box W1 W2 := 
+Definition boxed_gate {W1 W2 n1 n2} (g : Gate n1 W1 n2 W2) : Box n1 W1 n2 W2 := 
   box_ p ⇒ 
     gate_ p2 ← g @ p;
     output p2.
+(*
 Lemma boxed_gate_WT {W1 W2} (g : Gate W1 W2) : Typed_Box (boxed_gate g).
 Proof. type_check. Qed.
-Coercion boxed_gate : Gate >-> Box.
+*)
 
-Lemma types_circuit_valid : forall w (c : Circuit w) Γ, Γ ⊢ c :Circ -> is_valid Γ.
+Coercion boxed_gate : Gate >-> Box. (* broken? Why??? *)
+
+Lemma types_circuit_valid : forall w n (c : Circuit n w) Γ, Γ ⊢ c :Circ -> is_valid Γ.
 Proof.
-  intros w c Γ pf_c.
+  intros w n c Γ pf_c.
   induction pf_c.
   - subst. eapply pat_ctx_valid; eauto.
   - destruct pf1. subst. auto.
   - destruct pf. subst. auto.
 Qed.
 
-Definition apply_box {w1 w2} (b : Box w1 w2) (c : Circuit w1) : Circuit w2 :=
+Definition apply_box {w1 w2 n1 n2} (b : Box n1 w1 n2 w2) (c : Circuit n1 w1) : Circuit n2 w2 :=
   let_ x ← c;
-  unbox b x.
+    unbox b x.
 Notation "b $ c" := (apply_box b c)  (right associativity, at level 12) : circ_scope.
 Coercion output : Pat >-> Circuit.
+(*
 Lemma apply_box_WT : forall w1 w2 (b : Box w1 w2) (c : Circuit w1) Γ,
       Typed_Box b -> Γ ⊢ c :Circ -> Γ ⊢ apply_box b c :Circ.
 Proof.
@@ -34,7 +38,7 @@ Proof.
   apply unbox_typing; auto.
   type_check.
 Qed.
-
+*)
 
 
 (* Should move other notations in Typechecking *)
@@ -49,25 +53,25 @@ Program Fixpoint lift_circ {W W' : WType} (c0 : Circuit W) (c : interpret W -> C
                    compose c0 (fun p => letpair p1 p2 p 
                      (lift_circ W1 W' p1 (fun x1 => lift_circ W2 W' p2 (c' x1))))
   end.
-*)
+ *)
 
-Fixpoint lift_circ {W W' : WType} (c0 : Circuit W) (c : interpret W -> Circuit W') {struct W} : Circuit W'. 
+Fixpoint lift_circ {W W' : WType} {n n'} (c0 : Circuit n W) (c : interpret W -> Circuit n' W') {struct W} : Circuit n' W'. 
   induction W.
-  + exact (compose (meas $ c0) (fun p => lift p c)).
+  + exact (compose (boxed_gate meas $ c0) (fun p => lift p c)).
   + exact (compose c0 (fun p => lift p c)).
   + exact (compose c0 (fun _ => c tt)). 
   + simpl in c.
     pose (c' := (curry c)).
     exact (compose c0 (fun p => letpair p1 p2 p 
-                     (lift_circ W1 W' p1 (fun x1 => lift_circ W2 W' p2 (c' x1))))).
+                     (lift_circ W1 W' _ _ p1 (fun x1 => lift_circ W2 W' _ _ p2 (c' x1))))).
 Defined.
 
 (* One bit/qubit version that the Coq typechecker can deal with *)
-Program Definition lift_wire {W W' : WType} (c0 : Circuit W) (c : bool -> Circuit W')
-  : Circuit W' :=
+Program Definition lift_wire {W W' : WType} {n n' : nat} (c0 : Circuit n W) (c : bool -> Circuit n' W')
+  : Circuit n' W' :=
   match W with 
   | Bit   => compose c0 (fun p => lift p c)
-  | Qubit => compose (meas $ c0) (fun p => lift p c)
+  | Qubit => compose (boxed_gate meas $ c0) (fun p => lift p c)
   | One   => c true (* invalid case *)
   | Tensor W1 W2 => c true  (* invalid case *)
   end.
@@ -93,17 +97,27 @@ Notation "'lift_' ( x , y ) ← c0 ; c" := (lift_circ c0 (fun p => let (x,y) := 
 (***********************)
 
 
-Definition id_circ {W} : Box W W :=
+Definition id_circ {W n} : Box n W n W :=
   box_ p ⇒ (output p).
+(*
 Lemma id_circ_WT : forall W, Typed_Box (@id_circ W).
 Proof. type_check. Qed.
+ *)
 
-Definition SWAP : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) := 
+Program Definition SWAP {n} : Box n (Qubit ⊗ Qubit) n (Qubit ⊗ Qubit) := 
   box_ p ⇒ let_ (p1,p2) ← p; (p2,p1).
-Lemma WT_SWAP : Typed_Box SWAP. 
+Next Obligation. apply Nat.max_id. Defined.
+
+(*
+Lemma WT_SWAP : forall n, Typed_Box (@SWAP n). 
 Proof. type_check. Qed.
+*)
 
+(*********************************)
+(* TODO: update with error wires *)
+(*********************************)
 
+(*
 Definition new (b : bool) : Box One Bit := if b then new1 else new0.
 Lemma new_WT : forall b, Typed_Box (new b).
 Proof. destruct b; type_check. Defined.
@@ -300,3 +314,4 @@ Definition XOR : Box (Qubit ⊗ Qubit ⊗ Qubit) (Qubit ⊗ Qubit ⊗ Qubit) :=
     (x,y,z).
 Lemma XOR_WT : Typed_Box XOR.
 Proof. type_check. Qed.
+*)
