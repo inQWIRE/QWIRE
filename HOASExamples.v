@@ -240,7 +240,7 @@ Definition teleport_distant : Box Qubit Qubit :=
 Lemma teleport_distant_WT : Typed_Box teleport_distant.
 Proof. type_check. Qed.
 
-
+(*
 (***********************)
 (** Superdense Coding **)
 (***********************)
@@ -508,3 +508,5 @@ Next Obligation. Abort.
 Close Scope circ_scope.
 
 (* *)
+
+*)

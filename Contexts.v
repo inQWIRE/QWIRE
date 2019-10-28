@@ -1217,68 +1217,22 @@ Defined.
 (* n refers to the number of errors on the wire *)
 Open Scope circ_scope.
 
-(* Without errors on Unit and Bit:
-Inductive Pat : nat -> WType -> Set :=
-| unit : Pat 0 One
-| qubit : forall {n}, Var -> Pat n Qubit
-| bit : Var -> Pat 0 Bit
-| pair : forall {W1 W2 m n}, Pat m W1 -> Pat n W2 -> Pat (Nat.max m n) (W1 ⊗ W2).
-*)
-
 Inductive Pat : nat -> WType -> Set :=
 | unit : forall {n}, Pat n One
 | qubit : forall {n}, Var -> Pat n Qubit
 | bit : forall {n}, Var -> Pat n Bit
-| pair : forall {W1 W2 m n}, Pat m W1 -> Pat n W2 -> Pat (Nat.max m n) (W1 ⊗ W2).
+| pair : forall {W1 W2 m n}, Pat m W1 -> Pat n W2 -> Pat (m + n) (W1 ⊗ W2).
 
-(*
-| pair : forall {W1 W2 n}, Pat n W1 -> Pat n W2 -> Pat n (W1 ⊗ W2)
-| weaken : forall {m n W}, Pat n W -> Pat (m + n) W.
- *)
-
-Lemma max_dist : forall m n o, max (max m o) (max n o) = max (max m n) o.
-Proof.
-  intros m n o.
-  bdestruct (max m n <=? o).
-  - specialize (Nat.max_lub_r _ _ _ H) as H1.
-    specialize (Nat.max_lub_l _ _ _ H) as H2.
-    repeat rewrite (Nat.max_r _ o); easy.
-  - unfold gt in H.
-    rewrite (Nat.max_l (max m n) o) by lia.
-    apply Nat.max_lt_iff in H.
-    destruct H.
-    + rewrite (Nat.max_l m o) by lia.
-      rewrite (Nat.max_comm n o).
-      rewrite Nat.max_assoc.
-      rewrite (Nat.max_l m o) by lia.
-      reflexivity.
-    + rewrite (Nat.max_l n o) by lia.
-      rewrite <- Nat.max_assoc.
-      rewrite (Nat.max_r o n) by lia.
-      reflexivity.
-Qed.
-
-Program Fixpoint weaken {W m} (n : nat) (p : Pat m W) : Pat (max m n) W :=
+Program Fixpoint weaken {W m} (n : nat) (p : Pat m W) : Pat (m + n) W :=
   match p with
   | unit    => unit
   | qubit x => qubit x  
   | bit x   => bit x
-  | pair p1 p2 => pair (weaken n p1) (weaken n p2)
+  | pair p1 p2 => pair (weaken n p1) p2 (* ok to just stick the error on the left? *)
   end.
-Next Obligation. apply max_dist. Defined.
+Next Obligation. rewrite Nat.add_shuffle0. reflexivity. Defined.
 
 Print weaken.
-
-Program Fixpoint unsafe_weaken {W m} (n : nat) (p : Pat m W) : Pat n W :=
-  match p with
-  | unit    => unit
-  | qubit x => qubit x  
-  | bit x   => bit x
-  | pair p1 p2 => pair (unsafe_weaken n p1) (unsafe_weaken n p2)
-  end.
-Next Obligation. apply Nat.max_id. Defined.
-
-Print unsafe_weaken.
 
 Definition weak_proj1 {W1 W2 n} : Pat n (W1 ⊗ W2) -> Pat n W1.
   intros p.
@@ -1289,7 +1243,7 @@ Defined.
 Definition weak_proj2 {W1 W2 n} : Pat n (W1 ⊗ W2) -> Pat n W2.
   intros p.
   dependent destruction p.
-  rewrite Nat.max_comm.
+  rewrite Nat.add_comm.
   apply (weaken m p2).
 Defined.  
 
@@ -1411,17 +1365,17 @@ Fixpoint trans {W n} (U : Unitary n W) : Unitary n W :=
 
 Inductive Gate : nat -> WType -> nat -> WType -> Set := 
   | U       : forall {W n k} (u : Unitary k W), Gate n W (k + n) W
-  | BNOT    : forall {n}, Gate n Bit (S n) Bit
-  | init0   : forall {n}, Gate n One 0 Qubit (* look at other models *)
+  | BNOT    : forall {n}, Gate n Bit 0 Bit
+  | init0   : forall {n}, Gate n One 0 Qubit
   | init1   : forall {n}, Gate n One 0 Qubit
   | new0    : forall {n}, Gate n One 0 Bit
   | new1    : forall {n}, Gate n One 0 Bit
   | meas    : forall {n}, Gate n Qubit 0 Bit
-  | measQ   : forall {n}, Gate n Qubit 0 Qubit
+  | measQ   : forall {n}, Gate n Qubit 0 Qubit (* error probably shouldn't be zero? *)
   | discard : forall {n}, Gate n Bit 0 One
   | assert0 : forall {n}, Gate n Qubit 0 One
   | assert1 : forall {n}, Gate n Qubit 0 One
-  | EC      : forall {n}, Gate n Qubit (if n <=? 3 then 0 else n) Qubit.
+  | EC      : forall {n}, Gate n Qubit 0 Qubit.
 
 Coercion U : Unitary >-> Gate. (* fails uniform inheritance condition *)
 Close Scope circ_scope.
