@@ -303,7 +303,7 @@ Output : (cout', (sum', (y, (x, (cin, ())))))
 Definition adder_circ_1 : Box (5 ⨂ Qubit) (5 ⨂ Qubit) := 
   (id_circ ∥ adder_sum_circ) ;; adder_cout_circ.
 
-Local Obligation Tactic := program_simpl; try omega.
+Local Obligation Tactic := program_simpl; try lia.
 Program Definition carrier_circ_1_with_pads (n : nat) : Box ((5+n) ⨂ Qubit) ((5+n) ⨂ Qubit)
   := (adder_cout_circ_with_pads n).
 Next Obligation.
@@ -317,7 +317,7 @@ Next Obligation.
   - simpl. rewrite IHn. reflexivity.
 Defined.
 
-Local Obligation Tactic := program_simpl; try omega.
+Local Obligation Tactic := program_simpl; try lia.
 Program Definition adder_circ_1_with_pads (n : nat) : Box ((5+n) ⨂ Qubit) ((5+n) ⨂ Qubit) := 
   ((@id_circ Qubit) ∥ (adder_sum_circ_with_pads n)) ;; 
   (adder_cout_circ_with_pads n).
@@ -498,6 +498,7 @@ Proof.
       simpl in *. unfold kron at 5.
       unfold kron in H at 4.
       rewrite H1 in H. unfold list_of_Qubits in H.
+      rewrite ctx_to_mat_list_length. simpl.
       rewrite H.
       clear H1 H.
       simpl_rewrite id_circ_spec.
@@ -515,8 +516,10 @@ Proof.
         simpl in *. unfold kron at 5.
         unfold kron in H at 5.
         rewrite H1 in H. unfold list_of_Qubits in H.
+        rewrite size_ntensor, Nat.mul_1_r.
         apply H.
       * apply WF_bool_to_matrix.
+    + auto 100 with wf_db.
 Qed.
 Close Scope matrix_scope.
 
@@ -577,21 +580,21 @@ Program Fixpoint adder_circ_n_left (n : nat) : Box ((1+3*n) ⨂ Qubit) ((1+4*n) 
   end.
 Next Obligation.
   replace (S n' + (S n' + (S n' + (S n' + 0))))
-    with (4 + n' + (n' + (n' + (n' + 0)))) by omega.
+    with (4 + n' + (n' + (n' + (n' + 0)))) by lia.
   simpl. reflexivity.
 Defined.
 Next Obligation.
   replace (S n' + (S n' + (S n' + (S n' + 0))))
-    with (4 + n' + (n' + (n' + (n' + 0)))) by omega.
+    with (4 + n' + (n' + (n' + (n' + 0)))) by lia.
   simpl. reflexivity.
 Defined.
 Next Obligation.
-  replace (n' + S (n' + S (n' + 0))) with (2 + n' + (n' + (n' + 0))) by omega.
+  replace (n' + S (n' + S (n' + 0))) with (2 + n' + (n' + (n' + 0))) by lia.
   simpl. reflexivity.
 Defined.
 Next Obligation.
   replace (n' + S (n' + S (n' + S (n' + 0))))
-    with (3 + (n' + (n' + (n' + (n' + 0))))) by omega.
+    with (3 + (n' + (n' + (n' + (n' + 0))))) by lia.
   simpl. reflexivity.
 Defined.
 
@@ -604,21 +607,21 @@ Program Fixpoint adder_circ_n_right (n : nat) : Box ((1+4*n) ⨂ Qubit) ((1+3*n)
   end.
 Next Obligation.
   replace (S n' + (S n' + (S n' + (S n' + 0))))
-    with (4 + (n' + (n' + (n' + (n' + 0))))) by omega.
+    with (4 + (n' + (n' + (n' + (n' + 0))))) by lia.
   simpl. reflexivity.
 Defined.
 Next Obligation.
   replace (S n' + (S n' + (S n' + (S n' + 0))))
-    with (4 + (n' + (n' + (n' + (n' + 0))))) by omega.
+    with (4 + (n' + (n' + (n' + (n' + 0))))) by lia.
   simpl. reflexivity.
 Defined.
 Next Obligation.
   replace (n' + S (n' + S (n' + S (n' + 0))))
-    with (3 + (n' + (n' + (n' + (n' + 0))))) by omega.
+    with (3 + (n' + (n' + (n' + (n' + 0))))) by lia.
   simpl. reflexivity.
 Defined.
 Next Obligation.
-  replace (n' + S (n' + S (n' + 0))) with (2 + n' + (n' + (n' + 0))) by omega.
+  replace (n' + S (n' + S (n' + 0))) with (2 + n' + (n' + (n' + 0))) by lia.
   simpl. reflexivity.
 Defined.
 Program Fixpoint adder_circ_n (n : nat) : Box ((2+3*n) ⨂ Qubit) ((2+3*n) ⨂ Qubit) := 
@@ -630,12 +633,12 @@ Program Fixpoint adder_circ_n (n : nat) : Box ((2+3*n) ⨂ Qubit) ((2+3*n) ⨂ Q
   end.
 Next Obligation.
   replace (n' + S (n' + S (n' + 0)))
-    with (2 + (n' + (n' + (n' + 0)))) by omega.
+    with (2 + (n' + (n' + (n' + 0)))) by lia.
   simpl. reflexivity.
 Defined.
 Next Obligation.
   replace (n' + S (n' + S (n' + 0)))
-    with (2 + (n' + (n' + (n' + 0)))) by omega.
+    with (2 + (n' + (n' + (n' + 0)))) by lia.
   simpl. reflexivity.
 Defined.
 
@@ -686,10 +689,25 @@ Open Scope matrix_scope.
 
 (* For n-adder specification *)
 
+(* Very simple pure state and mixed state tactics *)
+Ltac show_pure := 
+  match goal with
+  | |- Pure_State ?A => apply pure_bool_to_matrix
+  | |- Pure_State ?A  => apply pure0
+  | |- Pure_State ?A => apply pure1
+  | |- Pure_State ?A => apply pure_id1
+  end.
+
+Ltac show_mixed := 
+  match goal with
+  | |- Mixed_State ?A => apply Pure_S; show_pure
+  end.
+
+
 Lemma mixed_state_big_kron_ctx_to_mat_list : forall n f,  Mixed_State (⨂ ctx_to_mat_list (list_of_Qubits n) f).
 Proof.
   induction n.
-  - intros. simpl. show_mixed.
+  - intros. simpl. show_mixed. 
   - intros. simpl.
     specialize (mixed_state_kron 2) as H. apply H.
     + show_mixed.
@@ -755,14 +773,14 @@ Lemma n_adder_cout_bexp_equiv_1 : forall (n m : nat),
 Proof.
   intros. generalize dependent n.
   induction m.
-  - intros. simpl. replace (n + S n + S n)%nat with (2 + n + n + n)%nat by omega.
+  - intros. simpl. replace (n + S n + S n)%nat with (2 + n + n + n)%nat by lia.
     reflexivity.
   - intros. simpl. rewrite IHm.
     remember (n - S m)%nat as i.
-    replace (n - m)%nat with (1 + i)%nat by omega. simpl.
-    replace (i + S i + S i)%nat with (2 + i + i + i)%nat by omega. simpl.
+    replace (n - m)%nat with (1 + i)%nat by lia. simpl.
+    replace (i + S i + S i)%nat with (2 + i + i + i)%nat by lia. simpl.
     reflexivity.
-    omega.
+    lia.
 Qed.
 
 Lemma n_adder_sum_bexp_equiv_1 : forall (n m : nat),
@@ -771,14 +789,14 @@ Lemma n_adder_sum_bexp_equiv_1 : forall (n m : nat),
 Proof.
   intros. generalize dependent n.
   induction m.
-  - intros. simpl. replace (n + S n + S n)%nat with (2 + n + n + n)%nat by omega.
+  - intros. simpl. replace (n + S n + S n)%nat with (2 + n + n + n)%nat by lia.
     reflexivity.
   - intros. simpl. rewrite n_adder_cout_bexp_equiv_1.
     remember (n - S m)%nat as i.
-    replace (n - m)%nat with (1 + i)%nat by omega. simpl.
-    replace (i + S i + S i)%nat with (2 + i + i + i)%nat by omega. simpl.
+    replace (n - m)%nat with (1 + i)%nat by lia. simpl.
+    replace (i + S i + S i)%nat with (2 + i + i + i)%nat by lia. simpl.
     reflexivity.
-    omega.
+    lia.
 Qed.
 
 (* compute_adder_n_left
@@ -834,7 +852,7 @@ Proof.
     specialize inSeq_correct as IS. simpl in IS. rewrite IS. clear IS.
     + unfold compose_super.
       simpl_eq. program_simpl.
-      replace (n + S (n + S (n + S (n + 0)))) with (3 + (n + (n + (n + (n + 0))))) by omega.
+      replace (n + S (n + S (n + S (n + 0)))) with (3 + (n + (n + (n + (n + 0))))) by lia.
       specialize inSeq_correct as IS. simpl in IS. rewrite IS. clear IS.
       * unfold compose_super. simpl_eq. program_simpl.
         replace (ctx_to_matrix l1 f) with (bool_to_matrix (f 0) ⊗ ctx_to_matrix (list_of_Qubits (3 + 3*n)) (fun x => f (S x))).
@@ -884,7 +902,7 @@ Proof.
                     Set Printing All. rewrite dim_eq_lemma_1 in IK. rewrite dim_eq_lemma_3.
                     rewrite <- IK. Unset Printing All. clear IK.
                     + Set Printing Implicit. Check inPar_correct.
-                      replace (n + S (n + S (n + S (n + 0)))) with (3 + (n + (n + (n + (n + 0))))) by omega.
+                      replace (n + S (n + S (n + S (n + 0)))) with (3 + (n + (n + (n + (n + 0))))) by lia.
                       simpl.
                       specialize (inPar_correct
                                     One Qubit
@@ -916,14 +934,14 @@ Proof.
                           repeat apply kron_eq_1.
                           - clear l1. clear l2.
                             Transparent compute_adder_n_left. simpl.
-                            replace (n - n + (n - n) + (n - n)) with 0 by omega.
+                            replace (n - n + (n - n) + (n - n)) with 0 by lia.
                             rewrite <- n_adder_cout_bexp_equiv_1; try apply Nat.le_refl.
                             rewrite <- bexp_interpret_equiv_1.
                             destruct n.
                             + simpl. remember ((f 3 && f 2 ⊕ f 1) ⊕ (f 2 && f 1)).
                               destruct b; reflexivity.
                             + simpl.
-                              replace (n - n + (n - n) + (n - n)) with 0 by omega.
+                              replace (n - n + (n - n) + (n - n)) with 0 by lia.
                               rewrite <- n_adder_cout_bexp_equiv_1; try apply Nat.le_refl.
                               rewrite <- bexp_interpret_equiv_1.
                               rewrite <- bexp_interpret_equiv_1.
@@ -935,12 +953,12 @@ Proof.
                               destruct b; reflexivity.
                           - clear l1. clear l2.
                             Transparent compute_adder_n_left. simpl.
-                            replace (n - n + (n - n) + (n - n)) with 0 by omega.
+                            replace (n - n + (n - n) + (n - n)) with 0 by lia.
                             rewrite <- n_adder_cout_bexp_equiv_1; try apply Nat.le_refl.
                             rewrite <- bexp_interpret_equiv_1.
                             destruct n.
                             + simpl. reflexivity.
-                            + simpl. replace (n - n + (n - n) + (n - n)) with 0 by omega.
+                            + simpl. replace (n - n + (n - n) + (n - n)) with 0 by lia.
                               rewrite <- n_adder_cout_bexp_equiv_1; try apply Nat.le_refl.
                               rewrite <- bexp_interpret_equiv_1.
                               rewrite <- bexp_interpret_equiv_1.
@@ -994,7 +1012,7 @@ Proof.
             unfold ctx_to_matrix in IW. simpl in IW. rewrite dim_eq_lemma_1 in *. rewrite dim_eq_lemma_2 in *. apply IW.
         }
         { unfold ctx_to_matrix. simpl.
-          replace (n + S (n + S (n + 0))) with (2 + (n + (n + (n + 0)))) by omega.
+          replace (n + S (n + S (n + 0))) with (2 + (n + (n + (n + 0)))) by lia.
           simpl. rewrite dim_eq_lemma_2. rewrite dim_eq_lemma_1. reflexivity. }
       * simpl_eq. apply adder_circ_1_with_pads_WT.
       * apply strip_one_l_in_WT. apply inPar_WT; [apply (init_WT false) | apply id_circ_WT].
@@ -1063,7 +1081,7 @@ Proof.
     specialize id_circ_spec as Iid. simpl in Iid. repeat rewrite Iid. clear Iid. reflexivity.
     apply WF_kron; try reflexivity; try apply WF_bool_to_matrix; try apply WF_I.
   - intros. simpl_eq.
-    replace (n - n + (n - n) + (n - n)) with 0 in * by omega.
+    replace (n - n + (n - n) + (n - n)) with 0 in * by lia.
     specialize inSeq_correct as IS. simpl in IS. rewrite IS. clear IS.
     + unfold compose_super. simpl_eq.
       specialize inSeq_correct as IS. simpl in IS. rewrite IS. clear IS.
@@ -1093,7 +1111,7 @@ Proof.
                                                  end) x'
                                 end)) as H.
         unfold ctx_to_matrix in *. simpl in *.
-        replace (n + S (n + S (n + S (n + 0)))) with (3 + n + (n + (n + (n + 0)))) by omega.
+        replace (n + S (n + S (n + S (n + 0)))) with (3 + n + (n + (n + (n + 0)))) by lia.
         simpl. rewrite dim_eq_lemma_1 in *. rewrite dim_eq_lemma_2 in *.
         rewrite H. clear H.
 
@@ -1114,7 +1132,7 @@ Proof.
                                  = compute_adder_n_left n (fun i : Var => f (S (S (S (S (S (S (S i)))))))) 0).
           { destruct n.
             - simpl. reflexivity.
-            - simpl. replace (n - n + (n - n) + (n - n)) with 0 by omega.
+            - simpl. replace (n - n + (n - n) + (n - n)) with 0 by lia.
               rewrite <- n_adder_cout_bexp_equiv_1; try apply Nat.le_refl.
               rewrite <- bexp_interpret_equiv_1.
               rewrite <- bexp_interpret_equiv_1.
@@ -1148,7 +1166,7 @@ Proof.
                   simpl in IP. rewrite dim_eq_lemma_3 in *.
                   rewrite IP. clear IP.
                   - specialize id_circ_spec as Iid. simpl in Iid. repeat rewrite Iid. clear Iid.
-                    + replace (n + S (n + S (n + 0))) with (2 + n + (n + (n + 0))) by omega.
+                    + replace (n + S (n + S (n + 0))) with (2 + n + (n + (n + 0))) by lia.
                       simpl. rewrite dim_eq_lemma_3. repeat apply kron_eq_1.
                       * reflexivity.
                       * reflexivity.
@@ -1284,7 +1302,7 @@ Proof.
     Opaque compute_adder_n.
     unfold adder_circ_n. simpl_eq.
     unfold list_of_Qubits. unfold ctx_to_matrix. simpl.
-    replace (n + S (n + S (n + 0))) with (2 + n + (n + (n + 0))) by omega. simpl.
+    replace (n + S (n + S (n + 0))) with (2 + n + (n + (n + 0))) by lia. simpl.
     specialize inSeq_correct as IS. simpl in IS. rewrite IS. clear IS.
     + unfold compose_super.
       specialize inSeq_correct as IS. simpl in IS. rewrite IS. clear IS.
@@ -1384,7 +1402,7 @@ Proof.
                                                 | 0 => S n
                                                 | S l => n - l
                                                 end) with 1.
-                                replace (n - n + (n - n) + (n - n)) with 0 in * by omega.
+                                replace (n - n + (n - n) + (n - n)) with 0 in * by lia.
                                 rewrite <- n_adder_cout_bexp_equiv_1; try apply Nat.le_refl.
                                 rewrite <- n_adder_cout_bexp_equiv_1; try (apply le_S; apply Nat.le_refl).
                                 rewrite <- n_adder_cout_bexp_equiv_1; try apply Nat.le_refl.
@@ -1395,14 +1413,14 @@ Proof.
                                 induction n; try reflexivity.
                                 simpl. apply IHn.
                             + Transparent compute_adder_n. simpl.
-                              replace (n - n + (n - n) + (n - n)) with 0 in * by omega.
+                              replace (n - n + (n - n) + (n - n)) with 0 in * by lia.
                               destruct n.
                               * simpl. reflexivity.
                               * simpl. replace (match n with
                                                 | 0 => S n
                                                 | S l => n - l
                                                 end) with 1.
-                                replace (n - n + (n - n) + (n - n)) with 0 in * by omega.
+                                replace (n - n + (n - n) + (n - n)) with 0 in * by lia.
                                 rewrite <- n_adder_cout_bexp_equiv_1; try apply Nat.le_refl.
                                 rewrite <- n_adder_cout_bexp_equiv_1; try (apply le_S; apply Nat.le_refl).
                                 rewrite <- n_adder_cout_bexp_equiv_1; try apply Nat.le_refl.

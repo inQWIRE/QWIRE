@@ -258,8 +258,11 @@ Proof.
   unfold denote_isometry_box, denote_box.
   unfold denote_db_box.
   unfold hoas_to_db_box.
-  (* new proof *)
+Abort.
 
+(*
+  (* new proof *)
+  
   rewrite add_fresh_split.
   remember (add_fresh_state W []) as Γ.
   remember (add_fresh_pat W []) as p.
@@ -359,7 +362,7 @@ Proof.
       unfold compose_super, super.
       rewrite Nat.add_0_r.
       replace (size_wtype W - 1)%nat with (⟦(size_wtype W - 1) ⨂ Qubit⟧)%qc.
-      Focus 2. rewrite size_ntensor. simpl. omega.
+      Focus 2. rewrite size_ntensor. simpl. lia.
       rewrite H; auto.
       Focus 2. rewrite size_ntensor. simpl.
       rewrite <- SE. rewrite Nat.mul_1_r. dependent destruction p.
@@ -367,7 +370,7 @@ Proof.
       (* nope. Need a lot more info about Γ. *)
 
       Search size_ctx remove_pat. 
-      omega.
+      lia.
       simpl.
       rewrite size_ntensor. simpl.
       rewrite Nat.mul_1_r.
@@ -395,7 +398,7 @@ Proof.
       (* We need premises about the contents of gamma being bounded *)
       (* Specifically, k < [W] *)
       (* We know from pat_to_list_bounded that k < [Γ] (or [Γ] = k = 0) *)
-      (* We also have size_ctx (add_fresh_state w Γ) = (size_ctx Γ + size_wtype w)%nat *  
+      (* We also have size_ctx (add_fresh_state w Γ) = (size_ctx Γ + size_wtype w)%nat *)  
 
 (* old proof *)  
   destruct (add_fresh W []) as [p Γ].
@@ -491,7 +494,7 @@ Proof.
       rewrite Nat.add_0_r.
       Search size_wtype NTensor.
       replace (size_wtype W - 1)%nat with (⟦(size_wtype W - 1) ⨂ Qubit⟧)%qc.
-      Focus 2. Search size_wtype NTensor. rewrite size_ntensor. simpl. omega.
+      Focus 2. Search size_wtype NTensor. rewrite size_ntensor. simpl. lia.
       rewrite H by auto.
       simpl.
       rewrite size_ntensor. simpl.
@@ -533,28 +536,4 @@ Proof.
       reflexivity.
   - inversion pf.
 Qed.
-
-(@Mmult (Nat.pow (S (S O)) (size_wtype W')) (Nat.pow (S (S O)) (S (size_wtype W))) (Nat.pow (S (S O)) (size_wtype W'))
-        A
-       (@Mmult (Nat.pow (S (S O)) (S (size_wtype W))) (Nat.pow (S (S O)) (S (size_wtype W))) (Nat.pow (S (S O)) (size_wtype W'))
-          (@Mmult (Nat.pow (S (S O)) (Init.Nat.add (size_wtype W) (S O))) (Nat.pow (S (S O)) (size_wtype W))
-             (Nat.pow (S (S O)) (Init.Nat.add (size_wtype W) (S O)))
-             (@kron (Nat.pow (S (S O)) (size_wtype W)) (Nat.pow (S (S O)) (size_wtype W)) (S (S O)) (S O)
-                (I (Nat.pow (S (S O)) (size_wtype W))) qubit0)
-             (@Mmult (Nat.pow (S (S O)) (size_wtype W)) (Nat.pow (S (S O)) (size_wtype W))
-                (Nat.pow (S (S O)) (Init.Nat.add (size_wtype W) (S O))) ρ
-                (@kron (Nat.pow (S (S O)) (size_wtype W)) (Nat.pow (S (S O)) (size_wtype W)) (S O) (S (S O))
-                   (I (Nat.pow (S (S O)) (size_wtype W))) (@adjoint (S (S O)) (S O) qubit0))))
-          (@adjoint (Nat.pow (S (S O)) (size_wtype W')) (Nat.pow (S (S O)) (S (size_wtype W))) A)))
-  (@Mmult (Nat.pow (S (S O)) (size_wtype W')) (Nat.pow (S (S O)) (Init.Nat.add (size_wtype W) (S O))) (Nat.pow (S (S O)) (size_wtype W'))
-          A
-       (@Mmult (Nat.pow (S (S O)) (Init.Nat.add (size_wtype W) (S O))) (Nat.pow (S (S O)) (size_wtype W))
-          (Nat.pow (S (S O)) (size_wtype W'))
-          (@kron (Nat.pow (S (S O)) (size_wtype W)) (Nat.pow (S (S O)) (size_wtype W)) (S (S O)) (S O)
-             (I (Nat.pow (S (S O)) (size_wtype W))) qubit0)
-          (@Mmult (Nat.pow (S (S O)) (size_wtype W)) (Nat.pow (S (S O)) (size_wtype W)) (Nat.pow (S (S O)) (size_wtype W')) ρ
-             (@Mmult (Nat.pow (S (S O)) (size_wtype W)) (Nat.pow (S (S O)) (Init.Nat.add (size_wtype W) (S O)))
-                (Nat.pow (S (S O)) (size_wtype W'))
-                (@kron (Nat.pow (S (S O)) (size_wtype W)) (Nat.pow (S (S O)) (size_wtype W)) (S O) (S (S O))
-                   (I (Nat.pow (S (S O)) (size_wtype W))) (@adjoint (S (S O)) (S O) qubit0))
-                (@adjoint (Nat.pow (S (S O)) (size_wtype W')) (Nat.pow (S (S O)) (Init.Nat.add (size_wtype W) (S O))) A)))))
+*)

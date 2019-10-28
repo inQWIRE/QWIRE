@@ -1244,17 +1244,17 @@ Proof.
     specialize (Nat.max_lub_l _ _ _ H) as H2.
     repeat rewrite (Nat.max_r _ o); easy.
   - unfold gt in H.
-    rewrite (Nat.max_l (max m n) o) by omega.
+    rewrite (Nat.max_l (max m n) o) by lia.
     apply Nat.max_lt_iff in H.
     destruct H.
-    + rewrite (Nat.max_l m o) by omega.
+    + rewrite (Nat.max_l m o) by lia.
       rewrite (Nat.max_comm n o).
       rewrite Nat.max_assoc.
-      rewrite (Nat.max_l m o) by omega.
+      rewrite (Nat.max_l m o) by lia.
       reflexivity.
-    + rewrite (Nat.max_l n o) by omega.
+    + rewrite (Nat.max_l n o) by lia.
       rewrite <- Nat.max_assoc.
-      rewrite (Nat.max_r o n) by omega.
+      rewrite (Nat.max_r o n) by lia.
       reflexivity.
 Qed.
 

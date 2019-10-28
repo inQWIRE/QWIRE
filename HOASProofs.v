@@ -29,14 +29,13 @@ Qed.
 Lemma unitary_transpose_id_qubit : forall (U : Unitary Qubit),
    unitary_transpose U ≡ id_circ.
 Proof.
-  Locate "≡".
   unfold HOAS_Equiv.
   intros U ρ safe pf_ρ.
   destruct (unitary_gate_unitary U) as [WF inv].
-  simpl in *.
   matrix_denote.
+  simpl in *.
   setoid_rewrite denote_unitary_transpose.
-  simpl in *; Msimpl.
+  Msimpl; simpl in *.  
   repeat rewrite Mmult_assoc; try rewrite inv.
   repeat rewrite <- Mmult_assoc; try rewrite inv.
   Msimpl.     
@@ -56,7 +55,29 @@ Proof.
     unfold apply_to_first.
     unfold apply_qubit_unitary.
 *)    
-  
+
+Lemma WF_apply_U : forall W n (U : Unitary W) l ρ,
+  length l = ⟦ W ⟧ ->
+  (forall x : nat, In x l -> (x < n)%nat) ->
+  WF_Matrix ρ ->
+  WF_Matrix (apply_U n U l ρ).
+Proof.
+  intros.
+  unfold apply_U.
+  apply WF_super.
+  apply apply_unitary_unitary; trivial.
+  easy.
+Qed.
+
+Lemma WF_denote_unitary : forall W (U : Unitary W), WF_Matrix (denote_unitary U).
+Proof. intros. apply unitary_gate_unitary. Qed.
+
+Lemma WF_trans : forall W (U : Unitary W), WF_Matrix (denote_unitary (trans U)).
+Proof. intros. apply unitary_gate_unitary. Qed.
+
+Hint Resolve WF_denote_unitary : wf_db.
+
+
 Lemma unitary_transpose_id : forall W (U : Unitary W),
   unitary_transpose U ≡ id_circ.
 Proof.
@@ -74,15 +95,15 @@ Proof.
     unfold denote_pat; simpl.
     unfold swap_list; simpl.
     unfold swap_two; simpl.
-    Msimpl.
-    rewrite Mmult_assoc.
     unfold apply_U, super. simpl.
+    Msimpl.
+    2: restore_dims; auto 10 with wf_db.
     destruct (unitary_gate_unitary U) as [WFU inv].
-    assert (WFU' : WF_Matrix _ _ (⟦U⟧†)) by auto with wf_db.
+    assert (WFU' : WF_Matrix (⟦U⟧†)) by auto with wf_db.
     simpl_rewrite @denote_unitary_transpose.
     simpl in *. Msimpl.
-    repeat rewrite Mmult_assoc. rewrite inv.
-    repeat rewrite <- Mmult_assoc. rewrite inv.
+    repeat rewrite Mmult_assoc. simpl. rewrite inv.
+    repeat rewrite <- Mmult_assoc. simpl. rewrite inv.
     Msimpl.
     easy.
   - simpl.
@@ -117,10 +138,10 @@ Proof.
     rewrite denote_ctrls_transpose.
     remember (denote_ctrls (⟦ W3 ⊗ W4 ⟧) U li) as A.
     remember (swap_list (⟦ W3 ⊗ W4 ⟧) li) as S.
-    rewrite <- (Mmult_assoc _ _ _ _ _ (A × ρ) _).
-    rewrite <- (Mmult_assoc _ _ _ _ _ A ρ).
+    rewrite <- (Mmult_assoc _ (A × ρ) _).
+    rewrite <- (Mmult_assoc _ A ρ).
     rewrite inv. Msimpl.
-    rewrite (Mmult_assoc _ _ _ _ ρ _ A).
+    rewrite (Mmult_assoc ρ _ A).
     rewrite inv. Msimpl.
     rewrite Mmult_assoc.
     easy.
@@ -151,20 +172,20 @@ Lemma bias1 : biased_coin 1 = ∣1⟩⟨1∣.
 Proof.
   unfold biased_coin.
   prep_matrix_equality; simpl.
-  destruct_m_eq; clra.
+  destruct_m_eq; lca.
 Qed.
 
 Lemma even_bias : biased_coin (1/2) = fair_coin.
 Proof. 
   unfold biased_coin, fair_coin.
   prep_matrix_equality; simpl.
-  destruct_m_eq; clra.
+  destruct_m_eq; lca.
 Qed.
 
 Lemma fair_toss : ⟦coin_flip⟧ (I 1)  = fair_coin.
 Proof. matrix_denote. Msimpl. solve_matrix. Qed.
 
-Lemma wf_biased_coin : forall c, WF_Matrix 2 2 (biased_coin c).
+Lemma wf_biased_coin : forall c, WF_Matrix (biased_coin c).
 Proof.
   intros; show_wf.
 Qed.
@@ -204,7 +225,7 @@ Proof.
       rewrite Cmult_assoc.
       autorewrite with C_db.
       rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
-      replace (/ 2^n) with (/2 * /2 ^ n + /2 */2^n) at 1 by clra.
+      replace (/ 2^n) with (/2 * /2 ^ n + /2 */2^n) at 1 by lca.
       rewrite Copp_plus_distr.
       repeat rewrite <- Cplus_assoc.
       autorewrite with C_db.
@@ -231,22 +252,14 @@ Proof.
     destruct (coin_flips_lift n) eqn:EC.
     unfold remove_pat. simpl.
     replace ((box c) $ ()) with (c ()) by reflexivity.
-    replace (⟨1∣ × (∣0⟩⟨0∣ × (hadamard × ∣0⟩⟨0∣ × hadamard) × ∣0⟩⟨0∣ .+ 
-                    ∣1⟩⟨1∣ × (hadamard × ∣0⟩⟨0∣ × hadamard) × ∣1⟩⟨1∣) × ∣1⟩)
+    replace (⟨1∣ × (∣0⟩⟨0∣ × (hadamard × ∣0⟩⟨0∣ × hadamard†) × ∣0⟩⟨0∣ .+ 
+                    ∣1⟩⟨1∣ × (hadamard × ∣0⟩⟨0∣ × hadamard†) × ∣1⟩⟨1∣) × ∣1⟩)
       with ((1/2) .* (I 1)) by solve_matrix. 
     assert (scale_safe : forall safe w i j (c : DeBruijn_Circuit w) a ρ, 
                denote_db_circuit safe i j c (a .* ρ) = a .* denote_db_circuit safe i j c ρ). admit.
     rewrite scale_safe.
     setoid_rewrite IHn.
     solve_matrix.
-    - rewrite Cmult_plus_distr_l.
-      Csimpl.
-      rewrite Cplus_assoc.
-      rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
-      rewrite <- Copp_mult_distr_r.
-      clra.
-    - rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
-      easy.
 Abort.
 
 (* This generalizes the theorem to get around the lemma *)
@@ -269,19 +282,7 @@ Proof.
     2: solve_matrix; rewrite (Cmult_comm (/√2)), <- Cmult_assoc; autorewrite with C_db; easy.
     setoid_rewrite (IHn (a / 2)).
     solve_matrix.
-    - rewrite (Cmult_comm _ a).
-      repeat rewrite <- Cmult_assoc.
-      rewrite <- Cmult_plus_distr_l.
-      autorewrite with C_db.
-      rewrite (Cmult_plus_distr_l (/2)).
-      autorewrite with C_db.
-      rewrite Cplus_assoc.
-      autorewrite with C_db.      
-      rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
-      easy.
-    - rewrite Cinv_mult_distr; [|nonzero|apply Cpow_nonzero; lra].         
-      rewrite Cmult_assoc.
-      easy.
+    C_field_simplify. lca. nonzero. 
 Qed.
 
 Lemma flips_lift_correct : forall n, ⟦coin_flips_lift n⟧ (I 1) = biased_coin (1/(2^n)).
@@ -332,13 +333,20 @@ Abort.
 Hint Unfold apply_box : den_db.
 
 Open Scope matrix_scope.
-Fixpoint prepare (ls : list nat) : Matrix 1%nat (2^(length ls)) :=
+
+(*
+Broken in 8.10? (I guess the types never really made sense...
+Definition prepare (ls : list nat) : Vector (2^(length ls)) :=
   fold_left (fun A x => ket x ⊗ A) ls ((I 1)).
+*)
+
+Fixpoint prepare (ls : list nat) : Vector (2^(length ls)) :=
+  ⨂ (map ket ls).
 
 Definition pure {n} (vec : Matrix n 1%nat) : Matrix n n := vec × (vec †).
 
 Definition prep α β : Matrix 2 2 := pure ((α.*∣0⟩) .+ (β.*∣1⟩)).
-Lemma wf_prep : forall α β, WF_Matrix 2 2 (prep α β).
+Lemma wf_prep : forall α β, WF_Matrix (prep α β).
 Proof.
   intros. unfold prep, pure.
   show_wf.
@@ -432,7 +440,7 @@ Definition U_constant (U : Unitary (Qubit ⊗ Qubit)%qc) :=
 Definition U_balanced (U : Unitary (Qubit ⊗ Qubit)%qc) := 
   apply_U 2 U [0;1]%nat = super f1 \/ apply_unitary 2 U [0;1]%nat = f2.
 
-Lemma f2_WF : WF_Matrix 4 4 f2. Proof. show_wf. Qed.
+Lemma f2_WF : WF_Matrix f2. Proof. show_wf. Qed.
 Hint Resolve f2_WF : wf_db.
 
 Close Scope matrix_scope.
@@ -455,29 +463,27 @@ Proof.
   destruct H; setoid_rewrite H.
   - (* f0 *)
     matrix_denote.
-    Msimpl.
+    restore_dims.
     unfold f0.
+    clear.
+    (* Msimpl / Msimpl_light are taking forever here, which is worrisome *)
+    repeat rewrite id_sa.
+    repeat rewrite kron_1_r.
+    repeat rewrite kron_1_l; auto with wf_db.
+    repeat rewrite Mmult_1_r; auto 10 with wf_db.
+    repeat rewrite Mmult_1_l; auto 20 with wf_db.
     solve_matrix.
-    rewrite (Cmult_comm (/ √2) _).
-    rewrite Cmult_assoc.
-    rewrite (Cmult_assoc 2 (/2)).
-    autorewrite with C_db. 
-    rewrite <- Cmult_assoc.
-    autorewrite with C_db. 
-    reflexivity.
+    C_field.
   - (* f3 *)
     matrix_denote.
-    Msimpl.
-    unfold f3.
+    unfold f3. clear.
+    repeat rewrite id_sa.
+    repeat rewrite kron_1_r.
+    repeat rewrite kron_1_l; auto with wf_db.
+    repeat rewrite Mmult_1_r; auto 10 with wf_db.
+    repeat rewrite Mmult_1_l; auto 20 with wf_db.
     solve_matrix.
-    rewrite (Cmult_comm (/ √2) _).
-    repeat rewrite <- Cmult_assoc.
-    autorewrite with C_db. 
-    rewrite (Cmult_assoc 2 (/2)).
-    autorewrite with C_db. 
-    rewrite (Cmult_assoc 2 (/2)).
-    autorewrite with C_db. 
-    reflexivity.
+    C_field.
 Qed.
   
 Lemma U_deutsch_balanced : forall U_f, U_balanced U_f -> 
@@ -491,29 +497,26 @@ Proof.
   destruct H; setoid_rewrite H.
   + (* f1 *)
     matrix_denote.
-    Msimpl.
-    unfold f1.
+    unfold f1. clear.
+    restore_dims.
+    repeat rewrite id_sa.
+    repeat rewrite kron_1_r.
+    repeat rewrite kron_1_l; auto with wf_db.
+    repeat rewrite Mmult_1_r; auto 10 with wf_db.
+    repeat rewrite Mmult_1_l; auto 20 with wf_db.
     solve_matrix.
-    rewrite (Cmult_comm (/ √2) _).
-    rewrite Cmult_assoc.
-    rewrite (Cmult_assoc 2 (/2)).
-    autorewrite with C_db. 
-    rewrite <- Cmult_assoc.
-    autorewrite with C_db. 
-    reflexivity.
+    C_field.
   + (* f2 *)
     matrix_denote.
-    Msimpl.
-    unfold f2.
+    unfold f2. clear.
+    restore_dims.
+    repeat rewrite id_sa.
+    repeat rewrite kron_1_r.
+    repeat rewrite kron_1_l; auto with wf_db.
+    repeat rewrite Mmult_1_r; auto 10 with wf_db.
+    repeat rewrite Mmult_1_l; auto 20 with wf_db.
     solve_matrix.
-    rewrite (Cmult_comm (/ √2) _).
-    repeat rewrite <- Cmult_assoc.
-    autorewrite with C_db. 
-    rewrite (Cmult_assoc 2 (/2)).
-    autorewrite with C_db. 
-    rewrite (Cmult_assoc 2 (/2)).
-    autorewrite with C_db. 
-    reflexivity.
+    C_field.
 Qed.
 
 (* Show Ltac Profile *)
@@ -531,7 +534,7 @@ Proof.
   all: destruct H; rewrite H; clear.  
   + (* Cell (0,0), f1 *)
     unfold f1.
-    autounfold with M_db.
+    autounfold with U_db.
     simpl.
     autorewrite with C_db.
     reflexivity.
@@ -541,7 +544,7 @@ Proof.
     reflexivity.
   + (* Cell (1,1), f1 *)
     unfold f1.
-    autounfold with M_db.
+    autounfold with U_db.
     simpl.
     autorewrite with C_db.
     rewrite (Cmult_comm (/ √2) _).
@@ -588,6 +591,26 @@ Proof.
   unfold fun_to_box, constant in *. 
   destruct (f true), (f false); try discriminate H.
   - matrix_denote.
+
+Hint Rewrite  @kron_1_l @kron_1_r @Mmult_1_l : N_db_light.
+
+clear.
+  autorewrite with N_db_light.
+  all: auto 100 with wf_db.
+  
+Hint Rewrite  @kron_1_l @kron_1_r @Mmult_1_l @Mmult_1_r @Mscale_1_l 
+     @id_adjoint_eq @id_transpose_eq using (eauto 100 with wf_db) : N_db_light.
+
+Hint Rewrite @kron_0_l @kron_0_r @Mmult_0_l @Mmult_0_r @Mplus_0_l @Mplus_0_r
+     @Mscale_0_l @Mscale_0_r @zero_adjoint_eq @zero_transpose_eq using (eauto 100 with wf_db) : N_db_light.
+
+
+    restore_dims .
+
+
+    
+    autorewrite with M_db_light.
+    Msimpl_light.
     Msimpl.
     solve_matrix.
     rewrite (Cmult_comm (/√2) _).
@@ -654,7 +677,7 @@ Definition M_alice (ρ : Matrix 4 4) : Matrix 4 4 :=
   | _, _ => 0
   end.
 
-Lemma alice_spec : forall (ρ : Density 4), WF_Matrix 4 4  ρ -> ⟦alice⟧ ρ = M_alice ρ.
+Lemma alice_spec : forall (ρ : Density 4), WF_Matrix ρ -> ⟦alice⟧ ρ = M_alice ρ.
 Proof.
   matrix_denote. Msimpl.
   repeat rewrite <- Mmult_assoc; Msimpl.
@@ -663,7 +686,7 @@ Proof.
   all: autorewrite with Cdist_db;
        repeat rewrite (Cmult_comm _ (/√2));
        repeat rewrite Cmult_assoc;
-       autorewrite with C_db; clra.
+       autorewrite with C_db; lca.
 Qed.    
 
 (* Spec computed rather than reasoned about - should confirm correct *)
@@ -676,7 +699,7 @@ Definition M_bob (ρ : Density 8) : Density 2 :=
           | _, _ => 0
           end.
 
-Lemma bob_spec : forall (ρ : Density 8), WF_Matrix 8 8 ρ -> ⟦bob⟧ ρ = M_bob ρ.
+Lemma bob_spec : forall (ρ : Density 8), WF_Matrix ρ -> ⟦bob⟧ ρ = M_bob ρ.
 Proof. matrix_denote. Msimpl. solve_matrix. Qed.  
 
 
@@ -713,7 +736,7 @@ Definition M_bob_distant (b1 b2 : bool) (ρ : Density 2) : Matrix 2 2 :=
 Close Scope matrix_scope.
 
 Definition bob_distant_spec : forall b1 b2 (ρ : Density 2), 
-    WF_Matrix 2 2 ρ -> 
+    WF_Matrix ρ -> 
     ⟦bob_distant b1 b2⟧ ρ = M_bob_distant b1 b2 ρ.
 Proof.
   intros.
@@ -744,18 +767,18 @@ Qed.
 
 Lemma superdense_eq : forall (ρ : Density 4),
   Classical ρ ->
-  WF_Matrix 4 4 ρ -> 
+  WF_Matrix ρ -> 
   ⟦superdense⟧ ρ = ρ.
 Proof.
   intros ρ CL WF.
   matrix_denote.
   Msimpl.
   solve_matrix.
-  all: try (rewrite CL by omega; easy).
+  all: try (rewrite CL by lia; easy).
   all: autorewrite with Cdist_db;
        repeat rewrite Cmult_assoc; autorewrite with C_db;
        repeat rewrite <- Cmult_assoc; autorewrite with C_db;    
-       clra.
+       lca.
 Qed.
 
 Lemma superdense_distant_eq : forall b1 b2, 

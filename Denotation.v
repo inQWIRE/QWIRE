@@ -1,6 +1,5 @@
 Require Import Program. 
 Require Import Arith.
-Require Import Omega.
 
 Require Import Monad.
 Require Export Contexts.
@@ -33,7 +32,6 @@ Instance Denote_WType : Denote WType nat := {| denote := size_wtype |}.
 Instance Denote_Ctx : Denote Ctx nat := {| denote := size_ctx |}.
 Instance Denote_OCtx : Denote OCtx nat := {| denote := size_octx |}.
 
-(* This isn't connected to apply_U but should be *)
 Fixpoint denote_unitary {W} (U : Unitary W) : Square (2^⟦W⟧) :=
   match U with  
   | _H          => hadamard 
@@ -49,9 +47,9 @@ Instance Denote_Unitary W : Denote (Unitary W) (Square (2^⟦W⟧)) :=
     {| denote := denote_unitary |}.
 
 Lemma WF_Matrix_U : forall {W} (U : Unitary W), 
-      WF_Matrix (2^⟦W⟧) (2^⟦W⟧) (⟦U⟧).
+      WF_Matrix (⟦U⟧).
 Proof.
-  induction U; simpl; auto with wf_db.
+  induction U; simpl; try apply WF_control; auto with wf_db. (* try shouldn't be necessary *)
 Qed.
 Hint Resolve WF_Matrix_U : wf_db.
 Lemma unitary_gate_unitary : forall {W} (U : Unitary W), WF_Unitary (⟦U⟧).
@@ -68,9 +66,9 @@ Qed.
 
 Lemma denote_unitary_transpose : forall {W} (U : Unitary W), ⟦trans U⟧ = ⟦U⟧†.
 Proof.
-  induction U; simpl; Msimpl; trivial. 
-  - simpl_rewrite IHU. setoid_rewrite control_adjoint. easy.
-  - simpl_rewrite IHU. setoid_rewrite control_adjoint. easy.
+  induction U; simpl; Qsimpl; trivial. 
+  - simpl_rewrite IHU. easy.
+  - simpl_rewrite IHU. easy.
 Qed.
 
 
@@ -119,19 +117,18 @@ Definition denote_gate safe {W1 W2} (g : Gate W1 W2) :
 Lemma pow_gt_0 : forall n, (2^n > O)%nat.
 Proof.
   induction n; auto. 
-  simpl. apply gt_trans with (2^n)%nat; auto. omega.
+  simpl. apply gt_trans with (2^n)%nat; auto. lia.
 Qed.
 
 
 Lemma WF_denote_gate : forall safe n W1 W2 (g : Gate W1 W2) ρ,
-    WF_Matrix (2^⟦W1⟧ * 2^n) (2^⟦W1⟧ * 2^n) ρ 
-   -> WF_Matrix (2^⟦W2⟧ * 2^n) (2^⟦W2⟧ * 2^n) (denote_gate' safe n g ρ).
+    WF_Matrix ρ -> WF_Matrix (denote_gate' safe n g ρ).
 Proof.
   intros safe n W1 W2 g ρ wf_ρ.
   assert (0 < 2^n)%nat by apply pow_gt_0.
-  assert (0 <> 2^n)%nat by omega.
+  assert (0 <> 2^n)%nat by lia.
   destruct g; simpl; unfold super, Splus; try destruct safe; 
-    auto with wf_db; try omega.
+    auto with wf_db; try lia.
   specialize (WF_Matrix_U u). intros wf_u. auto with wf_db.
   specialize (WF_Matrix_U u). intros wf_u. auto with wf_db.
 Qed.
@@ -154,9 +151,9 @@ Proof.
   specialize (mixed_state_diag_in01 _ 1%nat M) as IN1.
   specialize (mixed_state_trace_1 _ M) as TR1.
   unfold trace in TR1. simpl in TR1.
-  replace (ρ 0%nat 0%nat) with (RtoC (fst (ρ 0%nat 0%nat))) by clra.
-  replace (ρ 1%nat 1%nat) with (RtoC (fst (ρ 1%nat 1%nat))) by clra.
-  replace (ρ 1%nat 1%nat) with (RtoC (1 - fst (ρ 0%nat 0%nat))) by (inversion TR1; clra).
+  replace (ρ 0%nat 0%nat) with (RtoC (fst (ρ 0%nat 0%nat))) by lca.
+  replace (ρ 1%nat 1%nat) with (RtoC (fst (ρ 1%nat 1%nat))) by lca.
+  replace (ρ 1%nat 1%nat) with (RtoC (1 - fst (ρ 0%nat 0%nat))) by (inversion TR1; lca).
   destruct (Req_dec (fst (ρ 0%nat 0%nat)) 0); [|destruct (Req_dec (fst (ρ 0%nat 0%nat)) 1)].
   - rewrite H, Mscale_0_l, Mplus_0_l, Rminus_0_r, Mscale_1_l.
     constructor; apply pure_id1.
@@ -224,12 +221,12 @@ Proof.
     replace (∣0⟩⟨0∣ × ρ × ∣0⟩⟨0∣) with (ρ 0%nat 0%nat .* ∣0⟩⟨0∣) by solve_matrix.
     replace (∣1⟩⟨1∣ × ρ × ∣1⟩⟨1∣) with (ρ 1%nat 1%nat .* ∣1⟩⟨1∣) by solve_matrix.
     specialize (mixed_state_trace_1 _ H) as TR1. unfold trace in TR1. simpl in TR1.
-    replace (ρ 1%nat 1%nat) with (1 - ρ O O) by (rewrite <- TR1; clra).
-    replace (ρ O O) with ((fst (ρ O O)), snd (ρ O O)) by clra. 
+    replace (ρ 1%nat 1%nat) with (1 - ρ O O) by (rewrite <- TR1; lca).
+    replace (ρ O O) with ((fst (ρ O O)), snd (ρ O O)) by lca. 
     rewrite mixed_state_diag_real by assumption.
     set (a := (ρ 0 0)%nat). replace (ρ 0 0)%nat with a in TR1 by reflexivity.
     set (b := (ρ 1 1)%nat). replace (ρ 1 1)%nat with b in TR1 by reflexivity.
-    replace (1 - (fst a, 0)) with (RtoC (1 - fst a)) by clra.
+    replace (1 - (fst a, 0)) with (RtoC (1 - fst a)) by lca.
     replace (fst a, 0) with (RtoC (fst a)) by reflexivity.
     destruct (Ceq_dec a C0) as [Z | NZ]; [|destruct (Ceq_dec a C1) as [O | NO]].
     * rewrite Z in *.
@@ -270,10 +267,10 @@ Proof.
     replace (∣0⟩⟨0∣ × ρ × ∣0⟩⟨0∣) with (ρ 0%nat 0%nat .* ∣0⟩⟨0∣) by solve_matrix.
     replace (∣1⟩⟨1∣ × ρ × ∣1⟩⟨1∣) with (ρ 1%nat 1%nat .* ∣1⟩⟨1∣) by solve_matrix.
     specialize (mixed_state_trace_1 _ H) as TR1. unfold trace in TR1. simpl in TR1.
-    replace (ρ 1%nat 1%nat) with (1 - ρ O O) by (rewrite <- TR1; clra).
-    replace (ρ O O) with ((fst (ρ O O)), snd (ρ O O)) by clra. 
+    replace (ρ 1%nat 1%nat) with (1 - ρ O O) by (rewrite <- TR1; lca).
+    replace (ρ O O) with ((fst (ρ O O)), snd (ρ O O)) by lca. 
     rewrite mixed_state_diag_real by assumption.
-    replace (1 - (fst (ρ O O), 0)) with (RtoC (1 - fst (ρ O O))) by clra.
+    replace (1 - (fst (ρ O O), 0)) with (RtoC (1 - fst (ρ O O))) by lca.
     replace (fst (ρ O O), 0) with (RtoC (fst (ρ O O))) by reflexivity.
     specialize (mixed_state_diag_in01 _ O H) as in01.
     destruct in01 as [[L|E0] [R|E1]]. 
@@ -287,6 +284,7 @@ Proof.
     unfold super, Splus.
     Msimpl.
     specialize (WF_Mixed _ H) as WF.
+    restore_dims.
     repeat reduce_matrices.
     constructor.
     apply mixed_state_trace_1 in H.
@@ -296,11 +294,12 @@ Proof.
     replace (list2D_to_matrix [[C1]]) with (I  1).     
     apply pure_id1.
     crunch_matrix. 
-    bdestruct (S (S x) <? 1). omega. rewrite andb_false_r. reflexivity.
+    bdestruct (S (S x) <? 1). lia. rewrite andb_false_r. reflexivity.
   + simpl in *.
     unfold super, Splus.
     Msimpl.
     specialize (WF_Mixed _ H) as WF.
+    restore_dims.
     repeat reduce_matrices.
     constructor.
     apply mixed_state_trace_1 in H.
@@ -310,11 +309,12 @@ Proof.
     replace (list2D_to_matrix [[C1]]) with (I  1).     
     apply pure_id1.
     crunch_matrix. 
-    bdestruct (S (S x) <? 1). omega. rewrite andb_false_r. reflexivity.
+    bdestruct (S (S x) <? 1). lia. rewrite andb_false_r. reflexivity.
   + simpl in *.
     unfold super, Splus.
     Msimpl.
     specialize (WF_Mixed _ H) as WF.
+    restore_dims.
     repeat reduce_matrices.
     constructor.
     apply mixed_state_trace_1 in H.
@@ -324,7 +324,7 @@ Proof.
     replace (list2D_to_matrix [[C1]]) with (I  1).     
     apply pure_id1.
     crunch_matrix. 
-    bdestruct (S (S x) <? 1). omega. rewrite andb_false_r. reflexivity.
+    bdestruct (S (S x) <? 1). lia. rewrite andb_false_r. reflexivity.
 Qed.
 
 Instance Denote_Gate W1 W2 : Denote (Gate W1 W2) (Superoperator (2^⟦W1⟧) (2^⟦W2⟧)):=
@@ -354,6 +354,8 @@ Fixpoint swap_list_aux (m n : nat) (l : list (nat * nat)) : Square  (2^n) :=
 
 Definition zip_to (m n : nat) (l : list nat) := combine (seq m n) l.
 
+Compute (zip_to 2 5 [1;2;3]%nat).
+
 (* for l[i]=x, swaps the position of qubits i and x in the n-qubit system *)
 (* Requires: length l <= n *)
 (* Requires: x ∈ l implies x < n *)
@@ -378,17 +380,17 @@ Definition pad {m} n (A : Square (2^m)) : Square (2^n) := (A ⊗ I (2^ (n - m)))
 
 Lemma WF_pad : forall m n (A : Square m),
       (m <= n)%nat ->
-      WF_Matrix (2^m) (2^m) A ->
-      WF_Matrix (2^n) (2^n) (@pad m n A).
+      @WF_Matrix (2^m) (2^m) A ->
+      WF_Matrix (@pad m n A).
 Proof.
   intros. unfold pad.
   apply WF_kron; auto.
   rewrite <- Nat.pow_add_r.
-  replace (m + (n - m))%nat with n by omega.
+  replace (m + (n - m))%nat with n by lia.
   reflexivity.
   rewrite <- Nat.pow_add_r.
-  replace (m + (n - m))%nat with n by omega.
-  reflexivity.
+  replace (m + (n - m))%nat with n by lia.
+  reflexivity. 
   apply WF_I.
 Qed.
 
@@ -397,8 +399,7 @@ Proof.
   intros.
   unfold pad.
   rewrite Nat.sub_diag.
-  simpl.
-  autorewrite with M_db.
+  Msimpl.
   reflexivity.
 Qed.
 
@@ -422,6 +423,16 @@ Proposition swap_list_shift' : forall (n : nat) (ρ : Square 2) (A : Square (2^n
   super (swap_list (S n) (n :: seq 0 n)) (A ⊗ ρ) = ρ ⊗ A.
 *)
 
+
+(* SWAP unit tests *)
+
+(* Not quite done:
+Example swap_list_test : swap ⊗ swap = (swap_list 4 [1;0;3;2]%nat).
+Proof.
+  unfold swap_list, swap_list_aux, swap_two. simpl.
+  Msimpl.
+*)
+
 (***********************************)
 (* Swap structures are well-formed *)
 (***********************************)
@@ -432,7 +443,7 @@ Proposition swap_list_shift' : forall (n : nat) (ρ : Square 2) (A : Square (2^n
 
 Lemma WF_swap_to_0_aux : forall n i, 
   (i + 1 < n)%nat ->
-  WF_Matrix (2^n) (2^n) (swap_to_0_aux n i).
+  WF_Matrix (swap_to_0_aux n i).
 Proof.
   intros n i H.
   gen n.
@@ -443,53 +454,53 @@ Proof.
     apply WF_mult; auto with wf_db.
     apply WF_mult; auto with wf_db.
     unify_pows_two.
-    replace (i + 1 + 2 + (n - S i - 2))%nat with n by omega.
-    apply IHi; omega.
+    replace (i + 1 + 2 + (n - S i - 2))%nat with n by lia.
+    apply IHi; lia.
 Qed.
 
-Lemma WF_swap_to_0 : forall i n, (i < n)%nat -> WF_Matrix (2^n) (2^n) (swap_to_0 n i).
+Lemma WF_swap_to_0 : forall i n, (i < n)%nat -> WF_Matrix (swap_to_0 n i).
 Proof.
   intros i n L.
   unfold swap_to_0.
   destruct i; auto with wf_db.
   apply WF_swap_to_0_aux.
-  omega.
+  lia.
 Qed.  
 
 Lemma WF_swap_two_aux : forall n i j, (i < j < n)%nat -> 
-                                 WF_Matrix (2^n) (2^n)  (swap_two_aux n i j).
+                                 WF_Matrix (swap_two_aux n i j).
 Proof.
   intros n i.
   gen n.
   induction i.
   - intros; simpl.
     apply WF_swap_to_0.
-    omega.
+    lia.
   - intros n j [Lij Ljn].
     simpl.
-    destruct n; try omega.
+    destruct n; try lia.
     rewrite <- (Nat.add_1_l n).
     rewrite minus_plus.
     apply WF_kron; unify_pows_two; auto with wf_db.
     apply IHi.
-    omega.
+    lia.
 Qed.
     
 Lemma WF_swap_two : forall n i j, (i < n)%nat -> (j < n)%nat ->
-                             WF_Matrix (2^n) (2^n) (swap_two n i j).
+                             WF_Matrix (swap_two n i j).
 Proof.
   intros n i j Lin Ljn.
   unfold swap_two.
   bdestruct (i =? j). apply id_unitary.
   bdestruct (i <? j).
-  apply WF_swap_two_aux. omega.
-  apply WF_swap_two_aux. omega.
+  apply WF_swap_two_aux. lia.
+  apply WF_swap_two_aux. lia.
 Qed.  
 
 Lemma WF_swap_list_aux : forall m n l, 
    (forall i j, In (i,j) l -> (i < n)%nat /\ (j < n)%nat) ->
    (m <= n)%nat -> 
-   WF_Matrix (2^n) (2^n) (swap_list_aux m n l).
+   WF_Matrix (swap_list_aux m n l).
 Proof.
   intros m n l Lall Lmn.
   gen l.
@@ -503,7 +514,7 @@ Proof.
     destruct (Lall n0 n1); simpl; auto.
     apply WF_swap_two; easy.
     apply IHm.
-    omega.
+    lia.
     intros x y IN.
     split. (* This shouldn't be hard... *)
     + induction l.
@@ -552,17 +563,17 @@ Qed.
 
 Lemma WF_swap_list : forall n l, (length l <= n)%nat -> 
                             (forall x, In x l -> x < n)%nat ->
-                            WF_Matrix (2^n) (2^n) (swap_list n l).
+                            WF_Matrix (swap_list n l).
 Proof.
   intros n l len Lall.
   unfold swap_list.
-  apply WF_swap_list_aux; try omega.
+  apply WF_swap_list_aux; try lia.
   intros i j IN.
   split.
   - unfold zip_to in *.
     apply in_combine_l in IN.
     apply in_seq in IN.
-    omega.
+    lia.
   - unfold zip_to in *.
     apply in_combine_r in IN.
     apply Lall.
@@ -580,15 +591,15 @@ Proof.
   intros n i H.
   induction i; simpl.
   - specialize (kron_unitary swap (I (2^(n-2))))%nat.
-    unify_pows_two. rewrite <- le_plus_minus.
+    replace (2 * 2 * 2^(n-2))%nat with (2^1 * 2^1 * 2^(n-2))%nat by easy.
+    replace (2^1 * 2^1 * 2^(n-2))%nat with (2^n)%nat by unify_pows_two.
     intros KU.
     apply KU.
     apply swap_unitary.
     apply id_unitary.
-    omega.
   - unify_pows_two.
     replace (2^n)%nat with (2^(i + 1 + 2 + (n - S i - 2)))%nat by
-      (apply f_equal2; trivial; try omega).
+      (apply f_equal2; trivial; try lia).
     Set Printing Implicit.
     apply Mmult_unitary.
     apply Mmult_unitary.
@@ -600,9 +611,9 @@ Proof.
     apply swap_unitary.
     apply id_unitary.
     replace (2^(i + 1 + 2 + (n - S i - 2)))%nat with (2^n)%nat by
-      (apply f_equal2; trivial; try omega).
+      (apply f_equal2; trivial; try lia).
     apply IHi.
-    omega.
+    lia.
     rewrite Nat.pow_add_r.
     apply kron_unitary.
     rewrite Nat.pow_add_r.
@@ -620,7 +631,7 @@ Proof.
   destruct i. 
   apply id_unitary.
   apply swap_to_0_aux_unitary.
-  omega.
+  lia.
 Qed.  
 
 Lemma swap_two_aux_unitary : forall n i j, (i < j < n)%nat -> 
@@ -631,16 +642,16 @@ Proof.
   induction i.
   - intros; simpl.
     apply swap_to_0_unitary.
-    omega.
+    lia.
   - intros n j [Lij Ljn].
     simpl.
-    destruct n; try omega.
+    destruct n; try lia.
     rewrite <- (Nat.add_1_l n).
     rewrite minus_plus.
     apply kron_unitary.
     apply id_unitary.
     apply IHi.
-    omega.
+    lia.
 Qed.
     
 Lemma swap_two_unitary : forall n i j, (i < n)%nat -> (j < n)%nat ->
@@ -650,8 +661,8 @@ Proof.
   unfold swap_two.
   bdestruct (i =? j). apply id_unitary.
   bdestruct (i <? j).
-  apply swap_two_aux_unitary. omega.
-  apply swap_two_aux_unitary. omega.
+  apply swap_two_aux_unitary. lia.
+  apply swap_two_aux_unitary. lia.
 Qed.  
 
 Lemma swap_list_aux_unitary : forall m n l, 
@@ -672,7 +683,7 @@ Proof.
     destruct (Lall n0 n1); simpl; auto.
     apply swap_two_unitary; easy.
     apply IHm.
-    omega.
+    lia.
     intros x y IN.
     split. (* This shouldn't be hard... *)
     + induction l.
@@ -730,13 +741,13 @@ Lemma swap_list_unitary : forall n l, (length l <= n)%nat ->
 Proof.
   intros n l len Lall.
   unfold swap_list.
-  apply swap_list_aux_unitary; try omega.
+  apply swap_list_aux_unitary; try lia.
   intros i j IN.
   split.
   - unfold zip_to in *.
     apply in_combine_l in IN.
     apply in_seq in IN.
-    omega.
+    lia.
   - unfold zip_to in *.
     apply in_combine_r in IN.
     apply Lall.
@@ -842,37 +853,27 @@ Proof.
   - intros.
     simpl.
     rewrite IHn.
-    setoid_rewrite kron_assoc.
+    setoid_rewrite (kron_assoc u (I (2^n)) (I 2)).
     rewrite id_kron.
     unify_pows_two.
     reflexivity.
 Qed.
 
 Lemma ctrl_list_to_unitary_false : forall m n (u : Matrix 2 2),
-  WF_Matrix 2 2 u ->
+  WF_Matrix u ->
   ctrl_list_to_unitary (repeat false m) (repeat false n) u = I  (2^m) ⊗ u ⊗ I  (2^n).
 Proof.
   induction m; intros.
   - simpl. Msimpl. apply ctrl_list_to_unitary_r_false. 
-  - simpl.
+  - simpl in *.
     rewrite IHm by easy.
-    Msimpl.
     repeat rewrite repeat_length.
-    match goal with
-    | |- context [ @kron ?a1 ?a2 ?bc1 ?bc2 ?A (@kron ?b1 ?b2 ?c1 ?c2 ?B ?C)] => idtac B; 
-      replace bc1 with (b1 * c1)%nat by (unify_pows_two); 
-      replace bc2 with (b2 * c2)%nat by (unify_pows_two);
-      rewrite <- (kron_assoc a1 a2 b1 b2 c1 c2 A B C)
-    end.
-    match goal with
-    | |- context [ @kron ?a1 ?a2 ?bc1 ?bc2 ?A (@kron ?b1 ?b2 ?c1 ?c2 ?B ?C)] => idtac B; 
-      replace bc1 with (b1 * c1)%nat by (unify_pows_two); 
-      replace bc2 with (b2 * c2)%nat by (unify_pows_two);
-      rewrite <- (kron_assoc a1 a2 b1 b2 c1 c2 A B C)
-    end.
+    progress restore_dims.
+    specialize (pow_gt_0 m) as Gm.
+    specialize (pow_gt_0 n) as Gn. 
+    repeat rewrite <- kron_assoc; try lia.
+    restore_dims.    
     rewrite id_kron.
-    unify_pows_two.
-    repeat rewrite Nat.add_1_r.
     reflexivity.
 Qed.
          
@@ -916,7 +917,7 @@ Proof.
   induction u.
   Opaque rev skipn.
   1-5: unfold denote_ctrls; simpl;
-       rewrite firstn_repeat_le, skipn_repeat, rev_repeat by omega;
+       rewrite firstn_repeat_le, skipn_repeat, rev_repeat by lia;
        rewrite ctrl_list_to_unitary_false; auto with wf_db;
        rewrite Nat.sub_succ_r, Nat.sub_1_r;
        reflexivity.
@@ -975,13 +976,11 @@ Proof.
       rewrite Mmult_plus_distr_l, Mmult_plus_distr_r.
       rewrite Mmult_plus_distr_r.
       Msimpl.
-      setoid_rewrite kron_mixed_product.
       rewrite UU.
       replace (∣0⟩⟨0∣ × ∣1⟩⟨1∣) with (@Zero 2 2) by solve_matrix.
-      replace (∣1⟩⟨1∣ × ∣0⟩⟨0∣) with (@Zero 2 2) by solve_matrix.
+      replace (∣1⟩⟨1∣ × ∣0⟩⟨0∣) with (@Zero 2 2) by solve_matrix. 
       repeat rewrite kron_0_l.
       rewrite Mplus_0_r, Mplus_0_l.
-      Msimpl. 
       rewrite <- kron_plus_distr_r.
       replace (∣1⟩⟨1∣ × ∣1⟩⟨1∣ .+ ∣0⟩⟨0∣ × ∣0⟩⟨0∣) with (I 2) by solve_matrix.
       rewrite id_kron.
@@ -1043,8 +1042,8 @@ Proof.
   rewrite firstn_length_le.
   rewrite rev_length.
   rewrite skipn_length.
-  rewrite L, repeat_length. omega.
-  rewrite L, repeat_length. omega.
+  rewrite L, repeat_length. lia.
+  rewrite L, repeat_length. lia.
   rewrite E in U.
   apply U.
 Qed.
@@ -1062,7 +1061,7 @@ Proof.
     rewrite skipn_repeat, rev_repeat, firstn_repeat.
     simpl. rewrite ctrl_list_to_unitary_false by (auto with wf_db).    
     repeat setoid_rewrite kron_adjoint.
-    Msimpl.
+    Qsimpl.
     reflexivity.
   - simpl.
     unfold denote_ctrls. subst; clear.
@@ -1070,7 +1069,7 @@ Proof.
     rewrite skipn_repeat, rev_repeat, firstn_repeat.
     simpl. rewrite ctrl_list_to_unitary_false by (auto with wf_db).    
     repeat setoid_rewrite kron_adjoint.
-    Msimpl.
+    Qsimpl.
     reflexivity.
   - simpl.
     unfold denote_ctrls. subst; clear.
@@ -1078,7 +1077,7 @@ Proof.
     rewrite skipn_repeat, rev_repeat, firstn_repeat.
     simpl. rewrite ctrl_list_to_unitary_false by (auto with wf_db).    
     repeat setoid_rewrite kron_adjoint.
-    Msimpl.
+    Qsimpl.
     reflexivity.
   - simpl.
     unfold denote_ctrls. subst; clear.
@@ -1086,7 +1085,7 @@ Proof.
     rewrite skipn_repeat, rev_repeat, firstn_repeat.
     simpl. rewrite ctrl_list_to_unitary_false by (auto with wf_db).    
     repeat setoid_rewrite kron_adjoint.
-    Msimpl.
+    Qsimpl.
     reflexivity.
   - simpl.
     unfold denote_ctrls. subst; clear.
@@ -1094,7 +1093,7 @@ Proof.
     rewrite skipn_repeat, rev_repeat, firstn_repeat.
     simpl. rewrite 2 ctrl_list_to_unitary_false by (auto with wf_db).    
     repeat setoid_rewrite kron_adjoint.
-    Msimpl.
+    Qsimpl.
     reflexivity.
 Qed.
 
@@ -1109,19 +1108,19 @@ Proof.
     dependent destruction u.
     + simpl in *.
       inversion H; subst.
-      Msimpl. easy.
+      Qsimpl. easy.
     + simpl in *.
       inversion H; subst.
-      Msimpl. easy.
+      Qsimpl. easy.
     + simpl in *.
       inversion H; subst.
-      Msimpl. easy.
+      Qsimpl. easy.
     + simpl in *.
       inversion H; subst.
-      Msimpl. easy.
+      Qsimpl. easy.
     + simpl in *.
       inversion H; subst.
-      Msimpl. easy.
+      Qsimpl. easy.
   - clear IHW1.
     destruct li as [| k li].
     rewrite ctrls_to_list_empty in *.
@@ -1148,20 +1147,12 @@ Proof.
   - induction r; trivial.
     simpl.
     destruct a.
-    + rewrite IHr.
-      match goal with
-      | [|- _ = (?A .+ ?B)† ] => setoid_rewrite (Mplus_adjoint _ _ A B)
-      end.
-      Msimpl.
-      reflexivity.
-    + rewrite IHr.
-      setoid_rewrite kron_adjoint.
-      Msimpl.
-      reflexivity.
+    + rewrite IHr. Msimpl. reflexivity.
+    + rewrite IHr. Msimpl. reflexivity.
   - simpl.
     destruct a.
-    + Msimpl. rewrite IHl. easy.
-    + Msimpl. rewrite IHl. easy.
+    + Msimpl. rewrite IHl. reflexivity.
+    + Msimpl. rewrite IHl. reflexivity.
 Qed.
 
 Lemma denote_ctrls_transpose: forall W (n : nat) (u : Unitary W) li, 
@@ -1195,7 +1186,7 @@ Proof.
   unfold apply_to_first.
   unfold apply_qubit_unitary.
   unify_pows_two.
-  replace (k + 1 + (n - k - 1))%nat with n by omega.    
+  replace (k + 1 + (n - k - 1))%nat with n by lia.    
   apply mixed_unitary; trivial.
   specialize @kron_unitary as KU.
   specialize (KU _ _ (I (2^k) ⊗ u) (I (2^(n-k-1)))). 
@@ -1219,7 +1210,6 @@ Proof.
   - simpl.
     destruct l; try solve [inversion L].
     simpl.
-    Search WF_Unitary.
     specialize (LT n0 (or_introl eq_refl)).
     replace (2^n)%nat with (2^n0 * 2 * 2^(n - n0 - 1))%nat by unify_pows_two.
     repeat apply kron_unitary; try apply id_unitary; try apply unitary_gate_unitary.
@@ -1324,20 +1314,17 @@ Proof.
   intros n i j ρ E M.
   destruct (operator_sum_decomposition [I i ⊗ ⟨0∣ ⊗ I j ; I i ⊗ ⟨1∣ ⊗ I j]) as [WFS _].
   assert (OS : outer_sum [I  i ⊗ ⟨0∣ ⊗ I  j; I  i ⊗ ⟨1∣ ⊗ I  j] = I  (i * 2 * j)).
-    idtac.
     unfold outer_sum. simpl. Msimpl.
-    rewrite Mplus_0_l.
     rewrite <- kron_plus_distr_r, <- kron_plus_distr_l.
     replace (∣0⟩⟨0∣ .+ ∣1⟩⟨1∣) with (I 2).
-      Focus 2. crunch_matrix. bdestructΩ (S (S x) <? 2). rewrite andb_false_r. easy.
-    repeat rewrite id_kron. easy.
+    2:{ crunch_matrix. bdestructΩ (S (S x) <? 2). rewrite andb_false_r. easy. }
+    repeat rewrite id_kron. easy. 
   specialize (WFS OS ρ).
-  unfold operator_sum, Splus, SZero, super, WF_Superoperator in WFS. simpl in WFS.
-  autorewrite with M_db in WFS.
-  rewrite Mplus_0_l in WFS.
+  revert WFS.
+  unfold operator_sum, Splus, SZero, super, WF_Superoperator.
+  simpl; Msimpl. intros WFS.
   apply WFS.
-  rewrite <- Nat.mul_assoc, (Nat.mul_comm 2%nat), Nat.mul_assoc.
-  rewrite E.
+  restore_dims.
   apply M.
 Qed.
                           
@@ -1350,18 +1337,16 @@ Proof.
   destruct (operator_sum_decomposition [I i ⊗ ∣0⟩⟨0∣ ⊗ I j ; I i ⊗ ∣1⟩⟨1∣ ⊗ I j]) as [WFS _].
   assert (OS : outer_sum [I i ⊗ ∣0⟩⟨0∣ ⊗ I j; I i ⊗ ∣1⟩⟨1∣ ⊗ I j] = I  (i * 2 * j)).
     unfold outer_sum. simpl. Msimpl.
-    rewrite Mplus_0_l.
     rewrite <- kron_plus_distr_r, <- kron_plus_distr_l.
     replace ((∣0⟩⟨0∣ × ∣0⟩⟨0∣ .+ ∣1⟩⟨1∣ × ∣1⟩⟨1∣)) with (I 2).
-      Focus 2. crunch_matrix. bdestructΩ (S (S x) <? 2). rewrite andb_false_r. easy.
+    2:{ crunch_matrix. bdestructΩ (S (S x) <? 2). rewrite andb_false_r. easy. }
     repeat rewrite id_kron. easy.
   specialize (WFS OS ρ).
-  unfold operator_sum, Splus, SZero, super, WF_Superoperator in WFS. simpl in WFS.
-  autorewrite with M_db in WFS.
-  rewrite Mplus_0_l in WFS.
+  revert WFS.
+  unfold operator_sum, Splus, SZero, super, WF_Superoperator.
+  simpl; Msimpl. intros WFS.
   apply WFS.
-  rewrite <- Nat.mul_assoc, (Nat.mul_comm 2%nat), Nat.mul_assoc.
-  rewrite E.
+  restore_dims.
   apply M.
 Qed.
 
@@ -1374,17 +1359,15 @@ Proof.
   destruct (operator_sum_decomposition [I i ⊗ ∣0⟩ ⊗ I j ]) as [WFS _].
   assert (OS : outer_sum [I i ⊗ ∣0⟩ ⊗ I j] = I  (i * 1 * j)).
     unfold outer_sum. simpl. Msimpl.
-    rewrite Mplus_0_l.
     replace (⟨0∣ × ∣0⟩) with (I 1).
-      Focus 2. crunch_matrix. bdestructΩ (S x <? 1). rewrite andb_false_r. easy.
+    2:{ crunch_matrix. bdestructΩ (S x <? 1). rewrite andb_false_r. easy. }
     repeat rewrite id_kron. easy.
   specialize (WFS OS ρ).
-  unfold operator_sum, Splus, SZero, super, WF_Superoperator in WFS. simpl in WFS.
-  autorewrite with M_db in WFS.
-  rewrite Mplus_0_l in WFS.
+  revert WFS.
+  unfold operator_sum, Splus, SZero, super, WF_Superoperator.
+  simpl; Msimpl. intros WFS.
   apply WFS.
-  rewrite Nat.mul_1_r.
-  rewrite E.
+  restore_dims.
   apply M.
 Qed.
 
@@ -1397,17 +1380,15 @@ Proof.
   destruct (operator_sum_decomposition [I i ⊗ ∣1⟩ ⊗ I j ]) as [WFS _].
   assert (OS : outer_sum [I  i ⊗ ∣1⟩ ⊗ I  j] = I  (i * 1 * j)).
     unfold outer_sum. simpl. Msimpl.
-    rewrite Mplus_0_l.
     replace (⟨1∣ × ∣1⟩) with (I 1).
-      Focus 2. crunch_matrix. bdestructΩ (S x <? 1). rewrite andb_false_r. easy.
+    2:{ crunch_matrix. bdestructΩ (S x <? 1). rewrite andb_false_r. easy. }
     repeat rewrite id_kron. easy.
   specialize (WFS OS ρ).
-  unfold operator_sum, Splus, SZero, super, WF_Superoperator in WFS. simpl in WFS.
-  autorewrite with M_db in WFS.
-  rewrite Mplus_0_l in WFS.
+  revert WFS.
+  unfold operator_sum, Splus, SZero, super, WF_Superoperator.
+  simpl; Msimpl. intros WFS.
   apply WFS.
-  rewrite Nat.mul_1_r.
-  rewrite E.
+  restore_dims.
   apply M.
 Qed.
 
@@ -1419,8 +1400,9 @@ Lemma init0_end_superoperator : forall (n i : nat) (ρ : Square (2 ^ n)),
 Proof.    
   intros; subst.
   rewrite <- (kron_1_r _ _ ρ).
+  rewrite 2 kron_mixed_product.
   Msimpl.
-  apply (mixed_state_kron _ _ ρ (∣0⟩⟨0∣)).
+  apply mixed_state_kron. 
   easy.
   constructor.
   apply pure0.
@@ -1433,8 +1415,9 @@ Lemma init1_end_superoperator : forall (n i : nat) (ρ : Square (2 ^ n)),
 Proof.    
   intros; subst.
   rewrite <- (kron_1_r _ _ ρ).
+  rewrite 2 kron_mixed_product.
   Msimpl.
-  apply (mixed_state_kron _ _ ρ (∣1⟩⟨1∣)).
+  apply mixed_state_kron. 
   easy.
   constructor.
   apply pure1.
@@ -1448,7 +1431,7 @@ Proof.
   unfold apply_discard.
   unfold Splus, super.
   Msimpl.
-  replace (2 ^ (n-1))%nat with ((2^k) * 1 * (2^(n-k-1)))%nat by unify_pows_two.
+  replace (2^n)%nat with (2^k * 2 * 2^(n-k-1))%nat by unify_pows_two.
   apply discard_superoperator.
   unify_pows_two.
   easy.
@@ -1473,8 +1456,9 @@ Proof.
   intros n ρ Mρ.
   unfold apply_new0, super.
   Msimpl.
-  replace (2^(n+1))%nat with (2^n * 2)%nat by unify_pows_two.
-  apply init0_end_superoperator; easy.
+  specialize (init0_end_superoperator _ _ ρ eq_refl) as IS.
+  rewrite Nat.mul_1_r in *.
+  apply IS; easy.
 Qed.
 
 Lemma apply_new1_correct : forall n, 
@@ -1483,8 +1467,9 @@ Proof.
   intros n ρ Mρ.
   unfold apply_new1, super.
   Msimpl.
-  replace (2^(n+1))%nat with (2^n * 2)%nat by unify_pows_two.
-  apply init1_end_superoperator; easy.
+  specialize (init1_end_superoperator _ _ ρ eq_refl) as IS.
+  rewrite Nat.mul_1_r in *.
+  apply IS; easy.
 Qed.
 
 Lemma apply_gate_correct : forall W1 W2 n (g : Gate W1 W2) l,
@@ -1498,11 +1483,11 @@ Proof.
   - simpl in *.
     rewrite <- L1.
     bdestructΩ  (length l <=? n).
-    replace (n + length l - length l)%nat with n by omega.
+    replace (n + length l - length l)%nat with n by lia.
     apply apply_U_correct; easy.
   - simpl in *.
-    destruct n; [omega|].
-    replace (S n + 1 - 1)%nat with (S n) by omega.
+    destruct n; [lia|].
+    replace (S n + 1 - 1)%nat with (S n) by lia.
     apply apply_U_correct; easy.
   - simpl. rewrite Nat.sub_0_r.
     apply apply_new0_correct.
@@ -1571,8 +1556,8 @@ Proof.
     rewrite map_same_id.
     rewrite IHl. 
     unfold swap_two. 
-    rewrite <- beq_nat_refl. 
-    autorewrite with M_db.
+    rewrite <- beq_nat_refl.
+    Msimpl.
     reflexivity.
 Qed.
 
@@ -1816,7 +1801,7 @@ Proof.
     specialize (IHw2 Γ1 _ eq_refl). 
     rewrite E2 in IHw2. simpl in IHw2.
     rewrite IHw2, IHw1.
-    omega.
+    lia.
 Qed.
 
 Lemma swap_fresh_seq : forall w (Γ : Ctx),
@@ -1866,7 +1851,7 @@ Inductive Bounded_Pat (n : nat) : forall {W}, Pat W -> Prop :=
 | bounded_qubit : forall v, (v < n)%nat -> Bounded_Pat n (qubit v)
 | bounded_bit   : forall v, (v < n)%nat -> Bounded_Pat n (bit v)
 | bounded_pair  : forall W1 W2 (p1 : Pat W1) (p2 : Pat W2),
-                  Bounded_Pat n p1 -> Bounded_Pat n p2 -> Bounded_Pat n (p1,,p2)%qc.                                     
+    Bounded_Pat n p1 -> Bounded_Pat n p2 -> Bounded_Pat n (p1,,p2)%qc.
 
 Lemma no_gaps_size : forall Γ,
   no_gaps Γ ->
@@ -1882,7 +1867,7 @@ Lemma size_ctx_le_length : forall Γ,
   (size_ctx Γ <= length Γ)%nat.
 Proof.
   induction Γ; trivial.
-  destruct a; simpl; omega.
+  destruct a; simpl; lia.
 Qed.
   
 Lemma size_eq_no_gaps : forall Γ,
@@ -1894,10 +1879,10 @@ Proof.
   destruct a.
   - constructor.
     apply IHΓ.
-    simpl in E; omega.
+    simpl in E; lia.
   - simpl in E.
     specialize (size_ctx_le_length Γ) as LE.
-    omega.
+    lia.
 Qed.
 
 Lemma no_gaps_app : forall Γ Γ',
@@ -1939,8 +1924,8 @@ Proof.
   intros W p n n' LT BP.
   induction p.
   - constructor.
-  - inversion BP. constructor. omega.
-  - inversion BP. constructor. omega.
+  - inversion BP. constructor. lia.
+  - inversion BP. constructor. lia.
   - dependent destruction BP.
     constructor; auto.
 Qed.
@@ -1952,20 +1937,20 @@ Lemma add_fresh_pat_bounded : forall W Γ,
 Proof.
   induction W; intros Γ NG.
   - unfold add_fresh_pat. simpl.
-    constructor. omega.
+    constructor. lia.
   - unfold add_fresh_pat. simpl.
-    constructor. omega.
+    constructor. lia.
   - unfold add_fresh_pat. simpl.
     constructor.
   - unfold add_fresh_pat in *. simpl in *.
     rewrite 2 add_fresh_split. simpl.
     constructor.
     specialize (IHW1 Γ NG).
-    eapply bounded_pat_le; [|apply IHW1]. omega.
+    eapply bounded_pat_le; [|apply IHW1]. lia.
     specialize (IHW2 _ (add_fresh_state_no_gaps W1 Γ NG)).
     apply_with_obligations IHW2.
     erewrite length_fresh_state by reflexivity.
-    omega.
+    lia.
 Qed.
 
 
@@ -1995,7 +1980,7 @@ Proof.
     inversion NG; subst. easy.
     simpl.
     rewrite IHv; trivial.
-    simpl in LT; omega.
+    simpl in LT; lia.
 Qed.    
   
 Lemma subst_var_no_gaps : forall Γ v, 
@@ -2067,7 +2052,7 @@ Proof.
   induction w; intros Γ. 
   - simpl. rewrite size_ctx_app; easy. 
   - simpl. rewrite size_ctx_app; easy. 
-  - simpl; omega.
+  - simpl; lia.
   - simpl.
     destruct (add_fresh w1 Γ) as [p1 Γ1] eqn:E1.
     destruct (add_fresh w2 Γ1) as [p2 Γ2] eqn:E2.
@@ -2076,7 +2061,7 @@ Proof.
     rewrite IHw2.
     rewrite (surjective_pairing (add_fresh _ _)) in E1. inversion E1.
     rewrite IHw1.
-    omega.
+    lia.
 Qed.
 
 (* probably a more general form of this *)
@@ -2111,7 +2096,7 @@ Lemma denote_index_update_none : forall (Γ : Ctx) x w,
 Proof.
   induction Γ as [ | o Γ]; intros; auto.
   destruct x; auto.
-  * simpl in *. subst. simpl. omega. 
+  * simpl in *. subst. simpl. lia. 
   * simpl in *.
     rewrite (IHΓ _ w); trivial.
     destruct o; trivial.
@@ -2122,12 +2107,12 @@ Proof.
       destruct x; simpl; intros H; inversion H.
       intros x H.
       destruct a; simpl.
-      omega.
+      lia.
       destruct x. simpl in H; inversion H.
       apply (IHΓ x).
       simpl in H.
       apply H.
-    omega.
+    lia.
 Qed.
 
 Lemma singleton_update : forall Γ W W' v,
@@ -2184,15 +2169,15 @@ Proposition process_gate_ctx_size : forall w1 w2 (g : Gate w1 w2) p (Γ : Ctx),
 Proof.
   destruct g; intros p Γ H;
     try (simpl; rewrite Nat.add_sub; auto; fail);
-    try (simpl; rewrite ctx_size_app; simpl; omega).
-  - simpl. rewrite Nat.sub_0_r. destruct Γ. simpl in *. omega. simpl.
-    destruct o; rewrite size_ctx_app; simpl; omega.
-  - simpl. rewrite Nat.sub_0_r. destruct Γ. simpl in *. omega. simpl.
-    destruct o; rewrite size_ctx_app; simpl; omega.
-  - simpl. rewrite Nat.sub_0_r. destruct Γ. simpl in *. omega. simpl.
-    destruct o; rewrite size_ctx_app; simpl; omega.
-  - simpl. rewrite Nat.sub_0_r. destruct Γ. simpl in *. omega. simpl.
-    destruct o; rewrite size_ctx_app; simpl; omega.
+    try (simpl; rewrite ctx_size_app; simpl; lia).
+  - simpl. rewrite Nat.sub_0_r. destruct Γ. simpl in *. lia. simpl.
+    destruct o; rewrite size_ctx_app; simpl; lia.
+  - simpl. rewrite Nat.sub_0_r. destruct Γ. simpl in *. lia. simpl.
+    destruct o; rewrite size_ctx_app; simpl; lia.
+  - simpl. rewrite Nat.sub_0_r. destruct Γ. simpl in *. lia. simpl.
+    destruct o; rewrite size_ctx_app; simpl; lia.
+  - simpl. rewrite Nat.sub_0_r. destruct Γ. simpl in *. lia. simpl.
+    destruct o; rewrite size_ctx_app; simpl; lia.
   - dependent destruction p. 
     simpl. destruct Γ. simpl. easy.
     simpl. destruct o. simpl. unfold process_gate_state. simpl.
@@ -2421,25 +2406,25 @@ Proof.
     destruct pf_valid. subst. 
     simpl.
     rewrite size_ctx_app. 
-    simpl; omega.
+    simpl; lia.
   + unfold size_octx.
     destruct U.  
     destruct pf_valid. subst. 
     simpl.
     rewrite size_ctx_app. 
-    simpl; omega.
+    simpl; lia.
   + unfold size_octx.
     destruct U.  
     destruct pf_valid. subst. 
     simpl.
     rewrite size_ctx_app. 
-    simpl; omega.
+    simpl; lia.
   + unfold size_octx.
     destruct U.  
     destruct pf_valid. subst. 
     simpl.
     rewrite size_ctx_app. 
-    simpl; omega.
+    simpl; lia.
   + dependent destruction p; simpl.
     inversion TP; subst.
     apply singleton_index in H1.
@@ -2471,7 +2456,7 @@ Proof.
     apply size_empty_ctx in E. simpl in E. rewrite E.
     specialize (Singleton_size _ _ _ H1) as SS. simpl in SS. rewrite SS.
     erewrite update_none_collision.
-    omega.
+    lia.
     apply H1.    
     rewrite <- pf_merge in pf_valid.
     constructor; [apply pf_valid| apply pf_merge].
@@ -2496,7 +2481,7 @@ Proof.
     apply size_empty_ctx in E. simpl in E. rewrite E.
     specialize (Singleton_size _ _ _ H1) as SS. simpl in SS. rewrite SS.
     erewrite update_none_collision.
-    omega.
+    lia.
     apply H1.    
     rewrite <- pf_merge in pf_valid.
     constructor; [apply pf_valid| apply pf_merge].
@@ -2523,7 +2508,7 @@ Proof.
     apply size_empty_ctx in E. simpl in E. rewrite E.
     specialize (Singleton_size _ _ _ H1) as SS. simpl in SS. rewrite SS.
     erewrite update_none_collision.
-    omega.
+    lia.
     apply H1.    
     rewrite <- pf_merge in pf_valid.
     constructor; [apply pf_valid| apply pf_merge].
@@ -2710,10 +2695,10 @@ Proof.
     inversion M; subst.
     simpl.
     unfold subst_var. simpl.
-    omega.
+    lia.
     unfold subst_var. simpl.
     destruct o; simpl.
-    omega.
+    lia.
     inversion H4.
   - inversion TP; subst.
     apply singleton_equiv in H1.
@@ -2724,7 +2709,7 @@ Proof.
       simpl.
       rewrite maps_to_singleton.
       rewrite singleton_size.
-      omega.
+      lia.
     + assert (TP': singleton v Qubit ⊢ qubit v :Pat).
         constructor. apply singleton_singleton.
       apply merge_ind_fun in H5.
@@ -2733,7 +2718,7 @@ Proof.
       * unfold subst_var in *.
         simpl.
         destruct (maps_to v Γ0); simpl; auto.
-        omega.
+        lia.
       * unfold subst_var in *.
         simpl.
         destruct (maps_to v Γ0); simpl; auto.
@@ -2752,10 +2737,10 @@ Proof.
     inversion M; subst.
     simpl.
     unfold subst_var. simpl.
-    omega.
+    lia.
     unfold subst_var. simpl.
     destruct o; simpl.
-    omega.
+    lia.
     inversion H4.
   - inversion TP; subst.
     apply singleton_equiv in H1.
@@ -2766,7 +2751,7 @@ Proof.
       simpl.
       rewrite maps_to_singleton.
       rewrite singleton_size.
-      omega.
+      lia.
     + assert (TP': singleton v Bit ⊢ bit v :Pat).
         constructor. apply singleton_singleton.
       apply merge_ind_fun in H5.
@@ -2775,7 +2760,7 @@ Proof.
       * unfold subst_var in *.
         simpl.
         destruct (maps_to v Γ0); simpl; auto.
-        omega.
+        lia.
       * unfold subst_var in *.
         simpl.
         destruct (maps_to v Γ0); simpl; auto.
@@ -3018,7 +3003,7 @@ Proof.
   rewrite size_octx_merge by easy. 
   simpl. rewrite singleton_size. 
   rewrite size_ctx_trim.
-  omega.
+  lia.
 Qed.
 
 Lemma remove_qubit_pred : forall (Γ Γ' : Ctx) v, 
@@ -3033,7 +3018,7 @@ Proof.
   rewrite size_octx_merge by easy. 
   simpl. rewrite singleton_size. 
   rewrite size_ctx_trim.
-  omega.
+  lia.
 Qed.
 
 (* Move these to somewhere relevant *)
@@ -3117,8 +3102,8 @@ Qed.
 
 Proposition WF_denote_circuit : forall safe W (c : Circuit W) (Γ0 Γ : Ctx) ρ,
   Γ ⊢ c:Circ -> 
-  WF_Matrix (2^(⟦Γ0⟧ + ⟦Γ⟧)) (2^(⟦Γ0⟧ + ⟦Γ⟧)) ρ -> 
-  WF_Matrix (2^(⟦Γ0⟧ + ⟦W⟧)) (2^(⟦Γ0⟧ + ⟦W⟧)) (denote_circuit safe c Γ0 Γ ρ).
+  WF_Matrix ρ -> 
+  WF_Matrix (denote_circuit safe c Γ0 Γ ρ).
 Proof.
   intros safe W c.
   induction c.
@@ -3135,7 +3120,7 @@ Proof.
     erewrite ctx_wtype_size by apply t.
     apply WF_swap_list.
     rewrite size_wtype_length.
-    erewrite ctx_wtype_size by apply t. omega.
+    erewrite ctx_wtype_size by apply t. lia.
     intros x.
     apply (pat_to_list_bounded _ Γ Γ []).
     solve_merge.
@@ -3152,7 +3137,7 @@ Proof.
       rewrite pf_merge in *.
       rewrite size_octx_merge by easy.
       simpl_rewrite (octx_wtype_size W p Γ2 t).
-      (* rewrite leb_correct by omega. *)
+      (* rewrite leb_correct by lia. *)
       unfold compose_super.
       unfold denote_circuit in IH.
       unfold process_gate_state. simpl.
@@ -3168,7 +3153,7 @@ Proof.
       * simpl.
         unfold super.
         specialize (size_wtype_length (subst_pat Γ p)) as L. simpl in L.
-        destruct (pat_to_list (subst_pat Γ p)) eqn:E; simpl in L; try omega. 
+        destruct (pat_to_list (subst_pat Γ p)) eqn:E; simpl in L; try lia. 
         Msimpl.
         assert (M : Γ == Γ2 ∙ Γ1) by (split; auto).
         destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.
@@ -3223,14 +3208,14 @@ Proof.
         rewrite pf_merge in *.
         rewrite size_octx_merge by easy.
         rewrite <- (octx_wtype_size Bit p Γ2 t).
-        simpl. omega.
+        simpl. lia.
       unfold compose_super.
       unfold denote_circuit in IH.
       eapply IH.
       eapply t0. apply pf1. easy.
       unfold apply_U, apply_unitary, super.
       specialize (size_wtype_length (subst_pat Γ p)) as L. simpl in L.
-      destruct (pat_to_list (subst_pat Γ p)) eqn:E; simpl in L; try omega. 
+      destruct (pat_to_list (subst_pat Γ p)) eqn:E; simpl in L; try lia. 
       Msimpl.
       destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.
       assert (IN : In v (pat_to_list (subst_pat Γ p))) by (rewrite E; simpl; auto).
@@ -3278,7 +3263,7 @@ Proof.
         rewrite Nat.mul_1_r.
         easy.
       * replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Qubit]))). 
-          2: simpl; rewrite size_ctx_app; simpl; omega. 
+          2: simpl; rewrite size_ctx_app; simpl; lia. 
         eapply IH.
         eapply t0. 
         split. validate.
@@ -3302,7 +3287,7 @@ Proof.
         rewrite Nat.mul_1_r.
         easy.
       * replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Qubit]))). 
-          2: simpl; rewrite size_ctx_app; simpl; omega. 
+          2: simpl; rewrite size_ctx_app; simpl; lia. 
         eapply IH.
         eapply t0. 
         split. validate.
@@ -3326,7 +3311,7 @@ Proof.
         rewrite Nat.mul_1_r.
         easy.
       * replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Bit]))). 
-          2: simpl; rewrite size_ctx_app; simpl; omega. 
+          2: simpl; rewrite size_ctx_app; simpl; lia. 
         eapply IH.
         eapply t0. 
         split. validate.
@@ -3350,7 +3335,7 @@ Proof.
         rewrite Nat.mul_1_r.
         easy.
       * replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Bit]))). 
-          2: simpl; rewrite size_ctx_app; simpl; omega. 
+          2: simpl; rewrite size_ctx_app; simpl; lia. 
         eapply IH.
         eapply t0. 
         split. validate.
@@ -3403,7 +3388,7 @@ Proof.
       simpl.
       rewrite Nat.add_sub.
       specialize (size_wtype_length (subst_pat Γ p)) as L. simpl in L.
-      destruct (pat_to_list (subst_pat Γ p)) eqn:E; simpl in L; try omega. 
+      destruct (pat_to_list (subst_pat Γ p)) eqn:E; simpl in L; try lia. 
       apply WF_compose_super; intros.
       * easy.
       * unfold apply_meas.
@@ -3432,7 +3417,7 @@ Proof.
           dependent destruction t.
           apply singleton_equiv in s. subst.
           simpl. rewrite singleton_size.
-          omega.
+          lia.
         simpl.
         destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.   
         dependent destruction t. simpl.
@@ -3465,7 +3450,7 @@ Proof.
           dependent destruction t.
           apply singleton_equiv in s. subst.
           simpl. rewrite singleton_size.
-          omega.
+          lia.
         intros WFA.
         dependent destruction t.
         apply singleton_equiv in s; subst.
@@ -3494,7 +3479,7 @@ Proof.
           dependent destruction t.
           apply singleton_equiv in s. subst.
           simpl. rewrite singleton_size.
-          omega.
+          lia.
         simpl.
         destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.   
         dependent destruction t. simpl.
@@ -3529,7 +3514,7 @@ Proof.
           dependent destruction t.
           apply singleton_equiv in s. subst.
           simpl. rewrite singleton_size.
-          omega.
+          lia.
         intros WFA.
         dependent destruction t.
         apply singleton_equiv in s; subst.
@@ -3558,7 +3543,7 @@ Proof.
           dependent destruction t.
           apply singleton_equiv in s. subst.
           simpl. rewrite singleton_size.
-          omega.
+          lia.
         simpl.
         destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.   
         dependent destruction t. simpl.
@@ -3593,7 +3578,7 @@ Proof.
           dependent destruction t.
           apply singleton_equiv in s. subst.
           simpl. rewrite singleton_size.
-          omega.
+          lia.
         intros WFA.
         dependent destruction t.
         apply singleton_equiv in s; subst.
@@ -3636,7 +3621,7 @@ Proof.
           rewrite size_octx_merge by easy. 
           apply singleton_equiv in s. subst.
           simpl. rewrite singleton_size.
-          omega.
+          lia.
         apply singleton_equiv in s; subst.
         specialize (t0 false).
         erewrite remove_bit_merge'; [|apply pf].
@@ -3665,7 +3650,7 @@ Proof.
           rewrite size_octx_merge by easy. 
           apply singleton_equiv in s. subst.
           simpl. rewrite singleton_size.
-          omega.
+          lia.
         apply singleton_equiv in s; subst.
         specialize (t0 true).
         erewrite remove_bit_merge'; [|apply pf].
@@ -3678,8 +3663,8 @@ Qed.
 
 Proposition WF_denote_box : forall safe W1 W2 (c : Box W1 W2) ρ,
   Typed_Box c ->
-  WF_Matrix (2^(⟦W1⟧)) (2^(⟦W1⟧)) ρ -> 
-  WF_Matrix (2^(⟦W2⟧)) (2^(⟦W2⟧)) (denote_box safe c ρ).
+  WF_Matrix ρ -> 
+  WF_Matrix (denote_box safe c ρ).
 Proof.
   intros safe W1 W2 c ρ T WF.
   destruct c.
@@ -3736,7 +3721,7 @@ Proof.
     apply KU.
     apply swap_list_unitary.
     rewrite size_wtype_length.
-    rewrite (ctx_wtype_size w p Γ t). omega.
+    rewrite (ctx_wtype_size w p Γ t). lia.
     intros x.
     eapply pat_to_list_bounded.
     split. validate.
@@ -3817,7 +3802,7 @@ Proof.
         rewrite pf_merge in L.
         rewrite size_octx_merge in L; trivial.
         simpl in L. rewrite singleton_size in L.
-        omega.
+        lia.
     + simpl.
       dependent destruction p1.
       dependent destruction t.
@@ -3829,7 +3814,7 @@ Proof.
         unfold process_gate_state. simpl.
         rewrite Nat.sub_0_r.
         replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Qubit]))). 
-          2: simpl; rewrite size_ctx_app; simpl; omega. 
+          2: simpl; rewrite size_ctx_app; simpl; lia. 
         eapply IH.
         apply STAT.
         eapply t0.
@@ -3852,7 +3837,7 @@ Proof.
         unfold process_gate_state. simpl.
         rewrite Nat.sub_0_r.
         replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Qubit]))). 
-          2: simpl; rewrite size_ctx_app; simpl; omega. 
+          2: simpl; rewrite size_ctx_app; simpl; lia. 
         eapply IH.
         apply STAT. 
         eapply t0. 
@@ -3875,7 +3860,7 @@ Proof.
         unfold process_gate_state. simpl.
         rewrite Nat.sub_0_r.
         replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Bit]))). 
-          2: simpl; rewrite size_ctx_app; simpl; omega. 
+          2: simpl; rewrite size_ctx_app; simpl; lia. 
         eapply IH.
         apply STAT. 
         eapply t0. 
@@ -3898,7 +3883,7 @@ Proof.
         unfold process_gate_state. simpl.
         rewrite Nat.sub_0_r.
         replace (size_ctx Γ + 1)%nat with (size_octx (Valid (Γ ++ [Some Bit]))). 
-          2: simpl; rewrite size_ctx_app; simpl; omega. 
+          2: simpl; rewrite size_ctx_app; simpl; lia. 
         eapply IH.
         apply STAT. 
         eapply t0. 
@@ -3989,7 +3974,7 @@ Proof.
         destruct pf1; rewrite pf_merge in *.        
         rewrite size_octx_merge by easy.
         simpl; rewrite singleton_size.
-        omega.
+        lia.
     + simpl.        
       apply compose_super_correct.
       * unfold denote_circuit in IH.
@@ -4026,7 +4011,7 @@ Proof.
         destruct pf1; rewrite pf_merge in *.        
         rewrite size_octx_merge by easy.
         simpl; rewrite singleton_size.
-        omega.
+        lia.
     + simpl.        
       apply compose_super_correct.
       * unfold denote_circuit in IH.
@@ -4063,7 +4048,7 @@ Proof.
         destruct pf1; rewrite pf_merge in *.        
         rewrite size_octx_merge by easy.
         simpl; rewrite singleton_size.
-        omega.
+        lia.
   - (* Lifting is an interesting case since we are combining two subterms which are 
        not themselves mixed_states. To be precise, denote_db_circuit is being 
        apply to /partial mixed states/ and a predicate saying that circuits preserve
@@ -4183,7 +4168,7 @@ Abort.
 (* I don't think we need ρ to be a Mixed State. 
    We might not even need it to be well-formed. *)
 Definition HOAS_Equiv {W1 W2} (c1 c2 : Box W1 W2) :=
-  forall ρ b, WF_Matrix (2 ^ ⟦ W1 ⟧) (2 ^ ⟦ W1 ⟧) ρ -> denote_box b c1 ρ = denote_box b c2 ρ .
+  forall ρ b, WF_Matrix ρ -> denote_box b c1 ρ = denote_box b c2 ρ .
 
 Locate "≡".
 Notation "a ≡ b" := (HOAS_Equiv a b) (at level 70) : circ_scope.
