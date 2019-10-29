@@ -5,15 +5,15 @@ Import ListNotations.
 (* n is the accumulated error *)
 Inductive Circuit (w : WType) : Set :=
 | output : Pat w -> Circuit w
-| gate   : forall {w1 w2}, 
-           Gate w1 w2 ->  Pat w1 -> (Pat w2 -> Circuit w) -> Circuit w
+| gate   : forall {w1 w2 k}, 
+           Gate k w1 w2 ->  Pat w1 -> (Pat w2 -> Circuit w) -> Circuit w
 | lift   : Pat Bit -> (bool -> Circuit w) -> Circuit w.
 
 Inductive Box w1 w2 : Set :=
   box : (Pat w1 -> Circuit w2) -> Box w1 w2.
 
 Arguments output {w}.
-Arguments gate {w w1 w2}.
+Arguments gate {w w1 w2 k}.
 Arguments lift {w}.
 Arguments box {w1 w2}.
 
@@ -45,20 +45,10 @@ Inductive Types_Circuit : OCtx -> nat -> forall {w}, Circuit w -> Set :=
                (forall b, Types_Circuit Γ2 t (f b)) ->
                forall {pf : Γ == Γ1 ∙ Γ2},
                Types_Circuit Γ t (lift p f)
-(* Different (error) typing rules for different gates - not finished (WIP) *)
-| types_gate_U : forall {Γ Γ1 Γ1' w1 w} {k} {f : Pat (map_wtype w1 (k + (num_errs_wtype w1))) -> Circuit w} 
-                                    {p1 : Pat w1} {u : Unitary k w1} {t},
+| types_gate : forall {Γ Γ1 Γ1' w1 w2 w} {f : Pat w2 -> Circuit w} {k}
+                                    {p1 : Pat w1} {g : Gate k w1 w2} {t},
                Γ1 ⊢ p1 :Pat ->
                k + (num_errs_wtype w1) <= t ->
-               (forall Γ2 Γ2' (p2 : Pat (map_wtype w1 (k + (num_errs_wtype w1)))) {pf2 : Γ2' == Γ2 ∙ Γ},
-                       Γ2 ⊢ p2 :Pat -> Types_Circuit Γ2' t (f p2)) ->
-               forall {pf1 : Γ1' == Γ1 ∙ Γ},
-               Types_Circuit Γ1' t (gate (U u) p1 f)
-| types_gate : forall {Γ Γ1 Γ1' w1 w2 w} {f : Pat w2 -> Circuit w} 
-                                    {p1 : Pat w1} {g : Gate w1 w2} {t},
-               Γ1 ⊢ p1 :Pat ->
-               num_errs_wtype w1 <= t ->
-               num_errs_wtype w2 <= t ->
                (forall Γ2 Γ2' (p2 : Pat w2) {pf2 : Γ2' == Γ2 ∙ Γ},
                        Γ2 ⊢ p2 :Pat -> Types_Circuit Γ2' t (f p2)) ->
                forall {pf1 : Γ1' == Γ1 ∙ Γ},
@@ -116,10 +106,6 @@ Proof.
   * simpl. 
     apply @types_lift with (Γ1 := Γ1) (Γ2 := Γ2 ⋓ Γ0); auto; try solve_merge.
     intros. apply H with (Γ := Γ0); auto; solve_merge.
-  * simpl. 
-    eapply @types_gate_U with (Γ1 := Γ1) (Γ := Γ ⋓ Γ0); auto; try solve_merge.
-    intros. 
-    apply H with (Γ2 := Γ2) (Γ := Γ0) (Γ2' := Γ2 ⋓ Γ); auto; solve_merge.
   * simpl. 
     eapply @types_gate with (Γ1 := Γ1) (Γ := Γ ⋓ Γ0); auto; try solve_merge.
     intros. 

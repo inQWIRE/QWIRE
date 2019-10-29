@@ -4,7 +4,7 @@ Import ListNotations.
 Open Scope list_scope.
 Open Scope circ_scope.
  
-Definition boxed_gate {W1 W2} (g : Gate W1 W2) : Box W1 W2 := 
+Definition boxed_gate {W1 W2 k} (g : Gate k W1 W2) : Box W1 W2 := 
   box_ p ⇒ 
     gate_ p2 ← g @ p;
     output p2.
@@ -21,7 +21,6 @@ Proof.
   induction pf_c.
   - subst. eapply pat_ctx_valid; eauto.
   - destruct pf. subst. auto.
-  - destruct pf1. subst. auto.
   - destruct pf1. subst. auto.
 Qed.
 

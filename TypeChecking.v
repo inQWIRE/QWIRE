@@ -232,8 +232,8 @@ Create HintDb typed_db.
 Ltac type_check_once := 
   intros;
   try match goal with 
-  | [|- Typed_Box _ ]           => solve [eauto with typed_db] (* extensible *)
-  | [|- @Typed_Box  ?W1 ?W2 ?c] => unfold Typed_Box in *; try unfold c
+  | [|- Typed_Box _ _]           => solve [eauto with typed_db] (* extensible *)
+  | [|- @Typed_Box  ?W1 ?W2 ?c _] => unfold Typed_Box in *; try unfold c
   end;
   intros;
   simpl in *;
@@ -242,17 +242,17 @@ Ltac type_check_once :=
   repeat match goal with 
   | [ b : bool |- _ ]              => destruct b 
   | [ H : _ == _ ∙ _ |- _ ]     => destruct H
-    | H: @Types_Circuit _ _ ?c |- @Types_Circuit _ _ ?c 
+    | H: @Types_Circuit _ _ _ ?c |- @Types_Circuit _ _ _ ?c 
                                => exact H
-  | [ |- @Types_Circuit _ _ _ ] => econstructor; type_check_once
+  | [ |- @Types_Circuit _ _ _ _ ] => econstructor; type_check_once
 
-  | [ |- @Types_Circuit _ _ (if ?b then _ else _) ]
+  | [ |- @Types_Circuit _ _ _ (if ?b then _ else _) ]
                                 => destruct b; type_check_once
 
   (* compose_typing : specify goal. *)                                  
-  | [ |- @Types_Circuit _ _ _ ] =>  eapply compose_typing; type_check_once 
+  | [ |- @Types_Circuit _ _ _ _ ] =>  eapply compose_typing; type_check_once 
 
-  | [ H : forall a b, Types_Pat _ _ -> Types_Circuit _ _ |- Types_Circuit _ _] 
+  | [ H : forall a b, Types_Pat _ _ -> Types_Circuit _ _ _ |- Types_Circuit _ _ _] 
                                 => apply H; type_check_once
 
   | [ H : @Types_Pat _ _ ?p |- @Types_Pat _ _ ?p ] 

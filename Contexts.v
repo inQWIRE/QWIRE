@@ -1329,19 +1329,20 @@ Fixpoint map_wtype (W : WType) k : WType :=
   | W1 ⊗ W2 => map_wtype W1 k ⊗ map_wtype W2 k
   end.
 
-Inductive Gate : WType -> WType -> Set := 
-  | U       : forall {W k} (u : Unitary k W), Gate W (map_wtype W (k + (num_errs_wtype W)))
-  | BNOT    : Gate Bit Bit
-  | init0   : Gate One (Qubit 0)
-  | init1   : Gate One (Qubit 0)
-  | new0    : Gate One Bit
-  | new1    : Gate One Bit
-  | meas    : forall {n}, Gate (Qubit n) Bit
-  | measQ   : forall {n}, Gate (Qubit n) (Qubit 0) (* error should probably change *)
-  | discard : Gate Bit One
-  | assert0 : forall {n}, Gate (Qubit n) One
-  | assert1 : forall {n}, Gate (Qubit n) One
-  | EC      : forall {n}, Gate (Qubit n) (Qubit 0).
+(* nat parameter [k] is the number of errors introduced by the gate *)
+Inductive Gate : nat -> WType -> WType -> Set := 
+  | U       : forall {W k} (u : Unitary k W), Gate k W (map_wtype W (k + (num_errs_wtype W)))
+  | BNOT    : Gate 0 Bit Bit
+  | init0   : Gate 0 One (Qubit 0)
+  | init1   : Gate 0 One (Qubit 0)
+  | new0    : Gate 0 One Bit
+  | new1    : Gate 0 One Bit
+  | meas    : forall {n}, Gate 0 (Qubit n) Bit
+  | measQ   : forall {n}, Gate 0 (Qubit n) (Qubit 0) (* error should probably change *)
+  | discard : Gate 0 Bit One
+  | assert0 : forall {n}, Gate 0 (Qubit n) One
+  | assert1 : forall {n}, Gate 0 (Qubit n) One
+  | EC      : forall {n}, Gate 0 (Qubit n) (Qubit 0).
 
 Coercion U : Unitary >-> Gate. (* fails uniform inheritance condition *)
 Close Scope circ_scope.

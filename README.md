@@ -1,5 +1,17 @@
 # QWIRE
 
+---
+**IMPORTANT** 
+
+This is a modified version of QWIRE to support error types. The only files that are up-to-date in this branch are the following:
+- Contexts.v
+- HOASCircuits.v
+- HOASLib.v
+- SimpleExamples.v
+- TypeChecking.v
+`make` will compile the appropriate files.
+---
+
 This is a Coq implementation of the QWIRE quantum programming language, described in the following papers by Jennifer Paykin, Robert Rand, Dong-Ho Lee and Steve Zdancewic:
 - [QWIRE: a core language for quantum circuits][1].
 - [QWIRE Practice: Formal Verification of Quantum Circuits in Coq][2]
