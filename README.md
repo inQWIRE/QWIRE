@@ -11,6 +11,7 @@ This is a modified version of QWIRE to support error types. The only files that 
 - TypeChecking.v
 
 `make` will compile the appropriate files.
+
 ---
 
 This is a Coq implementation of the QWIRE quantum programming language, described in the following papers by Jennifer Paykin, Robert Rand, Dong-Ho Lee and Steve Zdancewic:
