@@ -40,20 +40,30 @@ Reserved Notation "Γ ⊢ f :Fun"  (at level 30).*)
 Inductive Types_Circuit : OCtx -> nat -> forall {w}, Circuit w -> Set :=
 | types_output : forall {Γ Γ' w} {p : Pat w} {pf : Γ = Γ'} {t}, 
   Γ ⊢ p :Pat -> Types_Circuit Γ' t (output p)
-| types_gate : forall {Γ Γ1 Γ1' w1 w2 w} {f : Pat w2 -> Circuit w} 
-                                    {p1 : Pat w1} {g : Gate w1 w2} {t},
-               Γ1 ⊢ p1 :Pat ->
-               num_errs_wtype w2 <= t ->
-(*               Γ ⊢ f :Fun ->*)
-               (forall Γ2 Γ2' (p2 : Pat w2) {pf2 : Γ2' == Γ2 ∙ Γ},
-                       Γ2 ⊢ p2 :Pat -> Types_Circuit Γ2' t (f p2)) ->
-               forall {pf1 : Γ1' == Γ1 ∙ Γ},
-               Types_Circuit Γ1' t (gate g p1 f)
 | types_lift : forall {Γ1 Γ2 Γ w} {p : Pat Bit} {f : bool -> Circuit w} {t},
                Γ1 ⊢ p :Pat ->
                (forall b, Types_Circuit Γ2 t (f b)) ->
                forall {pf : Γ == Γ1 ∙ Γ2},
-               Types_Circuit Γ t (lift p f).
+               Types_Circuit Γ t (lift p f)
+(* Different (error) typing rules for different gates - not finished (WIP) *)
+| types_gate_U : forall {Γ Γ1 Γ1' w1 w} {k} {f : Pat (map_wtype w1 (k + (num_errs_wtype w1))) -> Circuit w} 
+                                    {p1 : Pat w1} {u : Unitary k w1} {t},
+               Γ1 ⊢ p1 :Pat ->
+               k + (num_errs_wtype w1) <= t ->
+               (forall Γ2 Γ2' (p2 : Pat (map_wtype w1 (k + (num_errs_wtype w1)))) {pf2 : Γ2' == Γ2 ∙ Γ},
+                       Γ2 ⊢ p2 :Pat -> Types_Circuit Γ2' t (f p2)) ->
+               forall {pf1 : Γ1' == Γ1 ∙ Γ},
+               Types_Circuit Γ1' t (gate (U u) p1 f)
+| types_gate : forall {Γ Γ1 Γ1' w1 w2 w} {f : Pat w2 -> Circuit w} 
+                                    {p1 : Pat w1} {g : Gate w1 w2} {t},
+               Γ1 ⊢ p1 :Pat ->
+               num_errs_wtype w1 <= t ->
+               num_errs_wtype w2 <= t ->
+               (forall Γ2 Γ2' (p2 : Pat w2) {pf2 : Γ2' == Γ2 ∙ Γ},
+                       Γ2 ⊢ p2 :Pat -> Types_Circuit Γ2' t (f p2)) ->
+               forall {pf1 : Γ1' == Γ1 ∙ Γ},
+               Types_Circuit Γ1' t (gate g p1 f).
+
 (*where "Γ ⊢ c :Circ" := (Types_Circuit Γ c)
 and "Γ ⊢ f :Fun" := (forall Γ0 Γ0' p0, Γ0' == Γ0 ∙ Γ ->
                                             Γ0 ⊢ p0 :Pat ->
@@ -104,12 +114,16 @@ Proof.
   dependent induction types_c; intros Γ0 Γ01' types_f pf0.
   * simpl. subst. eapply types_f; eauto. 
   * simpl. 
-    eapply @types_gate with (Γ1 := Γ1) (Γ := Γ ⋓ Γ0); auto; try solve_merge.
+    apply @types_lift with (Γ1 := Γ1) (Γ2 := Γ2 ⋓ Γ0); auto; try solve_merge.
+    intros. apply H with (Γ := Γ0); auto; solve_merge.
+  * simpl. 
+    eapply @types_gate_U with (Γ1 := Γ1) (Γ := Γ ⋓ Γ0); auto; try solve_merge.
     intros. 
     apply H with (Γ2 := Γ2) (Γ := Γ0) (Γ2' := Γ2 ⋓ Γ); auto; solve_merge.
   * simpl. 
-    apply @types_lift with (Γ1 := Γ1) (Γ2 := Γ2 ⋓ Γ0); auto; try solve_merge.
-    intros. apply H with (Γ := Γ0); auto; solve_merge.
+    eapply @types_gate with (Γ1 := Γ1) (Γ := Γ ⋓ Γ0); auto; try solve_merge.
+    intros. 
+    apply H with (Γ2 := Γ2) (Γ := Γ0) (Γ2' := Γ2 ⋓ Γ); auto; solve_merge.  
 Qed.
 
 

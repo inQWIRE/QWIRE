@@ -2,7 +2,7 @@
 
 Contexts.v
 HOASCircuits.v
-HOASExamples.v
+SimpleExamples.v
 HOASLib.v
 Monad.v
 Monoid.v

@@ -20,8 +20,9 @@ Proof.
   intros w c Γ t pf_c.
   induction pf_c.
   - subst. eapply pat_ctx_valid; eauto.
-  - destruct pf1. subst. auto.
   - destruct pf. subst. auto.
+  - destruct pf1. subst. auto.
+  - destruct pf1. subst. auto.
 Qed.
 
 Definition apply_box {w1 w2} (b : Box w1 w2) (c : Circuit w1) : Circuit w2 :=
