@@ -36,7 +36,7 @@ Fixpoint compose {w1 w2} (c : Circuit w1) (f : Pat w1 -> Circuit w2) :
 (*Reserved Notation "Γ ⊢ c :Circ" (at level 30).
 Reserved Notation "Γ ⊢ f :Fun"  (at level 30).*)
 
-(* nat argument is the error threshold *)
+(* nat argument [t] is the error threshold *)
 Inductive Types_Circuit : OCtx -> nat -> forall {w}, Circuit w -> Set :=
 | types_output : forall {Γ Γ' w} {p : Pat w} {pf : Γ = Γ'} {t}, 
   Γ ⊢ p :Pat -> Types_Circuit Γ' t (output p)

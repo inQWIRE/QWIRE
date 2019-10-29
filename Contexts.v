@@ -1337,7 +1337,7 @@ Inductive Gate : WType -> WType -> Set :=
   | new0    : Gate One Bit
   | new1    : Gate One Bit
   | meas    : forall {n}, Gate (Qubit n) Bit
-  | measQ   : forall {n}, Gate (Qubit n) (Qubit n) (* error should probably change *)
+  | measQ   : forall {n}, Gate (Qubit n) (Qubit 0) (* error should probably change *)
   | discard : Gate Bit One
   | assert0 : forall {n}, Gate (Qubit n) One
   | assert1 : forall {n}, Gate (Qubit n) One

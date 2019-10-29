@@ -13,11 +13,11 @@ Notation X := (U _X).
 Notation Y := (U _Y).
 Notation Z := (U _Z).
 Notation CNOT := (U CNOT).
-Variable _I : Unitary 1 Qubit.
+Variable _I : Unitary 1 (Qubit 1).
 Notation I := (U _I).
 
 (* Can have 0 input error type if desired: Use () instead of _ at start. *)
-Definition bell00 {n} : Box n One 2 (Qubit ⊗ Qubit) :=
+Definition bell00 : Box One (Qubit 2 ⊗ Qubit 2) :=
   box_ _ ⇒  
     gate_ a     ← init0 @();
     gate_ b     ← init0 @();
@@ -25,7 +25,7 @@ Definition bell00 {n} : Box n One 2 (Qubit ⊗ Qubit) :=
     gate_ (a,b) ← CNOT @(a,,b); 
     (a,b).
 
-Definition alice {n} : Box n (Qubit ⊗ Qubit) 0 (Bit ⊗ Bit) :=
+Definition alice : Box (Qubit 0 ⊗ Qubit 2) (Bit ⊗ Bit) :=
   box_ qa ⇒ 
     gate_ (q,a) ← CNOT @qa;
     gate_ q     ← H   @q;
@@ -33,15 +33,14 @@ Definition alice {n} : Box n (Qubit ⊗ Qubit) 0 (Bit ⊗ Bit) :=
     gate_ y     ← meas @a;
     (x,y).
 
-Program Definition bob {n} : Box n (Bit ⊗ Bit ⊗ Qubit) (2 + n) Qubit :=
+Definition bob : Box (Bit ⊗ Bit ⊗ Qubit 2) (Qubit 4) :=
   box_ (x,y,b) ⇒ 
     gate_ (y,b)    ← U (bit_ctrl _X) @(y,,b);
     gate_ (x,b)    ← U (bit_ctrl _Z) @(x,,b);
     discard_ (x,y) ;  
     output b.
-Next Obligation. rewrite Nat.max_id. rewrite Nat.max_r; omega. Defined.
 
-Definition teleport {n} : Box n Qubit 4 Qubit :=
+Definition teleport : Box (Qubit 0) (Qubit 4) :=
   box_ q ⇒
     let_ (a,b) ← unbox bell00 () ;
     let_ (x,y) ← unbox alice (q,,a) ;
