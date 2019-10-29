@@ -9,6 +9,7 @@ This is a modified version of QWIRE to support error types. The only files that 
 - HOASLib.v
 - SimpleExamples.v
 - TypeChecking.v
+
 `make` will compile the appropriate files.
 ---
 
