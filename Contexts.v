@@ -5,7 +5,7 @@ Open Scope list_scope.
 (*** Context Definitions ***)
 
 (** Types **)
-Inductive WType := Qubit | Bit | One | Tensor : WType -> WType -> WType.
+Inductive WType := Qubit : nat -> WType | Bit | One | Tensor : WType -> WType -> WType.
 Notation " W1 ⊗ W2 " := (Tensor W1 W2) (at level 40, left associativity)
                      : circ_scope.
 
@@ -13,7 +13,7 @@ Open Scope circ_scope.
 Fixpoint size_wtype (W : WType) : nat := 
   match W with
   | One => 0
-  | Qubit => 1
+  | Qubit _ => 1
   | Bit => 1
   | W1 ⊗ W2 => size_wtype W1 + size_wtype W2
   end.
@@ -21,9 +21,9 @@ Fixpoint size_wtype (W : WType) : nat :=
 (* Coq interpretations of wire types *)
 Fixpoint interpret (w:WType) : Set :=
   match w with
-    | Qubit => bool
-    | Bit   => bool 
-    | One   => unit
+    | Qubit _ => bool
+    | Bit     => bool 
+    | One     => unit
     | w1 ⊗ w2 => (interpret w1) * (interpret w2)
   end.
 
@@ -1217,64 +1217,14 @@ Defined.
 (* n refers to the number of errors on the wire *)
 Open Scope circ_scope.
 
-Inductive Pat : nat -> WType -> Set :=
-| unit : forall {n}, Pat n One
-| qubit : forall {n}, Var -> Pat n Qubit
-| bit : forall {n}, Var -> Pat n Bit
-| pair : forall {W1 W2 m n}, Pat m W1 -> Pat n W2 -> Pat (m + n) (W1 ⊗ W2).
-
-Program Fixpoint weaken {W m} (n : nat) (p : Pat m W) : Pat (m + n) W :=
-  match p with
-  | unit    => unit
-  | qubit x => qubit x  
-  | bit x   => bit x
-  | pair p1 p2 => pair (weaken n p1) p2 (* ok to just stick the error on the left? *)
-  end.
-Next Obligation. rewrite Nat.add_shuffle0. reflexivity. Defined.
-
-Print weaken.
-
-Definition weak_proj1 {W1 W2 n} : Pat n (W1 ⊗ W2) -> Pat n W1.
-  intros p.
-  dependent destruction p.
-  apply (weaken n p1).
-Defined.  
-
-Definition weak_proj2 {W1 W2 n} : Pat n (W1 ⊗ W2) -> Pat n W2.
-  intros p.
-  dependent destruction p.
-  rewrite Nat.add_comm.
-  apply (weaken m p2).
-Defined.  
-
-Definition get_error {W n} (p : Pat n W) := n.
-
-Definition extract1 {W1 W2 n} (p : Pat n (W1 ⊗ W2)) : nat :=
-  match p with
-    pair p1 p2 => get_error p1
-  end.
-
-Definition extract2 {W1 W2 n} (p : Pat n (W1 ⊗ W2)) : nat :=
-  match p with
-    pair p1 p2 => get_error p2
-  end.
-
-Definition strong_proj1 {W1 W2 n} (p : Pat n (W1 ⊗ W2)) : Pat (extract1 p) W1.
-  dependent destruction p.
-  simpl.
-  unfold get_error.
-  apply p1.
-Defined.
-
-Definition strong_proj2 {W1 W2 n} (p : Pat n (W1 ⊗ W2)) : Pat (extract2 p) W2.
-  dependent destruction p.
-  simpl.
-  unfold get_error.
-  apply p2.
-Defined.
+Inductive Pat : WType -> Set :=
+| unit : Pat One
+| qubit : forall {n}, Var -> Pat (Qubit n)
+| bit : Var -> Pat Bit
+| pair : forall {W1 W2}, Pat W1 -> Pat W2 -> Pat (W1 ⊗ W2).
 
 
-Fixpoint pat_to_list {w n} (p : Pat n w) : list Var :=
+Fixpoint pat_to_list {w} (p : Pat w) : list Var :=
   match p with
   | unit => []
   | qubit x => [x]
@@ -1283,7 +1233,7 @@ Fixpoint pat_to_list {w n} (p : Pat n w) : list Var :=
   end.
 
 
-Fixpoint pat_map {w n} (f : Var -> Var) (p : Pat n w) : Pat n w :=
+Fixpoint pat_map {w} (f : Var -> Var) (p : Pat w) : Pat w :=
   match p with
   | unit => unit
   | qubit x => qubit (f x)
@@ -1294,25 +1244,25 @@ Fixpoint pat_map {w n} (f : Var -> Var) (p : Pat n w) : Pat n w :=
 
 Reserved Notation "Γ ⊢ p ':Pat'" (at level 30).
 
-Inductive Types_Pat : OCtx -> forall {W n}, Pat n W -> Set :=
-| types_unit : forall n, ∅ ⊢ @unit n :Pat
-| types_qubit : forall n x Γ, SingletonCtx x Qubit Γ ->  Γ ⊢ @qubit n x :Pat
-| types_bit : forall n x Γ, SingletonCtx x Bit Γ -> Γ ⊢ @bit n x :Pat
-| types_pair : forall Γ1 Γ2 Γ w1 w2 n m (p1 : Pat n w1) (p2 : Pat m w2),
+Inductive Types_Pat : OCtx -> forall {W}, Pat W -> Set :=
+| types_unit : ∅ ⊢ @unit :Pat
+| types_qubit : forall n x Γ, SingletonCtx x (Qubit n) Γ ->  Γ ⊢ @qubit n x :Pat
+| types_bit : forall x Γ, SingletonCtx x Bit Γ -> Γ ⊢ @bit x :Pat
+| types_pair : forall Γ1 Γ2 Γ w1 w2 (p1 : Pat w1) (p2 : Pat w2),
         is_valid Γ 
       -> Γ = Γ1 ⋓ Γ2
       -> Γ1 ⊢ p1 :Pat
       -> Γ2 ⊢ p2 :Pat
       -> Γ  ⊢ pair p1 p2 :Pat
-where "Γ ⊢ p ':Pat'" := (@Types_Pat Γ _ _ p).
+where "Γ ⊢ p ':Pat'" := (@Types_Pat Γ _ p).
 
-Lemma pat_ctx_valid : forall Γ W n (p : Pat n W), Γ ⊢ p :Pat -> is_valid Γ.
-Proof. intros Γ W n p TP. unfold is_valid. inversion TP; eauto. Qed.
+Lemma pat_ctx_valid : forall Γ W (p : Pat W), Γ ⊢ p :Pat -> is_valid Γ.
+Proof. intros Γ W p TP. unfold is_valid. inversion TP; eauto. Qed.
 
-Lemma octx_wtype_size : forall w n (p : Pat n w) (Γ : OCtx),
+Lemma octx_wtype_size : forall w (p : Pat w) (Γ : OCtx),
       Γ ⊢ p:Pat -> size_wtype w = size_octx Γ.
 Proof.
-  intros w n p Γ H.
+  intros w p Γ H.
   dependent induction H; simpl; auto.
   * apply Singleton_size in s. easy. 
   * apply Singleton_size in s. easy. 
@@ -1320,15 +1270,15 @@ Proof.
     rewrite size_octx_merge; auto.
 Qed.
 
-Lemma ctx_wtype_size : forall w n (p : Pat n w) (Γ : Ctx),
+Lemma ctx_wtype_size : forall w (p : Pat w) (Γ : Ctx),
       Γ ⊢ p:Pat -> size_wtype w = size_ctx Γ.
 Proof.
-  intros w n p Γ H.
+  intros w p Γ H.
   replace (size_ctx Γ) with (size_octx Γ) by easy.
   eapply octx_wtype_size; apply H.
 Qed.
 
-Lemma size_wtype_length : forall {w n} (p : Pat n w),
+Lemma size_wtype_length : forall {w} (p : Pat w),
     length (pat_to_list p) = size_wtype w.
 Proof.
   induction p; simpl; auto.
@@ -1340,13 +1290,13 @@ Qed.
 (* First argument is the added error *)
 Open Scope circ_scope.
 Inductive Unitary : nat -> WType -> Set := 
-  | _H         : Unitary 1 Qubit 
-  | _X         : Unitary 1 Qubit
-  | _Y         : Unitary 1 Qubit
-  | _Z         : Unitary 1 Qubit
-  | _R_        : R -> Unitary 1 Qubit 
-  | ctrl      : forall {W n} (U : Unitary n W), Unitary n (Qubit ⊗ W) 
-  | bit_ctrl  : forall {W n} (U : Unitary n W), Unitary n (Bit ⊗ W).
+  | _H         : forall {n}, Unitary 1 (Qubit n)
+  | _X         : forall {n}, Unitary 1 (Qubit n)
+  | _Y         : forall {n}, Unitary 1 (Qubit n)
+  | _Z         : forall {n}, Unitary 1 (Qubit n)
+  | _R_        : R -> forall {n}, Unitary 1 (Qubit n)
+  | ctrl       : forall {W k n} (U : Unitary k W), Unitary k ((Qubit n) ⊗ W) 
+  | bit_ctrl   : forall {W k} (U : Unitary k W), Unitary k (Bit ⊗ W).
 
 (* Additional gate notations *)
 Notation CNOT := (ctrl _X).
@@ -1363,19 +1313,35 @@ Fixpoint trans {W n} (U : Unitary n W) : Unitary n W :=
   | U'          => U' (* our other unitaries are their own adjoints *)
   end.
 
-Inductive Gate : nat -> WType -> nat -> WType -> Set := 
-  | U       : forall {W n k} (u : Unitary k W), Gate n W (k + n) W
-  | BNOT    : forall {n}, Gate n Bit 0 Bit
-  | init0   : forall {n}, Gate n One 0 Qubit
-  | init1   : forall {n}, Gate n One 0 Qubit
-  | new0    : forall {n}, Gate n One 0 Bit
-  | new1    : forall {n}, Gate n One 0 Bit
-  | meas    : forall {n}, Gate n Qubit 0 Bit
-  | measQ   : forall {n}, Gate n Qubit 0 Qubit (* error probably shouldn't be zero? *)
-  | discard : forall {n}, Gate n Bit 0 One
-  | assert0 : forall {n}, Gate n Qubit 0 One
-  | assert1 : forall {n}, Gate n Qubit 0 One
-  | EC      : forall {n}, Gate n Qubit 0 Qubit.
+Fixpoint num_errs_wtype (W : WType) : nat := 
+  match W with
+  | One => 0
+  | Qubit n => n
+  | Bit => 0
+  | W1 ⊗ W2 => num_errs_wtype W1 + num_errs_wtype W2
+  end.
+
+Fixpoint map_wtype (W : WType) k : WType := 
+  match W with
+  | One => One
+  | Qubit _ => Qubit k
+  | Bit => Bit
+  | W1 ⊗ W2 => map_wtype W1 k ⊗ map_wtype W2 k
+  end.
+
+Inductive Gate : WType -> WType -> Set := 
+  | U       : forall {W k} (u : Unitary k W), Gate W (map_wtype W (k + (num_errs_wtype W)))
+  | BNOT    : Gate Bit Bit
+  | init0   : Gate One (Qubit 0)
+  | init1   : Gate One (Qubit 0)
+  | new0    : Gate One Bit
+  | new1    : Gate One Bit
+  | meas    : forall {n}, Gate (Qubit n) Bit
+  | measQ   : forall {n}, Gate (Qubit n) (Qubit n) (* error should probably change *)
+  | discard : Gate Bit One
+  | assert0 : forall {n}, Gate (Qubit n) One
+  | assert1 : forall {n}, Gate (Qubit n) One
+  | EC      : forall {n}, Gate (Qubit n) (Qubit 0).
 
 Coercion U : Unitary >-> Gate. (* fails uniform inheritance condition *)
 Close Scope circ_scope.

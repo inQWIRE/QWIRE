@@ -4,25 +4,11 @@ Require Export HOASCircuits.
 
 Open Scope circ_scope.
 
-Definition wproj {W1 W2 n} (p : Pat n (W1 ⊗ W2)) : Pat n W1 * Pat n W2.
+Definition wproj {W1 W2} (p : Pat (W1 ⊗ W2)) : Pat W1 * Pat W2.
   dependent destruction p.
-  constructor.
-  apply (weaken n p1).
-  rewrite Nat.add_comm.
-  apply (weaken m p2).
-Defined. 
-
-(* Don't we want what's below?
-
-Definition wproj {W1 W2 n} (p : Pat n (W1 ⊗ W2)) : Pat (extract1 p) W1 * Pat (extract2 p) W2.
-  dependent destruction p.
-  simpl; unfold get_error.
-  constructor.
-  assumption.
-  assumption.
+  constructor; assumption.
 Defined.
 
-*)
 
 (*** Typechecking Tactic ***)
 
@@ -33,15 +19,15 @@ Global Opaque merge.
 Global Opaque Ctx.
 Global Opaque is_valid.
 
-Fixpoint pair_circ' {W1 W2 n1 n2} (p : Pat n1 W1) (c2 : Circuit n2 W2) :
-  Circuit (n1 + n2) (W1 ⊗ W2) :=
+Fixpoint pair_circ' {W1 W2} (p : Pat W1) (c2 : Circuit W2) :
+  Circuit (W1 ⊗ W2) :=
   match c2 with
   | output p2   => output (pair p p2)
   | gate g p1 f => gate g p1 (fun p2 => pair_circ' p (f p2))
   | lift p1 f   => lift p1 (fun x => pair_circ' p (f x))
   end.
-Fixpoint pair_circ {W1 W2 n1 n2} (c1 : Circuit n1 W1) (c2 : Circuit n2 W2) :
-  Circuit (n1 + n2) (W1 ⊗ W2) :=
+Fixpoint pair_circ {W1 W2} (c1 : Circuit W1) (c2 : Circuit W2) :
+  Circuit (W1 ⊗ W2) :=
   match c1 with
   | output p1   => pair_circ' p1 c2
   | gate g p1 f => gate g p1 (fun p2 => pair_circ (f p2) c2)
@@ -61,7 +47,7 @@ Notation letpair p1 p2 p c := (let (p1,p2) := wproj p in c).
 
 Notation "'box_' p ⇒ C" := (box (fun p => C)) 
     (at level 13) : circ_scope.
-Notation "'box_' () ⇒ C" := (box (fun (_ : Pat 0 One)  => C)) 
+Notation "'box_' () ⇒ C" := (box (fun (_ : Pat One)  => C)) 
     (at level 13) : circ_scope.
 Notation "'box_' ( p1 , p2 ) ⇒ C" := (box (fun p => letpair p1 p2 p C)) 
     (at level 13) : circ_scope.
@@ -80,7 +66,7 @@ Notation "'box_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ⇒ C" := (box (fun x =>
     (at level 13) : circ_scope.
 
 (* Notations for patterns *)
-Notation "()" := (@unit 0) : circ_scope.
+Notation "()" := unit : circ_scope.
 (* Now a bit ugly, since we tend to use (a,b) with the newer $ notation *)
 Notation "( x ,, y ,, .. ,, z )" := (pair .. (pair x y) .. z) (at level 0) : circ_scope.
 
@@ -315,13 +301,15 @@ Ltac destruct_merges :=
 Definition U' := @U.
 Coercion U' : Unitary >-> Gate.
 
-Definition cnot12 (n : nat) : Square_Box n (Qubit ⊗ Qubit ⊗ Qubit) _ :=
+Definition cnot12 (m n p : nat) : Box (Qubit m ⊗ Qubit n ⊗ Qubit p) _ :=
   box_ (p0,p1,p2) ⇒ 
     gate_ (p3,p4) ← U CNOT @(p1,,p2);
     output (p0,,p3,,p4).
 
 Print cnot12.
-Eval simpl in (cnot12 4%nat). (* yikes; huge error term *)
+Eval simpl in (cnot12 4%nat). (* not unfolding num_errs_wtype? *)
+Eval simpl in (cnot12 1 1 1).
+Eval simpl in (num_errs_wtype (Qubit 1 ⊗ Qubit 1)).
 
 (* In functional syntax 
 Definition entangle23 : Square_Box (Qubit ⊗ Qubit ⊗ Qubit) :=

@@ -8,11 +8,11 @@ Open Scope circ_scope.
 
 (* Example circuits *)
 
-Definition new_discard {n} : Box n One 0 One := 
+(*Definition new_discard : Box One One := 
   box_ () ⇒ 
-    let_ b ← (@boxed_gate _ _ n 0) new0 $();
+    let_ b ← new0 $();
     discard_ b;
-    (). 
+    (). *)
 (* Lemma new_discard_WT : Typed_Box new_discard. Proof. type_check. Qed. *)
 
 (*
@@ -143,9 +143,10 @@ Qed.
 (** Teleportation **)
 (*******************)
 
-Definition bell00 : Box 0 One 2 (Qubit ⊗ Qubit) :=
+(* Looks like some coercion/notation is not working? *)
+Program Definition bell00 : Box One (Qubit 2 ⊗ Qubit 2) :=
   box_ () ⇒  
-    let_ a ← boxed_gate (U _H) $ boxed_gate init0 $();
+    let_ a ← _H $ init0 $();
     let_ b ← init0 $();
     CNOT $ (a,b).
 Lemma bell00_WT : Typed_Box bell00.
