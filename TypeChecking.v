@@ -267,13 +267,13 @@ Ltac type_check_once :=
   end; 
   (* Runs monoid iff a single evar appears in context *)
   match goal with 
+  | [|- _ <= _]       => lia
   | [|- is_valid ?Γ] => tryif (has_evar Γ)   
                         then (idtac (*"can't validate"; print_goal*))
                         else (idtac (*"validate"; print_goal*); validate)
   | [|- ?G ]         => tryif (has_evars G)  
                         then (idtac (*"can't monoid"; print_goal*))
                         else (idtac (*"monoid"; print_goal*); monoid)
-
   end.
 
 (* Useful for debugging *)

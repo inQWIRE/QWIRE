@@ -104,4 +104,4 @@ Definition teleport_EC : Box (Qubit 0) (Qubit 1) :=
     unbox bob_EC (x,,y,,b).
 
 Lemma teleport_EC_WT : Typed_Box teleport_EC 3.
-Proof. type_check; lia. Qed.
+Proof. type_check. Qed.
