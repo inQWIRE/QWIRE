@@ -13,7 +13,7 @@ Notation X := (U _X).
 Notation Y := (U _Y).
 Notation Z := (U _Z).
 Notation CNOT := (U CNOT).
-Variable _I : Unitary 1 (Qubit 1).
+Variable _I : (forall {n : nat}, Unitary 1 (Qubit n)).
 Notation I := (U _I).
 
 Definition bell00 : Box One (Qubit 2 ⊗ Qubit 2) :=
@@ -54,6 +54,21 @@ Definition teleport : Box (Qubit 0) (Qubit 4) :=
     let_ (a,b) ← unbox bell00 () ;
     let_ (x,y) ← unbox alice (q,,a) ;
     unbox bob (x,,y,,b).
+
+Definition bob_distant {n} (u v : bool) : Box (Qubit n) (Qubit (2 + n)) :=
+  box_ b ⇒
+    gate_ b ← (if v then X else I) @b;
+    gate_ b ← (if u then Z else I) @b;
+    output b.
+
+Definition teleport_distant : Box (Qubit 0) (Qubit 4) :=
+  box_ q ⇒
+    let_ (a,b)  ← unbox bell00 ();
+    let_ (x,y)  ← unbox alice (q,,a);
+    lift_ (u,v) ← (x,y);
+    unbox (bob_distant u v) b.
+
+Check teleport_distant.
 
 (* Now with error correction! *)
 
