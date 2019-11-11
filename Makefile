@@ -20,7 +20,7 @@ invoke-coqmakefile: CoqMakefile
 
 COQ_OPTS := -R . Top
 
-all: invoke-coqmakefile HOASProofs.vo Equations.vo Deutsch.vo Arithmetic.vo
+all: invoke-coqmakefile HOASProofs.vo Equations.vo Deutsch.vo Arithmetic.vo GHZ.vo
 qasm: invoke-coqmakefile QASMExamples.vo
 
 # Built by "make all"
@@ -36,6 +36,9 @@ Arithmetic.vo: Arithmetic.v Oracles.vo
 
 Deutsch.vo: Deutsch.v HOASExamples.vo Complex.vo Denotation.vo DBCircuits.vo TypeChecking.vo
 	coqc $(COQ_OPTS) Deutsch.v
+
+GHZ.vo: GHZ.v HOASLib.vo Composition.vo
+	coqc $(COQ_OPTS) GHZ.v
 
 # Not built at all
 

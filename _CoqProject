@@ -7,6 +7,7 @@ Contexts.v
 DBCircuits.v
 Denotation.v
 Dirac.v
+GHZ.v
 HOASCircuits.v
 HOASExamples.v
 HOASLib.v
