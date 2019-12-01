@@ -120,7 +120,7 @@ Proof.
   repeat rewrite <- Cplus_assoc. rewrite (Cplus_comm c100).
   repeat rewrite Cplus_assoc.
   replace (c000 + c001) with ρ00.
-  Focus 2.
+  2: {
     unfold c000, c001.
     repeat rewrite <- Cmult_assoc.
     rewrite <- Cmult_plus_distr_l.
@@ -130,12 +130,13 @@ Proof.
     rewrite Cmult_comm in H.
     rewrite (Cmult_comm ((u 1%nat 0%nat) ^* )) in H.
     unfold u00, u10.
-    rewrite H.                 
+    rewrite H.
     lca.
+  }
   rewrite <- 3 Cplus_assoc.
   rewrite (Cplus_assoc c111).
   replace (c111 + c110) with ρ11.
-  Focus 2.
+  2: {
     unfold c111, c110.
     repeat rewrite <- Cmult_assoc.
     rewrite <- Cmult_plus_distr_l.
@@ -145,14 +146,15 @@ Proof.
     rewrite Cmult_comm in H.
     rewrite Cplus_comm in H.
     rewrite Cmult_comm in H.
-    unfold u11, u01. 
-    rewrite H.                 
+    unfold u11, u01.
+    rewrite H.
     lca.
+  }
   rewrite (Cplus_comm ρ11).
   rewrite <- Cplus_assoc.
   repeat rewrite (Cplus_assoc c011).
   replace (c011 + c010) with C0.
-  Focus 2.
+  2: {
     unfold c011, c010.
     repeat rewrite <- Cmult_assoc.
     rewrite <- Cmult_plus_distr_l.
@@ -163,13 +165,14 @@ Proof.
     rewrite Cplus_comm in H.
     rewrite Cmult_comm in H.
     unfold u00, u01, u10, u11.
-    rewrite H.                 
+    rewrite H.
     lca.
+  }
   rewrite Cplus_0_l.
   rewrite <- Cplus_assoc.
   repeat rewrite (Cplus_assoc c101).
   replace (c101 + c100) with C0.
-  Focus 2.
+  2: {
     unfold c101, c100.
     repeat rewrite <- Cmult_assoc.
     rewrite <- Cmult_plus_distr_l.
@@ -180,12 +183,13 @@ Proof.
     rewrite Cplus_comm in H.
     rewrite Cmult_comm in H.
     unfold u00, u01, u10, u11.
-    rewrite H.                 
+    rewrite H.
     lca.
+  }
   rewrite Cplus_0_l.
   reflexivity.
 Qed.
-       
+
 (** Equality 4: init; meas = new **)
 
 
@@ -355,8 +359,8 @@ Proof.
 Qed.
 
 (*********************************************)
-(* "Automated optimization of large quantum  *)
-(*    circuits with continuous parameters"   *)
+(*  Automated optimization of large quantum  *)
+(*    circuits with continuous parameters    *)
 (*********************************************)
 
 (* Hadamard elimination *)

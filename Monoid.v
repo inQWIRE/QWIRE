@@ -9,6 +9,7 @@ Class PCM A :=
     ; zero : A
     ; m    : A -> A -> A }.
 
+Declare Scope monoid_scope.
 Notation "⊥" := zero : monoid_scope.
 Notation "⊤" := one : monoid_scope.
 Notation "a ∘ b" := (m a b) (left associativity, at level 40) : monoid_scope.
@@ -22,7 +23,7 @@ Class PCM_Laws A `{PCM A} :=
   ; M_absorb : forall a, a ∘ ⊥ = ⊥ 
   }.
 
-Hint Resolve M_unit M_assoc M_comm M_absorb.
+Hint Resolve M_unit M_assoc M_comm M_absorb : core.
 
 (****************************)
 (* Interpretable type class *)
@@ -67,6 +68,10 @@ Qed.
 (* CMonoid Section *)
 (*******************)
 
+Require Import List.
+Require Import Multiset.
+Require Import Arith.
+
 Section CMonoid.
   Variable A : Type.
   Variable PCM_A : `{PCM A}.
@@ -78,7 +83,7 @@ Section CMonoid.
 
   Lemma M_unit_l : forall a, ⊤ ∘ a = a.
   Proof. intros. rewrite M_comm. auto. Defined.
-  Hint Resolve M_unit_l.
+  Hint Resolve M_unit_l : core.
 
 
   Lemma M_comm_assoc : forall a b c, a ∘ b ∘ c = b ∘ a ∘ c.
@@ -94,7 +99,7 @@ Section CMonoid.
 
   Lemma M_absorb_l : forall a, ⊥ ∘ a = ⊥.
   Proof. intros. rewrite M_comm. auto. Defined.
-  Hint Resolve M_absorb_l.
+  Hint Resolve M_absorb_l : core.
 
   (****************************)
   (* ToA type class *)
@@ -226,7 +231,6 @@ Section CMonoid.
     | O => nil
     | S n' => O :: fmap S (nats_lt n')
     end.
-  Require Import List.
 
   Lemma index_wrt_cons : forall idx a values,
       index_wrt (a :: values) (fmap S idx) = index_wrt values idx.
@@ -322,9 +326,6 @@ Search (?a = ?b -> ?c = ?d -> ?f ?a ?c = ?f ?b ?d).
   Proof.
     intros. apply (permutation_Permutation PeanoNat.Nat.eq_dec); auto.
   Defined.
-
-  Require Import Multiset.
-  Require Import Arith.
 
   Notation contents := (list_contents eq Nat.eq_dec).
 

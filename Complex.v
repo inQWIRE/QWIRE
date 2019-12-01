@@ -35,7 +35,7 @@ complete space. *)
 
 Definition C := (R * R)%type.
 
-(* 8.10: Declare Scope C_scope. *)
+Declare Scope C_scope.
 Delimit Scope C_scope with C.
 
 Open Scope nat_scope.

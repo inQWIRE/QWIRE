@@ -247,16 +247,18 @@ Proof.
       unfold a in *.
       specialize (mixed_state_diag_in01 ρ 0%nat H) as IN01.
       destruct IN01 as [G L].
-      destruct G. 
-        Focus 2. 
-        contradict NZ; apply c_proj_eq. 
+      destruct G.
+      2: {
+        contradict NZ; apply c_proj_eq.
         rewrite <- H0; reflexivity.
         apply mixed_state_diag_real; easy.
-      destruct L. 
-        Focus 2. 
-        contradict NO; apply c_proj_eq. 
+      }
+      destruct L.
+      2: {
+        contradict NO; apply c_proj_eq.
         rewrite <- H1; reflexivity.
         apply mixed_state_diag_real; easy.
+      }
       lra.
   + simpl in *.
     rewrite kron_1_r.
@@ -3202,13 +3204,14 @@ Proof.
     + simpl.
       rewrite Nat.add_sub.
       replace (size_ctx Γ0 + size_ctx Γ)%nat with (S (⟦Γ0⟧ + ⟦Γ1⟧))%nat.
-      Focus 2.
+      2: {
         destruct pf1.
         replace (size_ctx Γ) with (size_octx Γ) by easy.
         rewrite pf_merge in *.
         rewrite size_octx_merge by easy.
         rewrite <- (octx_wtype_size Bit p Γ2 t).
         simpl. lia.
+      }
       unfold compose_super.
       unfold denote_circuit in IH.
       eapply IH.
@@ -3361,13 +3364,14 @@ Proof.
         auto with wf_db.
       * unfold denote_circuit in IH.
         replace (size_ctx Γ) with (size_ctx (change_type x Bit Γ)).
-        Focus 2.
+        2: {
           unfold change_type.
           eapply denote_index_update_some.
           eapply index_merge_l.
           apply pf1.
           apply singleton_index.
           apply s.
+        }
         eapply IH. 
         unfold change_type.
         eapply t0.
@@ -3408,16 +3412,17 @@ Proof.
       * intros A WFA.
         rewrite Nat.add_0_r.
         replace (size_ctx Γ - 1)%nat with (size_octx Γ1) in *.
-        Focus 2.
+        2: {
           simpl.
           replace (size_ctx Γ) with (size_octx Γ) by easy.
           destruct pf1.
           rewrite pf_merge in *.
-          rewrite size_octx_merge by easy. 
+          rewrite size_octx_merge by easy.
           dependent destruction t.
           apply singleton_equiv in s. subst.
           simpl. rewrite singleton_size.
           lia.
+        }
         simpl.
         destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.   
         dependent destruction t. simpl.
@@ -3441,16 +3446,17 @@ Proof.
         intros A.
         destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.
         replace (size_ctx Γ - 1)%nat with (size_octx Γ1) in *.
-        Focus 2.
+        2: {
           simpl.
           replace (size_ctx Γ) with (size_octx Γ) by easy.
           destruct pf1.
           rewrite pf_merge in *.
-          rewrite size_octx_merge by easy. 
+          rewrite size_octx_merge by easy.
           dependent destruction t.
           apply singleton_equiv in s. subst.
           simpl. rewrite singleton_size.
           lia.
+        }
         intros WFA.
         dependent destruction t.
         apply singleton_equiv in s; subst.
@@ -3470,16 +3476,17 @@ Proof.
       * intros A WFA.
         rewrite Nat.add_0_r.
         replace (size_ctx Γ - 1)%nat with (size_octx Γ1) in *.
-        Focus 2.
+        2: {
           simpl.
           replace (size_ctx Γ) with (size_octx Γ) by easy.
           destruct pf1.
           rewrite pf_merge in *.
-          rewrite size_octx_merge by easy. 
+          rewrite size_octx_merge by easy.
           dependent destruction t.
           apply singleton_equiv in s. subst.
           simpl. rewrite singleton_size.
           lia.
+        }
         simpl.
         destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.   
         dependent destruction t. simpl.
@@ -3505,16 +3512,17 @@ Proof.
         intros A.
         destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.
         replace (size_ctx Γ - 1)%nat with (size_octx Γ1) in *.
-        Focus 2.
+        2: {
           simpl.
           replace (size_ctx Γ) with (size_octx Γ) by easy.
           destruct pf1.
           rewrite pf_merge in *.
-          rewrite size_octx_merge by easy. 
+          rewrite size_octx_merge by easy.
           dependent destruction t.
           apply singleton_equiv in s. subst.
           simpl. rewrite singleton_size.
           lia.
+        }
         intros WFA.
         dependent destruction t.
         apply singleton_equiv in s; subst.
@@ -3534,16 +3542,17 @@ Proof.
       * intros A WFA.
         rewrite Nat.add_0_r.
         replace (size_ctx Γ - 1)%nat with (size_octx Γ1) in *.
-        Focus 2.
+        2: {
           simpl.
           replace (size_ctx Γ) with (size_octx Γ) by easy.
           destruct pf1.
           rewrite pf_merge in *.
-          rewrite size_octx_merge by easy. 
+          rewrite size_octx_merge by easy.
           dependent destruction t.
           apply singleton_equiv in s. subst.
           simpl. rewrite singleton_size.
           lia.
+        }
         simpl.
         destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.   
         dependent destruction t. simpl.
@@ -3569,16 +3578,17 @@ Proof.
         intros A.
         destruct Γ1 as [|Γ1], Γ2 as [|Γ2]; try invalid_contradiction.
         replace (size_ctx Γ - 1)%nat with (size_octx Γ1) in *.
-        Focus 2.
+        2: {
           simpl.
           replace (size_ctx Γ) with (size_octx Γ) by easy.
           destruct pf1.
           rewrite pf_merge in *.
-          rewrite size_octx_merge by easy. 
+          rewrite size_octx_merge by easy.
           dependent destruction t.
           apply singleton_equiv in s. subst.
           simpl. rewrite singleton_size.
           lia.
+        }
         intros WFA.
         dependent destruction t.
         apply singleton_equiv in s; subst.
@@ -3613,15 +3623,16 @@ Proof.
         apply_with_obligations WFA.
       * intros A WFA.
         replace (size_ctx Γ - 1)%nat with (size_octx Γ2) in *.
-        Focus 2.
+        2: {
           simpl.
           replace (size_ctx Γ) with (size_octx Γ) by easy.
           destruct pf.
           rewrite pf_merge in *.
-          rewrite size_octx_merge by easy. 
+          rewrite size_octx_merge by easy.
           apply singleton_equiv in s. subst.
           simpl. rewrite singleton_size.
           lia.
+        }
         apply singleton_equiv in s; subst.
         specialize (t0 false).
         erewrite remove_bit_merge'; [|apply pf].
@@ -3642,15 +3653,16 @@ Proof.
         apply_with_obligations WFA.
       * intros A WFA.
         replace (size_ctx Γ - 1)%nat with (size_octx Γ2) in *.
-        Focus 2.
+        2: {
           simpl.
           replace (size_ctx Γ) with (size_octx Γ) by easy.
           destruct pf.
           rewrite pf_merge in *.
-          rewrite size_octx_merge by easy. 
+          rewrite size_octx_merge by easy.
           apply singleton_equiv in s. subst.
           simpl. rewrite singleton_size.
           lia.
+        }
         apply singleton_equiv in s; subst.
         specialize (t0 true).
         erewrite remove_bit_merge'; [|apply pf].
@@ -3903,15 +3915,16 @@ Proof.
         unfold process_gate_state. simpl.
         rewrite Nat.add_sub.
         replace (size_ctx Γ) with (size_octx (Valid (update_at Γ v (Some Bit)))).
-        Focus 2.
-          simpl. 
+        2: {
+          simpl.
           rewrite denote_index_update_some with (w := Qubit).
           reflexivity.
           eapply index_merge_l.
           apply pf1.
-          destruct Γ1. invalid_contradiction. 
+          destruct Γ1. invalid_contradiction.
           apply singleton_index.
           inversion t. easy.
+        }
         eapply IH.
         apply STAT. 
         eapply t0. 

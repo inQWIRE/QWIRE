@@ -194,13 +194,6 @@ Notation "'discard_' ( ( p1 , p2 ) , ( p3 , p4 ) ) ; c" :=
                                 (fun _ => gate discard p4 
                                             (fun _ => c)))))
          (at level 14, right associativity) : circ_scope.
-Notation "'discard_' ( p1 , ( p2 , ( p3 , ( p4 , ( p5 , p6 ) ) ) ) ) ; c" :=
-    (gate discard p1 (fun _ => gate discard p2 
-                      (fun _ => gate discard p3
-                      (fun _ => gate discard p4
-                      (fun _ => gate discard p5
-                      (fun _ => gate discard p6))))))
-                            (at level 14, right associativity) : circ_scope.
 
 Delimit Scope circ_scope with qc.
 
@@ -332,45 +325,44 @@ Proof.
       * apply TP3. (* types p3 *)
     + apply TP4. (* types p4 *)
 Qed.
-    
+
 Lemma cnot12_WT_evars : Typed_Box cnot12.
-Proof.    
+Proof.
   (* manual with evars *)
-  unfold Typed_Box, cnot12. 
+  unfold Typed_Box, cnot12.
   intros; simpl.
   invert_patterns.
   eapply types_gate.
-  Focus 1.  
+  1: {
     eapply @types_pair. (* types (p1, p2) *)
       4: eauto. (* types p2 *)
       3: eauto. (* types p1 *)
       2: monoid. (* unifies ?Γ = Γ1 ⋓ Γ2 *)
       1: validate. (* solves is_valid (Γ1 ⋓ Γ2) *)
-  Focus 2. (* 3 *)
-    split. (* _ == _ ∙ _ *) 
+  }
+  2: { (* 3 *)
+    split. (* _ == _ ∙ _ *)
       2: monoid. (* unifies Γ0 ⋓ Γ1 ⋓ Γ2 = Γ1 ⋓ Γ2 ⋓ ?Γ *)
       1: validate. (* solves is_valid (Γ0 ⋓ Γ1 ⋓ Γ2) *)
-  Focus 1. (* 2 *)
+  }
+  1: { (* 2 *)
     intros; simpl.
     invert_patterns.
     eapply @types_output.
-    Focus 1.
-      monoid.
-    Focus 1. (* 2 *) 
+    1: monoid.
       destruct_merges; subst.
       eapply @types_pair.
-      Focus 4.
-        eauto. (* types p4 *)
-      Focus 3.
+      4: eauto. (* types p4 *)
+      3: {
         eapply @types_pair. (* types (p0,p3) *)
           4: eauto. (* types p3 *)
           3: eauto. (* types p0 *)
           2: monoid. (* unifies ?Γ = Γ0 ⋓ Γ3 *)
           1: validate. (* solves is_valid (Γ1 ⋓ Γ2) *)
-      Focus 2.
-        monoid. (* unifies Γ3 ⋓ Γ4 ⋓ Γ0 = Γ0 ⋓ Γ3 ⋓ Γ4 *)
-      Focus 1.   
-        validate. (* solves is_valid (Γ1 ⋓ Γ2) *)
+      }
+      2: monoid. (* unifies Γ3 ⋓ Γ4 ⋓ Γ0 = Γ0 ⋓ Γ3 ⋓ Γ4 *)
+      1: validate. (* solves is_valid (Γ1 ⋓ Γ2) *)
+  }
 Qed.
 
 (* More succint, maybe less readable *)
@@ -398,7 +390,7 @@ Proof.
         3: eauto.
         2: monoid.
         validate.
-      Unfocus.
+      Unfocus. (* See: https://github.com/coq/coq/issues/10688 *)
       2: monoid.
       subst; validate.
       subst; validate.

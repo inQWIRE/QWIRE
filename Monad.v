@@ -48,10 +48,10 @@ Class Monad_Correct (m : Type -> Type) `{M : Monad m} := {
 
 Arguments Functor f : assert.
 Arguments Functor_Correct f {F}.
-Arguments Applicative f [F]. 
+Arguments Applicative f {F}.
 Arguments Applicative_Correct f {F} {A} : rename.
-Arguments Monad m [F] [M].
-Arguments Monad_Correct m [F] [A] [M] : rename.
+Arguments Monad m {F} {M}.
+Arguments Monad_Correct m {F} {A} {M} : rename.
 
 Section monadic_functions.
  Variable m : Type -> Type. 

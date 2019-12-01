@@ -87,6 +87,7 @@ Inductive statement : Set :=
 
 Definition program := list statement.
 
+Declare Scope qasm_scope.
 Notation " b1 + b2 " := (e_binop b1 plus b2) (at level 50, left associativity)
                      : qasm_scope.
 Notation " b1 - b2 " := (e_binop b1 minus b2) (at level 50, left associativity)

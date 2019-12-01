@@ -6,6 +6,8 @@ Open Scope list_scope.
 
 (** Types **)
 Inductive WType := Qubit | Bit | One | Tensor : WType -> WType -> WType.
+
+Declare Scope circ_scope.
 Notation " W1 ⊗ W2 " := (Tensor W1 W2) (at level 40, left associativity)
                      : circ_scope.
 
@@ -461,8 +463,8 @@ Instance PCM_Laws_OCtx : PCM_Laws OCtx :=
   ; M_absorb := merge_I_r
   }.
 
-Hint Resolve PCM_OCtx.
-Hint Resolve PCM_Laws_OCtx.
+Hint Resolve PCM_OCtx : core.
+Hint Resolve PCM_Laws_OCtx : core.
 
 (*** Validity ***)
 
@@ -1201,14 +1203,14 @@ Proof.
   destruct  Γ2 as [ | Γ2]; [ right; auto | ].
   revert Γ2; induction Γ1 as [ | o1 Γ1]; intros Γ2.
   { simpl. left. apply valid_valid. }
-  destruct Γ2 as [ | o2 Γ2]. 
+  destruct Γ2 as [ | o2 Γ2].
   { simpl. left. apply valid_valid. }
   destruct (IHΓ1 Γ2) as [IH | IH].
-  - destruct o1 as [ | W1]; destruct o2 as [ | W2]; simpl in *. 
+  - destruct o1; destruct o2; simpl in *.
     { right; auto. }
     { left; destruct (merge' Γ1 Γ2); auto. apply valid_valid. }
     { left; destruct (merge' Γ1 Γ2); auto. apply valid_valid. }
-    { left; destruct (merge' Γ1 Γ2); auto. apply valid_valid. }    
+    { left; destruct (merge' Γ1 Γ2); auto. apply valid_valid. }
   - right. simpl in *. rewrite IH. destruct (merge_wire o1 o2); auto.
 Defined.
 

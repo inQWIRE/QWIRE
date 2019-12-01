@@ -12,7 +12,7 @@ Require Import List.
 (** Matrix Definitions and Infrastructure **)
 (*******************************************)
 
-(* 8.10: Declare Scope matrix_scope. *)
+Declare Scope matrix_scope.
 Delimit Scope matrix_scope with M.
 Open Scope matrix_scope.
 
