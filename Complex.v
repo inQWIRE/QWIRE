@@ -831,8 +831,10 @@ Qed.
 
 Lemma Cexp_8PI4 : Cexp (8 * PI / 4) = 1.
 Proof. rewrite <- Cexp_2PI. apply f_equal. lra. Qed.
-  
-Lemma Cexp_PI4_m8 : forall k, Cexp (IZR (k - 8) * PI / 4) = Cexp (IZR k * PI / 4).
+
+(* This is a dramatically simplified version of Cexp_mod_2PI and we
+   can probably get rid of it. *)
+Lemma Cexp_PI4_m8 : forall (k : Z), Cexp (IZR (k - 8) * PI / 4) = Cexp (IZR k * PI / 4).
 Proof.
   intros.
   unfold Rdiv.
@@ -844,7 +846,38 @@ Proof.
   lca.
 Qed.
 
+Lemma Cexp_2nPI : forall (k : Z), Cexp (IZR (2 * k) * PI) = 1.
+Proof.
+  induction k using Z.peano_ind.
+  - simpl. rewrite Rmult_0_l. apply Cexp_0.
+  - rewrite Z.mul_succ_r.
+    rewrite plus_IZR.
+    rewrite Rmult_plus_distr_r.
+    rewrite Cexp_add, Cexp_2PI.
+    rewrite IHk.
+    lca.
+  - rewrite Z.mul_pred_r.
+    rewrite minus_IZR.
+    unfold Rminus.
+    rewrite Rmult_plus_distr_r.
+    rewrite <- Ropp_mult_distr_l.
+    rewrite Cexp_add, Cexp_neg, Cexp_2PI.
+    rewrite IHk.
+    lca.
+Qed.
 
+Lemma Cexp_mod_2PI : forall (k : Z), Cexp (IZR k * PI) = Cexp (IZR (k mod 2) * PI). 
+Proof.
+  intros.
+  rewrite (Z.div_mod k 2) at 1 by lia.
+  remember (k/2)%Z as k'.
+  rewrite plus_IZR.
+  rewrite Rmult_plus_distr_r.
+  rewrite Cexp_add.
+  rewrite Cexp_2nPI.
+  lca.
+Qed.  
+  
 Hint Rewrite Cexp_0 Cexp_PI Cexp_PI2 Cexp_2PI Cexp_PI4 Cexp_PIm4
   Cexp_1PI4 Cexp_2PI4 Cexp_3PI4 Cexp_4PI4 Cexp_5PI4 Cexp_6PI4 Cexp_7PI4 Cexp_8PI4
   Cexp_add Cexp_neg : Cexp_db.
