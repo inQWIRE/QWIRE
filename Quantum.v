@@ -845,6 +845,14 @@ Proof.
   intros. unfold phase_shift. rewrite Cexp_mod_2PI. reflexivity.
 Qed.
 
+Lemma phase_mod_2PI_scaled : forall (k sc : Z), 
+  sc <> 0%Z ->
+  phase_shift (IZR k * PI / IZR sc) = phase_shift (IZR (k mod (2 * sc)) * PI / IZR sc).
+Proof.
+  intros. unfold phase_shift. rewrite Cexp_mod_2PI_scaled; easy. 
+Qed.
+
+
 Hint Rewrite phase_0 phase_2pi phase_pi phase_neg_pi : Q_db.
 
 

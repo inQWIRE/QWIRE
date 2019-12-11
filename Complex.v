@@ -877,6 +877,27 @@ Proof.
   rewrite Cexp_2nPI.
   lca.
 Qed.  
+
+Lemma Cexp_mod_2PI_scaled : forall (k sc : Z), 
+  (sc <> 0)%Z ->
+  Cexp (IZR k * PI / IZR sc) = Cexp (IZR (k mod (2 * sc)) * PI / IZR sc). 
+Proof.
+  intros k sc H.
+  rewrite (Z.div_mod k (2 * sc)) at 1 by lia.
+  repeat rewrite plus_IZR.
+  unfold Rdiv.
+  repeat rewrite Rmult_plus_distr_r.
+  rewrite Cexp_add.
+  replace (IZR (2 * sc * (k / (2 * sc))) * PI * Rinv (IZR sc))%R with
+      (IZR (2 * (k / (2 * sc))) * PI)%R.
+  2:{ repeat rewrite mult_IZR. 
+      R_field_simplify.
+      reflexivity. 
+      apply not_0_IZR; assumption. }
+  rewrite Cexp_2nPI.
+  lca.
+Qed.
+
   
 Hint Rewrite Cexp_0 Cexp_PI Cexp_PI2 Cexp_2PI Cexp_PI4 Cexp_PIm4
   Cexp_1PI4 Cexp_2PI4 Cexp_3PI4 Cexp_4PI4 Cexp_5PI4 Cexp_6PI4 Cexp_7PI4 Cexp_8PI4
