@@ -833,10 +833,16 @@ Proof.
   intros. solve_matrix. rewrite Cexp_add. reflexivity.
 Qed.  
 
+(* Old, can probably remove *)
 Lemma phase_PI4_m8 : forall k,
   phase_shift (IZR k * PI / 4) = phase_shift (IZR (k - 8) * PI / 4).
 Proof.
   intros. unfold phase_shift. rewrite Cexp_PI4_m8. reflexivity.
+Qed.
+
+Lemma phase_mod_2PI : forall k, phase_shift (IZR k * PI) = phase_shift (IZR (k mod 2) * PI).
+Proof.
+  intros. unfold phase_shift. rewrite Cexp_mod_2PI. reflexivity.
 Qed.
 
 Hint Rewrite phase_0 phase_2pi phase_pi phase_neg_pi : Q_db.
