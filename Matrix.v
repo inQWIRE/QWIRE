@@ -1394,7 +1394,7 @@ Proof.
   reflexivity.
 Qed.
 
-(* Useful kron_n identity. *)
+(* Useful kron_n identities. *)
 Lemma kron_n_assoc :
   forall n {m1 m2} (A : Matrix m1 m2), WF_Matrix A -> (S n) ⨂ A = A ⊗ (n ⨂ A).
 Proof.
@@ -1408,6 +1408,18 @@ Proof.
     replace (m2 * (m2 ^ n)) with ((m2 ^ n) * m2) by apply Nat.mul_comm.
     rewrite <- kron_assoc.
     rewrite <- IHn.
+    reflexivity.
+Qed.
+
+Lemma kron_n_adjoint : forall n {m1 m2} (A : Matrix m1 m2),
+  WF_Matrix A -> (n ⨂ A)† = n ⨂ A†.
+Proof.
+  intros. induction n.
+  - simpl. apply id_adjoint_eq.
+  - simpl.
+    replace (m1 * (m1 ^ n)) with ((m1 ^ n) * m1) by apply Nat.mul_comm.
+    replace (m2 * (m2 ^ n)) with ((m2 ^ n) * m2) by apply Nat.mul_comm.
+    rewrite kron_adjoint, IHn.
     reflexivity.
 Qed.
 
