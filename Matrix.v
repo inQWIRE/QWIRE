@@ -1354,11 +1354,12 @@ Proof.
       * apply Nat.ltb_lt in L1. 
         apply Nat.ltb_nlt in L2. 
         contradict L2. 
+        clear H.
         (* Why doesn't this lemma exist??? *)
         destruct m.
         lia.
-        apply Nat.div_small_iff; try lia.
-        simpl. apply Nat.neq_succ_0. 
+        apply Nat.div_small_iff. 
+        simpl. apply Nat.neq_succ_0. (* `lia` will solve in 8.11+ *)
         apply Nat.div_small in L1.
         rewrite Nat.div_div in L1; try lia.
         rewrite mult_comm.
