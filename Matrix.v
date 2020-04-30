@@ -211,6 +211,13 @@ Fixpoint big_kron {m n} (As : list (Matrix m n)) :
   | A :: As' => kron A (big_kron As')
   end.
 
+(* Product of n copies of A *)
+Fixpoint Mmult_n n {m} (A : Square m) : Square m :=
+  match n with
+  | 0    => I m
+  | S n' => Mmult A (Mmult_n n' A)
+  end.
+
 Infix "∘" := dot (at level 40, left associativity) : matrix_scope.
 Infix ".+" := Mplus (at level 50, left associativity) : matrix_scope.
 Infix ".*" := scale (at level 40, left associativity) : matrix_scope.
@@ -222,6 +229,7 @@ Notation "A †" := (adjoint A) (at level 0) : matrix_scope.
 Notation "Σ^ n f" := (Csum f n) (at level 60) : matrix_scope.
 Notation "n ⨂ A" := (kron_n n A) (at level 30, no associativity) : matrix_scope.
 Notation "⨂ A" := (big_kron A) (at level 60): matrix_scope.
+Notation "n ⨉ A" := (Mmult_n n A) (at level 30, no associativity) : matrix_scope.
 Hint Unfold Zero I trace dot Mplus scale Mmult kron mat_equiv transpose 
             adjoint : U_db.
   
@@ -596,6 +604,15 @@ Proof.
     apply IHl. intros i. apply (H (S i)).
 Qed.
 
+Lemma WF_Mmult_n : forall n {m} (A : Square m),
+   WF_Matrix A -> WF_Matrix (Mmult_n n A).
+Proof.
+  intros.
+  induction n; simpl.
+  - apply WF_I.
+  - apply WF_mult; assumption. 
+Qed.
+
 Local Close Scope nat_scope.
 
 (***************************************)
@@ -641,7 +658,7 @@ Ltac show_wf :=
 
 (* Create HintDb wf_db. *)
 Hint Resolve WF_Zero WF_I WF_I1 WF_mult WF_plus WF_scale WF_transpose 
-     WF_adjoint WF_outer_product WF_big_kron WF_kron_n WF_kron : wf_db.
+     WF_adjoint WF_outer_product WF_big_kron WF_kron_n WF_kron WF_Mmult_n : wf_db.
 Hint Extern 2 (_ = _) => unify_pows_two : wf_db.
 
 

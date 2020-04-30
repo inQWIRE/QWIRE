@@ -583,6 +583,64 @@ Proof.
   apply RtoC_neq; apply sqrt_neq_0_compat; lra. 
 Qed.
 
+(****************************)
+(** Complex Exponentiation **)
+(****************************)
+
+(* e^(iθ) *)
+Definition Cexp (θ : R) : C := (cos θ, sin θ).
+
+Lemma Cexp_add: forall (x y : R), Cexp (x + y) = Cexp x * Cexp y.
+Proof.
+  intros.
+  unfold Cexp.
+  apply c_proj_eq; simpl.
+  - apply cos_plus.
+  - rewrite sin_plus. field.
+Qed.
+
+Lemma Cexp_neg : forall θ, Cexp (- θ) = / Cexp θ.
+Proof.
+  intros θ.
+  unfold Cexp.
+  rewrite sin_neg, cos_neg.
+  apply c_proj_eq; simpl.
+  - replace (cos θ * (cos θ * 1) + sin θ * (sin θ * 1))%R with 
+        (cos θ ^ 2 + sin θ ^ 2)%R by reflexivity.
+    repeat rewrite <- Rsqr_pow2.
+    rewrite Rplus_comm.
+    rewrite sin2_cos2.
+    field.
+  - replace ((cos θ * (cos θ * 1) + sin θ * (sin θ * 1)))%R with 
+        (cos θ ^ 2 + sin θ ^ 2)%R by reflexivity.
+    repeat rewrite <- Rsqr_pow2.
+    rewrite Rplus_comm.
+    rewrite sin2_cos2.
+    field.
+Qed.
+
+Lemma Cexp_mul_neg_l : forall θ, Cexp (- θ) * Cexp θ = 1.
+Proof.  
+  unfold Cexp. intros R.
+  eapply c_proj_eq; simpl.
+  - rewrite cos_neg, sin_neg.
+    field_simplify_eq.
+    repeat rewrite <- Rsqr_pow2.
+    rewrite Rplus_comm.
+    apply sin2_cos2.
+  - rewrite cos_neg, sin_neg. field.
+Qed.
+
+Lemma Cexp_mul_neg_r : forall θ, Cexp θ * Cexp (-θ) = 1.
+Proof. intros. rewrite Cmult_comm. apply Cexp_mul_neg_l. Qed.
+
+Lemma Cexp_nonzero : forall θ, Cexp θ <> 0.
+Proof. 
+  intro θ. unfold Cexp.
+  specialize (cos_sin_0_var θ) as [? | ?].
+  apply C0_fst_neq; auto. 
+  apply C0_snd_neq; auto.
+Qed.
 
 (**************)
 (* Automation *)
@@ -591,13 +649,13 @@ Qed.
 Lemma Cminus_unfold : forall c1 c2, (c1 - c2 = c1 + -c2)%C. Proof. reflexivity. Qed.
 Lemma Cdiv_unfold : forall c1 c2, (c1 / c2 = c1 */ c2)%C. Proof. reflexivity. Qed.
 
-
 Ltac nonzero :=
   repeat split;
    try match goal with
        | |- not (@eq _ ?x (RtoC (IZR Z0))) => apply RtoC_neq
        | |- not (@eq _ (Cpow _ _) (RtoC (IZR Z0))) => apply Cpow_nonzero; try apply RtoC_neq
        | |- not (@eq _ Ci (RtoC (IZR Z0))) => apply C0_snd_neq; simpl
+       | |- not (@eq _ (Cexp _) (RtoC (IZR Z0))) => apply Cexp_nonzero
        end;
    repeat
     match goal with
@@ -680,60 +738,19 @@ Ltac cancel_terms t :=
                                     rewrite (Cmult_comm y z)
   | |- context[(?x * ?y * ?z)%C]   => tryif has_term t x then fail else has_term t y; has_term (/ t)%C z; 
                                     rewrite <- (Cmult_assoc x y z)
+  end. 
+
+Ltac group_Cexp :=
+  repeat rewrite <- Cexp_neg;
+  repeat match goal  with
+  | _ => rewrite <- Cexp_add
+  | |- context [ ?x * Cexp ?y ] => rewrite (Cmult_comm x (Cexp y))
+  | |- context [ ?x * (?y * ?z) ] => rewrite Cmult_assoc
   end.  
 
-(****************************)
-(** Complex Exponentiation **)
-(****************************)
-
-(* e^(iθ) *)
-Definition Cexp (θ : R) : C := (cos θ, sin θ).
-
-Lemma Cexp_add: forall (x y : R), Cexp (x + y) = Cexp x * Cexp y.
-Proof.
-  intros.
-  unfold Cexp.
-  apply c_proj_eq; simpl.
-  - apply cos_plus.
-  - rewrite sin_plus. field.
-Qed.
-
-Lemma Cexp_neg : forall θ, Cexp (- θ) = / Cexp θ.
-Proof.
-  intros θ.
-  unfold Cexp.
-  rewrite sin_neg, cos_neg.
-  apply c_proj_eq; simpl.
-  - replace (cos θ * (cos θ * 1) + sin θ * (sin θ * 1))%R with 
-        (cos θ ^ 2 + sin θ ^ 2)%R by reflexivity.
-    repeat rewrite <- Rsqr_pow2.
-    rewrite Rplus_comm.
-    rewrite sin2_cos2.
-    field.
-  - replace ((cos θ * (cos θ * 1) + sin θ * (sin θ * 1)))%R with 
-        (cos θ ^ 2 + sin θ ^ 2)%R by reflexivity.
-    repeat rewrite <- Rsqr_pow2.
-    rewrite Rplus_comm.
-    rewrite sin2_cos2.
-    field.
-Qed.
-
-Lemma Cexp_mul_neg_l : forall θ, Cexp (- θ) * Cexp θ = 1.
-Proof.  
-  unfold Cexp. intros R.
-  eapply c_proj_eq; simpl.
-  - rewrite cos_neg, sin_neg.
-    field_simplify_eq.
-    repeat rewrite <- Rsqr_pow2.
-    rewrite Rplus_comm.
-    apply sin2_cos2.
-  - rewrite cos_neg, sin_neg. field.
-Qed.
-
-Lemma Cexp_mul_neg_r : forall θ, Cexp θ * Cexp (-θ) = 1.
-Proof. intros. rewrite Cmult_comm. apply Cexp_mul_neg_l. Qed.
-
-(* Special cases *)
+(**************************)
+(* Special cases for Cexp *)
+(**************************)
 
 (* Euler's Identity *) 
 Lemma Cexp_PI : Cexp PI = -1.
@@ -902,12 +919,6 @@ Qed.
 Hint Rewrite Cexp_0 Cexp_PI Cexp_PI2 Cexp_2PI Cexp_PI4 Cexp_PIm4
   Cexp_1PI4 Cexp_2PI4 Cexp_3PI4 Cexp_4PI4 Cexp_5PI4 Cexp_6PI4 Cexp_7PI4 Cexp_8PI4
   Cexp_add Cexp_neg : Cexp_db.
-
-
-(*
-Definition Cexp' (θ : R) : C := cos θ + Ci * (sin θ).
-Lemma Cexp_eq : forall θ, Cexp θ = Cexp' θ. Proof. intros. lca. Qed.
-*)
 
 
 Opaque C.

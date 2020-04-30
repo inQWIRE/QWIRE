@@ -57,6 +57,19 @@ Proof. solve_matrix. Qed.
 Lemma Hminus_spec : hadamard × ∣ - ⟩ = ∣ 1 ⟩.
 Proof. solve_matrix.  Qed.
 
+Lemma H0_kron_n_spec : forall n,
+  n ⨂ hadamard × n ⨂ ∣0⟩ = n ⨂ ∣+⟩.
+Proof.
+  intros.
+  induction n; simpl.
+  - Msimpl_light. reflexivity.
+  - restore_dims. 
+    rewrite kron_mixed_product.
+    rewrite <- IHn.
+    apply f_equal_gen; try reflexivity.
+    solve_matrix.
+Qed.
+
 (* X properties *)
 Lemma X0_spec : σx × ∣ 0 ⟩ = ∣ 1 ⟩.
 Proof. solve_matrix. Qed.
