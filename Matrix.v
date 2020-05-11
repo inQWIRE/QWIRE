@@ -1441,6 +1441,61 @@ Proof.
     reflexivity.
 Qed.
 
+Lemma Mscale_kron_n_distr_r : forall {m1 m2} n α (A : Matrix m1 m2),
+  n ⨂ (α .* A) = (α ^ n) .* (n ⨂ A).
+Proof.
+  intros.
+  induction n; simpl.
+  rewrite Mscale_1_l. reflexivity.
+  rewrite IHn. 
+  rewrite Mscale_kron_dist_r, Mscale_kron_dist_l. 
+  rewrite Mscale_assoc.
+  reflexivity.
+Qed.
+
+Lemma Mmult_n_kron_distr_l : forall {m n} i (A : Square m) (B : Square n),
+  i ⨉ (A ⊗ B) = (i ⨉ A) ⊗ (i ⨉ B).
+Proof.
+  intros m n i A B.
+  induction i; simpl.
+  rewrite id_kron; reflexivity.
+  rewrite IHi.
+  rewrite kron_mixed_product.
+  reflexivity.
+Qed.
+
+Lemma Mmult_n_1_l : forall {n} (A : Square n),
+  WF_Matrix A ->
+  1 ⨉ A = A.
+Proof. intros n A WF. simpl. rewrite Mmult_1_r; auto. Qed.
+
+Lemma Mmult_n_1_r : forall n i,
+  i ⨉ (I n) = I n.
+Proof.
+  intros n i.
+  induction i; simpl.
+  reflexivity.
+  rewrite IHi.  
+  rewrite Mmult_1_l; auto with wf_db.
+Qed.
+
+Lemma Mmult_n_eigenvector : forall {n} (A : Square n) (ψ : Vector n) λ i,
+  WF_Matrix ψ -> A × ψ = λ .* ψ ->
+  i ⨉ A × ψ = (λ ^ i) .* ψ.
+Proof.
+  intros n A ψ λ i WF H.
+  induction i; simpl.
+  rewrite Mmult_1_l; auto.
+  rewrite Mscale_1_l; auto.
+  rewrite Mmult_assoc.
+  rewrite IHi.
+  rewrite Mscale_mult_dist_r.
+  rewrite H.
+  rewrite Mscale_assoc.
+  rewrite Cmult_comm.
+  reflexivity.
+Qed.
+
 (* Note on "using [tactics]": Most generated subgoals will be of the form 
    WF_Matrix M, where auto with wf_db will work.
    Occasionally WF_Matrix M will rely on rewriting to match an assumption in the 

@@ -642,6 +642,23 @@ Proof.
   apply C0_snd_neq; auto.
 Qed.
 
+Lemma Cexp_0 : Cexp 0 = 1.
+Proof. unfold Cexp. rewrite cos_0, sin_0. easy. Qed.
+
+Lemma Cexp_pow : forall θ k, Cexp θ ^ k = Cexp (θ * INR k).
+Proof.
+  intros.
+  induction k. 
+  simpl. rewrite Rmult_0_r, Cexp_0. reflexivity.
+  Local Opaque INR.
+  simpl. rewrite IHk.
+  rewrite <- Cexp_add.
+  replace (S k) with (k + 1)%nat by lia.
+  Local Transparent INR.
+  rewrite plus_INR; simpl.
+  apply f_equal. lra.
+Qed.
+
 (**************)
 (* Automation *)
 (**************)
@@ -758,9 +775,6 @@ Proof. unfold Cexp. rewrite cos_PI, sin_PI. easy. Qed.
 
 Lemma Cexp_PI2 : Cexp (PI/2) = Ci.
 Proof. unfold Cexp. rewrite cos_PI2, sin_PI2. easy. Qed.
-
-Lemma Cexp_0 : Cexp 0 = 1.
-Proof. unfold Cexp. rewrite cos_0, sin_0. easy. Qed.
 
 Lemma Cexp_2PI : Cexp (2 * PI) = 1.
 Proof.

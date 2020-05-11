@@ -69,6 +69,21 @@ Proof. unfold outer_product. destruct b; simpl; reflexivity. Qed.
 Definition bools_to_matrix (l : list bool) : Square (2^(length l)) := 
   big_kron (map bool_to_matrix l).
 
+Lemma ket_decomposition : forall (ψ : Vector 2), 
+  WF_Matrix ψ ->
+  ψ = (ψ 0%nat 0%nat) .* ∣ 0 ⟩ .+ (ψ 1%nat 0%nat) .* ∣ 1 ⟩.
+Proof.
+  intros.
+  prep_matrix_equality.
+  unfold scale, Mplus.
+  destruct y as [|y']. 
+  2:{ rewrite H; try lia. 
+      unfold ket, qubit0, qubit1. simpl. 
+      repeat (destruct x; try lca). }
+  destruct x as [| [| n]]; unfold ket, qubit0, qubit1; simpl; try lca.  
+  rewrite H; try lia.
+  lca.
+Qed. 
 
 (*************)
 (* Unitaries *)
