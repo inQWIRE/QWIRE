@@ -57,6 +57,16 @@ Qed.
 Lemma pow2_sqrt : forall x:R, 0 <= x -> (√ x) ^ 2 = x.
 Proof. intros; simpl; rewrite Rmult_1_r, sqrt_def; auto. Qed.
 
+Lemma sqrt_pow : forall (r : R) (n : nat), (0 <= r)%R -> (√ (r ^ n) = √ r ^ n)%R.
+Proof.
+  intros r n Hr.
+  induction n.
+  simpl. apply sqrt_1.
+  rewrite <- 2 tech_pow_Rmult.
+  rewrite sqrt_mult_alt by assumption.
+  rewrite IHn. reflexivity.
+Qed.
+
 Lemma pow2_sqrt2 : (√ 2) ^ 2 = 2.
 Proof. apply pow2_sqrt; lra. Qed.
 

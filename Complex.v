@@ -176,6 +176,15 @@ Proof.
   apply Rplus_le_le_0_compat ; apply pow2_ge_0.
 Qed.
 
+Lemma Cmod_pow : forall x n, Cmod (x ^ n) = ((Cmod x) ^ n)%R.
+Proof.
+  intros x n.
+  induction n; simpl.
+  apply Cmod_1.
+  rewrite Cmod_mult, IHn.
+  reflexivity.
+Qed.
+
 Lemma Rmax_Cmod : forall x,
   Rmax (Rabs (fst x)) (Rabs (snd x)) <= Cmod x.
 Proof.
@@ -659,6 +668,25 @@ Proof.
   apply f_equal. lra.
 Qed.
 
+Lemma Cmod_Cexp : forall θ, Cmod (1 - Cexp (2 * θ)) = Cmod (2 * (sin θ)).
+Proof.
+  intro θ.
+  unfold Cexp, Cminus, Cplus.
+  simpl.
+  unfold Cmod. simpl. 
+  apply f_equal.
+  field_simplify_eq.
+  unfold Rminus.
+  rewrite (Rplus_assoc (_ ^ 2)).
+  rewrite (Rplus_comm (- _)).
+  rewrite <- Rplus_assoc.
+  rewrite (Rplus_comm (_ ^ 2)).
+  rewrite <- 2 Rsqr_pow2.
+  rewrite sin2_cos2.
+  rewrite cos_2a_sin.
+  lra.
+Qed.
+
 (**************)
 (* Automation *)
 (**************)
@@ -676,12 +704,14 @@ Ltac nonzero :=
        end;
    repeat
     match goal with
+    | |- not (@eq _ (sqrt (pow _ _)) (IZR Z0)) => rewrite sqrt_pow
     | |- not (@eq _ (pow _ _) (IZR Z0)) => apply pow_nonzero; try apply RtoC_neq
     | |- not (@eq _ (sqrt ?x) (IZR Z0)) => apply sqrt_neq_0_compat
     | |- not (@eq _ (Rinv ?x) (IZR Z0)) => apply Rinv_neq_0_compat
     end; match goal with
          | |- not (@eq _ _ _) => lra
          | |- Rlt _ _ => lra
+         | |- Rle _ _ => lra
          end.
 
 Hint Rewrite Cminus_unfold Cdiv_unfold Ci2 Cconj_R Cconj_opp Cconj_rad2 
