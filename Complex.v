@@ -697,7 +697,7 @@ Lemma Cdiv_unfold : forall c1 c2, (c1 / c2 = c1 */ c2)%C. Proof. reflexivity. Qe
 Ltac nonzero :=
   repeat split;
    try match goal with
-       | |- not (@eq _ ?x (RtoC (IZR Z0))) => apply RtoC_neq
+       | |- not (@eq _ _ (RtoC (IZR Z0))) => apply RtoC_neq
        | |- not (@eq _ (Cpow _ _) (RtoC (IZR Z0))) => apply Cpow_nonzero; try apply RtoC_neq
        | |- not (@eq _ Ci (RtoC (IZR Z0))) => apply C0_snd_neq; simpl
        | |- not (@eq _ (Cexp _) (RtoC (IZR Z0))) => apply Cexp_nonzero
@@ -706,8 +706,9 @@ Ltac nonzero :=
     match goal with
     | |- not (@eq _ (sqrt (pow _ _)) (IZR Z0)) => rewrite sqrt_pow
     | |- not (@eq _ (pow _ _) (IZR Z0)) => apply pow_nonzero; try apply RtoC_neq
-    | |- not (@eq _ (sqrt ?x) (IZR Z0)) => apply sqrt_neq_0_compat
-    | |- not (@eq _ (Rinv ?x) (IZR Z0)) => apply Rinv_neq_0_compat
+    | |- not (@eq _ (sqrt _) (IZR Z0)) => apply sqrt_neq_0_compat
+    | |- not (@eq _ (Rinv _) (IZR Z0)) => apply Rinv_neq_0_compat
+    | |- not (@eq _ (Rmult _ _) (IZR Z0)) => apply Rmult_integral_contrapositive_currified
     end; match goal with
          | |- not (@eq _ _ _) => lra
          | |- Rlt _ _ => lra
