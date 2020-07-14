@@ -6,7 +6,7 @@ Require Export Matrix.
 (* Using our (complex, unbounded) matrices, their complex numbers *)
 
 (*******************************************)
-(* Quantum basis states *)
+(** * Quantum basis states *)
 (*******************************************)
 
 (* Maybe change to IF statements? *)
@@ -70,9 +70,9 @@ Definition bools_to_matrix (l : list bool) : Square (2^(length l)) :=
   big_kron (map bool_to_matrix l).
 
 
-(*************)
-(* Unitaries *)
-(*************)
+(****************)
+(** * Unitaries *)
+(****************)
 
 Definition hadamard : Matrix 2 2 := 
   (fun x y => match x, y with
@@ -119,13 +119,6 @@ Definition σz : Matrix 2 2 :=
           | 1, 1 => -C1
           | _, _ => C0
           end.
-
-Definition phase_shift (ϕ : R) : Matrix 2 2 :=
-  fun x y => match x, y with
-          | 0, 0 => C1
-          | 1, 1 => Cexp ϕ
-          | _, _ => C0
-          end.
   
 Definition control {n : nat} (A : Matrix n n) : Matrix (2*n) (2*n) :=
   fun x y => if (x <? n) && (y =? x) then 1 else 
@@ -170,8 +163,191 @@ Definition swap : Matrix (2*2) (2*2) :=
           | _, _ => C0
           end.
 
-(* Does this overwrite the other Hint DB M? *)
 Hint Unfold qubit0 qubit1 hadamard σx σy σz control cnot swap bra ket : U_db.
+
+(** ** Rotation Matrices *)
+                              
+(* Standard(?) definition, but it makes equivalence-checking a little annoying 
+   because of a global phase.
+
+Definition rotation (θ ϕ λ : R) : Matrix 2 2 :=
+  fun x y => match x, y with
+             | 0, 0 => (Cexp (-(ϕ + λ)/2)) * (cos (θ/2))
+             | 0, 1 => - (Cexp (-(ϕ - λ)/2)) * (sin (θ/2))
+             | 1, 0 => (Cexp ((ϕ - λ)/2)) * (sin (θ/2))
+             | 1, 1 => (Cexp ((ϕ + λ)/2)) * (cos (θ/2))
+             | _, _ => C0
+             end.
+*)
+Definition rotation (θ ϕ λ : R) : Matrix 2 2 :=
+  fun x y => match x, y with
+             | 0, 0 => (cos (θ/2))
+             | 0, 1 => - (Cexp λ) * (sin (θ/2))
+             | 1, 0 => (Cexp ϕ) * (sin (θ/2))
+             | 1, 1 => (Cexp (ϕ + λ)) * (cos (θ/2))
+             | _, _ => C0
+             end.
+
+(* z_rotation lemmas are further down *)
+Definition phase_shift (ϕ : R) : Matrix 2 2 :=
+  fun x y => match x, y with
+          | 0, 0 => C1
+          | 1, 1 => Cexp ϕ
+          | _, _ => C0
+          end.
+
+(* Notation z_rotation := phase_shift. *)
+
+Definition x_rotation  (θ : R) : Matrix 2 2 :=
+  fun x y => match x, y with
+          | 0, 0 => cos (θ / 2)
+          | 0, 1 => -Ci * sin (θ / 2)
+          | 1, 0 => -Ci * sin (θ / 2)
+          | 1, 1 => cos (θ / 2)
+          | _, _ => 0
+          end.
+
+Definition y_rotation  (θ : R) : Matrix 2 2 :=
+  fun x y => match x, y with
+          | 0, 0 => cos (θ / 2)
+          | 0, 1 => - sin (θ / 2)
+          | 1, 0 => sin (θ / 2)
+          | 1, 1 => cos (θ / 2)
+          | _, _ => 0
+          end.
+
+(* Shifted by i so x/y_rotation PI = σx/y :
+Definition x_rotation  (θ : R) : Matrix 2 2 :=
+  fun x y => match x, y with
+          | 0, 0 => Ci * cos (θ / 2)
+          | 0, 1 => sin (θ / 2)
+          | 1, 0 => sin (θ / 2)
+          | 1, 1 => Ci * cos (θ / 2)
+          | _, _ => 0
+          end.
+
+Definition y_rotation  (θ : R) : Matrix 2 2 :=
+  fun x y => match x, y with
+          | 0, 0 => Ci * cos (θ / 2)
+          | 0, 1 => -Ci * sin (θ / 2)
+          | 1, 0 => Ci * sin (θ / 2)
+          | 1, 1 => Ci * cos (θ / 2)
+          | _, _ => 0
+          end.
+ *)
+
+Lemma x_rotation_pi : x_rotation PI = -Ci .* σx.
+Proof.
+  unfold σx, x_rotation, scale.
+  prep_matrix_equality.
+  destruct_m_eq; 
+  autorewrite with trig_db C_db;
+  reflexivity. 
+Qed.
+
+Lemma y_rotation_pi : y_rotation PI = -Ci .* σy.
+Proof.
+  unfold σy, y_rotation, scale. 
+  prep_matrix_equality.
+  destruct_m_eq; 
+  autorewrite with trig_db C_db;
+  try reflexivity. 
+Qed.
+
+Lemma hadamard_rotation : rotation (PI/2) 0 PI = hadamard.
+Proof.
+  unfold hadamard, rotation. 
+  prep_matrix_equality.
+  destruct_m_eq; try reflexivity; 
+  unfold Cexp; apply injective_projections; simpl;
+  autorewrite with R_db;
+  autorewrite with trig_db;
+  autorewrite with R_db;
+  try reflexivity.
+  all: rewrite Rmult_assoc;
+       replace (/2 * /2)%R with (/4)%R by lra;
+       repeat rewrite <- Rdiv_unfold;
+       autorewrite with trig_db;
+       rewrite sqrt2_div2;
+       lra.
+Qed.
+
+Lemma pauli_x_rotation : rotation PI 0 PI = σx.
+Proof.
+  unfold σx, rotation. 
+  prep_matrix_equality.
+  destruct_m_eq; try reflexivity;
+  unfold Cexp; apply injective_projections; simpl;
+  autorewrite with trig_db;
+  lra.
+Qed.
+
+Lemma pauli_y_rotation : rotation PI (PI/2) (PI/2) = σy.
+Proof. 
+  unfold σy, rotation. 
+  prep_matrix_equality.
+  destruct_m_eq; try reflexivity;
+  unfold Cexp; apply injective_projections; simpl;
+  autorewrite with trig_db;
+  lra.
+Qed.
+
+Lemma pauli_z_rotation : rotation 0 0 PI = σz.
+Proof. 
+  unfold σz, rotation. 
+  prep_matrix_equality.
+  destruct_m_eq; try reflexivity;
+  unfold Cexp; apply injective_projections; simpl;
+  autorewrite with R_db;
+  autorewrite with trig_db;
+  lra.
+Qed.
+
+Lemma Rx_rotation : forall θ, rotation θ (3*PI/2) (PI/2) = x_rotation θ.
+Proof.
+  intros.
+  unfold rotation, x_rotation. 
+  prep_matrix_equality.
+  destruct_m_eq;
+  autorewrite with C_db Cexp_db; reflexivity.
+Qed.
+
+Lemma Ry_rotation : forall θ, rotation θ 0 0 = y_rotation θ.
+Proof. 
+  intros.
+  unfold rotation, y_rotation. 
+  prep_matrix_equality.
+  destruct_m_eq;
+  autorewrite with C_db Cexp_db; try reflexivity.
+Qed.
+
+
+Lemma phase_shift_rotation : forall θ, rotation 0 0 θ = phase_shift θ.
+Proof. 
+  intros.
+  unfold phase_shift, rotation. 
+  prep_matrix_equality.
+  destruct_m_eq; try reflexivity;
+  unfold Cexp; apply injective_projections; simpl;
+  autorewrite with R_db;
+  autorewrite with trig_db;
+  lra.
+Qed.
+
+Lemma I_rotation : rotation 0 0 0 = I 2.
+Proof.
+  unfold I, rotation. 
+  prep_matrix_equality.
+  destruct_m_eq; try reflexivity;
+  unfold Cexp; apply injective_projections; simpl;
+  autorewrite with R_db;
+  autorewrite with trig_db;
+  autorewrite with R_db;
+  try reflexivity.
+  bdestruct (x =? y); bdestruct (S (S x) <? 2); simpl; try reflexivity; lia.
+  destruct (x =? y); destruct (S (S x) <? 2); reflexivity.
+Qed.
+
 
 (* Lemmas *)
 
@@ -252,8 +428,6 @@ Hint Rewrite Mmult00 Mmult01 Mmult10 Mmult11 Mmult0X MmultX0 Mmult1X MmultX1 : Q
 Hint Rewrite MmultXX MmultYY MmultZZ MmultHH Mplus01 Mplus10 : Q_db.
 Hint Rewrite σx_on_right0 σx_on_right1 σx_on_left0 σx_on_left1 : Q_db.
 Hint Rewrite cancel00 cancel01 cancel10 cancel11 using (auto with wf_db) : Q_db.
-
-
 
 Lemma swap_swap : swap × swap = I (2*2). Proof. solve_matrix. Qed.
 
@@ -369,7 +543,10 @@ Lemma WF_σy : WF_Matrix σy. Proof. show_wf. Qed.
 Lemma WF_σz : WF_Matrix σz. Proof. show_wf. Qed.
 Lemma WF_cnot : WF_Matrix cnot. Proof. show_wf. Qed.
 Lemma WF_swap : WF_Matrix swap. Proof. show_wf. Qed.
+
+Lemma WF_rotation : forall θ ϕ λ, WF_Matrix (rotation θ ϕ λ). Proof. intros. show_wf. Qed.
 Lemma WF_phase : forall ϕ, WF_Matrix (phase_shift ϕ). Proof. intros. show_wf. Qed.
+
 
 Lemma WF_control : forall (n : nat) (U : Matrix n n), 
       WF_Matrix U -> WF_Matrix (control U).
@@ -383,6 +560,7 @@ Proof.
 Qed.
 
 Hint Resolve WF_hadamard WF_σx WF_σy WF_σz WF_cnot WF_swap WF_phase : wf_db.
+Hint Resolve WF_rotation : wf_db.
 
 Hint Extern 2 (WF_Matrix (phase_shift _)) => apply WF_phase : wf_db.
 Hint Extern 2 (WF_Matrix (control _)) => apply WF_control : wf_db.
@@ -390,6 +568,9 @@ Hint Extern 2 (WF_Matrix (control _)) => apply WF_control : wf_db.
 (***************************)
 (** Unitaries are unitary **)
 (***************************)
+
+(* For this section, we could just convert all single-qubit unitaries into their 
+   rotation form and use rotation_unitary. *)
 
 Definition WF_Unitary {n: nat} (U : Matrix n n): Prop :=
   WF_Matrix U /\ U † × U = I n.
@@ -476,6 +657,67 @@ Proof.
     rewrite andb_false_r.
     lca.
 Qed.
+
+Lemma rotation_unitary : forall θ ϕ λ, @WF_Unitary 2 (rotation θ ϕ λ).
+Proof.
+  intros.
+  split; [show_wf|].
+  unfold Mmult, I, rotation, adjoint, Cexp.
+  prep_matrix_equality.
+  destruct_m_eq; try lca;
+  unfold Cexp, Cconj;
+  apply injective_projections; simpl;
+  autorewrite with R_db;
+  try lra.
+  (* some general rewriting *)
+  all: (repeat rewrite <- Rmult_assoc;
+        repeat rewrite Ropp_mult_distr_l;
+        repeat rewrite <- Rmult_plus_distr_r;
+        repeat rewrite Rmult_assoc;
+        repeat rewrite (Rmult_comm (cos (θ * / 2)));
+        repeat rewrite (Rmult_comm (sin (θ * / 2)));
+        repeat rewrite <- Rmult_assoc;
+        repeat rewrite <- Rmult_plus_distr_r).
+  (* all the cases are about the same; just setting up applications of
+     cos_minus/sin_minus and simplifying *)
+  all: repeat rewrite <- cos_minus.
+  3: (rewrite (Rmult_comm (cos ϕ));
+      rewrite <- (Ropp_mult_distr_l (sin ϕ));
+      rewrite (Rmult_comm (sin ϕ));
+      rewrite <- Rminus_unfold).
+  5: (rewrite (Rmult_comm _ (cos ϕ));
+      rewrite (Rmult_comm _ (sin ϕ));
+      rewrite <- Ropp_mult_distr_r;
+      rewrite <- Rminus_unfold).
+  all: try rewrite <- sin_minus.
+  all: autorewrite with R_db.
+  all: repeat rewrite Rplus_opp_r.
+  all: try (rewrite Ropp_plus_distr;
+            repeat rewrite <- Rplus_assoc;
+            rewrite Rplus_opp_r).
+  all: try (rewrite (Rplus_comm ϕ λ);
+            rewrite Rplus_assoc;
+            rewrite Rplus_opp_r).
+  all: (autorewrite with R_db;
+        autorewrite with trig_db;
+        autorewrite with R_db).
+  all: try lra.
+  all: try (replace (cos (θ * / 2) * cos (θ * / 2))%R with ((cos (θ * / 2))²) by easy;
+            replace (sin (θ * / 2) * sin (θ * / 2))%R with ((sin (θ * / 2))²) by easy).
+  1: rewrite Rplus_comm.
+  all: try (rewrite sin2_cos2; reflexivity).
+  (* two weird left-over cases *)
+  all: (destruct ((x =? y) && (S (S x) <? 2)) eqn:E;
+        try reflexivity).
+  apply andb_prop in E as [_ E].
+  apply Nat.ltb_lt in E; lia.
+Qed.
+
+Lemma x_rotation_unitary : forall θ, @WF_Unitary 2 (x_rotation θ).
+Proof. intros. rewrite <- Rx_rotation. apply rotation_unitary. Qed.
+
+Lemma y_rotation_unitary : forall θ, @WF_Unitary 2 (y_rotation θ).
+Proof. intros. rewrite <- Ry_rotation. apply rotation_unitary. Qed.
 
 Lemma control_unitary : forall n (A : Matrix n n), 
                           WF_Unitary A -> WF_Unitary (control A). 
@@ -778,15 +1020,31 @@ Proof.
   easy.
 Qed.
 
+(* x and y rotation adjoints aren't x and rotations? *)
+
+Lemma rotation_adjoint : forall θ ϕ λ, (rotation θ ϕ λ)† = rotation (-θ) (-λ) (-ϕ).
+Proof.
+  intros.
+  unfold rotation, adjoint.
+  prep_matrix_equality.
+  destruct_m_eq; try lca;
+  unfold Cexp, Cconj;
+  apply injective_projections; simpl;
+  try rewrite <- Ropp_plus_distr;
+  autorewrite with R_db;
+  autorewrite with trig_db;
+  try rewrite (Rplus_comm λ ϕ);
+  autorewrite with R_db;
+  reflexivity.
+Qed.
+
 Lemma braqubit0_sa : ∣0⟩⟨0∣† = ∣0⟩⟨0∣. Proof. lma. Qed.
 Lemma braqubit1_sa : ∣1⟩⟨1∣† = ∣1⟩⟨1∣. Proof. lma. Qed.
 
-Hint Rewrite hadamard_sa σx_sa σy_sa σz_sa cnot_sa swap_sa 
-             braqubit1_sa braqubit0_sa control_adjoint phase_adjoint : Q_db.
+Hint Rewrite hadamard_sa σx_sa σy_sa σz_sa cnot_sa swap_sa braqubit1_sa braqubit0_sa control_adjoint phase_adjoint rotation_adjoint : Q_db.
 
 (* Rather use control_adjoint :
 Hint Rewrite control_sa using (autorewrite with M_db; reflexivity) : M_db. *)
-
 
 Lemma cnot_decomposition : ∣1⟩⟨1∣ ⊗ σx .+ ∣0⟩⟨0∣ ⊗ I 2 = cnot.
 Proof. solve_matrix. Qed.                                               
@@ -794,9 +1052,9 @@ Proof. solve_matrix. Qed.
 Lemma notc_decomposition : σx ⊗ ∣1⟩⟨1∣ .+ I 2 ⊗ ∣0⟩⟨0∣ = notc.
 Proof. solve_matrix. Qed.                                               
 
-(******************)
-(** Phase Lemmas **)
-(******************)
+(*********************)
+(** ** Phase Lemmas **)
+(*********************)
 
 Lemma phase_0 : phase_shift 0 = I 2.
 Proof. 
@@ -1224,6 +1482,17 @@ Lemma compose_super_assoc : forall {m n p q}
       compose_super (compose_super f g) h
     = compose_super f (compose_super g h).
 Proof. easy. Qed.
+
+Lemma compose_super_eq : forall {m n p} (A : Matrix m n) (B : Matrix n p), 
+      compose_super (super A) (super B) = super (A × B).
+Proof.
+  intros.
+  unfold compose_super, super.
+  apply functional_extensionality. intros ρ.
+  rewrite Mmult_adjoint.
+  repeat rewrite Mmult_assoc.
+  reflexivity.
+Qed.
 
 
 (* This is compose_super_correct 

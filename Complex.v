@@ -720,14 +720,14 @@ Qed.
 
 Lemma Cexp_mul_neg_l : forall θ, Cexp (- θ) * Cexp θ = 1.
 Proof.  
-  unfold Cexp. intros R.
+  unfold Cexp. intros θ.
   eapply c_proj_eq; simpl.
-  - rewrite cos_neg, sin_neg.
+  - autorewrite with R_db trig_db.
     field_simplify_eq.
     repeat rewrite <- Rsqr_pow2.
     rewrite Rplus_comm.
     apply sin2_cos2.
-  - rewrite cos_neg, sin_neg. field.
+  - autorewrite with R_db trig_db. field.
 Qed.
 
 Lemma Cexp_mul_neg_r : forall θ, Cexp θ * Cexp (-θ) = 1.
@@ -737,19 +737,25 @@ Proof. intros. rewrite Cmult_comm. apply Cexp_mul_neg_l. Qed.
 
 (* Euler's Identity *) 
 Lemma Cexp_PI : Cexp PI = -1.
-Proof. unfold Cexp. rewrite cos_PI, sin_PI. easy. Qed.
+Proof. unfold Cexp. autorewrite with trig_db; easy. Qed.
 
 Lemma Cexp_PI2 : Cexp (PI/2) = Ci.
-Proof. unfold Cexp. rewrite cos_PI2, sin_PI2. easy. Qed.
+Proof. unfold Cexp. autorewrite with trig_db; easy. Qed.
 
 Lemma Cexp_0 : Cexp 0 = 1.
-Proof. unfold Cexp. rewrite cos_0, sin_0. easy. Qed.
+Proof. unfold Cexp. autorewrite with trig_db; easy. Qed.
 
 Lemma Cexp_2PI : Cexp (2 * PI) = 1.
 Proof.
+  unfold Cexp. rewrite sin_2PI, cos_2PI. reflexivity.
+Qed.
+
+Lemma Cexp_3PI2: Cexp (3 * PI / 2) = - Ci.
+Proof.
   unfold Cexp.
-  rewrite sin_2PI, cos_2PI.
-  reflexivity.
+  replace (3 * PI / 2)%R with (3 * (PI/2))%R by lra.  
+  rewrite cos_3PI2, sin_3PI2.
+  lca.
 Qed.
 
 Lemma Cexp_PI4 : Cexp (PI / 4) = /√2 + /√2 * Ci.
@@ -783,7 +789,7 @@ Lemma Cexp_2PI4 : Cexp (2 * PI / 4) = Ci.
 Proof. rewrite <- Cexp_PI2. apply f_equal. lra. Qed.
 
 (* Note: cos3PI4 are sin3PI4 deprecated in 8.10 by our own pull requests.
-   Don't update until Coq 8.11 release. *)
+   Don't update until Coq 8.12 release. *)
 Lemma Cexp_3PI4 : Cexp (3 * PI / 4) = -/√2 + /√2 * Ci.
 Proof.
   unfold Cexp.
@@ -809,11 +815,7 @@ Qed.
 
 Lemma Cexp_6PI4 : Cexp (6 * PI / 4) = -Ci.
 Proof.
-  unfold Cexp.
-  replace (6 * PI / 4)%R with (3 * (PI/2))%R by lra.  
-  rewrite cos_3PI2, sin_3PI2.
-  lca.
-Qed.
+Proof. rewrite <- Cexp_3PI2. apply f_equal. lra. Qed.
   
 Lemma Cexp_7PI4 : Cexp (7 * PI / 4) = /√2 - /√2 * Ci.
 Proof.
@@ -899,15 +901,13 @@ Proof.
 Qed.
 
   
-Hint Rewrite Cexp_0 Cexp_PI Cexp_PI2 Cexp_2PI Cexp_PI4 Cexp_PIm4
+Hint Rewrite Cexp_0 Cexp_PI Cexp_PI2 Cexp_2PI Cexp_3PI2 Cexp_PI4 Cexp_PIm4
   Cexp_1PI4 Cexp_2PI4 Cexp_3PI4 Cexp_4PI4 Cexp_5PI4 Cexp_6PI4 Cexp_7PI4 Cexp_8PI4
   Cexp_add Cexp_neg : Cexp_db.
-
 
 (*
 Definition Cexp' (θ : R) : C := cos θ + Ci * (sin θ).
 Lemma Cexp_eq : forall θ, Cexp θ = Cexp' θ. Proof. intros. lca. Qed.
 *)
-
 
 Opaque C.

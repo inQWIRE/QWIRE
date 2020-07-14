@@ -472,6 +472,13 @@ Qed.
 
 Local Open Scope nat_scope.
 
+Lemma WF_Matrix_dim_change : forall (m n m' n' : nat) (A : Matrix m n),
+  m = m' ->
+  n = n' ->
+  @WF_Matrix m n A ->
+  @WF_Matrix m' n' A.
+Proof. intros. subst. easy. Qed.
+
 Lemma WF_Zero : forall m n : nat, WF_Matrix (@Zero m n).
 Proof. intros m n. unfold WF_Matrix. reflexivity. Qed.
 
@@ -643,6 +650,8 @@ Ltac show_wf :=
 Hint Resolve WF_Zero WF_I WF_I1 WF_mult WF_plus WF_scale WF_transpose 
      WF_adjoint WF_outer_product WF_big_kron WF_kron_n WF_kron : wf_db.
 Hint Extern 2 (_ = _) => unify_pows_two : wf_db.
+
+(* Hint Resolve WF_Matrix_dim_change : wf_db. *)
 
 
 (** Basic Matrix Lemmas **)
