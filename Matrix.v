@@ -211,6 +211,13 @@ Fixpoint big_kron {m n} (As : list (Matrix m n)) :
   | A :: As' => kron A (big_kron As')
   end.
 
+(* Product of n copies of A *)
+Fixpoint Mmult_n n {m} (A : Square m) : Square m :=
+  match n with
+  | 0    => I m
+  | S n' => Mmult A (Mmult_n n' A)
+  end.
+
 Infix "∘" := dot (at level 40, left associativity) : matrix_scope.
 Infix ".+" := Mplus (at level 50, left associativity) : matrix_scope.
 Infix ".*" := scale (at level 40, left associativity) : matrix_scope.
@@ -222,6 +229,7 @@ Notation "A †" := (adjoint A) (at level 0) : matrix_scope.
 Notation "Σ^ n f" := (Csum f n) (at level 60) : matrix_scope.
 Notation "n ⨂ A" := (kron_n n A) (at level 30, no associativity) : matrix_scope.
 Notation "⨂ A" := (big_kron A) (at level 60): matrix_scope.
+Notation "n ⨉ A" := (Mmult_n n A) (at level 30, no associativity) : matrix_scope.
 Hint Unfold Zero I trace dot Mplus scale Mmult kron mat_equiv transpose 
             adjoint : U_db.
   
@@ -603,6 +611,15 @@ Proof.
     apply IHl. intros i. apply (H (S i)).
 Qed.
 
+Lemma WF_Mmult_n : forall n {m} (A : Square m),
+   WF_Matrix A -> WF_Matrix (Mmult_n n A).
+Proof.
+  intros.
+  induction n; simpl.
+  - apply WF_I.
+  - apply WF_mult; assumption. 
+Qed.
+
 Local Close Scope nat_scope.
 
 (***************************************)
@@ -648,7 +665,7 @@ Ltac show_wf :=
 
 (* Create HintDb wf_db. *)
 Hint Resolve WF_Zero WF_I WF_I1 WF_mult WF_plus WF_scale WF_transpose 
-     WF_adjoint WF_outer_product WF_big_kron WF_kron_n WF_kron : wf_db.
+     WF_adjoint WF_outer_product WF_big_kron WF_kron_n WF_kron WF_Mmult_n : wf_db.
 Hint Extern 2 (_ = _) => unify_pows_two : wf_db.
 
 (* Hint Resolve WF_Matrix_dim_change : wf_db. *)
@@ -1431,6 +1448,61 @@ Proof.
     replace (m2 * (m2 ^ n)) with ((m2 ^ n) * m2) by apply Nat.mul_comm.
     rewrite kron_adjoint, IHn.
     reflexivity.
+Qed.
+
+Lemma Mscale_kron_n_distr_r : forall {m1 m2} n α (A : Matrix m1 m2),
+  n ⨂ (α .* A) = (α ^ n) .* (n ⨂ A).
+Proof.
+  intros.
+  induction n; simpl.
+  rewrite Mscale_1_l. reflexivity.
+  rewrite IHn. 
+  rewrite Mscale_kron_dist_r, Mscale_kron_dist_l. 
+  rewrite Mscale_assoc.
+  reflexivity.
+Qed.
+
+Lemma Mmult_n_kron_distr_l : forall {m n} i (A : Square m) (B : Square n),
+  i ⨉ (A ⊗ B) = (i ⨉ A) ⊗ (i ⨉ B).
+Proof.
+  intros m n i A B.
+  induction i; simpl.
+  rewrite id_kron; reflexivity.
+  rewrite IHi.
+  rewrite kron_mixed_product.
+  reflexivity.
+Qed.
+
+Lemma Mmult_n_1_l : forall {n} (A : Square n),
+  WF_Matrix A ->
+  1 ⨉ A = A.
+Proof. intros n A WF. simpl. rewrite Mmult_1_r; auto. Qed.
+
+Lemma Mmult_n_1_r : forall n i,
+  i ⨉ (I n) = I n.
+Proof.
+  intros n i.
+  induction i; simpl.
+  reflexivity.
+  rewrite IHi.  
+  rewrite Mmult_1_l; auto with wf_db.
+Qed.
+
+Lemma Mmult_n_eigenvector : forall {n} (A : Square n) (ψ : Vector n) λ i,
+  WF_Matrix ψ -> A × ψ = λ .* ψ ->
+  i ⨉ A × ψ = (λ ^ i) .* ψ.
+Proof.
+  intros n A ψ λ i WF H.
+  induction i; simpl.
+  rewrite Mmult_1_l; auto.
+  rewrite Mscale_1_l; auto.
+  rewrite Mmult_assoc.
+  rewrite IHi.
+  rewrite Mscale_mult_dist_r.
+  rewrite H.
+  rewrite Mscale_assoc.
+  rewrite Cmult_comm.
+  reflexivity.
 Qed.
 
 (* Note on "using [tactics]": Most generated subgoals will be of the form 

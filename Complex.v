@@ -176,6 +176,15 @@ Proof.
   apply Rplus_le_le_0_compat ; apply pow2_ge_0.
 Qed.
 
+Lemma Cmod_pow : forall x n, Cmod (x ^ n) = ((Cmod x) ^ n)%R.
+Proof.
+  intros x n.
+  induction n; simpl.
+  apply Cmod_1.
+  rewrite Cmod_mult, IHn.
+  reflexivity.
+Qed.
+
 Lemma Rmax_Cmod : forall x,
   Rmax (Rabs (fst x)) (Rabs (snd x)) <= Cmod x.
 Proof.
@@ -583,6 +592,100 @@ Proof.
   apply RtoC_neq; apply sqrt_neq_0_compat; lra. 
 Qed.
 
+(****************************)
+(** Complex Exponentiation **)
+(****************************)
+
+(* e^(iθ) *)
+Definition Cexp (θ : R) : C := (cos θ, sin θ).
+
+Lemma Cexp_add: forall (x y : R), Cexp (x + y) = Cexp x * Cexp y.
+Proof.
+  intros.
+  unfold Cexp.
+  apply c_proj_eq; simpl.
+  - apply cos_plus.
+  - rewrite sin_plus. field.
+Qed.
+
+Lemma Cexp_neg : forall θ, Cexp (- θ) = / Cexp θ.
+Proof.
+  intros θ.
+  unfold Cexp.
+  rewrite sin_neg, cos_neg.
+  apply c_proj_eq; simpl.
+  - replace (cos θ * (cos θ * 1) + sin θ * (sin θ * 1))%R with 
+        (cos θ ^ 2 + sin θ ^ 2)%R by reflexivity.
+    repeat rewrite <- Rsqr_pow2.
+    rewrite Rplus_comm.
+    rewrite sin2_cos2.
+    field.
+  - replace ((cos θ * (cos θ * 1) + sin θ * (sin θ * 1)))%R with 
+        (cos θ ^ 2 + sin θ ^ 2)%R by reflexivity.
+    repeat rewrite <- Rsqr_pow2.
+    rewrite Rplus_comm.
+    rewrite sin2_cos2.
+    field.
+Qed.
+
+Lemma Cexp_mul_neg_l : forall θ, Cexp (- θ) * Cexp θ = 1.
+Proof.  
+  unfold Cexp. intros R.
+  eapply c_proj_eq; simpl.
+  - rewrite cos_neg, sin_neg.
+    field_simplify_eq.
+    repeat rewrite <- Rsqr_pow2.
+    rewrite Rplus_comm.
+    apply sin2_cos2.
+  - rewrite cos_neg, sin_neg. field.
+Qed.
+
+Lemma Cexp_mul_neg_r : forall θ, Cexp θ * Cexp (-θ) = 1.
+Proof. intros. rewrite Cmult_comm. apply Cexp_mul_neg_l. Qed.
+
+Lemma Cexp_nonzero : forall θ, Cexp θ <> 0.
+Proof. 
+  intro θ. unfold Cexp.
+  specialize (cos_sin_0_var θ) as [? | ?].
+  apply C0_fst_neq; auto. 
+  apply C0_snd_neq; auto.
+Qed.
+
+Lemma Cexp_0 : Cexp 0 = 1.
+Proof. unfold Cexp. rewrite cos_0, sin_0. easy. Qed.
+
+Lemma Cexp_pow : forall θ k, Cexp θ ^ k = Cexp (θ * INR k).
+Proof.
+  intros.
+  induction k. 
+  simpl. rewrite Rmult_0_r, Cexp_0. reflexivity.
+  Local Opaque INR.
+  simpl. rewrite IHk.
+  rewrite <- Cexp_add.
+  replace (S k) with (k + 1)%nat by lia.
+  Local Transparent INR.
+  rewrite plus_INR; simpl.
+  apply f_equal. lra.
+Qed.
+
+Lemma Cmod_Cexp : forall θ, Cmod (1 - Cexp (2 * θ)) = Cmod (2 * (sin θ)).
+Proof.
+  intro θ.
+  unfold Cexp, Cminus, Cplus.
+  simpl.
+  unfold Cmod. simpl. 
+  apply f_equal.
+  field_simplify_eq.
+  unfold Rminus.
+  rewrite (Rplus_assoc (_ ^ 2)).
+  rewrite (Rplus_comm (- _)).
+  rewrite <- Rplus_assoc.
+  rewrite (Rplus_comm (_ ^ 2)).
+  rewrite <- 2 Rsqr_pow2.
+  rewrite sin2_cos2.
+  rewrite cos_2a_sin.
+  lra.
+Qed.
 
 (**************)
 (* Automation *)
@@ -591,22 +694,25 @@ Qed.
 Lemma Cminus_unfold : forall c1 c2, (c1 - c2 = c1 + -c2)%C. Proof. reflexivity. Qed.
 Lemma Cdiv_unfold : forall c1 c2, (c1 / c2 = c1 */ c2)%C. Proof. reflexivity. Qed.
 
-
 Ltac nonzero :=
   repeat split;
    try match goal with
-       | |- not (@eq _ ?x (RtoC (IZR Z0))) => apply RtoC_neq
+       | |- not (@eq _ _ (RtoC (IZR Z0))) => apply RtoC_neq
        | |- not (@eq _ (Cpow _ _) (RtoC (IZR Z0))) => apply Cpow_nonzero; try apply RtoC_neq
        | |- not (@eq _ Ci (RtoC (IZR Z0))) => apply C0_snd_neq; simpl
+       | |- not (@eq _ (Cexp _) (RtoC (IZR Z0))) => apply Cexp_nonzero
        end;
    repeat
     match goal with
+    | |- not (@eq _ (sqrt (pow _ _)) (IZR Z0)) => rewrite sqrt_pow
     | |- not (@eq _ (pow _ _) (IZR Z0)) => apply pow_nonzero; try apply RtoC_neq
-    | |- not (@eq _ (sqrt ?x) (IZR Z0)) => apply sqrt_neq_0_compat
-    | |- not (@eq _ (Rinv ?x) (IZR Z0)) => apply Rinv_neq_0_compat
+    | |- not (@eq _ (sqrt _) (IZR Z0)) => apply sqrt_neq_0_compat
+    | |- not (@eq _ (Rinv _) (IZR Z0)) => apply Rinv_neq_0_compat
+    | |- not (@eq _ (Rmult _ _) (IZR Z0)) => apply Rmult_integral_contrapositive_currified
     end; match goal with
          | |- not (@eq _ _ _) => lra
          | |- Rlt _ _ => lra
+         | |- Rle _ _ => lra
          end.
 
 Hint Rewrite Cminus_unfold Cdiv_unfold Ci2 Cconj_R Cconj_opp Cconj_rad2 
@@ -680,8 +786,17 @@ Ltac cancel_terms t :=
                                     rewrite (Cmult_comm y z)
   | |- context[(?x * ?y * ?z)%C]   => tryif has_term t x then fail else has_term t y; has_term (/ t)%C z; 
                                     rewrite <- (Cmult_assoc x y z)
+  end. 
+
+Ltac group_Cexp :=
+  repeat rewrite <- Cexp_neg;
+  repeat match goal  with
+  | _ => rewrite <- Cexp_add
+  | |- context [ ?x * Cexp ?y ] => rewrite (Cmult_comm x (Cexp y))
+  | |- context [ ?x * (?y * ?z) ] => rewrite Cmult_assoc
   end.  
 
+<<<<<<< HEAD
 (****************************)
 (** Complex Exponentiation **)
 (****************************)
@@ -734,6 +849,11 @@ Lemma Cexp_mul_neg_r : forall θ, Cexp θ * Cexp (-θ) = 1.
 Proof. intros. rewrite Cmult_comm. apply Cexp_mul_neg_l. Qed.
 
 (* Special cases *)
+=======
+(**************************)
+(* Special cases for Cexp *)
+(**************************)
+>>>>>>> 976f67ea35a1d95ff2abef5434ec13353a915273
 
 (* Euler's Identity *) 
 Lemma Cexp_PI : Cexp PI = -1.
@@ -742,9 +862,12 @@ Proof. unfold Cexp. autorewrite with trig_db; easy. Qed.
 Lemma Cexp_PI2 : Cexp (PI/2) = Ci.
 Proof. unfold Cexp. autorewrite with trig_db; easy. Qed.
 
+<<<<<<< HEAD
 Lemma Cexp_0 : Cexp 0 = 1.
 Proof. unfold Cexp. autorewrite with trig_db; easy. Qed.
 
+=======
+>>>>>>> 976f67ea35a1d95ff2abef5434ec13353a915273
 Lemma Cexp_2PI : Cexp (2 * PI) = 1.
 Proof.
   unfold Cexp. rewrite sin_2PI, cos_2PI. reflexivity.
@@ -905,9 +1028,12 @@ Hint Rewrite Cexp_0 Cexp_PI Cexp_PI2 Cexp_2PI Cexp_3PI2 Cexp_PI4 Cexp_PIm4
   Cexp_1PI4 Cexp_2PI4 Cexp_3PI4 Cexp_4PI4 Cexp_5PI4 Cexp_6PI4 Cexp_7PI4 Cexp_8PI4
   Cexp_add Cexp_neg : Cexp_db.
 
+<<<<<<< HEAD
 (*
 Definition Cexp' (θ : R) : C := cos θ + Ci * (sin θ).
 Lemma Cexp_eq : forall θ, Cexp θ = Cexp' θ. Proof. intros. lca. Qed.
 *)
+=======
+>>>>>>> 976f67ea35a1d95ff2abef5434ec13353a915273
 
 Opaque C.

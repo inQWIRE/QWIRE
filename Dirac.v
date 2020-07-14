@@ -57,6 +57,19 @@ Proof. solve_matrix. Qed.
 Lemma Hminus_spec : hadamard × ∣ - ⟩ = ∣ 1 ⟩.
 Proof. solve_matrix.  Qed.
 
+Lemma H0_kron_n_spec : forall n,
+  n ⨂ hadamard × n ⨂ ∣0⟩ = n ⨂ ∣+⟩.
+Proof.
+  intros.
+  induction n; simpl.
+  - Msimpl_light. reflexivity.
+  - restore_dims. 
+    rewrite kron_mixed_product.
+    rewrite <- IHn.
+    apply f_equal_gen; try reflexivity.
+    solve_matrix.
+Qed.
+
 (* X properties *)
 Lemma X0_spec : σx × ∣ 0 ⟩ = ∣ 1 ⟩.
 Proof. solve_matrix. Qed.
@@ -110,14 +123,18 @@ Hint Rewrite bra0ket0 bra0ket1 bra1ket0 bra1ket1 : ket_db.
 Hint Rewrite Mmult_plus_distr_l Mmult_plus_distr_r kron_plus_distr_l kron_plus_distr_r Mscale_plus_distr_r : ket_db.
 Hint Rewrite Mscale_mult_dist_l Mscale_mult_dist_r Mscale_kron_dist_l Mscale_kron_dist_r : ket_db.
 Hint Rewrite Mscale_assoc @Mmult_assoc : ket_db.
-(*Hint Rewrite <- Mplus_assoc kron_assoc : ket_db.*)
-Hint Rewrite Mmult_1_l Mmult_1_r kron_1_l kron_1_r Mscale_0_l Mscale_1_l Mplus_0_l Mplus_0_r : ket_db.
-Hint Rewrite @kron_mixed_product.
+Hint Rewrite Mmult_1_l Mmult_1_r kron_1_l kron_1_r Mscale_0_l Mscale_0_r Mscale_1_l Mplus_0_l Mplus_0_r using (auto with wf_db) : ket_db.
+Hint Rewrite kron_0_l kron_0_r Mmult_0_l Mmult_0_r : ket_db.
+Hint Rewrite @kron_mixed_product : ket_db.
 
 (* Quantum-specific identities *)
 Hint Rewrite H0_spec H1_spec Hplus_spec Hminus_spec X0_spec X1_spec Y0_spec Y1_spec
      Z0_spec Z1_spec : ket_db.
 Hint Rewrite CNOT00_spec CNOT01_spec CNOT10_spec CNOT11_spec SWAP_spec : ket_db.
+
+Lemma ket2bra : forall n, (ket n) † = bra n. 
+Proof. destruct n; reflexivity. Qed.
+Hint Rewrite ket2bra : ket_db.
 
 (* Examples using ket_db *)
 Lemma XYZ0 : -Ci .* σx × σy × σz × ∣ 0 ⟩ = ∣ 0 ⟩.
@@ -125,7 +142,7 @@ Proof. autorewrite with ket_db C_db; easy. Qed.
                                            
 Lemma XYZ1 : -Ci .* σx × σy × σz × ∣ 1 ⟩ = ∣ 1 ⟩.
 Proof. 
-  autorewrite with ket_db C_db. 
+  autorewrite with ket_db C_db.
   replace (Ci * -1 * Ci) with (RtoC 1) by lca. 
   rewrite Mscale_1_l; reflexivity.
   Qed.
@@ -193,8 +210,8 @@ Ltac ket_eq_solver :=
     replace a with a' by lca; replace b with b' by lca; reflexivity
   end.      
 
-Lemma XYZ : forall α β, -Ci .* σx × σy × σz × (α .* ∣ 0 ⟩ .+ β .* ∣ 1 ⟩) = α .* ∣ 0 ⟩ .+ β .* ∣ 1 ⟩.
-Proof. ket_eq_solver. Qed.
+(* Lemma XYZ : forall α β, -Ci .* σx × σy × σz × (α .* ∣ 0 ⟩ .+ β .* ∣ 1 ⟩) = α .* ∣ 0 ⟩ .+ β .* ∣ 1 ⟩.
+Proof. ket_eq_solver. Qed. *)
 
 (* This proof would be nicest with +/- basis specific rewriting.
 
