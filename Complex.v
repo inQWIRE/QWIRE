@@ -420,7 +420,9 @@ Qed.
 
 Add Field C_field_field : C_field_theory.
 
-(** Added Lemmas for QWIRE *)
+(*****************************************)
+(** * Added Lemmas for QWIRE            **)
+(*****************************************)
 
 (** Notations *)
 
@@ -535,9 +537,9 @@ Proof.
 Qed.
 
 
-(****************)
-(* Square Roots *)
-(****************)
+(******************)
+(** Square Roots **)
+(******************)
 
 Lemma Csqrt_sqrt : forall x : R, 0 <= x -> √ x * √ x = x.
 Proof. intros. eapply c_proj_eq; simpl; try rewrite sqrt_sqrt; lra. Qed.
@@ -687,9 +689,9 @@ Proof.
   lra.
 Qed.
 
-(**************************)
-(* Special cases for Cexp *)
-(**************************)
+(*****************************)
+(** Cexp of multiples of PI **)
+(*****************************)
 
 (* Euler's Identity *) 
 Lemma Cexp_PI : Cexp PI = -1.
@@ -860,9 +862,9 @@ Hint Rewrite Cexp_0 Cexp_PI Cexp_PI2 Cexp_2PI Cexp_3PI2 Cexp_PI4 Cexp_PIm4
 
 Opaque C.
 
-(**************)
-(* Automation *)
-(**************)
+(****************)
+(** Automation **)
+(****************)
 
 Lemma Cminus_unfold : forall c1 c2, (c1 - c2 = c1 + -c2)%C. Proof. reflexivity. Qed.
 Lemma Cdiv_unfold : forall c1 c2, (c1 / c2 = c1 */ c2)%C. Proof. reflexivity. Qed.
