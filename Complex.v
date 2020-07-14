@@ -599,6 +599,9 @@ Qed.
 (* e^(iθ) *)
 Definition Cexp (θ : R) : C := (cos θ, sin θ).
 
+Lemma Cexp_0 : Cexp 0 = 1.
+Proof. unfold Cexp. autorewrite with trig_db; easy. Qed.
+
 Lemma Cexp_add: forall (x y : R), Cexp (x + y) = Cexp x * Cexp y.
 Proof.
   intros.
@@ -628,21 +631,6 @@ Proof.
     field.
 Qed.
 
-Lemma Cexp_mul_neg_l : forall θ, Cexp (- θ) * Cexp θ = 1.
-Proof.  
-  unfold Cexp. intros R.
-  eapply c_proj_eq; simpl.
-  - rewrite cos_neg, sin_neg.
-    field_simplify_eq.
-    repeat rewrite <- Rsqr_pow2.
-    rewrite Rplus_comm.
-    apply sin2_cos2.
-  - rewrite cos_neg, sin_neg. field.
-Qed.
-
-Lemma Cexp_mul_neg_r : forall θ, Cexp θ * Cexp (-θ) = 1.
-Proof. intros. rewrite Cmult_comm. apply Cexp_mul_neg_l. Qed.
-
 Lemma Cexp_nonzero : forall θ, Cexp θ <> 0.
 Proof. 
   intro θ. unfold Cexp.
@@ -651,8 +639,20 @@ Proof.
   apply C0_snd_neq; auto.
 Qed.
 
-Lemma Cexp_0 : Cexp 0 = 1.
-Proof. unfold Cexp. rewrite cos_0, sin_0. easy. Qed.
+Lemma Cexp_mul_neg_l : forall θ, Cexp (- θ) * Cexp θ = 1.
+Proof.  
+  unfold Cexp. intros θ.
+  eapply c_proj_eq; simpl.
+  - autorewrite with R_db trig_db.
+    field_simplify_eq.
+    repeat rewrite <- Rsqr_pow2.
+    rewrite Rplus_comm.
+    apply sin2_cos2.
+  - autorewrite with R_db trig_db. field.
+Qed.
+
+Lemma Cexp_mul_neg_r : forall θ, Cexp θ * Cexp (-θ) = 1.
+Proof. intros. rewrite Cmult_comm. apply Cexp_mul_neg_l. Qed.
 
 Lemma Cexp_pow : forall θ k, Cexp θ ^ k = Cexp (θ * INR k).
 Proof.
@@ -686,6 +686,179 @@ Proof.
   rewrite cos_2a_sin.
   lra.
 Qed.
+
+(**************************)
+(* Special cases for Cexp *)
+(**************************)
+
+(* Euler's Identity *) 
+Lemma Cexp_PI : Cexp PI = -1.
+Proof. unfold Cexp. autorewrite with trig_db; easy. Qed.
+
+Lemma Cexp_PI2 : Cexp (PI/2) = Ci.
+Proof. unfold Cexp. autorewrite with trig_db; easy. Qed.
+
+Lemma Cexp_2PI : Cexp (2 * PI) = 1.
+Proof.
+  unfold Cexp. rewrite sin_2PI, cos_2PI. reflexivity.
+Qed.
+
+Lemma Cexp_3PI2: Cexp (3 * PI / 2) = - Ci.
+Proof.
+  unfold Cexp.
+  replace (3 * PI / 2)%R with (3 * (PI/2))%R by lra.  
+  rewrite cos_3PI2, sin_3PI2.
+  lca.
+Qed.
+
+Lemma Cexp_PI4 : Cexp (PI / 4) = /√2 + /√2 * Ci.
+Proof.
+  unfold Cexp.
+  rewrite sin_PI4, cos_PI4.
+  eapply c_proj_eq; simpl.
+  field_simplify_eq; trivial; apply sqrt2_neq_0.
+  field_simplify_eq; trivial; apply sqrt2_neq_0.
+Qed.
+
+Lemma Cexp_PIm4 : Cexp (- PI / 4) = /√2 - /√2 * Ci.
+Proof.
+  unfold Cexp. 
+  rewrite Ropp_div.
+  rewrite sin_antisym.
+  rewrite cos_neg.
+  rewrite sin_PI4, cos_PI4.
+  eapply c_proj_eq; simpl.
+  field_simplify_eq; trivial; apply sqrt2_neq_0.
+  field_simplify_eq; trivial; apply sqrt2_neq_0.
+Qed.
+
+Lemma Cexp_0PI4 : Cexp (0 * PI / 4) = 1.
+Proof. rewrite <- Cexp_0. apply f_equal. lra. Qed.
+
+Lemma Cexp_1PI4 : Cexp (1 * PI / 4) = /√2 + /√2 * Ci.
+Proof. rewrite <- Cexp_PI4. apply f_equal. lra. Qed.
+
+Lemma Cexp_2PI4 : Cexp (2 * PI / 4) = Ci.
+Proof. rewrite <- Cexp_PI2. apply f_equal. lra. Qed.
+
+(* Note: cos3PI4 are sin3PI4 deprecated in 8.10 by our own pull requests.
+   Don't update until Coq 8.12 release. *)
+Lemma Cexp_3PI4 : Cexp (3 * PI / 4) = -/√2 + /√2 * Ci.
+Proof.
+  unfold Cexp.
+  rewrite <- Rmult_div_assoc.
+  rewrite cos3PI4, sin3PI4.
+  eapply c_proj_eq; simpl.
+  R_field_simplify; trivial. apply sqrt2_neq_0.
+  R_field_simplify; trivial. apply sqrt2_neq_0.
+Qed.
+
+Lemma Cexp_4PI4 : Cexp (4 * PI / 4) = -1.
+Proof. rewrite <- Cexp_PI. apply f_equal. lra. Qed.
+  
+Lemma Cexp_5PI4 : Cexp (5 * PI / 4) = -/√2 - /√2 * Ci.
+Proof.
+  unfold Cexp.
+  rewrite <- Rmult_div_assoc.
+  rewrite cos_5PI4, sin_5PI4.
+  eapply c_proj_eq; simpl.
+  R_field_simplify; trivial. apply sqrt2_neq_0.
+  R_field_simplify; trivial. apply sqrt2_neq_0.
+Qed.
+
+Lemma Cexp_6PI4 : Cexp (6 * PI / 4) = -Ci.
+Proof.
+Proof. rewrite <- Cexp_3PI2. apply f_equal. lra. Qed.
+  
+Lemma Cexp_7PI4 : Cexp (7 * PI / 4) = /√2 - /√2 * Ci.
+Proof.
+  unfold Cexp.
+  replace (7 * PI / 4)%R with (- PI / 4 + 2 * INR 1 * PI)%R.
+  2:{ R_field_simplify. rewrite Rmult_1_r. lra. }
+  rewrite cos_period, sin_period.
+  rewrite Ropp_div.
+  rewrite cos_neg, sin_neg.
+  rewrite sin_PI4, cos_PI4.
+  eapply c_proj_eq; simpl.
+  R_field_simplify; trivial. apply sqrt2_neq_0.
+  R_field_simplify; trivial. apply sqrt2_neq_0.
+Qed.    
+
+Lemma Cexp_8PI4 : Cexp (8 * PI / 4) = 1.
+Proof. rewrite <- Cexp_2PI. apply f_equal. lra. Qed.
+
+(* This is a dramatically simplified version of Cexp_mod_2PI and we
+   can probably get rid of it. *)
+Lemma Cexp_PI4_m8 : forall (k : Z), Cexp (IZR (k - 8) * PI / 4) = Cexp (IZR k * PI / 4).
+Proof.
+  intros.
+  unfold Rdiv.
+  rewrite minus_IZR.
+  unfold Rminus.
+  repeat rewrite Rmult_plus_distr_r.
+  replace (- (8) * PI * / 4)%R with (-(2 * PI))%R by lra.
+  rewrite Cexp_add, Cexp_neg, Cexp_2PI.
+  lca.
+Qed.
+
+Lemma Cexp_2nPI : forall (k : Z), Cexp (IZR (2 * k) * PI) = 1.
+Proof.
+  induction k using Z.peano_ind.
+  - simpl. rewrite Rmult_0_l. apply Cexp_0.
+  - rewrite Z.mul_succ_r.
+    rewrite plus_IZR.
+    rewrite Rmult_plus_distr_r.
+    rewrite Cexp_add, Cexp_2PI.
+    rewrite IHk.
+    lca.
+  - rewrite Z.mul_pred_r.
+    rewrite minus_IZR.
+    unfold Rminus.
+    rewrite Rmult_plus_distr_r.
+    rewrite <- Ropp_mult_distr_l.
+    rewrite Cexp_add, Cexp_neg, Cexp_2PI.
+    rewrite IHk.
+    lca.
+Qed.
+
+Lemma Cexp_mod_2PI : forall (k : Z), Cexp (IZR k * PI) = Cexp (IZR (k mod 2) * PI). 
+Proof.
+  intros.
+  rewrite (Z.div_mod k 2) at 1 by lia.
+  remember (k/2)%Z as k'.
+  rewrite plus_IZR.
+  rewrite Rmult_plus_distr_r.
+  rewrite Cexp_add.
+  rewrite Cexp_2nPI.
+  lca.
+Qed.  
+
+Lemma Cexp_mod_2PI_scaled : forall (k sc : Z), 
+  (sc <> 0)%Z ->
+  Cexp (IZR k * PI / IZR sc) = Cexp (IZR (k mod (2 * sc)) * PI / IZR sc). 
+Proof.
+  intros k sc H.
+  rewrite (Z.div_mod k (2 * sc)) at 1 by lia.
+  repeat rewrite plus_IZR.
+  unfold Rdiv.
+  repeat rewrite Rmult_plus_distr_r.
+  rewrite Cexp_add.
+  replace (IZR (2 * sc * (k / (2 * sc))) * PI * Rinv (IZR sc))%R with
+      (IZR (2 * (k / (2 * sc))) * PI)%R.
+  2:{ repeat rewrite mult_IZR. 
+      R_field_simplify.
+      reflexivity. 
+      apply not_0_IZR; assumption. }
+  rewrite Cexp_2nPI.
+  lca.
+Qed.
+
+  
+Hint Rewrite Cexp_0 Cexp_PI Cexp_PI2 Cexp_2PI Cexp_3PI2 Cexp_PI4 Cexp_PIm4
+  Cexp_1PI4 Cexp_2PI4 Cexp_3PI4 Cexp_4PI4 Cexp_5PI4 Cexp_6PI4 Cexp_7PI4 Cexp_8PI4
+  Cexp_add Cexp_neg : Cexp_db.
+
+Opaque C.
 
 (**************)
 (* Automation *)
@@ -796,244 +969,3 @@ Ltac group_Cexp :=
   | |- context [ ?x * (?y * ?z) ] => rewrite Cmult_assoc
   end.  
 
-<<<<<<< HEAD
-(****************************)
-(** Complex Exponentiation **)
-(****************************)
-
-(* e^(iθ) *)
-Definition Cexp (θ : R) : C := (cos θ, sin θ).
-
-Lemma Cexp_add: forall (x y : R), Cexp (x + y) = Cexp x * Cexp y.
-Proof.
-  intros.
-  unfold Cexp.
-  apply c_proj_eq; simpl.
-  - apply cos_plus.
-  - rewrite sin_plus. field.
-Qed.
-
-Lemma Cexp_neg : forall θ, Cexp (- θ) = / Cexp θ.
-Proof.
-  intros θ.
-  unfold Cexp.
-  rewrite sin_neg, cos_neg.
-  apply c_proj_eq; simpl.
-  - replace (cos θ * (cos θ * 1) + sin θ * (sin θ * 1))%R with 
-        (cos θ ^ 2 + sin θ ^ 2)%R by reflexivity.
-    repeat rewrite <- Rsqr_pow2.
-    rewrite Rplus_comm.
-    rewrite sin2_cos2.
-    field.
-  - replace ((cos θ * (cos θ * 1) + sin θ * (sin θ * 1)))%R with 
-        (cos θ ^ 2 + sin θ ^ 2)%R by reflexivity.
-    repeat rewrite <- Rsqr_pow2.
-    rewrite Rplus_comm.
-    rewrite sin2_cos2.
-    field.
-Qed.
-
-Lemma Cexp_mul_neg_l : forall θ, Cexp (- θ) * Cexp θ = 1.
-Proof.  
-  unfold Cexp. intros θ.
-  eapply c_proj_eq; simpl.
-  - autorewrite with R_db trig_db.
-    field_simplify_eq.
-    repeat rewrite <- Rsqr_pow2.
-    rewrite Rplus_comm.
-    apply sin2_cos2.
-  - autorewrite with R_db trig_db. field.
-Qed.
-
-Lemma Cexp_mul_neg_r : forall θ, Cexp θ * Cexp (-θ) = 1.
-Proof. intros. rewrite Cmult_comm. apply Cexp_mul_neg_l. Qed.
-
-(* Special cases *)
-=======
-(**************************)
-(* Special cases for Cexp *)
-(**************************)
->>>>>>> 976f67ea35a1d95ff2abef5434ec13353a915273
-
-(* Euler's Identity *) 
-Lemma Cexp_PI : Cexp PI = -1.
-Proof. unfold Cexp. autorewrite with trig_db; easy. Qed.
-
-Lemma Cexp_PI2 : Cexp (PI/2) = Ci.
-Proof. unfold Cexp. autorewrite with trig_db; easy. Qed.
-
-<<<<<<< HEAD
-Lemma Cexp_0 : Cexp 0 = 1.
-Proof. unfold Cexp. autorewrite with trig_db; easy. Qed.
-
-=======
->>>>>>> 976f67ea35a1d95ff2abef5434ec13353a915273
-Lemma Cexp_2PI : Cexp (2 * PI) = 1.
-Proof.
-  unfold Cexp. rewrite sin_2PI, cos_2PI. reflexivity.
-Qed.
-
-Lemma Cexp_3PI2: Cexp (3 * PI / 2) = - Ci.
-Proof.
-  unfold Cexp.
-  replace (3 * PI / 2)%R with (3 * (PI/2))%R by lra.  
-  rewrite cos_3PI2, sin_3PI2.
-  lca.
-Qed.
-
-Lemma Cexp_PI4 : Cexp (PI / 4) = /√2 + /√2 * Ci.
-Proof.
-  unfold Cexp.
-  rewrite sin_PI4, cos_PI4.
-  eapply c_proj_eq; simpl.
-  field_simplify_eq; trivial; apply sqrt2_neq_0.
-  field_simplify_eq; trivial; apply sqrt2_neq_0.
-Qed.
-
-Lemma Cexp_PIm4 : Cexp (- PI / 4) = /√2 - /√2 * Ci.
-Proof.
-  unfold Cexp. 
-  rewrite Ropp_div.
-  rewrite sin_antisym.
-  rewrite cos_neg.
-  rewrite sin_PI4, cos_PI4.
-  eapply c_proj_eq; simpl.
-  field_simplify_eq; trivial; apply sqrt2_neq_0.
-  field_simplify_eq; trivial; apply sqrt2_neq_0.
-Qed.
-
-Lemma Cexp_0PI4 : Cexp (0 * PI / 4) = 1.
-Proof. rewrite <- Cexp_0. apply f_equal. lra. Qed.
-
-Lemma Cexp_1PI4 : Cexp (1 * PI / 4) = /√2 + /√2 * Ci.
-Proof. rewrite <- Cexp_PI4. apply f_equal. lra. Qed.
-
-Lemma Cexp_2PI4 : Cexp (2 * PI / 4) = Ci.
-Proof. rewrite <- Cexp_PI2. apply f_equal. lra. Qed.
-
-(* Note: cos3PI4 are sin3PI4 deprecated in 8.10 by our own pull requests.
-   Don't update until Coq 8.12 release. *)
-Lemma Cexp_3PI4 : Cexp (3 * PI / 4) = -/√2 + /√2 * Ci.
-Proof.
-  unfold Cexp.
-  rewrite <- Rmult_div_assoc.
-  rewrite cos3PI4, sin3PI4.
-  eapply c_proj_eq; simpl.
-  R_field_simplify; nonzero. 
-  R_field_simplify; nonzero. 
-Qed.
-
-Lemma Cexp_4PI4 : Cexp (4 * PI / 4) = -1.
-Proof. rewrite <- Cexp_PI. apply f_equal. lra. Qed.
-  
-Lemma Cexp_5PI4 : Cexp (5 * PI / 4) = -/√2 - /√2 * Ci.
-Proof.
-  unfold Cexp.
-  rewrite <- Rmult_div_assoc.
-  rewrite cos_5PI4, sin_5PI4.
-  eapply c_proj_eq; simpl.
-  R_field_simplify; nonzero. 
-  R_field_simplify; nonzero. 
-Qed.
-
-Lemma Cexp_6PI4 : Cexp (6 * PI / 4) = -Ci.
-Proof.
-Proof. rewrite <- Cexp_3PI2. apply f_equal. lra. Qed.
-  
-Lemma Cexp_7PI4 : Cexp (7 * PI / 4) = /√2 - /√2 * Ci.
-Proof.
-  unfold Cexp.
-  replace (7 * PI / 4)%R with (- PI / 4 + 2 * INR 1 * PI)%R.
-  2:{ R_field_simplify. rewrite Rmult_1_r. lra. }
-  rewrite cos_period, sin_period.
-  rewrite Ropp_div.
-  rewrite cos_neg, sin_neg.
-  rewrite sin_PI4, cos_PI4.
-  eapply c_proj_eq; simpl.
-  R_field_simplify; nonzero. 
-  R_field_simplify; nonzero. 
-Qed.    
-
-Lemma Cexp_8PI4 : Cexp (8 * PI / 4) = 1.
-Proof. rewrite <- Cexp_2PI. apply f_equal. lra. Qed.
-
-(* This is a dramatically simplified version of Cexp_mod_2PI and we
-   can probably get rid of it. *)
-Lemma Cexp_PI4_m8 : forall (k : Z), Cexp (IZR (k - 8) * PI / 4) = Cexp (IZR k * PI / 4).
-Proof.
-  intros.
-  unfold Rdiv.
-  rewrite minus_IZR.
-  unfold Rminus.
-  repeat rewrite Rmult_plus_distr_r.
-  replace (- (8) * PI * / 4)%R with (-(2 * PI))%R by lra.
-  rewrite Cexp_add, Cexp_neg, Cexp_2PI.
-  lca.
-Qed.
-
-Lemma Cexp_2nPI : forall (k : Z), Cexp (IZR (2 * k) * PI) = 1.
-Proof.
-  induction k using Z.peano_ind.
-  - simpl. rewrite Rmult_0_l. apply Cexp_0.
-  - rewrite Z.mul_succ_r.
-    rewrite plus_IZR.
-    rewrite Rmult_plus_distr_r.
-    rewrite Cexp_add, Cexp_2PI.
-    rewrite IHk.
-    lca.
-  - rewrite Z.mul_pred_r.
-    rewrite minus_IZR.
-    unfold Rminus.
-    rewrite Rmult_plus_distr_r.
-    rewrite <- Ropp_mult_distr_l.
-    rewrite Cexp_add, Cexp_neg, Cexp_2PI.
-    rewrite IHk.
-    lca.
-Qed.
-
-Lemma Cexp_mod_2PI : forall (k : Z), Cexp (IZR k * PI) = Cexp (IZR (k mod 2) * PI). 
-Proof.
-  intros.
-  rewrite (Z.div_mod k 2) at 1 by lia.
-  remember (k/2)%Z as k'.
-  rewrite plus_IZR.
-  rewrite Rmult_plus_distr_r.
-  rewrite Cexp_add.
-  rewrite Cexp_2nPI.
-  lca.
-Qed.  
-
-Lemma Cexp_mod_2PI_scaled : forall (k sc : Z), 
-  (sc <> 0)%Z ->
-  Cexp (IZR k * PI / IZR sc) = Cexp (IZR (k mod (2 * sc)) * PI / IZR sc). 
-Proof.
-  intros k sc H.
-  rewrite (Z.div_mod k (2 * sc)) at 1 by lia.
-  repeat rewrite plus_IZR.
-  unfold Rdiv.
-  repeat rewrite Rmult_plus_distr_r.
-  rewrite Cexp_add.
-  replace (IZR (2 * sc * (k / (2 * sc))) * PI * Rinv (IZR sc))%R with
-      (IZR (2 * (k / (2 * sc))) * PI)%R.
-  2:{ repeat rewrite mult_IZR. 
-      R_field_simplify.
-      reflexivity. 
-      apply not_0_IZR; assumption. }
-  rewrite Cexp_2nPI.
-  lca.
-Qed.
-
-  
-Hint Rewrite Cexp_0 Cexp_PI Cexp_PI2 Cexp_2PI Cexp_3PI2 Cexp_PI4 Cexp_PIm4
-  Cexp_1PI4 Cexp_2PI4 Cexp_3PI4 Cexp_4PI4 Cexp_5PI4 Cexp_6PI4 Cexp_7PI4 Cexp_8PI4
-  Cexp_add Cexp_neg : Cexp_db.
-
-<<<<<<< HEAD
-(*
-Definition Cexp' (θ : R) : C := cos θ + Ci * (sin θ).
-Lemma Cexp_eq : forall θ, Cexp θ = Cexp' θ. Proof. intros. lca. Qed.
-*)
-=======
->>>>>>> 976f67ea35a1d95ff2abef5434ec13353a915273
-
-Opaque C.
