@@ -11,7 +11,7 @@ Fact denote_compose : forall safe w (c : Circuit w) (Γ : Ctx),
   Γ1 ⊢ f :Fun ->
   Γ1' == Γ1 ∙ Γ ->
   Γ01 == Γ0 ∙ Γ1 -> 
-      denote_circuit safe (compose c f) Γ0 Γ1'
+      denote_circuit safe (HOASCircuits.compose c f) Γ0 Γ1'
     = compose_super 
         (denote_circuit safe (f (add_fresh_pat w Γ1)) Γ0 (add_fresh_state w Γ1)) 
         (denote_circuit safe c Γ01 Γ). 
@@ -38,8 +38,8 @@ Proof.
     =  ⟨ Γ0 | fresh_state Γ2 ⊩ f (fresh_pat w Γ2) ⟩ ∘ ⟨ Γ1 ⊩ p ⟩ 
     *)
   - intros w' h Γ3 Γ2 Γ3' Γ03 WT pf_merge1 pf_merge2.
-    replace (compose (gate g p1 f) h) 
-      with (gate g p1 (fun p2 => compose (f p2) h)) 
+    replace (HOASCircuits.compose (gate g p1 f) h) 
+      with (gate g p1 (fun p2 => HOASCircuits.compose (f p2) h)) 
       by auto.
     repeat rewrite denote_gate_circuit; fold_denotation.
 

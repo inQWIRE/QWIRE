@@ -504,6 +504,44 @@ Proof.
     * apply Rsum_nonzero. apply C0_imp in H0. assumption.
 Qed.
 
+(* Lemmas about Cmod *)
+
+Lemma Cmod_Cconj : forall c : C, Cmod (c^*) = Cmod c.
+Proof.
+  intro. unfold Cmod, Cconj. simpl.
+  replace (- snd c * (- snd c * 1))%R with (snd c * (snd c * 1))%R by lra. 
+  easy.
+Qed.
+
+Lemma Cmod_real_pos :
+  forall x : C,
+    snd x = 0 ->
+    fst x >= 0 ->
+    x = Cmod x.
+Proof.
+  intros. 
+  unfold Cmod. 
+  rewrite H. 
+  replace (fst x ^ 2 + 0 ^ 2)%R with (fst x ^ 2)%R by lra. 
+  rewrite sqrt_pow2 by lra.
+  destruct x; simpl in *.
+  rewrite H.
+  reflexivity.
+Qed.
+
+Lemma Cmod_sqr : forall c : C, (Cmod c ^2 = c^* * c)%C.
+Proof.
+  intro.
+  rewrite RtoC_pow.
+  simpl.
+  rewrite Rmult_1_r.
+  rewrite <- Cmod_Cconj at 1. 
+  rewrite <- Cmod_mult.
+  rewrite Cmod_real_pos; auto.
+  destruct c. simpl. lra.
+  destruct c. simpl. nra.
+Qed.
+
 (* Lemmas about Conjugates *)
 
 Lemma Cconj_R : forall r : R, r^* = r.         Proof. intros; lca. Qed.
@@ -670,7 +708,18 @@ Proof.
   apply f_equal. lra.
 Qed.
 
-Lemma Cmod_Cexp : forall θ, Cmod (1 - Cexp (2 * θ)) = Cmod (2 * (sin θ)).
+Lemma Cmod_Cexp : forall θ, Cmod (Cexp θ) = 1.
+Proof.
+  intro. unfold Cexp, Cmod. simpl. 
+  replace ((cos θ * (cos θ * 1) + sin θ * (sin θ * 1)))%R 
+    with (cos θ * cos θ + sin θ * sin θ)%R by lra. 
+  specialize (sin2_cos2 θ) as H. 
+  unfold Rsqr in H. 
+  rewrite Rplus_comm in H. 
+  rewrite H. apply sqrt_1.
+Qed.
+
+Lemma Cmod_Cexp_alt : forall θ, Cmod (1 - Cexp (2 * θ)) = Cmod (2 * (sin θ)).
 Proof.
   intro θ.
   unfold Cexp, Cminus, Cplus.
@@ -869,6 +918,7 @@ Opaque C.
 Lemma Cminus_unfold : forall c1 c2, (c1 - c2 = c1 + -c2)%C. Proof. reflexivity. Qed.
 Lemma Cdiv_unfold : forall c1 c2, (c1 / c2 = c1 */ c2)%C. Proof. reflexivity. Qed.
 
+(* For proving goals of the form x <> 0 or 0 < x *)
 Ltac nonzero :=
   repeat split;
    try match goal with
@@ -877,13 +927,19 @@ Ltac nonzero :=
        | |- not (@eq _ Ci (RtoC (IZR Z0))) => apply C0_snd_neq; simpl
        | |- not (@eq _ (Cexp _) (RtoC (IZR Z0))) => apply Cexp_nonzero
        end;
-   repeat
+  repeat
     match goal with
     | |- not (@eq _ (sqrt (pow _ _)) (IZR Z0)) => rewrite sqrt_pow
     | |- not (@eq _ (pow _ _) (IZR Z0)) => apply pow_nonzero; try apply RtoC_neq
     | |- not (@eq _ (sqrt _) (IZR Z0)) => apply sqrt_neq_0_compat
     | |- not (@eq _ (Rinv _) (IZR Z0)) => apply Rinv_neq_0_compat
     | |- not (@eq _ (Rmult _ _) (IZR Z0)) => apply Rmult_integral_contrapositive_currified
+    end;
+  repeat
+    match goal with
+    | |- Rlt (IZR Z0) (Rmult _ _) => apply Rmult_lt_0_compat
+    | |- Rlt (IZR Z0) (Rinv _) => apply Rinv_0_lt_compat
+    | |- Rlt (IZR Z0) (pow _ _) => apply pow_lt
     end; match goal with
          | |- not (@eq _ _ _) => lra
          | |- Rlt _ _ => lra
