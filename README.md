@@ -59,11 +59,11 @@ Files in this repository
 
 
 [1]: http://dl.acm.org/citation.cfm?id=3009894
-[2]: http://www.cis.upenn.edu/~rrand/qpl_2017.pdf
-[3]: http://www.cis.upenn.edu/~rrand/qpl_2018.pdf
-[4]: http://www.cis.upenn.edu/~rrand/coqpl_2018.pdf
+[2]: https://doi.org/10.4204/EPTCS.266.8
+[3]: https://doi.org/10.4204/EPTCS.287.17
+[4]: https://www.cs.umd.edu/~rrand/coqpl_2018.pdf
 [5]: https://arxiv.org/pdf/1711.05159.pdf
 [6]: http://coquelicot.saclay.inria.fr/html/Coquelicot.Complex.html
-[7]: https://developer.ibm.com/code/open/projects/qiskit/qiskit-openqasm/
-[8]: https://github.com/jpaykin/LinearTypingContexts
+[7]: https://arxiv.org/abs/1707.03429
+[8]: https://github.com/inQWIRE/LinearTypingContexts
 [9]: https://github.com/cpitclaudel/company-coq
