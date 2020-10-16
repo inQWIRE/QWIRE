@@ -1386,6 +1386,44 @@ Proof.
     lca.
 Qed.  
 
+(* Useful to be able to normalize vectors *)
+
+Definition norm {n} (ψ : Vector n) : R :=
+  sqrt (fst ((ψ† × ψ) O O)).
+
+Definition normalize {n} (ψ : Vector n) :=
+  / (norm ψ) .* ψ.
+
+Lemma inner_product_ge_0 : forall {d} (ψ : Vector d),
+  0 <= fst ((ψ† × ψ) O O).
+Proof.
+  intros.
+  unfold Mmult, adjoint.
+  apply Csum_ge_0.
+  intro.
+  rewrite <- Cmod_sqr.
+  simpl.
+  autorewrite with R_db.
+  apply Rmult_le_pos; apply Cmod_ge_0.
+Qed.
+
+Lemma norm_scale : forall {n} c (v : Vector n), norm (c .* v) = ((Cmod c) * norm v)%R.
+Proof.
+  intros n c v.
+  unfold norm.
+  rewrite Mscale_adj.
+  distribute_scale.
+  unfold scale.
+  simpl.
+  replace (fst c * snd c + - snd c * fst c)%R with 0%R.
+  autorewrite with R_db C_db.
+  replace (fst c * fst c)%R with (fst c ^ 2)%R by lra.
+  replace (snd c * snd c)%R with (snd c ^ 2)%R by lra.
+  rewrite sqrt_mult_alt.
+  reflexivity.
+  apply Rplus_le_le_0_compat; apply pow2_ge_0.
+  lra.
+Qed.
 
 (** Density matrices and superoperators **)
 

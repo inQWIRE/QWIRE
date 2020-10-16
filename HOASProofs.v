@@ -158,7 +158,7 @@ Definition fair_coin : Matrix 2 2 :=
           | _, _ => 0
           end.
 
-Definition biased_coin (c : C) : Matrix 2 2 :=
+Definition biased_coin (c : Complex.C) : Matrix 2 2 :=
   fun x y => match x, y with
           | 0, 0 => (1 - c) 
           | 1, 1 => c

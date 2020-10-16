@@ -218,6 +218,13 @@ Fixpoint Mmult_n n {m} (A : Square m) : Square m :=
   | S n' => Mmult A (Mmult_n n' A)
   end.
 
+(* Indexed sum over matrices *)
+Fixpoint Msum {m1 m2} n (f : nat -> Matrix m1 m2) : Matrix m1 m2 :=
+  match n with
+  | 0 => Zero
+  | S n' => Mplus (Msum n' f) (f n')
+end.
+
 Infix "∘" := dot (at level 40, left associativity) : matrix_scope.
 Infix ".+" := Mplus (at level 50, left associativity) : matrix_scope.
 Infix ".*" := scale (at level 40, left associativity) : matrix_scope.
@@ -620,6 +627,16 @@ Proof.
   - apply WF_mult; assumption. 
 Qed.
 
+Lemma WF_Msum : forall d1 d2 n (f : nat -> Matrix d1 d2), 
+  (forall i, (i < n)%nat -> WF_Matrix (f i)) -> 
+  WF_Matrix (Msum n f).
+Proof.
+  intros. 
+  induction n; simpl.
+  - apply WF_Zero.
+  - apply WF_plus; auto.
+Qed.
+
 Local Close Scope nat_scope.
 
 (***************************************)
@@ -665,7 +682,8 @@ Ltac show_wf :=
 
 (* Create HintDb wf_db. *)
 Hint Resolve WF_Zero WF_I WF_I1 WF_mult WF_plus WF_scale WF_transpose 
-     WF_adjoint WF_outer_product WF_big_kron WF_kron_n WF_kron WF_Mmult_n : wf_db.
+     WF_adjoint WF_outer_product WF_big_kron WF_kron_n WF_kron 
+     WF_Mmult_n WF_Msum : wf_db.
 Hint Extern 2 (_ = _) => unify_pows_two : wf_db.
 
 (* Hint Resolve WF_Matrix_dim_change : wf_db. *)
@@ -1421,7 +1439,6 @@ Proof.
   reflexivity.
 Qed.
 
-(* Useful kron_n identities. *)
 Lemma kron_n_assoc :
   forall n {m1 m2} (A : Matrix m1 m2), WF_Matrix A -> (S n) ⨂ A = A ⊗ (n ⨂ A).
 Proof.
@@ -1460,6 +1477,32 @@ Proof.
   rewrite Mscale_kron_dist_r, Mscale_kron_dist_l. 
   rewrite Mscale_assoc.
   reflexivity.
+Qed.
+
+Lemma kron_n_mult : forall {m1 m2 m3} n (A : Matrix m1 m2) (B : Matrix m2 m3),
+  n ⨂ A × n ⨂ B = n ⨂ (A × B).
+Proof.
+  intros.
+  induction n; simpl.
+  rewrite Mmult_1_l. reflexivity.
+  apply WF_I.
+  replace (m1 * m1 ^ n) with (m1 ^ n * m1) by apply Nat.mul_comm.
+  replace (m2 * m2 ^ n) with (m2 ^ n * m2) by apply Nat.mul_comm.
+  replace (m3 * m3 ^ n) with (m3 ^ n * m3) by apply Nat.mul_comm.
+  rewrite kron_mixed_product.
+  rewrite IHn.
+  reflexivity.
+Qed.
+
+Lemma kron_n_I : forall n, n ⨂ I 2 = I (2 ^ n).
+Proof.
+  intros.
+  induction n; simpl.
+  reflexivity.
+  rewrite IHn. 
+  rewrite id_kron.
+  apply f_equal.
+  lia.
 Qed.
 
 Lemma Mmult_n_kron_distr_l : forall {m n} i (A : Square m) (B : Square n),
@@ -1503,6 +1546,148 @@ Proof.
   rewrite Mscale_assoc.
   rewrite Cmult_comm.
   reflexivity.
+Qed.
+
+Lemma Msum_eq_bounded : forall {d1 d2} n (f f' : nat -> Matrix d1 d2),
+  (forall i, (i < n)%nat -> f i = f' i) -> Msum n f = Msum n f'.
+Proof.
+  intros d1 d2 n f f' Heq.
+  induction n; simpl.
+  reflexivity.
+  rewrite Heq by lia.
+  rewrite IHn. reflexivity.
+  intros. apply Heq. lia.
+Qed.
+
+Lemma kron_Msum_distr_l : 
+  forall {d1 d2 d3 d4} n (f : nat -> Matrix d1 d2) (A : Matrix d3 d4),
+  A ⊗ Msum n f = Msum n (fun i => A ⊗ f i).
+Proof.
+  intros.
+  induction n; simpl. lma.
+  rewrite kron_plus_distr_l, IHn. reflexivity.
+Qed.
+
+Lemma kron_Msum_distr_r : 
+  forall {d1 d2 d3 d4} n (f : nat -> Matrix d1 d2) (A : Matrix d3 d4),
+  Msum n f ⊗ A = Msum n (fun i => f i ⊗ A).
+Proof.
+  intros.
+  induction n; simpl. lma.
+  rewrite kron_plus_distr_r, IHn. reflexivity.
+Qed.
+
+Lemma Mmult_Msum_distr_l : forall {d1 d2 m} n (f : nat -> Matrix d1 d2) (A : Matrix m d1),
+  A × Msum n f = Msum n (fun i => A × f i).
+Proof.
+  intros.
+  induction n; simpl. 
+  rewrite Mmult_0_r. reflexivity.
+  rewrite Mmult_plus_distr_l, IHn. reflexivity.
+Qed.
+
+Lemma Mmult_Msum_distr_r : forall {d1 d2 m} n (f : nat -> Matrix d1 d2) (A : Matrix d2 m),
+  Msum n f × A = Msum n (fun i => f i × A).
+Proof.
+  intros.
+  induction n; simpl. 
+  rewrite Mmult_0_l. reflexivity.
+  rewrite Mmult_plus_distr_r, IHn. reflexivity.
+Qed.
+
+Lemma Mscale_Msum_distr_r : forall {d1 d2} x n (f : nat -> Matrix d1 d2),
+  x .* Msum n f = Msum n (fun i => x .* f i).
+Proof.
+  intros d1 d2 x n f.
+  induction n; simpl. lma.
+  rewrite Mscale_plus_distr_r, IHn. reflexivity.
+Qed.
+
+Lemma Mscale_Msum_distr_l : forall {d1 d2} n (f : nat -> C) (A : Matrix d1 d2),
+  Msum n (fun i => (f i) .* A) = Csum f n .* A.
+Proof.
+  intros d1 d2 n f A.
+  induction n; simpl. lma.
+  rewrite Mscale_plus_distr_l, IHn. reflexivity.
+Qed.
+
+Lemma Msum_0 : forall {d1 d2} n (f : nat -> Matrix d1 d2),
+  (forall x, x < n -> f x = Zero) -> Msum n f = Zero.
+Proof.
+  intros d1 d2 n f Hf.
+  induction n; simpl. reflexivity.
+  rewrite IHn, Hf. lma.
+  lia. intros. apply Hf. lia.
+Qed.
+
+Lemma Msum_constant : forall {d1 d2} n (A : Matrix d1 d2),  Msum n (fun _ => A) = INR n .* A.
+Proof.
+  intros. 
+  induction n.
+  simpl. lma.
+  simpl Msum.
+  rewrite IHn.
+  replace (S n) with (n + 1)%nat by lia. 
+  rewrite plus_INR; simpl. 
+  rewrite RtoC_plus. 
+  rewrite Mscale_plus_distr_l.
+  lma.
+Qed.
+
+Lemma Msum_plus : forall {d1 d2} n (f1 f2 : nat -> Matrix d1 d2),
+  Msum n (fun i => (f1 i) .+ (f2 i)) = Msum n f1 .+ Msum n f2.
+Proof.
+  intros d1 d2 n f1 f2.
+  induction n; simpl. lma.
+  rewrite IHn. lma.
+Qed.
+
+Lemma Msum_adjoint : forall {d1 d2} n (f : nat -> Matrix d1 d2),
+  (Msum n f)† = Msum n (fun i => (f i)†).
+Proof.
+  intros.
+  induction n; simpl.
+  lma.
+  rewrite Mplus_adjoint, IHn.  
+  reflexivity.
+Qed.
+
+Lemma Msum_Csum : forall {d1 d2} n (f : nat -> Matrix d1 d2) i j,
+  Msum n f i j = Csum (fun x => f x i j) n.
+Proof.
+  intros. 
+  induction n; simpl.
+  reflexivity.
+  unfold Mplus.
+  rewrite IHn.
+  reflexivity.
+Qed.
+
+Lemma Msum_unique : forall {d1 d2} n (f : nat -> Matrix d1 d2) (A : Matrix d1 d2),
+  (exists i, i < n /\ f i = A /\ (forall j, j < n -> j <> i -> f j = Zero)) -> 
+  Msum n f = A.
+Proof.
+  intros d1 d2 n f A H.
+  destruct H as [i [? [? H]]].
+  induction n; try lia.
+  simpl.
+  bdestruct (n =? i).
+  rewrite (Msum_eq_bounded _ _ (fun _ : nat => Zero)).
+  rewrite Msum_0. subst. lma. reflexivity.
+  intros x ?. apply H; lia.
+  rewrite IHn; try lia.
+  rewrite H by lia. lma.
+  intros. apply H; lia.
+Qed.
+
+Lemma Msum_diagonal :
+  forall {d1 d2} n (f : nat -> nat -> Matrix d1 d2),
+    (forall i j, (i < n)%nat -> (j < n)%nat -> (i <> j)%nat -> f i j = Zero) ->
+    Msum n (fun i => Msum n (fun j => f i j)) = Msum n (fun i => f i i).
+Proof.
+  intros. apply Msum_eq_bounded. intros.
+  apply Msum_unique. 
+  exists i. auto.
 Qed.
 
 (* Note on "using [tactics]": Most generated subgoals will be of the form 
@@ -1603,6 +1788,10 @@ Ltac restore_dims_rec A :=
                match type of A' with
                | Matrix ?m' ?n' => constr:(@scale m' n' c A')
                end
+  | ?n ⨂ ?A => let A' := restore_dims_rec A in
+               match type of A' with
+               | Matrix ?m' ?n' => constr:(@kron_n n m' n' A')
+               end
   (* For predicates (eg. WF_Matrix, Mixed_State) on Matrices *)
   | ?P ?m ?n ?A => match type of P with
                   | nat -> nat -> Matrix _ _ -> Prop =>
@@ -1634,7 +1823,7 @@ Ltac restore_dims tac :=
 
 Tactic Notation "restore_dims" tactic(tac) := restore_dims tac.
 
-Tactic Notation "restore_dims" := restore_dims (try ring; unify_pows_two; simpl; lia).
+Tactic Notation "restore_dims" := restore_dims (repeat rewrite Nat.pow_1_l; try ring; unify_pows_two; simpl; lia).
 
 (*************************)
 (* Matrix Simplification *)
@@ -1684,6 +1873,13 @@ Ltac distribute_scale :=
    | |- context [ ?c .* (?c' .* ?A) ] => rewrite (Mscale_assoc _ _ c c' A)
    end.
 
+Ltac distribute_adjoint :=
+  repeat match goal with
+  | |- context [(?c .* ?A)†] => rewrite (Mscale_adj _ _ c A)
+  | |- context [(?A .+ ?B)†] => rewrite (Mplus_adjoint _ _ A B)
+  | |- context [(?A × ?B)†] => rewrite (Mmult_adjoint A B)
+  | |- context [(?A ⊗ ?B)†] => rewrite (kron_adjoint A B)
+  end.
 
 (*********************************************************)
 (** Tactics for solving computational matrix equalities **)

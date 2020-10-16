@@ -379,7 +379,11 @@ Proof. intros. rewrite double_mult. rewrite pow_two_succ_r. reflexivity. Qed.
 Lemma pow_components : forall (a b m n : nat), a = b -> m = n -> (a^m = b^n)%nat.
 Proof. intuition. Qed.
 Lemma pow_positive : forall a b, a <> 0 -> 0 < a ^ b.
-Proof. intros. induction b; simpl; try lia. apply Nat.lt_0_mul'. split; lia. Qed.  
+Proof. intros. induction b; simpl; try lia; 
+  (* for Coq < 8.12 *)
+  try (apply Nat.lt_0_mul'; split; lia). 
+Qed.  
+
 
 Ltac unify_pows_two :=
   repeat match goal with

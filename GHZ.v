@@ -103,6 +103,8 @@ Proof.
     reflexivity.
 Qed.
 
+Local Close Scope C_scope.
+Local Close Scope R_scope.
 Lemma cnot10_correct :
   forall n ρ, WF_Matrix ρ -> 
     ⟦cnot10 n⟧ ρ = (notc ⊗ (I (2^n))) × ρ × (notc ⊗ (I (2^n)))†.
@@ -266,6 +268,8 @@ Proof.
   intros. rewrite H. rewrite H0. reflexivity.
 Qed.
 
+Local Open Scope C_scope.
+Local Open Scope R_scope.
 Theorem ghz_correct :
   forall n : nat, ⟦ghz n⟧ (I 1) = ghz_state n.
 Proof.
@@ -287,7 +291,7 @@ Proof.
         type_check.
         apply typed_ghz.
         simpl. apply WF_I1. 
-        replace (2^⟦(S n' ⨂ One)%qc⟧) with 1%nat by (simpl; rewrite -> size_ntensor; rewrite Nat.mul_0_r; auto).
+        replace (2^⟦(S n' ⨂ One)%qc⟧)%nat with 1%nat by (simpl; rewrite -> size_ntensor; rewrite Nat.mul_0_r; auto).
         apply WF_I1.
       }
       simpl in H1. rewrite -> H1.
@@ -308,12 +312,12 @@ Proof.
       unfold ghz_state, ghz_ket.
       replace (∣0⟩⟨0∣) with (outer_product ∣0⟩ ∣0⟩) by (simpl; reflexivity).
       rewrite -> kron_product.
-      replace ((2 * 2 ^ S n')) with (4 * 2^n') in * by (simpl; lia).
+      replace ((2 * 2 ^ S n'))%nat with (4 * 2^n')%nat in * by (simpl; lia).
       rewrite -> Mmult_outer_product.
       rewrite kron_plus_distr_l.
       simpl in *.
-      replace (2 ^ n' + (2 ^ n' + (2 ^ n' + (2 ^ n' + 0)))) with
-          (2 ^ n' + (2 ^ n' + 0) + (2 ^ n' + (2 ^ n' + 0) + 0)) by (repeat rewrite <- plus_n_O; repeat rewrite plus_assoc; reflexivity).
+      replace (2 ^ n' + (2 ^ n' + (2 ^ n' + (2 ^ n' + 0))))%nat with
+          (2 ^ n' + (2 ^ n' + 0) + (2 ^ n' + (2 ^ n' + 0) + 0))%nat by (repeat rewrite <- plus_n_O; repeat rewrite plus_assoc; reflexivity).
       rewrite Mmult_plus_distr_l.
       apply outer_eq.
       apply Mplus_eq.
@@ -332,7 +336,7 @@ Proof.
         { rewrite -> kron_mixed_product. reflexivity. }
         simpl in H7. repeat rewrite <- plus_n_O in H7.
         repeat rewrite <- plus_n_O.
-        replace (2 ^ n' + 2 ^ n' + (2 ^ n' + 2 ^ n')) with (2 ^ n' + (2 ^ n' + (2 ^ n' + 2 ^ n'))) by (repeat rewrite plus_assoc; reflexivity).
+        replace (2 ^ n' + 2 ^ n' + (2 ^ n' + 2 ^ n'))%nat with (2 ^ n' + (2 ^ n' + (2 ^ n' + 2 ^ n')))%nat by (repeat rewrite plus_assoc; reflexivity).
         rewrite -> H7.
         apply kron_eq.
         solve_matrix. 
@@ -354,12 +358,12 @@ Proof.
         simpl in H7.
         repeat rewrite <- plus_n_O in H7.
         repeat rewrite <- plus_n_O. 
-        replace (2 ^ n' + 2 ^ n' + (2 ^ n' + 2 ^ n')) with (2 ^ n' + (2 ^ n' + (2 ^ n' + 2 ^ n'))) by (repeat rewrite plus_assoc; reflexivity).
+        replace (2 ^ n' + 2 ^ n' + (2 ^ n' + 2 ^ n'))%nat with (2 ^ n' + (2 ^ n' + (2 ^ n' + 2 ^ n')))%nat by (repeat rewrite plus_assoc; reflexivity).
         rewrite -> H7. 
         assert ((∣1⟩ ⊗ (∣1⟩ ⊗ nk1)) = (∣1⟩ ⊗ ∣1⟩) ⊗ nk1).
         { rewrite -> kron_assoc. reflexivity. }
-        replace (1 * 1) with 1 in H8 by lia.
-        replace (2^n'+2^n') with (2*2^n') by lia.
+        replace (1 * 1)%nat with 1%nat in H8 by lia.
+        replace (2^n'+2^n')%nat with (2*2^n')%nat by lia.
         rewrite -> H8.
         apply kron_eq.
         solve_matrix. 

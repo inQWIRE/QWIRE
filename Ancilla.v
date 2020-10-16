@@ -63,7 +63,7 @@ Proof.
   - induction c as [| W' W0 g p c IH | IH]. 
     + reflexivity.
     + intros H Γ Γ0 H'.    
-      replace (gate g p c) with (compose (gate g p (fun p' => output p')) c) by auto.
+      replace (gate g p c) with (HOASCircuits.compose (gate g p (fun p' => output p')) c) by auto.
       dependent destruction H'.
       destruct Γ1 as [|Γ1]; try invalid_contradiction.
       erewrite denote_compose with (Γ1:=[]); trivial.        

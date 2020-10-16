@@ -2,6 +2,8 @@
 *.aux
 *~
 *.vo
+*.vos
+*.vok
 extra/*
 *.bak
 *.v.d
