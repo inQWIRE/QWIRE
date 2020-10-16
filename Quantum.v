@@ -3,6 +3,8 @@ Require Import Reals.
 
 Require Export Matrix.
 
+(* TODO: Add S and T gates, split this into multiple files including one for gates. *)
+
 (* Using our (complex, unbounded) matrices, their complex numbers *)
 
 (*******************************************)
@@ -134,7 +136,24 @@ Definition σz : Matrix 2 2 :=
           | 1, 1 => -C1
           | _, _ => C0
           end.
-  
+
+Definition sqrtx : Matrix 2 2 :=
+  fun x y => match x, y with
+          | 0, 0 => (1 + Ci)/2
+          | 0, 1 => (1 - Ci)/2
+          | 1, 0 => (1 - Ci)/2
+          | 1, 1 => (1 + Ci)/2
+          | _, _ => C0
+          end.
+
+Lemma sqrtx_sqrtx : sqrtx × sqrtx = σx.
+Proof.
+  unfold sqrtx, σx, Mmult.
+  prep_matrix_equality.
+  destruct_m_eq; 
+  autorewrite with trig_db C_db; try lca.
+Qed.
+
 Definition control {n : nat} (A : Matrix n n) : Matrix (2*n) (2*n) :=
   fun x y => if (x <? n) && (y =? x) then 1 else 
           if (n <=? x) && (n <=? y) then A (x-n)%nat (y-n)%nat else 0.
@@ -318,6 +337,8 @@ Proof.
   lra.
 Qed.
 
+(* sqrtx as a (x-)rotation? *)
+
 Lemma Rx_rotation : forall θ, rotation θ (3*PI/2) (PI/2) = x_rotation θ.
 Proof.
   intros.
@@ -365,6 +386,12 @@ Qed.
 
 
 (* Lemmas *)
+
+Lemma sqrtx_decompose: sqrtx = hadamard × phase_shift (PI/2) × hadamard.
+Proof.
+  solve_matrix.
+  all: rewrite Cexp_PI2; group_radicals; lca.
+Qed.
 
 (* Additional tactics for ∣0⟩, ∣1⟩, cnot and σx. *)
 
