@@ -874,7 +874,8 @@ Definition xor_option {a} (o1 : option a) (o2 : option a) : option a :=
   end.
 
 (* index into an OCtx *)
-Fixpoint index (Γ : OCtx) (i : nat) : option WType :=
+(* NOTE: May need to tell Coq to unfold. *)
+Definition index (Γ : OCtx) (i : nat) : option WType :=
   match Γ with
   | Invalid => None
   | Valid Γ' => maybe (Γ' !! i) None
