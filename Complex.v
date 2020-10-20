@@ -792,13 +792,11 @@ Proof. rewrite <- Cexp_PI4. apply f_equal. lra. Qed.
 Lemma Cexp_2PI4 : Cexp (2 * PI / 4) = Ci.
 Proof. rewrite <- Cexp_PI2. apply f_equal. lra. Qed.
 
-(* Note: cos3PI4 are sin3PI4 deprecated in 8.10 by our own pull requests.
-   Don't update until Coq 8.12 release. *)
 Lemma Cexp_3PI4 : Cexp (3 * PI / 4) = -/√2 + /√2 * Ci.
 Proof.
   unfold Cexp.
   rewrite <- Rmult_div_assoc.
-  rewrite cos3PI4, sin3PI4.
+  rewrite cos_3PI4, sin_3PI4.
   eapply c_proj_eq; simpl.
   R_field_simplify; trivial. apply sqrt2_neq_0.
   R_field_simplify; trivial. apply sqrt2_neq_0.
