@@ -1261,7 +1261,7 @@ Fixpoint compute_adder_n_aux (n : nat) (f : Var -> bool) : Var -> bool :=
      Input  (list of bools of length 3n+2) : [cout z0 y0 x0 z1 y1 x1 ... zn yn xn cin]
      Output (list of bools of length 3n+2) : [cout z0 y0 x0 z1 y1 x1 ... zn yn xn cin]
  *)
-Fixpoint compute_adder_n (n : nat) (f : Var -> bool) : Var -> bool :=
+Definition compute_adder_n (n : nat) (f : Var -> bool) : Var -> bool :=
   match n with
   | 0 => (fun x => match x with
                    | 0 => (f 0) ⊕ (f 1)

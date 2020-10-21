@@ -36,7 +36,7 @@ Ltac solve_merge' :=
 
 Ltac compose_denotations :=
   match goal with
-  | [ |- context[denote_db_circuit ?safe ?n_Γ0 ?n_Γ1' (hoas_to_db ?Γ1' (compose ?c ?f))] ]  
+  | [ |- context[denote_db_circuit ?safe ?n_Γ0 ?n_Γ1' (hoas_to_db ?Γ1' (HOASCircuits.compose ?c ?f))] ]  
          => let Γ1 := fresh "Γ1" in evar (Γ1 : Ctx);
             (* instantiate Γ1 *)
             assert (pf_f : Γ1 ⊢ f :Fun) by (unfold Γ1; type_check);
@@ -129,7 +129,6 @@ Proof.
    (* simplify definition of deutsch U *)
   repeat (simpl; autounfold with den_db).
   Msimpl.
-
   compose_denotations.
   - unfold Γ. apply pf_U.
     apply types_pair with (Γ1 := Valid [Some Qubit]) 

@@ -19,6 +19,7 @@ Definition Square_Box W := Box W W.
 Definition unbox {w1 w2} (b : Box w1 w2)  (p : Pat w1) : Circuit w2 := 
   match b with box c => c p end.
 
+(* TODO: Rename since Coq defines `compose` now. *)
 Fixpoint compose {w1 w2} (c : Circuit w1) (f : Pat w1 -> Circuit w2) : Circuit w2 :=
   match c with 
   | output p     => f p
