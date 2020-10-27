@@ -1636,14 +1636,14 @@ Proof.
   simpl.
   rewrite Mmult_assoc.
   repeat rewrite Mmult_assoc.
-  rewrite (kron_assoc q0 q1). Qsimpl.
+  rewrite (kron_assoc q0 q1) by auto with wf_db. Qsimpl.
   replace 4%nat with (2*2)%nat by reflexivity.
-  repeat rewrite kron_assoc.
+  repeat rewrite kron_assoc by auto with wf_db.
   restore_dims.
-  rewrite <- (kron_assoc q0 q2). Qsimpl.
-  rewrite (kron_assoc q2). Qsimpl.
-  rewrite <- kron_assoc. Qsimpl.
-  repeat rewrite <- kron_assoc.
+  rewrite <- (kron_assoc q0 q2) by auto with wf_db. Qsimpl.
+  rewrite (kron_assoc q2) by auto with wf_db. Qsimpl.
+  rewrite <- kron_assoc by auto with wf_db. Qsimpl.
+  repeat rewrite <- kron_assoc by auto with wf_db.
   reflexivity.
 Qed.
 
@@ -1690,14 +1690,14 @@ Proof.
   intros q0 q1 q2 q3 WF0 WF1 WF2 WF3.
   unfold move_to_0, move_to_0_aux.
   repeat rewrite Mmult_assoc.
-  rewrite (kron_assoc q0 q1).
+  rewrite (kron_assoc q0 q1) by auto with wf_db.
   simpl.
   restore_dims.
   replace 4%nat with (2*2)%nat by reflexivity.
   Qsimpl.
-  rewrite <- kron_assoc.
+  rewrite <- kron_assoc by auto with wf_db.
   restore_dims.
-  repeat rewrite (kron_assoc _ q1). 
+  repeat rewrite (kron_assoc _ q1) by auto with wf_db. 
   Qsimpl.
   reflexivity.
 Qed.

@@ -57,6 +57,7 @@ Qed.
 Require Import Denotation.
 Open Scope matrix_scope.
 
+(* TODO: Move to Matrix.v *)
 Definition notc : Matrix 4 4 :=
   fun x y => match x, y with 
           | 0, 0 => C1
@@ -65,6 +66,9 @@ Definition notc : Matrix 4 4 :=
           | 3, 1 => C1
           | _, _ => C0
           end.      
+
+Lemma wf_notc : WF_Matrix notc.
+Proof. show_wf. Qed.
 
 Lemma wf_ghz :
   forall n : nat, WF_Matrix (ghz_state n).
@@ -76,6 +80,8 @@ Proof.
     apply WF_plus; apply WF_scale; apply wf_nket;
       try apply WF_qubit0; try apply WF_qubit1.
 Qed.
+
+Hint Resolve wf_ghz wf_nket wf_notc : wf_db.
 
 Lemma ctrl_list_notc :
   forall n : nat, 
@@ -96,11 +102,10 @@ Proof.
     rewrite Nat.add_1_r. repeat rewrite <- plus_n_O.
     replace (2^S(S n)+2^S (S n))%nat with (4*(2^n)*2)%nat.
     replace (2^n+2^n)%nat with ((2^n)*2)%nat.
-    
-    rewrite <- kron_assoc. reflexivity.
-    lia. simpl. repeat rewrite <- plus_n_O. repeat rewrite plus_assoc.
-    rewrite mult_comm. simpl. repeat rewrite <- plus_n_O. repeat rewrite plus_assoc.
+    rewrite <- kron_assoc by auto with wf_db.
     reflexivity.
+    lia.
+    unify_pows_two.
 Qed.
 
 Local Close Scope C_scope.
@@ -328,7 +333,7 @@ Proof.
         simpl in H5. rewrite -> H5.
         (* simpl. *)
         assert ((∣0⟩ ⊗ (∣0⟩ ⊗ nk0)) = (∣0⟩ ⊗ ∣0⟩) ⊗ nk0).
-        { rewrite -> kron_assoc. reflexivity. }
+        { rewrite -> kron_assoc; subst; auto with wf_db. }
         simpl in H6. rewrite -> H6.
         rewrite -> Mscale_mult_dist_r.
         apply Mscale_eq.
@@ -349,7 +354,7 @@ Proof.
         { rewrite -> Mscale_kron_dist_r. reflexivity. }     
         simpl in H5. rewrite -> H5.
         assert ((∣0⟩ ⊗ (∣1⟩ ⊗ nk1)) = (∣0⟩ ⊗ ∣1⟩) ⊗ nk1).
-        { rewrite -> kron_assoc. reflexivity. }
+        { rewrite -> kron_assoc; subst; auto with wf_db. }
         simpl in H6. rewrite -> H6.
         rewrite Mscale_mult_dist_r.
         apply Mscale_eq.
@@ -361,7 +366,7 @@ Proof.
         replace (2 ^ n' + 2 ^ n' + (2 ^ n' + 2 ^ n'))%nat with (2 ^ n' + (2 ^ n' + (2 ^ n' + 2 ^ n')))%nat by (repeat rewrite plus_assoc; reflexivity).
         rewrite -> H7. 
         assert ((∣1⟩ ⊗ (∣1⟩ ⊗ nk1)) = (∣1⟩ ⊗ ∣1⟩) ⊗ nk1).
-        { rewrite -> kron_assoc. reflexivity. }
+        { rewrite -> kron_assoc; subst; auto with wf_db. }
         replace (1 * 1)%nat with 1%nat in H8 by lia.
         replace (2^n'+2^n')%nat with (2*2^n')%nat by lia.
         rewrite -> H8.

@@ -686,9 +686,7 @@ Hint Resolve WF_ctx_to_matrix WF_ctx_to_mat_list : wf_db.
 Lemma pure_bool_to_matrix : forall b, Pure_State (bool_to_matrix b).
 Proof. destruct b. apply pure1. apply pure0. Qed.
 
-Search big_kron.
-
-(* Belongs in Quantum.v *)
+(* TODO: Belongs in Quantum.v *)
 Lemma pure_big_kron : forall (n : nat) (l : list (Square n)) (A : Square n),
   (forall i : nat, Pure_State (nth i l A)) -> 
   Pure_State (⨂ l).
@@ -721,13 +719,14 @@ Proof.
   - intros. simpl. rewrite kron_1_l. reflexivity. eapply WF_big_kron.  
     intros i. apply (H0 i).
   - intros. simpl. 
-    erewrite IHl1; auto. 
-    rewrite kron_assoc; try apply Nat.pow_nonzero; try lia. 
+    assert (H1 : forall j : nat, WF_Matrix (nth j l1 A)). intros j. apply (H (S j)).
+    specialize (H 0).
+    erewrite IHl1; auto.
+    rewrite kron_assoc; eauto with wf_db; try apply Nat.pow_nonzero; try lia.     
     show_dimensions.
     rewrite app_length.
     rewrite 2 Nat.pow_add_r.
     reflexivity.
-    intros j. apply (H (S j)).
 Qed.
 
 Lemma pure_ctx_to_matrix : forall Γ f, Pure_State (ctx_to_matrix Γ f).

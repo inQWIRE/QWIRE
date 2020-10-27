@@ -848,14 +848,15 @@ Fixpoint apply_U {W} (n : nat) (U : Unitary W) (l : list nat)
 (***********************************)
 
 Lemma ctrl_list_to_unitary_r_false : forall n (u : Matrix 2 2),
+  WF_Matrix u ->
   ctrl_list_to_unitary_r (repeat false n) u = u ⊗ I  (2^n).
 Proof.
   induction n; intros.
   - simpl. Msimpl. reflexivity.
   - intros.
     simpl.
-    rewrite IHn.
-    setoid_rewrite (kron_assoc u (I (2^n)) (I 2)).
+    rewrite IHn; trivial.
+    setoid_rewrite (kron_assoc u (I (2^n)) (I 2)); auto with wf_db.
     rewrite id_kron.
     unify_pows_two.
     reflexivity.
@@ -866,14 +867,14 @@ Lemma ctrl_list_to_unitary_false : forall m n (u : Matrix 2 2),
   ctrl_list_to_unitary (repeat false m) (repeat false n) u = I  (2^m) ⊗ u ⊗ I  (2^n).
 Proof.
   induction m; intros.
-  - simpl. Msimpl. apply ctrl_list_to_unitary_r_false. 
+  - simpl. Msimpl. apply ctrl_list_to_unitary_r_false; easy.
   - simpl in *.
     rewrite IHm by easy.
     repeat rewrite repeat_length.
     progress restore_dims.
     specialize (pow_gt_0 m) as Gm.
     specialize (pow_gt_0 n) as Gn. 
-    repeat rewrite <- kron_assoc; try lia.
+    repeat rewrite <- kron_assoc; auto with wf_db; try lia.
     restore_dims.    
     rewrite id_kron.
     reflexivity.
