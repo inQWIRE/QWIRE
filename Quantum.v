@@ -565,6 +565,11 @@ Proof. destruct b; show_wf. Qed.
 Lemma WF_bool_to_matrix' : forall b, WF_Matrix (bool_to_matrix' b).
 Proof. destruct b; show_wf. Qed.
 
+Lemma WF_ket : forall n, WF_Matrix (ket n).
+Proof. destruct n; simpl; show_wf. Qed.
+Lemma WF_bra : forall n, WF_Matrix (bra n).
+Proof. destruct n; simpl; show_wf. Qed.
+
 Lemma WF_bools_to_matrix : forall l, 
   @WF_Matrix (2^(length l)) (2^(length l))  (bools_to_matrix l).
 Proof. 
@@ -577,7 +582,7 @@ Qed.
 
 Hint Resolve WF_bra0 WF_bra1 WF_qubit0 WF_qubit1 WF_braqubit0 WF_braqubit1 : wf_db.
 Hint Resolve WF_bool_to_ket WF_bool_to_matrix WF_bool_to_matrix' : wf_db.
-Hint Resolve WF_bools_to_matrix : wf_db.
+Hint Resolve WF_ket WF_bra WF_bools_to_matrix : wf_db.
 
 Lemma WF_hadamard : WF_Matrix hadamard. Proof. show_wf. Qed.
 Lemma WF_σx : WF_Matrix σx. Proof. show_wf. Qed.

@@ -41,7 +41,7 @@ Ltac prep_matrix_equality :=
 Definition mat_equiv {m n : nat} (A B : Matrix m n) : Prop := 
   forall i j, i < m -> j < n -> A i j = B i j.
 
-Infix "==" := mat_equiv (at level 80) : matrix_scope.
+Infix "==" := mat_equiv (at level 70) : matrix_scope.
 
 Lemma mat_equiv_refl : forall m n (A : Matrix m n), mat_equiv A A.
 Proof. unfold mat_equiv; reflexivity. Qed.
@@ -2239,7 +2239,7 @@ Ltac gridify :=
   repeat rewrite Nat.pow_add_r;
   repeat rewrite <- id_kron; simpl;
   repeat rewrite mult_assoc;
-  restore_dims; repeat rewrite <- kron_assoc by auto with wf_db;
+  restore_dims; repeat rewrite <- kron_assoc by auto 100 with wf_db;
   restore_dims; repeat rewrite kron_mixed_product;
   (* simplify *)
   Msimpl_light.
