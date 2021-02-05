@@ -2135,13 +2135,6 @@ Proof. intros. exists (b - a - 1). lia. Qed.
 Lemma lt_ex_diff_r : forall a b, a < b -> exists d, b = a + 1 + d. 
 Proof. intros. exists (b - a - 1). lia. Qed.
 
-Ltac bdestruct_all :=
-  repeat match goal with
-  | |- context[?a <? ?b] => bdestruct (a <? b)
-  | |- context[?a <=? ?b] => bdestruct (a <=? b)                                       
-  | |- context[?a =? ?b] => bdestruct (a =? b)
-  end; try (exfalso; lia).
-
 (* Remove _ < _ from hyps, remove _ - _  from goal *)
 Ltac remember_differences :=
   repeat match goal with

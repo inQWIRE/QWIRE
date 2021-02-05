@@ -53,6 +53,12 @@ Ltac bdestruct X :=
 
 Ltac bdestructΩ X := bdestruct X; simpl; try lia.
 
+Ltac bdestruct_all :=
+  repeat match goal with
+  | |- context[?a <? ?b] => bdestruct (a <? b)
+  | |- context[?a <=? ?b] => bdestruct (a <=? b)                                       
+  | |- context[?a =? ?b] => bdestruct (a =? b)
+  end; try (exfalso; lia).
 
 (* Distribute functions over lists *)
 
