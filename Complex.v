@@ -465,6 +465,18 @@ Proof. intros c. intros N E. apply N. rewrite E. reflexivity. Qed.
 Lemma RtoC_neq : forall (r : R), r <> 0 -> RtoC r <> 0. 
 Proof. intros. apply C0_fst_neq. easy. Qed.
 
+Lemma Copp_neq_0_compat: forall c : C, c <> 0 -> (- c)%C <> 0.
+Proof.
+ intros c H.
+ apply C0_imp in H as [H | H].
+ apply C0_fst_neq.
+ apply Ropp_neq_0_compat.
+ assumption.
+ apply C0_snd_neq.
+ apply Ropp_neq_0_compat.
+ assumption.
+Qed.
+
 Lemma Cinv_mult_distr : forall c1 c2 : C, c1 <> 0 -> c2 <> 0 -> / (c1 * c2) = / c1 * / c2.
 Proof.
   intros.
@@ -669,6 +681,28 @@ Proof.
     rewrite Rplus_comm.
     rewrite sin2_cos2.
     field.
+Qed.
+
+Lemma Cexp_plus_PI : forall x,
+  Cexp (x + PI) = (- (Cexp x))%C.
+Proof.
+  intros.
+  unfold Cexp.
+  rewrite neg_cos, neg_sin.
+  lca.
+Qed.
+
+Lemma Cexp_minus_PI: forall x : R, Cexp (x - PI) = (- Cexp x)%C.
+Proof.
+  intros x.
+  unfold Cexp.
+  rewrite cos_sym.
+  rewrite Ropp_minus_distr.
+  rewrite Rtrigo_facts.cos_pi_minus.
+  rewrite <- Ropp_minus_distr.
+  rewrite sin_antisym.
+  rewrite Rtrigo_facts.sin_pi_minus.
+  lca.
 Qed.
 
 Lemma Cexp_nonzero : forall θ, Cexp θ <> 0.
@@ -905,7 +939,7 @@ Qed.
   
 Hint Rewrite Cexp_0 Cexp_PI Cexp_PI2 Cexp_2PI Cexp_3PI2 Cexp_PI4 Cexp_PIm4
   Cexp_1PI4 Cexp_2PI4 Cexp_3PI4 Cexp_4PI4 Cexp_5PI4 Cexp_6PI4 Cexp_7PI4 Cexp_8PI4
-  Cexp_add Cexp_neg : Cexp_db.
+  Cexp_add Cexp_neg Cexp_plus_PI Cexp_minus_PI : Cexp_db.
 
 Opaque C.
 
@@ -919,12 +953,14 @@ Lemma Cdiv_unfold : forall c1 c2, (c1 / c2 = c1 */ c2)%C. Proof. reflexivity. Qe
 (* For proving goals of the form x <> 0 or 0 < x *)
 Ltac nonzero :=
   repeat split;
-   try match goal with
-       | |- not (@eq _ _ (RtoC (IZR Z0))) => apply RtoC_neq
-       | |- not (@eq _ (Cpow _ _) (RtoC (IZR Z0))) => apply Cpow_nonzero; try apply RtoC_neq
-       | |- not (@eq _ Ci (RtoC (IZR Z0))) => apply C0_snd_neq; simpl
-       | |- not (@eq _ (Cexp _) (RtoC (IZR Z0))) => apply Cexp_nonzero
-       end;
+  repeat 
+    match goal with
+    | |- not (@eq _ (Copp _) (RtoC (IZR Z0))) => apply Copp_neq_0_compat
+    | |- not (@eq _ (Cpow _ _) (RtoC (IZR Z0))) => apply Cpow_nonzero
+    | |- not (@eq _ Ci (RtoC (IZR Z0))) => apply C0_snd_neq; simpl
+    | |- not (@eq _ (Cexp _) (RtoC (IZR Z0))) => apply Cexp_nonzero
+    | |- not (@eq _ _ (RtoC (IZR Z0))) => apply RtoC_neq
+    end;
   repeat
     match goal with
     | |- not (@eq _ (sqrt (pow _ _)) (IZR Z0)) => rewrite sqrt_pow
@@ -938,11 +974,12 @@ Ltac nonzero :=
     | |- Rlt (IZR Z0) (Rmult _ _) => apply Rmult_lt_0_compat
     | |- Rlt (IZR Z0) (Rinv _) => apply Rinv_0_lt_compat
     | |- Rlt (IZR Z0) (pow _ _) => apply pow_lt
-    end; match goal with
-         | |- not (@eq _ _ _) => lra
-         | |- Rlt _ _ => lra
-         | |- Rle _ _ => lra
-         end.
+    end; 
+  match goal with
+  | |- not (@eq _ _ _) => lra
+  | |- Rlt _ _ => lra
+  | |- Rle _ _ => lra
+  end.
 
 Hint Rewrite Cminus_unfold Cdiv_unfold Ci2 Cconj_R Cconj_opp Cconj_rad2 
      Cinv_sqrt2_sqrt Cplus_div2
@@ -963,6 +1000,9 @@ Hint Rewrite Cplus_0_l Cplus_0_r Cmult_0_l Cmult_0_r Copp_0
 Hint Rewrite Cmult_plus_distr_l Cmult_plus_distr_r Copp_plus_distr Copp_mult_distr_l 
               Copp_involutive : Cdist_db.
 
+Hint Rewrite <- RtoC_opp RtoC_mult RtoC_plus : RtoC_db.
+Hint Rewrite <- RtoC_inv using nonzero : RtoC_db.
+Hint Rewrite RtoC_pow : RtoC_db.
 
 Ltac Csimpl := 
   repeat match goal with
