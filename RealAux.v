@@ -76,6 +76,41 @@ Proof.
   apply Rpow_le1; lra.
 Qed.
 
+(******************)
+(* Sum Over Reals *)
+(******************)
+
+Definition Rsum (n : nat) (f : nat -> R) : R :=
+  match n with
+  | O => 0
+  | S n => sum_f_R0 f n
+  end.
+
+Lemma Rsum_eq :
+  forall n f1 f2,
+    (forall i, f1 i = f2 i) -> Rsum n f1 = Rsum n f2.
+Proof.
+  intros. induction n.
+  - easy.
+  - simpl. destruct n.
+    + simpl. apply H.
+    + simpl. simpl in IHn. rewrite IHn. rewrite H. easy.
+Qed.
+
+Lemma Rsum_eq_bounded :
+  forall n f1 f2,
+    (forall i, (i < n)%nat -> f1 i = f2 i) -> Rsum n f1 = Rsum n f2.
+Proof.
+  intros. 
+  induction n; simpl.
+  reflexivity.
+  destruct n; simpl.
+  apply H. lia.
+  simpl in IHn. rewrite IHn. 
+  rewrite H by lia. easy.
+  intros. apply H; lia.
+Qed.
+
 (****************)
 (* Square Roots *)
 (****************)
