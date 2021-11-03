@@ -111,6 +111,92 @@ Proof.
   intros. apply H; lia.
 Qed.
 
+Lemma Rsum_extend : forall n (f : nat -> R),
+  Rsum (S n) f = (f n + Rsum n f)%R.
+Proof. intros. destruct n; simpl; lra. Qed.
+
+Lemma Rsum_shift : forall n (f : nat -> R),
+  Rsum (S n) f = (f O + Rsum n (fun x => f (S x)))%R.
+Proof.
+  intros n f. 
+  simpl.
+  induction n; simpl.
+  lra.
+  rewrite IHn.
+  destruct n; simpl; lra.
+Qed.
+
+Lemma Rsum_plus_range : forall m n f,
+  Rsum (m + n) f = (Rsum m f + Rsum n (fun x => f (x + m)%nat))%R.
+Proof.
+  intros m n f.
+  induction n.
+  simpl. 
+  rewrite Nat.add_0_r. 
+  lra.
+  replace (m + S n)%nat with (S (m + n)) by lia. 
+  rewrite 2 Rsum_extend.
+  rewrite IHn.
+  rewrite Nat.add_comm.
+  lra.
+Qed.
+
+Lemma Rsum_twice : forall n f,
+  Rsum (2 * n) f = (Rsum n f + Rsum n (fun x => f (x + n)%nat))%R.
+Proof.
+  intros n f. replace (2 * n)%nat with (n + n)%nat by lia. apply Rsum_plus_range.
+Qed.
+
+Lemma Rsum_plus: forall n f g,
+  Rsum n (fun x => (f x + g x)%R) = ((Rsum n f) + (Rsum n g))%R.
+Proof.
+  intros n f g.
+  induction n.
+  simpl. lra.
+  repeat rewrite Rsum_extend.
+  rewrite IHn. lra.
+Qed.
+
+Lemma nested_Rsum : forall m n f,
+  Rsum (2 ^ (m + n)) f 
+    = Rsum (2 ^ m) (fun x => Rsum (2 ^ n) (fun y => f (x * 2 ^ n + y)%nat)).
+Proof.
+  intros m n.
+  replace (2 ^ (m + n))%nat with (2 ^ n * 2 ^ m)%nat by (rewrite Nat.pow_add_r; lia).
+  induction m; intro f.
+  simpl.
+  rewrite Nat.mul_1_r.
+  reflexivity.
+  replace (2 ^ n * 2 ^ S m)%nat with (2 * (2 ^ n * 2 ^ m))%nat by (simpl; lia).
+  replace (2 ^ S m)%nat with (2 * 2 ^ m)%nat by (simpl; lia).
+  rewrite 2 Rsum_twice.
+  rewrite 2 IHm.
+  apply f_equal2; try reflexivity.
+  apply Rsum_eq.
+  intro x.
+  apply Rsum_eq.
+  intro y.
+  apply f_equal.
+  lia.
+Qed.
+
+Lemma Rsum_scale : forall n f r,
+  (r * Rsum n f = Rsum n (fun x => r * f x))%R.
+Proof.
+  intros n f r.
+  induction n.
+  simpl. lra.
+  rewrite 2 Rsum_extend.
+  rewrite <- IHn. lra.
+Qed.
+
+Lemma Rsum_0 : forall f n, (forall x : nat, f x = 0) -> Rsum n f = 0.
+Proof.
+  intros f n Hf. 
+  induction n. reflexivity. 
+  rewrite Rsum_extend, IHn, Hf. lra.
+Qed.
+
 (****************)
 (* Square Roots *)
 (****************)

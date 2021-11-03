@@ -1728,6 +1728,51 @@ Qed.
 
 (* *)
 
+(* Convert a list to a vector *)
+Fixpoint vec_to_list' {nmax : nat} (n : nat) (v : Vector nmax) :=
+  match n with
+  | O    => nil
+  | S n' => v (nmax - n)%nat O :: vec_to_list' n' v
+  end.
+Definition vec_to_list {n : nat} (v : Vector n) := vec_to_list' n v.
+
+Lemma vec_to_list'_length : forall m n (v : Vector n), length (vec_to_list' m v) = m.
+Proof.
+  intros.
+  induction m; auto.
+  simpl. rewrite IHm.
+  reflexivity.
+Qed.
+
+Lemma vec_to_list_length : forall n (v : Vector n), length (vec_to_list v) = n.
+Proof. intros. apply vec_to_list'_length. Qed.
+
+Lemma nth_vec_to_list' : forall {m n} (v : Vector n) x,
+  (m <= n)%nat -> (x < m)%nat -> nth x (vec_to_list' m v) C0 = v (n - m + x)%nat O.
+Proof.
+  intros m n v x Hm.
+  gen x.
+  induction m; intros x Hx.
+  lia.
+  simpl.
+  destruct x.
+  rewrite Nat.add_0_r.
+  reflexivity.
+  rewrite IHm by lia.
+  replace (n - S m + S x)%nat with (n - m + x)%nat by lia.
+  reflexivity.
+Qed.
+
+Lemma nth_vec_to_list : forall n (v : Vector n) x,
+  (x < n)%nat -> nth x (vec_to_list v) C0 = v x O.
+Proof.
+  intros. 
+  unfold vec_to_list. 
+  rewrite nth_vec_to_list' by lia.
+  replace (n - n + x)%nat with x by lia.
+  reflexivity.
+Qed.
+
 (*******************************)
 (* Restoring Matrix Dimensions *)
 (*******************************)
