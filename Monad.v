@@ -36,7 +36,7 @@ Class Monad (m: Type -> Type) `{M : Applicative m} : Type :=
 Definition return_ {m : Type -> Type} `{M : Monad m} {A : Type} : A -> m A := pure.
 Notation "a >>= f" := (bind a f) (at level 50, left associativity).
 
-Hint Unfold bind return_ : monad_db.
+#[export] Hint Unfold bind return_ : monad_db.
 
 Class Monad_Correct (m : Type -> Type) `{M : Monad m} := {
   bind_right_unit: forall A (a: m A), a = a >>= return_;
@@ -81,7 +81,7 @@ Fixpoint foldM {A B m} `{Monad m}
   | x :: ls' => do y ← f b x;
                 foldM f y ls'
   end.
-Hint Unfold foldM : monad_db.
+#[export] Hint Unfold foldM : monad_db.
 
 About fmap_compose.
 Lemma fmap_compose' {f} (F : Functor f) `{Functor_Correct f} : 
@@ -147,7 +147,7 @@ Definition list_fmap {A B} (f : A -> B) :=
   end.
 *)
 Definition list_fmap := map.
-Hint Unfold list_fmap : monad_db.
+#[export] Hint Unfold list_fmap : monad_db.
 (*
 Fixpoint list_fmap {A B} (f : A -> B) (ls : list A) : list B :=
   match ls with
@@ -167,14 +167,14 @@ Definition list_liftA {A B} (fs : list (A -> B)) (xs : list A) : list B :=
   let g := fun a => list_fmap (fun f => f a) fs
   in
   concat (list_fmap g xs).
-Hint Unfold list_liftA : monad_db.
+#[export] Hint Unfold list_liftA : monad_db.
 
 Fixpoint list_bind {A} (xs : list A) {B} (f : A -> list B) : list B :=
   match xs with
   | nil => nil
   | a :: xs' => f a ++ list_bind xs' f
   end.
-Hint Unfold list_bind : monad_db.
+#[export] Hint Unfold list_bind : monad_db.
 
 Instance listF : Functor list := { fmap := @list_fmap }.
 Instance listA : Applicative list := { pure := fun _ x => x :: nil
@@ -347,7 +347,7 @@ Section State.
 
 
 End State.
-Hint Unfold put get runState evalState execState state_fmap state_liftA state_bind : monad_db.
+#[export] Hint Unfold put get runState evalState execState state_fmap state_liftA state_bind : monad_db.
 Ltac fold_evalState :=
   match goal with
   | [ |- context[fst (?c ?v)] ] => replace (fst (c v)) with (evalState c v)
@@ -403,7 +403,7 @@ Instance stateM_correct {A} : Monad_Correct (State A).
       reflexivity.
   Qed.
 
-Hint Unfold Basics.compose : monad_db.
-Hint Unfold stateM : monad_db.
+#[export] Hint Unfold Basics.compose : monad_db.
+#[export] Hint Unfold stateM : monad_db.
 
 

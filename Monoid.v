@@ -23,7 +23,7 @@ Class PCM_Laws A `{PCM A} :=
   ; M_absorb : forall a, a ∘ ⊥ = ⊥ 
   }.
 
-Hint Resolve M_unit M_assoc M_comm M_absorb : core.
+#[export] Hint Resolve M_unit M_assoc M_comm M_absorb : core.
 
 (****************************)
 (* Interpretable type class *)

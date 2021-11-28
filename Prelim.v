@@ -41,7 +41,7 @@ Proof.
   apply iff_reflect. symmetry. apply Nat.leb_le.
 Qed.
 
-Hint Resolve blt_reflect ble_reflect beq_reflect : bdestruct.
+#[export] Hint Resolve blt_reflect ble_reflect beq_reflect : bdestruct.
 
 Ltac bdestruct X :=
   let H := fresh in let e := fresh "e" in

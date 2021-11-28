@@ -14,8 +14,6 @@ Set Bullet Behavior "Strict Subproofs".
 Global Unset Asymmetric Patterns.
 Delimit Scope matrix_scope with M.
 
-Require Import Omega.
-
 (**********************)
 (* Syntactic Property *)
 (**********************)
@@ -23,8 +21,6 @@ Require Import Omega.
 Close Scope matrix_scope.
 Open Scope circ_scope.
 Open Scope nat_scope.
-
-Require Import Omega.
 
 Definition unitary_at1 n (U : Unitary Qubit) (i : Var) (pf : i < n)
         : Box (n ⨂ Qubit) (n ⨂ Qubit).
@@ -796,7 +792,7 @@ Defined.
 
 (* Symmetric gates are well-typed *)
 
-Hint Resolve unitary_at1_WT X_at_WT CNOT_at_WT Toffoli_at_WT init_at_WT assert_at_WT : typed_db.
+#[export] Hint Resolve unitary_at1_WT X_at_WT CNOT_at_WT Toffoli_at_WT init_at_WT assert_at_WT : typed_db.
 
 Lemma gate_acts_on_WT : forall m (g : Box (m ⨂ Qubit) (m ⨂ Qubit)) k, 
                         gate_acts_on k g -> Typed_Box g.

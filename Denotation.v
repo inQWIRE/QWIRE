@@ -51,7 +51,7 @@ Lemma WF_Matrix_U : forall {W} (U : Unitary W),
 Proof.
   induction U; simpl; try apply WF_control; auto with wf_db. (* try shouldn't be necessary *)
 Qed.
-Hint Resolve WF_Matrix_U : wf_db.
+#[export] Hint Resolve WF_Matrix_U : wf_db.
 Lemma unitary_gate_unitary : forall {W} (U : Unitary W), WF_Unitary (⟦U⟧).
 Proof.
   induction U.
@@ -132,7 +132,7 @@ Proof.
   specialize (WF_Matrix_U u). intros wf_u. auto with wf_db.
   specialize (WF_Matrix_U u). intros wf_u. auto with wf_db.
 Qed.
-Hint Resolve WF_denote_gate : wf_db.
+#[export] Hint Resolve WF_denote_gate : wf_db.
 
 Close Scope circ_scope.
 
@@ -4187,7 +4187,7 @@ Definition HOAS_Equiv {W1 W2} (c1 c2 : Box W1 W2) :=
 Locate "≡".
 Notation "a ≡ b" := (HOAS_Equiv a b) (at level 70) : circ_scope.
 
-Hint Unfold HOAS_Equiv : den_db.
+#[export] Hint Unfold HOAS_Equiv : den_db.
     
 Open Scope circ_scope.
 
@@ -4260,14 +4260,14 @@ Add Parametric Relation W1 W2 : (Box W1 W2) (@HOAS_Equiv W1 W2)
 (************************)
 
 (* add_fresh *)
-Hint Unfold get_fresh add_fresh_state add_fresh_pat process_gate process_gate_state : den_db.
+#[export] Hint Unfold get_fresh add_fresh_state add_fresh_pat process_gate process_gate_state : den_db.
 
-Hint Unfold apply_new0 apply_new1 apply_U apply_unitary denote_ctrls apply_meas apply_discard apply_assert0 apply_assert1 compose_super Splus swap_list swap_two pad denote_box denote_pat super: den_db.
+#[export] Hint Unfold apply_new0 apply_new1 apply_U apply_unitary denote_ctrls apply_meas apply_discard apply_assert0 apply_assert1 compose_super Splus swap_list swap_two pad denote_box denote_pat super: den_db.
 
 (* add_fresh *)
-Hint Unfold get_fresh add_fresh_state add_fresh_pat process_gate process_gate_state : vector_den_db.
+#[export] Hint Unfold get_fresh add_fresh_state add_fresh_pat process_gate process_gate_state : vector_den_db.
 
-Hint Unfold apply_new0 apply_new1 apply_U apply_unitary denote_ctrls apply_meas apply_discard apply_assert0 apply_assert1 compose_super Splus swap_list swap_two pad denote_box denote_pat : vector_den_db.
+#[export] Hint Unfold apply_new0 apply_new1 apply_U apply_unitary denote_ctrls apply_meas apply_discard apply_assert0 apply_assert1 compose_super Splus swap_list swap_two pad denote_box denote_pat : vector_den_db.
 
 Ltac vector_denote :=
   intros; 

@@ -13,3 +13,7 @@ extra/*
 .coqdeps.d
 CoqMakefile
 CoqMakefile.conf
+
+.CoqMakefile.d
+.nia.cache
+.nra.cache

@@ -68,12 +68,13 @@ Proof.
       destruct Γ1 as [|Γ1]; try invalid_contradiction.
       erewrite denote_compose with (Γ1:=[]); trivial.        
       Locate ":Fun".
-      Focus 3.
+      3:{
         intros Γ3 Γ0' p0 H0 H1.
         destruct H0.
         rewrite merge_nil_r in pf_merge.
         subst.
         apply (t0 Γ3); trivial.
+        all: admit. }
         
 (*        
       rewrite denote_compose with (Γ1:=Γ); trivial.        

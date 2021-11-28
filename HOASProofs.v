@@ -75,7 +75,7 @@ Proof. intros. apply unitary_gate_unitary. Qed.
 Lemma WF_trans : forall W (U : Unitary W), WF_Matrix (denote_unitary (trans U)).
 Proof. intros. apply unitary_gate_unitary. Qed.
 
-Hint Resolve WF_denote_unitary : wf_db.
+#[export] Hint Resolve WF_denote_unitary : wf_db.
 
 
 Lemma unitary_transpose_id : forall W (U : Unitary W),
@@ -190,8 +190,8 @@ Proof.
   intros; show_wf.
 Qed.
 
-Hint Resolve wf_biased_coin : wf_db.
-Hint Unfold super_Zero : den_db. 
+#[export] Hint Resolve wf_biased_coin : wf_db.
+#[export] Hint Unfold super_Zero : den_db. 
 
 (* Uses denote_compose: *)
 (*
@@ -330,7 +330,7 @@ Proof.
 Abort.
 *)
   
-Hint Unfold apply_box : den_db.
+#[export] Hint Unfold apply_box : den_db.
 
 Open Scope matrix_scope.
 
@@ -340,7 +340,7 @@ Definition prepare (ls : list nat) : Vector (2^(length ls)) :=
   fold_left (fun A x => ket x ⊗ A) ls ((I 1)).
 *)
 
-Fixpoint prepare (ls : list nat) : Vector (2^(length ls)) :=
+Definition prepare (ls : list nat) : Vector (2^(length ls)) :=
   ⨂ (map ket ls).
 
 Definition pure {n} (vec : Matrix n 1%nat) : Matrix n n := vec × (vec †).
@@ -352,7 +352,7 @@ Proof.
   show_wf.
 Qed.
 
-Hint Unfold pure : den_db.
+#[export] Hint Unfold pure : den_db.
 Close Scope matrix_scope.
 
 (*
@@ -441,7 +441,7 @@ Definition U_balanced (U : Unitary (Qubit ⊗ Qubit)%qc) :=
   apply_U 2 U [0;1]%nat = super f1 \/ apply_unitary 2 U [0;1]%nat = f2.
 
 Lemma f2_WF : WF_Matrix f2. Proof. show_wf. Qed.
-Hint Resolve f2_WF : wf_db.
+#[export] Hint Resolve f2_WF : wf_db.
 
 Close Scope matrix_scope.
 Open Scope circ_scope.  

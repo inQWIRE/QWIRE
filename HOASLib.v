@@ -205,7 +205,7 @@ Notation "g # n" := (inParMany n g) (at level 11) : circ_scope.
 
 
 
-Hint Resolve types_units id_circ_WT boxed_gate_WT init_WT inSeq_WT inPar_WT 
+#[export] Hint Resolve types_units id_circ_WT boxed_gate_WT init_WT inSeq_WT inPar_WT 
      initMany_WT inSeqMany_WT inParMany_WT : typed_db.
 
 (*********************)
