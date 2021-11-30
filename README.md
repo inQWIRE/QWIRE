@@ -9,7 +9,7 @@ This is a Coq implementation of the QWIRE quantum programming language, describe
 Rennela and Staton's [Classical Control, Quantum Circuits and Linear Logic in Enriched Category Theory][5] provides a categorical
 semantics for QWIRE.
 
-QWIRE is compatible with Coq 8.10 - 8.12.
+QWIRE is compatible with Coq 8.12 - 8.14.
 
 This version of the project has no dependencies. Run `make` to compile the core (preliminary and implementation) files and `make all` to compile the whole project. We recommend using [Company Coq][9] with QWIRE in light of its support for unicode.  
 
