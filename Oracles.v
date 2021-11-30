@@ -13,8 +13,6 @@ Require Import List.
 Set Bullet Behavior "Strict Subproofs".
 Global Unset Asymmetric Patterns.
 
-Require Import Omega.
-
 (* --------------------------------*)
 (* Reversible bexps with variables *)
 (* --------------------------------*)
@@ -642,7 +640,7 @@ Ltac compile_typing lem :=
 Lemma compile_WT : forall (b : bexp) (Γ : Ctx), Typed_Box (compile b Γ).
 Proof. induction b; intros; simpl; compile_typing True. Qed.
 
-Hint Resolve compile_WT : typed_db.
+#[export] Hint Resolve compile_WT : typed_db.
 
 Open Scope matrix_scope.
 
@@ -681,7 +679,7 @@ Qed.
 Lemma WF_ctx_to_mat_list : forall Γ f, @WF_Matrix (2^⟦Γ⟧) (2^⟦Γ⟧) (big_kron (ctx_to_mat_list Γ f)).
 Proof. apply WF_ctx_to_matrix. Qed.
 
-Hint Resolve WF_ctx_to_matrix WF_ctx_to_mat_list : wf_db.
+#[export] Hint Resolve WF_ctx_to_matrix WF_ctx_to_mat_list : wf_db.
 
 Lemma pure_bool_to_matrix : forall b, Pure_State (bool_to_matrix b).
 Proof. destruct b. apply pure1. apply pure0. Qed.
@@ -823,7 +821,7 @@ Ltac rewrite_inPar :=
   end; (restore_dims tensor_dims); eauto with wf_db; try solve [type_check]. 
 
 (* For ctx_to_matrix, ctx_to_mat_list proofs *)
-Hint Extern 2 (WF_Matrix _) => rewrite size_ntensor, Nat.mul_1_r : wf_db.          
+#[export] Hint Extern 2 (WF_Matrix _) => rewrite size_ntensor, Nat.mul_1_r : wf_db.          
 
 (*
 Hint Extern 2 (WF_Matrix (⨂ ctx_to_mat_list _ _)) =>
@@ -1018,9 +1016,9 @@ Fact Toffoli_at_spec : forall (b1 b2 b3 : bool) (n x y z : nat) (li : list (Matr
  ⟦Toffoli_at n x y z⟧ (⨂ li) = ⨂ (update_at li z (bool_to_matrix ((b1 && b2) ⊕ b3))).
 Admitted.
 
-Hint Extern 2 (WF_Matrix _) => rewrite ctx_to_mat_list_length : wf_db.
-Hint Resolve WF_denote_box : wf_db.    
-Hint Extern 2 (Typed_Box _) => type_check : wf_db.
+#[export] Hint Extern 2 (WF_Matrix _) => rewrite ctx_to_mat_list_length : wf_db.
+#[export] Hint Resolve WF_denote_box : wf_db.    
+#[export] Hint Extern 2 (Typed_Box _) => type_check : wf_db.
 
 Lemma init_at_spec : forall (b : bool) (n i : nat) (l1 l2 : list (Square 2)) (A B : Square 2), 
   length l1 = i ->

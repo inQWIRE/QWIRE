@@ -237,7 +237,7 @@ Notation "Σ^ n f" := (Csum f n) (at level 60) : matrix_scope.
 Notation "n ⨂ A" := (kron_n n A) (at level 30, no associativity) : matrix_scope.
 Notation "⨂ A" := (big_kron A) (at level 60): matrix_scope.
 Notation "n ⨉ A" := (Mmult_n n A) (at level 30, no associativity) : matrix_scope.
-Hint Unfold Zero I trace dot Mplus scale Mmult kron mat_equiv transpose 
+#[export] Hint Unfold Zero I trace dot Mplus scale Mmult kron mat_equiv transpose 
             adjoint : U_db.
   
 Ltac destruct_m_1 :=
@@ -681,10 +681,10 @@ Ltac show_wf :=
   try lca.
 
 (* Create HintDb wf_db. *)
-Hint Resolve WF_Zero WF_I WF_I1 WF_mult WF_plus WF_scale WF_transpose 
+#[export] Hint Resolve WF_Zero WF_I WF_I1 WF_mult WF_plus WF_scale WF_transpose 
      WF_adjoint WF_outer_product WF_big_kron WF_kron_n WF_kron 
      WF_Mmult_n WF_Msum : wf_db.
-Hint Extern 2 (_ = _) => unify_pows_two : wf_db.
+#[export] Hint Extern 2 (_ = _) => unify_pows_two : wf_db.
 
 (* Hint Resolve WF_Matrix_dim_change : wf_db. *)
 
@@ -1256,7 +1256,8 @@ Proof.
   intros. bdestruct (y =? 0). subst. simpl.
   bdestruct (z =? 0). subst. easy.
   apply Nat.mod_0_l. easy.
-  bdestruct (z =? 0). subst. rewrite Nat.mul_0_r. simpl. rewrite Nat.div_0_l; easy.
+  bdestruct (z =? 0). subst. rewrite Nat.mul_0_r. simpl. 
+  try rewrite Nat.div_0_l; easy.
   pattern x at 1. rewrite (Nat.div_mod x (y * z)) by nia.
   replace (y * z * (x / (y * z))) with ((z * (x / (y * z))) * y) by lia.
   rewrite Nat.div_add_l with (b := y) by easy.
@@ -1272,7 +1273,7 @@ Lemma sub_mul_mod :
     y * z <= x ->
     (x - y * z) mod z = x mod z.
 Proof.
-  intros. bdestruct (z =? 0). subst. easy.
+  intros. bdestruct (z =? 0). subst. simpl. lia.
   specialize (le_plus_minus_r (y * z) x H) as G.
   remember (x - (y * z)) as r.
   rewrite <- G. rewrite <- Nat.add_mod_idemp_l by easy. rewrite Nat.mod_mul by easy.
@@ -1281,7 +1282,8 @@ Qed.
 
 Lemma mod_product : forall x y z, y <> 0 -> x mod (y * z) mod z = x mod z.
 Proof.
-  intros x y z H. bdestruct (z =? 0). subst. easy.
+  intros x y z H. bdestruct (z =? 0). subst. 
+  simpl. try rewrite Nat.mul_0_r. reflexivity.
   pattern x at 2. rewrite Nat.mod_eq with (b := y * z) by nia.
   replace (y * z * (x / (y * z))) with (y * (x / (y * z)) * z) by lia.
   rewrite sub_mul_mod. easy.

@@ -324,7 +324,7 @@ Definition lift_new : Box Bit Bit :=
 Lemma lift_new_WT : Typed_Box lift_new.
 Proof. type_check. Qed.
 
-Hint Unfold Splus : den_db.
+#[export] Hint Unfold Splus : den_db.
 
 Definition Classical {n} (ρ : Density n) := forall i j, i <> j -> ρ i j = 0.
 

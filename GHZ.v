@@ -81,7 +81,7 @@ Proof.
       try apply WF_qubit0; try apply WF_qubit1.
 Qed.
 
-Hint Resolve wf_ghz wf_nket wf_notc : wf_db.
+#[export] Hint Resolve wf_ghz wf_nket wf_notc : wf_db.
 
 Lemma ctrl_list_notc :
   forall n : nat, 

@@ -202,13 +202,13 @@ Lemma calc_id_circ_with_pads_WT : forall n,
   Typed_Box (calc_id_circ_with_pads n).
 Proof. intros. apply compile_WT. Qed.
 
-Hint Resolve adder_cout_circ_WT adder_sum_circ_WT adder_cout_circ_with_pads_WT adder_sum_circ_with_pads_WT calc_xor_circ_WT calc_id_circ_WT calc_id_circ_with_pads_WT : typed_db.
+#[export] Hint Resolve adder_cout_circ_WT adder_sum_circ_WT adder_cout_circ_with_pads_WT adder_sum_circ_with_pads_WT calc_xor_circ_WT calc_id_circ_WT calc_id_circ_with_pads_WT : typed_db.
 
-Hint Extern 2 (Typed_Box (adder_cout_circ_with_pads _)) => 
+#[export] Hint Extern 2 (Typed_Box (adder_cout_circ_with_pads _)) => 
   apply adder_cout_circ_with_pads_WT : typed_db.
-Hint Extern 2 (Typed_Box (adder_sum_circ_with_pads _)) => 
+#[export] Hint Extern 2 (Typed_Box (adder_sum_circ_with_pads _)) => 
   apply adder_sum_circ_with_pads_WT : typed_db.
-Hint Extern 2 (Typed_Box (calc_id_circ_with_pads _)) =>
+#[export] Hint Extern 2 (Typed_Box (calc_id_circ_with_pads _)) =>
   apply calc_id_circ_with_pads_WT : typed_db.
 
 Open Scope matrix_scope.
@@ -358,12 +358,12 @@ Proof.
   - apply adder_cout_circ_with_pads_WT.
 Qed.
 
-Hint Resolve carrier_circ_1_WT carrier_circ_1_with_pads_WT adder_circ_1_WT 
+#[export] Hint Resolve carrier_circ_1_WT carrier_circ_1_with_pads_WT adder_circ_1_WT 
      adder_circ_1_with_pads_WT : typed_db.
 
-Hint Extern 2 (Typed_Box (carrier_circ_1_with_pads _)) =>
+#[export] Hint Extern 2 (Typed_Box (carrier_circ_1_with_pads _)) =>
   apply carrier_circ_1_with_pads_WT : typed_db.
-Hint Extern 2 (Typed_Box (adder_circ_1_with_pads _)) =>
+#[export] Hint Extern 2 (Typed_Box (adder_circ_1_with_pads _)) =>
   apply adder_circ_1_with_pads_WT : typed_db.
 
 Open Scope matrix_scope.

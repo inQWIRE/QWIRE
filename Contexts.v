@@ -463,8 +463,8 @@ Instance PCM_Laws_OCtx : PCM_Laws OCtx :=
   ; M_absorb := merge_I_r
   }.
 
-Hint Resolve PCM_OCtx : core.
-Hint Resolve PCM_Laws_OCtx : core.
+#[export] Hint Resolve PCM_OCtx : core.
+#[export] Hint Resolve PCM_Laws_OCtx : core.
 
 (*** Validity ***)
 
