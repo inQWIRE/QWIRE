@@ -89,7 +89,7 @@ Infix "/" := Cdiv : C_scope.
 (* Added exponentiation *)
 Fixpoint Cpow (c : C) (n : nat) : C :=  
   match n with
-  | 0%nat => 1
+  | O => 1
   | S n' => c * Cpow c n'
   end.
 
@@ -564,6 +564,7 @@ Lemma Cplus_div2 : /2 + /2 = 1.           Proof. lca. Qed.
 Lemma Cconj_involutive : forall c, (c^*)^* = c. Proof. intros; lca. Qed.
 Lemma Cconj_plus_distr : forall (x y : C), (x + y)^* = x^* + y^*. Proof. intros; lca. Qed.
 Lemma Cconj_mult_distr : forall (x y : C), (x * y)^* = x^* * y^*. Proof. intros; lca. Qed.
+Lemma Cconj_minus_distr :  forall (x y : C), (x - y)^* = x^* - y^*. Proof. intros; lca. Qed.
 
 Lemma Cmult_conj_real : forall (c : C), snd (c * c^*) = 0.
 Proof.
@@ -584,6 +585,19 @@ Proof.
   apply C0_fst_neq. 
   apply pow_nonzero. 
   lra.
+Qed.
+
+Lemma Cpow_add : forall (c : C) (n m : nat), (c ^ (n + m) = c^n * c^m)%C.
+Proof.
+  intros. induction n. simpl. lca.
+  simpl. rewrite IHn. lca.
+Qed.
+
+Lemma Cpow_mult : forall (c : C) (n m : nat), (c ^ (n * m) = (c ^ n) ^ m)%C.
+Proof.
+  intros. induction m. rewrite Nat.mul_0_r. easy.
+  replace (n * (S m))%nat with (n * m + n)%nat by lia. 
+  simpl. rewrite Cpow_add. rewrite IHm. lca.
 Qed.
 
 

@@ -479,6 +479,16 @@ Proof.
       lra.
 Qed.            
 
+Lemma Rsum_Csum : forall n (f : nat -> R),
+  fst (Csum f n) = Rsum n f.
+Proof.
+  intros. induction n.
+  - easy.
+  - simpl. rewrite IHn. 
+    destruct n.
+    + simpl. lra.
+    + rewrite tech5. simpl. easy.
+Qed.
 
 
 (**********************************)

@@ -1247,16 +1247,24 @@ Proof.
   apply Minv_flip in IP1.
   rewrite Eρ; easy.
 Qed.    
+
+Lemma pure_state_vector_kron : forall {n m} (ϕ : Vector n) (ψ : Vector m),
+  Pure_State_Vector ϕ -> Pure_State_Vector ψ -> Pure_State_Vector (ϕ ⊗ ψ).
+Proof.
+  unfold Pure_State_Vector.
+  intros n m ϕ ψ [WFu Pu] [WFv Pv]. 
+  split.
+  - apply WF_kron; auto. 
+  - Msimpl. rewrite Pu, Pv. Msimpl. easy.
+Qed.
                               
 Lemma pure_state_kron : forall m n (ρ : Square m) (φ : Square n),
   Pure_State ρ -> Pure_State φ -> Pure_State (ρ ⊗ φ).
 Proof.
-  intros m n ρ φ [u [[WFu Pu] Eρ]] [v [[WFv Pv] Eφ]].
+  intros m n ρ φ [u [? Eρ]] [v [? Eφ]].
   exists (u ⊗ v).
-  split; [split |]. 
-  - replace (S O) with (S O * S O)%nat by reflexivity.
-    apply WF_kron; auto.
-  - Msimpl. rewrite Pv, Pu. Msimpl. easy.
+  split.
+  - apply pure_state_vector_kron; auto. 
   - Msimpl. subst. easy.
 Qed.
 
@@ -1428,6 +1436,16 @@ Proof.
   reflexivity.
   apply Rplus_le_le_0_compat; apply pow2_ge_0.
   lra.
+Qed.
+
+Lemma rewrite_norm : forall {d} (ψ : Vector d),
+    fst (((ψ) † × ψ) O O) = Rsum d (fun i => Cmod (ψ i O) ^ 2)%R.
+Proof.
+  intros d ψ. unfold Mmult.
+  replace (fun y : nat => (ψ† O y * ψ y O)%C) with (fun y : nat => RtoC (Cmod (ψ y O) ^ 2)).
+  apply Rsum_Csum.
+  apply functional_extensionality. intros.
+  unfold adjoint. rewrite <- Cmod_sqr. symmetry. apply RtoC_pow.
 Qed.
 
 (** Density matrices and superoperators **)
