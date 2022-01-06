@@ -1,4 +1,4 @@
-Require Export Prelim.
+Require Export QuantumLib.Prelim.
 Require Export Monoid.
 Open Scope list_scope.
 

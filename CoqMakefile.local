@@ -1,2 +1,0 @@
-cleanall::
-	rm -f CoqMakefile CoqMakefile.conf *.vo *.glob .*.aux .lia.cache

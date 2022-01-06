@@ -1,12 +1,5 @@
 -R . Top
 
-externals/QuantumLib/Complex.v
-externals/QuantumLib/Matrix.v
-externals/QuantumLib/Prelim.v
-externals/QuantumLib/Quantum.v
-externals/QuantumLib/RealAux.v
-externals/QuantumLib/VecSet.v
-
 Ancilla.v
 Composition.v
 Contexts.v

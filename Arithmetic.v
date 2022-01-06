@@ -5,7 +5,7 @@ Require Import HOASLib.
 Require Import Oracles.
 Require Import SemanticLib.
 Require Import Symmetric.
-Require Import Matrix.
+Require Import QuantumLib.Matrix.
 Require Import Denotation.
 Require Import Composition.
 Require Import Monad.
