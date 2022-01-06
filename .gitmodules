@@ -1,3 +1,0 @@
-[submodule "externals/QuantumLib"]
-	path = externals/QuantumLib
-	url = https://github.com/inQWIRE/QuantumLib
