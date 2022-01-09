@@ -6,6 +6,7 @@ Require Import Psatz.
 (******************************************)
 
 Open Scope R_scope.
+Local Coercion INR : nat >-> R.
 
 Lemma Rle_minus_l : forall a b c,(a - c <= b <-> a <= b + c). Proof. intros. lra. Qed.
 Lemma Rlt_minus_r : forall a b c,(a < b - c <-> a + c < b). Proof. intros. lra. Qed.
@@ -196,6 +197,132 @@ Proof.
   induction n. reflexivity. 
   rewrite Rsum_extend, IHn, Hf. lra.
 Qed.
+
+Lemma Rsum_geq :
+  forall n (f : nat -> R) A,
+    (forall (i : nat), (i < n)%nat -> f i >= A) ->
+    Rsum n f >= n * A.
+Proof.
+  intros. induction n. simpl. lra.
+  assert (Rsum n f >= n * A).
+  { apply IHn. intros. apply H. lia. }
+  rewrite Rsum_extend. replace (S n * A) with (A + n * A).
+  apply Rplus_ge_compat.
+  apply H; lia. assumption.
+  destruct n. simpl. lra. simpl. lra.
+Qed.
+
+Lemma Rsum_geq_0 :
+  forall n (f : nat -> R),
+    (forall (i : nat), (i < n)%nat -> f i >= 0) ->
+    Rsum n f >= 0.
+Proof. intros. specialize (Rsum_geq n f 0 H) as G. lra. Qed.
+
+Lemma Rsum_nonneg_Rsum_zero :
+  forall n (f : nat -> R),
+    (forall (i : nat), (i < n)%nat -> f i >= 0) ->
+    Rsum n f <= 0 ->
+    Rsum n f = 0.
+Proof. intros. specialize (Rsum_geq_0 n f H) as G. lra. Qed.
+
+Lemma Rsum_nonneg_f_zero :
+  forall n (f : nat -> R),
+    (forall (i : nat), (i < n)%nat -> f i >= 0) ->
+    Rsum n f = 0 ->
+    (forall (i : nat), (i < n)%nat -> f i = 0).
+Proof.
+  intros. induction n. lia.
+  rewrite Rsum_extend in H0.
+  assert (f n >= 0) by (apply H; lia).
+  assert (forall (i : nat), (i < n)%nat -> f i >= 0) by (intros; apply H; lia).
+  assert (Rsum n f <= 0) by lra.
+  specialize (Rsum_nonneg_Rsum_zero n f H3 H4) as G.
+  destruct (i =? n)%nat eqn:E.
+  apply beq_nat_true in E. rewrite G in H0. rewrite E. lra.
+  apply beq_nat_false in E. apply IHn; try assumption. lia.
+Qed.
+
+(* ====================== *)
+(* =   sum_f_R0 facts   = *)
+(* ====================== *)
+
+Lemma rsum_swap_order :
+  forall (m n : nat) (f : nat -> nat -> R),
+    sum_f_R0 (fun j => sum_f_R0 (fun i => f j i) m) n = sum_f_R0 (fun i => sum_f_R0 (fun j => f j i) n) m.
+Proof.
+  intros. induction n; try easy.
+  simpl. rewrite IHn. rewrite <- sum_plus. reflexivity.
+Qed.
+
+Lemma find_decidable :
+    forall (m t : nat) (g : nat -> nat),
+    (exists i, i <= m /\ g i = t)%nat \/ (forall i, i <= m -> g i <> t)%nat.
+Proof.
+  induction m; intros.
+  - destruct (dec_eq_nat (g O) t).
+    + left. exists O. split; easy.
+    + right. intros. replace i with O by lia. easy.
+  - destruct (IHm t g).
+    + left. destruct H. exists x. destruct H. split; lia.
+    + destruct (dec_eq_nat (g (S m)) t).
+      -- left. exists (S m). lia.
+      -- right. intros. inversion H1. lia. apply H. lia.
+Qed.
+
+Lemma rsum_unique :
+    forall (n : nat) (f : nat -> R) (r : R),
+    (exists (i : nat), i <= n /\ f i = r /\ (forall (j : nat), j <= n -> j <> i -> f j = 0)) ->
+    sum_f_R0 f n = r.
+Proof.
+  intros.
+  destruct H as (? & ? & ? & ?).
+  induction n. simpl. apply INR_le in H. inversion H. subst. easy.
+  simpl. destruct (S n =? x) eqn:E.
+  - apply beq_nat_true in E.
+    subst. replace (sum_f_R0 f n) with 0. lra.
+    symmetry. apply sum_eq_R0. intros. apply H1. apply le_INR. constructor. easy. lia.
+  - apply beq_nat_false in E.
+    apply INR_le in H. inversion H. lia. subst. replace (f (S n)) with 0.
+    rewrite IHn. lra. apply le_INR. easy. intros. apply H1; auto. apply Rle_trans with n; auto.
+    apply le_INR. lia. symmetry. apply H1; auto. apply Rle_refl.
+Qed.
+
+Theorem rsum_subset :
+  forall (m n : nat) (f : nat -> R)  (g : nat -> nat),
+    m < n -> (forall (i : nat), 0 <= f i) -> (forall i, i <= m -> g i <= n)%nat ->
+    (forall i j, i <= m -> j <= m -> g i = g j -> i = j)%nat ->
+    sum_f_R0 (fun i => f (g i)) m <= sum_f_R0 f n.
+Proof.
+  intros.
+  set (h := (fun (i : nat) => sum_f_R0 (fun (j : nat) => if i =? g j then f (g j) else 0) m)).
+  assert (forall (i : nat), i <= n -> h i <= f i).
+  { intros. unfold h. simpl.
+    destruct (find_decidable m i g).
+    - destruct H4 as (i0 & H4 & H5).
+      replace (sum_f_R0 (fun j : nat => if i =? g j then f (g j) else 0) m) with (f i). lra.
+      symmetry. apply rsum_unique. exists i0. split.
+      + apply le_INR. easy.
+      + split. subst.  rewrite Nat.eqb_refl. easy.
+        intros. assert (i <> g j). unfold not. intros. subst. apply H2 in H8. apply H7. easy.
+        easy. apply INR_le. easy.
+        replace (i  =? g j) with false. easy. symmetry. apply Nat.eqb_neq. easy.
+    - replace (sum_f_R0 (fun j : nat => if i =? g j then f (g j) else 0) m) with 0. easy.
+      symmetry. apply sum_eq_R0. intros. apply H4 in H5. apply Nat.eqb_neq in H5. rewrite Nat.eqb_sym. rewrite H5. easy. 
+  }
+  assert (sum_f_R0 h n <= sum_f_R0 f n).
+  { apply sum_Rle. intros. apply H3. apply le_INR. easy. }
+  apply Rle_trans with (sum_f_R0 h n); auto.
+  unfold h. rewrite rsum_swap_order.
+  replace (sum_f_R0 (fun i : nat => f (g i)) m) with 
+  (sum_f_R0 (fun i : nat => sum_f_R0 (fun j : nat => if j =? g i then f (g i) else 0) n) m).
+  apply Rle_refl. apply sum_eq. intros.
+  apply rsum_unique. exists (g i). split.
+  - apply le_INR. auto. 
+  - rewrite Nat.eqb_refl. split. easy.
+    intros. apply Nat.eqb_neq in H7. rewrite H7; easy.
+Qed.
+
+
 
 (****************)
 (* Square Roots *)
