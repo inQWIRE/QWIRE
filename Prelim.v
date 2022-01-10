@@ -406,3 +406,56 @@ Ltac unify_pows_two :=
   | [ |- context[ (?a + (?b + ?c))%nat ]]   => rewrite plus_assoc 
   | [ |- (2^?x = 2^?y)%nat ]                => apply pow_components; try lia 
   end.
+
+
+(* ============ *)
+(**    Nsum    **)
+(* ============ *)
+
+Fixpoint Nsum (n : nat) (f : nat -> nat) :=
+  match n with
+  | O => O
+  | S n' => (Nsum n' f + f n')%nat
+  end.
+
+Lemma Nsum_eq : forall n f g,
+  (forall x, (x < n)%nat -> f x = g x) ->
+  Nsum n f = Nsum n g.
+Proof.
+  intros. induction n. easy.
+  simpl. rewrite IHn. rewrite H. easy.
+  lia. intros. apply H. lia.
+Qed.
+
+Lemma Nsum_scale : forall n f d,
+  (Nsum n (fun i => d * f i) = d * Nsum n f)%nat.
+Proof.
+  intros. induction n. simpl. lia. 
+  simpl. rewrite IHn. lia.
+Qed.
+
+Lemma Nsum_le : forall n f g,
+  (forall x, x < n -> f x <= g x)%nat ->
+  (Nsum n f <= Nsum n g)%nat.
+Proof.
+  intros. induction n. simpl. easy.
+  simpl.
+  assert (f n <= g n)%nat.
+  { apply H. lia. }
+  assert (Nsum n f <= Nsum n g)%nat.
+  { apply IHn. intros. apply H. lia. }
+  lia.
+Qed.
+
+Lemma Nsum_add : forall n f g,
+  (Nsum n (fun i => f i + g i) = Nsum n f + Nsum n g)%nat.
+Proof.
+  intros. induction n. easy.
+  simpl. rewrite IHn. lia.
+Qed.
+
+Lemma Nsum_zero : forall n, Nsum n (fun _ => O) = O.
+Proof.
+  induction n. easy.
+  simpl. rewrite IHn. easy.
+Qed.
