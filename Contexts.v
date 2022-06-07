@@ -881,6 +881,10 @@ Definition index (Γ : OCtx) (i : nat) : option WType :=
   | Valid Γ' => maybe (Γ' !! i) None
   end.
 
+Lemma nth_nil : forall {A} x, ([] : list A) !! x = None.
+Proof.
+  destruct x; auto.
+Qed.
 
 Lemma index_invalid : forall i, index Invalid i = None.
 Proof.
