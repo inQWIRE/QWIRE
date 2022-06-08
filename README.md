@@ -6,13 +6,15 @@ This is a Coq implementation of the QWIRE quantum programming language, describe
 - [ReQWIRE: Reasoning about Reversible Quantum Circuits][3]
 - [Phantom Types for Quantum Programs][4]
 
-Rennela and Staton's [Classical Control, Quantum Circuits and Linear Logic in Enriched Category Theory][5] provides a categorical
-semantics for QWIRE.
+Rennela and Staton's [Classical Control, Quantum Circuits and Linear Logic in Enriched Category Theory][5] provides a categorical semantics for QWIRE.
 
-QWIRE is compatible with Coq 8.12 - 8.14.
+QWIRE is compatible with Coq versions 8.12 - 8.15.
 
-This version of the project has no dependencies. Run `make` to compile the core (preliminary and implementation) files and `make all` to compile the whole project. We recommend using [Company Coq][9] with QWIRE in light of its support for unicode.  
-
+This project depends on [QuantumLib](https://github.com/inQWIRE/QuantumLib), which you can install with: 
+```
+opam pin coq-quantumlib https://github.com/inQWIRE/QuantumLib.git
+```
+Run `make` to compile the core (preliminary and implementation) files and `make all` to compile proofs of QWIRE programs. Run `make qasm` to compile the files that convert QWIRE to QASM. We recommend using [Company Coq][9] with QWIRE in light of its support for unicode.  
 
 
 Files in this repository
@@ -21,12 +23,6 @@ Files in this repository
 *Preliminaries*
 - Monad.v : An implementation of some basic monads
 - Monoid.v : A typeclass and solver for commutative monoids, modified from [LinearTypingContexts][8]
-- Prelim.v : A variety of general purpose definitions and tactics
-
-*Underlying mathematical libraries*
-- Complex.v : Complex number library, modified from [Coquelicot][6]
-- Matrix.v : Matrix library
-- Quantum.v : Defines unitary matrices and quantum operations
 
 *Implementation of QWIRE*
 - Contexts.v : Defines wire types and typing contexts
@@ -48,7 +44,7 @@ Files in this repository
 - Equations.v : Equalities on small circuits
 - HOASProofs.v : Additional proofs, including coin flips and teleportation
 
-*Compilation to [QASM][7]*
+*Compilation to [QASM][7] (i.e., OpenQASM 2.0)*
 - QASM.v : Compilation from QWIRE to QASM
 - QASMPrinter.v : A printer for compiled circuits, for execution on a quantum computer/simulator
 - QASMExamples.v : Examples of circuit compilation

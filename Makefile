@@ -36,7 +36,7 @@ Equations.vo: Equations.v SemanticLib.vo
 Arithmetic.vo: Arithmetic.v Oracles.vo
 	coqc $(COQ_OPTS) Arithmetic.v
 
-Deutsch.vo: Deutsch.v HOASExamples.vo Complex.vo Denotation.vo DBCircuits.vo TypeChecking.vo
+Deutsch.vo: Deutsch.v HOASExamples.vo Denotation.vo DBCircuits.vo TypeChecking.vo
 	coqc $(COQ_OPTS) Deutsch.v
 
 GHZ.vo: GHZ.v HOASLib.vo Composition.vo
