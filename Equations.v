@@ -1,5 +1,5 @@
 Require Import HOASCircuits.
-Require Import Prelim.
+Require Import QuantumLib.Prelim.
 Require Import DBCircuits.
 Require Import Denotation.
 Require Import TypeChecking.

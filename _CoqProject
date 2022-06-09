@@ -1,23 +1,17 @@
 -R . Top
 
 Ancilla.v
-Complex.v
 Composition.v
 Contexts.v
 DBCircuits.v
 Denotation.v
-Dirac.v
 GHZ.v
 HOASCircuits.v
 HOASExamples.v
 HOASLib.v
-Matrix.v
 Monad.v
 Monoid.v
 Oracles.v
-Prelim.v
-Quantum.v
-RealAux.v
 SemanticLib.v
 Symmetric.v
 TypeChecking.v

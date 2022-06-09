@@ -1,9 +1,9 @@
-Require Import Prelim.
+Require Import QuantumLib.Prelim.
 Require Import Monad.
-Require Import Matrix.
+Require Import QuantumLib.Matrix.
 Require Import HOASCircuits.
 Require Import HOASExamples.
-Require Import Complex.
+Require Import QuantumLib.Complex.
 Require Import TypeChecking.
 Require Import Denotation.
 Require Import Composition.

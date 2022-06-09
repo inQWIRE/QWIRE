@@ -2,7 +2,7 @@ Require Export Contexts.
 Require Export HOASCircuits.
 Require Export HOASLib.
 Require Export DBCircuits.
-Require Export Quantum.
+Require Export QuantumLib.Quantum.
 Require Export Denotation.
 
 Fact denote_compose : forall safe w (c : Circuit w) (Γ : Ctx), 

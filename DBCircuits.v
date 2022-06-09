@@ -1,4 +1,4 @@
-Require Import Prelim.
+Require Import QuantumLib.Prelim.
 Require Import Monad.
 Require Import Contexts.
 Require Import HOASCircuits.
