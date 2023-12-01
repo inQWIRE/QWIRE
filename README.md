@@ -57,7 +57,7 @@ Files in this repository
 [1]: http://dl.acm.org/citation.cfm?id=3009894
 [2]: https://doi.org/10.4204/EPTCS.266.8
 [3]: https://doi.org/10.4204/EPTCS.287.17
-[4]: https://www.cs.umd.edu/~rrand/coqpl_2018.pdf
+[4]: https://rand.cs.uchicago.edu/files/coqpl_2018.pdf
 [5]: https://arxiv.org/pdf/1711.05159.pdf
 [6]: http://coquelicot.saclay.inria.fr/html/Coquelicot.Complex.html
 [7]: https://arxiv.org/abs/1707.03429
