@@ -10,9 +10,9 @@ Rennela and Staton's [Classical Control, Quantum Circuits and Linear Logic in En
 
 QWIRE is compatible with Coq versions 8.12 - 8.15.
 
-This project depends on [QuantumLib](https://github.com/inQWIRE/QuantumLib), which you can install with: 
+This project depends on [QuantumLib](https://github.com/inQWIRE/QuantumLib) version 1.1.0, which you can install with: 
 ```
-opam pin coq-quantumlib https://github.com/inQWIRE/QuantumLib.git
+opam pin coq-quantumlib 1.1.0 https://github.com/inQWIRE/QuantumLib.git
 ```
 Run `make` to compile the core (preliminary and implementation) files and `make all` to compile proofs of QWIRE programs. Run `make qasm` to compile the files that convert QWIRE to QASM. We recommend using [Company Coq][9] with QWIRE in light of its support for unicode.  
 
