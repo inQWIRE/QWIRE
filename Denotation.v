@@ -117,7 +117,7 @@ Definition denote_gate safe {W1 W2} (g : Gate W1 W2) :
 Lemma pow_gt_0 : forall n, (2^n > O)%nat.
 Proof.
   induction n; auto. 
-  simpl. apply gt_trans with (2^n)%nat; auto. lia.
+  simpl. lia. 
 Qed.
 
 
@@ -482,10 +482,7 @@ Proof.
     simpl.
     destruct n; try lia.
     rewrite <- (Nat.add_1_l n).
-    rewrite minus_plus.
     apply WF_kron; unify_pows_two; auto with wf_db.
-    apply IHi.
-    lia.
 Qed.
     
 Lemma WF_swap_two : forall n i j, (i < n)%nat -> (j < n)%nat ->
@@ -649,7 +646,7 @@ Proof.
     simpl.
     destruct n; try lia.
     rewrite <- (Nat.add_1_l n).
-    rewrite minus_plus.
+    rewrite Modulus.add_sub'.    
     apply kron_unitary.
     apply id_unitary.
     apply IHi.
@@ -1542,8 +1539,7 @@ Proof.
   induction l. reflexivity.
   simpl.
   rewrite IHl.
-  destruct (a =? a0) eqn:eq; try reflexivity.
-  apply beq_nat_true in eq.
+  bdestruct (a =? a0); try reflexivity.
   subst; reflexivity.
 Qed.
 
@@ -1558,8 +1554,8 @@ Proof.
     simpl.
     rewrite map_same_id.
     rewrite IHl. 
-    unfold swap_two. 
-    rewrite <- beq_nat_refl.
+    unfold swap_two.
+    rewrite Nat.eqb_refl.
     Msimpl.
     reflexivity.
 Qed.

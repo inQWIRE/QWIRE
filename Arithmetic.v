@@ -10,6 +10,7 @@ Require Import Denotation.
 Require Import Composition.
 Require Import Monad.
 Require Import Program.
+Import Contexts.
 
 Require Import List.
 Import ListNotations.

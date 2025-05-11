@@ -168,7 +168,7 @@ Proof.
     repeat rewrite Mmult_1_r. repeat rewrite Mmult_1_l. Msimpl.
     rewrite swap_list_aux_id.
     replace (n+2) with (S (S n)) by lia.
-    rewrite Nat.sub_diag. rewrite id_kron. rewrite mult_1_r. rewrite Mmult_1_l.
+    rewrite Nat.sub_diag. rewrite id_kron. rewrite Nat.mul_1_r. rewrite Mmult_1_l.
     rewrite id_adjoint_eq. rewrite Mmult_1_r.
 
     rewrite H1. rewrite repeat_combine.
@@ -207,13 +207,13 @@ Proof.
     repeat constructor.
     rewrite fresh_state_ntensor.
     rewrite app_length. simpl.
-    repeat apply lt_n_S. apply Nat.lt_0_succ.
+    lia.
     
     apply add_fresh_state_no_gaps.
     repeat constructor.
     rewrite fresh_state_ntensor.
     rewrite app_length. simpl.
-    repeat apply lt_n_S. apply Nat.lt_0_succ.
+    lia.
 
     apply add_fresh_state_no_gaps.
     repeat constructor.
@@ -306,10 +306,10 @@ Proof.
       repeat rewrite -> size_ntensor. rewrite Nat.mul_0_r. simpl. rewrite IHn'.
       assert (⟦cnot10 n'⟧ (∣0⟩⟨0∣ ⊗ ghz_state n') = (notc ⊗ (I (2^n'))) × (∣0⟩⟨0∣ ⊗ ghz_state n') × (notc ⊗ (I (2^n')))† ).
       { apply cnot10_correct. apply WF_kron.
-        simpl. repeat rewrite <- plus_n_O. repeat rewrite plus_assoc. reflexivity.
-        simpl. repeat rewrite <- plus_n_O. rewrite plus_assoc. reflexivity.
-        apply WF_braqubit0. apply wf_ghz.
-         }
+        simpl. lia.
+        simpl. lia.
+        apply WF_braket0. apply wf_ghz.
+      }
       simpl in H3. simpl. 
       assert ((size_wtype (n' ⨂ Qubit)%qc)=n').
       { rewrite size_ntensor. simpl.  lia. }
@@ -322,7 +322,7 @@ Proof.
       rewrite kron_plus_distr_l.
       simpl in *.
       replace (2 ^ n' + (2 ^ n' + (2 ^ n' + (2 ^ n' + 0))))%nat with
-          (2 ^ n' + (2 ^ n' + 0) + (2 ^ n' + (2 ^ n' + 0) + 0))%nat by (repeat rewrite <- plus_n_O; repeat rewrite plus_assoc; reflexivity).
+          (2 ^ n' + (2 ^ n' + 0) + (2 ^ n' + (2 ^ n' + 0) + 0))%nat by (repeat rewrite <- plus_n_O; repeat rewrite Nat.add_assoc; reflexivity).
       rewrite Mmult_plus_distr_l.
       apply outer_eq.
       apply Mplus_eq.
@@ -341,7 +341,7 @@ Proof.
         { rewrite -> kron_mixed_product. reflexivity. }
         simpl in H7. repeat rewrite <- plus_n_O in H7.
         repeat rewrite <- plus_n_O.
-        replace (2 ^ n' + 2 ^ n' + (2 ^ n' + 2 ^ n'))%nat with (2 ^ n' + (2 ^ n' + (2 ^ n' + 2 ^ n')))%nat by (repeat rewrite plus_assoc; reflexivity).
+        replace (2 ^ n' + 2 ^ n' + (2 ^ n' + 2 ^ n'))%nat with (2 ^ n' + (2 ^ n' + (2 ^ n' + 2 ^ n')))%nat by (repeat rewrite Nat.add_assoc; reflexivity).
         rewrite -> H7.
         apply kron_eq.
         solve_matrix. 
@@ -363,7 +363,7 @@ Proof.
         simpl in H7.
         repeat rewrite <- plus_n_O in H7.
         repeat rewrite <- plus_n_O. 
-        replace (2 ^ n' + 2 ^ n' + (2 ^ n' + 2 ^ n'))%nat with (2 ^ n' + (2 ^ n' + (2 ^ n' + 2 ^ n')))%nat by (repeat rewrite plus_assoc; reflexivity).
+        replace (2 ^ n' + 2 ^ n' + (2 ^ n' + 2 ^ n'))%nat with (2 ^ n' + (2 ^ n' + (2 ^ n' + 2 ^ n')))%nat by (repeat rewrite Nat.add_assoc; reflexivity).
         rewrite -> H7. 
         assert ((∣1⟩ ⊗ (∣1⟩ ⊗ nk1)) = (∣1⟩ ⊗ ∣1⟩) ⊗ nk1).
         { rewrite -> kron_assoc; subst; auto with wf_db. }

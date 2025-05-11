@@ -33,8 +33,7 @@ Proof.
   intros U ρ safe pf_ρ.
   destruct (unitary_gate_unitary U) as [WF inv].
   matrix_denote.
-  simpl in *.
-  setoid_rewrite denote_unitary_transpose.
+  simpl_rewrite @denote_unitary_transpose.
   Msimpl; simpl in *.  
   repeat rewrite Mmult_assoc; try rewrite inv.
   repeat rewrite <- Mmult_assoc; try rewrite inv.
@@ -463,25 +462,14 @@ Proof.
   destruct H; setoid_rewrite H.
   - (* f0 *)
     matrix_denote.
-    restore_dims.
-    unfold f0.
-    clear.
-    (* Msimpl / Msimpl_light are taking forever here, which is worrisome *)
-    repeat rewrite id_sa.
-    repeat rewrite kron_1_r.
-    repeat rewrite kron_1_l; auto with wf_db.
-    repeat rewrite Mmult_1_r; auto 10 with wf_db.
-    repeat rewrite Mmult_1_l; auto 20 with wf_db.
+    unfold f0. clear.
+    Msimpl.
     solve_matrix.
     C_field.
   - (* f3 *)
     matrix_denote.
     unfold f3. clear.
-    repeat rewrite id_sa.
-    repeat rewrite kron_1_r.
-    repeat rewrite kron_1_l; auto with wf_db.
-    repeat rewrite Mmult_1_r; auto 10 with wf_db.
-    repeat rewrite Mmult_1_l; auto 20 with wf_db.
+    Msimpl.
     solve_matrix.
     C_field.
 Qed.
@@ -498,23 +486,13 @@ Proof.
   + (* f1 *)
     matrix_denote.
     unfold f1. clear.
-    restore_dims.
-    repeat rewrite id_sa.
-    repeat rewrite kron_1_r.
-    repeat rewrite kron_1_l; auto with wf_db.
-    repeat rewrite Mmult_1_r; auto 10 with wf_db.
-    repeat rewrite Mmult_1_l; auto 20 with wf_db.
+    Msimpl.
     solve_matrix.
     C_field.
   + (* f2 *)
     matrix_denote.
     unfold f2. clear.
-    restore_dims.
-    repeat rewrite id_sa.
-    repeat rewrite kron_1_r.
-    repeat rewrite kron_1_l; auto with wf_db.
-    repeat rewrite Mmult_1_r; auto 10 with wf_db.
-    repeat rewrite Mmult_1_l; auto 20 with wf_db.
+    Msimpl.
     solve_matrix.
     C_field.
 Qed.
@@ -570,8 +548,6 @@ Qed.
 
 (* A more explicit version that uses concrete boxed circuits *)
 
-Locate "||".
-
 Definition fun_to_box (f : bool -> bool) : Box (Qubit ⊗ Qubit) (Qubit ⊗ Qubit) :=
   match (f false), (f true) with
   | false, false => id_circ
@@ -590,38 +566,14 @@ Proof.
   intros f H.
   unfold fun_to_box, constant in *. 
   destruct (f true), (f false); try discriminate H.
-  - matrix_denote.
-
-Hint Rewrite  @kron_1_l @kron_1_r @Mmult_1_l : N_db_light.
-
-clear.
-  autorewrite with N_db_light.
-  all: auto 100 with wf_db.
-  
-Hint Rewrite  @kron_1_l @kron_1_r @Mmult_1_l @Mmult_1_r @Mscale_1_l 
-     @id_adjoint_eq @id_transpose_eq using (eauto 100 with wf_db) : N_db_light.
-
-Hint Rewrite @kron_0_l @kron_0_r @Mmult_0_l @Mmult_0_r @Mplus_0_l @Mplus_0_r
-     @Mscale_0_l @Mscale_0_r @zero_adjoint_eq @zero_transpose_eq using (eauto 100 with wf_db) : N_db_light.
-
-
-    restore_dims .
-
-
-    
-    autorewrite with M_db_light.
-    Msimpl_light.
+  - matrix_denote. clear.
     Msimpl.
     solve_matrix.
-    rewrite (Cmult_comm (/√2) _).
-    repeat (rewrite (Cmult_assoc 2 (/2)); autorewrite with C_db).
-    easy.
-  - matrix_denote.
+    C_field.
+  - matrix_denote. clear.
     Msimpl.
     solve_matrix.
-    rewrite (Cmult_comm (/√2) _).
-    repeat (rewrite (Cmult_assoc 2 (/2)); autorewrite with C_db).
-    easy.
+    C_field.
 Qed.
 
 Lemma deutsch_balanced_concrete : forall f, balanced f -> 
@@ -630,18 +582,14 @@ Proof.
   intros f H.
   unfold fun_to_box, balanced in *. 
   destruct (f true), (f false); try contradiction.
-  - matrix_denote.
+  - matrix_denote. clear.
     Msimpl.
     solve_matrix.
-    rewrite (Cmult_comm (/√2) _).
-    repeat (rewrite (Cmult_assoc 2 (/2)); autorewrite with C_db).
-    easy.
-  - matrix_denote.
+    C_field.
+  - matrix_denote. clear.
     Msimpl.
     solve_matrix.
-    rewrite (Cmult_comm (/√2) _).
-    repeat (rewrite (Cmult_assoc 2 (/2)); autorewrite with C_db).
-    easy.
+    C_field.
 Qed.
 
 
@@ -713,14 +661,7 @@ Proof.
   matrix_denote.
   Msimpl.
   solve_matrix.
-  all: rewrite (Cmult_assoc (/ √2));
-       autorewrite with C_db;
-       rewrite (Cmult_comm _ (/2));
-       rewrite (Cmult_assoc 2 (/2));
-       autorewrite with C_db;
-       rewrite (Cmult_assoc 2 (/2));
-       autorewrite with C_db;
-       reflexivity.
+  all: C_field.
 Qed.
 
 (* Teleport with Dynamic Lifting *)
@@ -750,15 +691,7 @@ Proof.
   matrix_denote.
   Msimpl.
   solve_matrix.
-  idtac.
-  all: rewrite (Cmult_assoc (/ √2));
-       autorewrite with C_db;
-       rewrite (Cmult_comm _ (/2));
-       rewrite (Cmult_assoc 2 (/2));
-       autorewrite with C_db;
-       rewrite (Cmult_assoc 2 (/2));
-       autorewrite with C_db;
-       reflexivity.
+  all: C_field.
 Qed.
 
 (*********************)

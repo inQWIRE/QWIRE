@@ -146,7 +146,7 @@ Proof.
                      let_ (q0,qs) ← IHj _ (S n') _ $ (q0,qs);
                      (q0,(q1,qs))).
        + apply Nat.lt_0_succ.
-       + apply lt_S_n. auto.
+       + apply PeanoNat.lt_S_n; auto.
 Defined.
 Lemma CNOT_at_i0_WT : forall (n j : nat) (pf_j : 0 < j) (pf_n : j < n),
       Typed_Box (CNOT_at_i0 n j pf_j pf_n).
@@ -165,7 +165,7 @@ Proof.
     { absurd False; auto. inversion pf_n. }
     { absurd False; auto. inversion pf_n. inversion H0. }
     set (pf_j' := (Nat.lt_0_succ _ : 0 < S j')).
-    set (pf_n' := (lt_S_n _ _ pf_n : S j' < S n')).
+    set (pf_n' := (PeanoNat.lt_S_n _ _ pf_n : S j' < S n')).
     assert (IH : Typed_Box (CNOT_at_i0 (S n') (S j') pf_j' pf_n')).
     { intros. apply IHj. }
     clear IHj.
@@ -181,7 +181,7 @@ Lemma CNOT_at_i0_SS : forall n j
                (q0,(q1,qs)).
 Proof.
   intros. simpl. 
-  replace (lt_S_n (S j) (S n) pfn) with pfn'.
+  replace (PeanoNat.lt_S_n (S j) (S n) pfn) with pfn'.
   simpl.
   replace pfj' with (Nat.lt_0_succ j).
   reflexivity.
@@ -208,7 +208,7 @@ Proof.
                      let_ (q0,qs) ← IHi _ (S n') _ $(q0,qs);
                      (q0,(q1,qs))).
        + apply Nat.lt_0_succ.
-       + apply lt_S_n. auto.
+       + apply PeanoNat.lt_S_n. auto.
 Defined.
 
 
@@ -225,7 +225,7 @@ Proof.
   * (* i = S (S i'), j = 0 *)
     destruct n as [ | [ | n']]; try (exfalso;lia). 
     set (pf_i' := (Nat.lt_0_succ _ : 0 < S i')).
-    set (pf_n' := (lt_S_n _ _ pf_n : S i' < S n')).
+    set (pf_n' := (PeanoNat.lt_S_n _ _ pf_n : S i' < S n')).
     specialize (IHi pf_i' _ pf_n').
     type_check.
 Qed. 
@@ -239,7 +239,7 @@ Lemma CNOT_at_j0_SS : forall n i
                (q0,(q1,qs)).
 Proof.
   intros. simpl. 
-  replace (lt_S_n (S i) (S n) pfn) with pfn'.
+  replace (PeanoNat.lt_S_n (S i) (S n) pfn) with pfn'.
   simpl.
   replace pfi' with (Nat.lt_0_succ i).
   reflexivity.
@@ -264,8 +264,8 @@ Proof.
       refine (box_ q ⇒ let_ (q0,qs) ← q;
                        let_ qs ←  IHn i' j' _ _ _ $qs;
                        (q0,qs)).  
-      + apply (lt_S_n _ _ pf_i).
-      + apply (lt_S_n _ _ pf_j).
+      + apply (PeanoNat.lt_S_n _ _ pf_i).
+      + apply (PeanoNat.lt_S_n _ _ pf_j).
       + apply Nat.succ_inj_wd_neg. apply pf_i_j.
 Defined.
 
@@ -311,7 +311,7 @@ Proof.
     * (* i = S i', j = S j' *) simpl.
       set (H' := Nat.succ_inj_wd_neg i' j').
       destruct H' eqn:H''.
-      set (IH := IHn i' j' (lt_S_n i' n pf_i) (lt_S_n j' n pf_j) (n0 pf_i_j)).
+      set (IH := IHn i' j' (PeanoNat.lt_S_n i' n pf_i) (PeanoNat.lt_S_n j' n pf_j) (n0 pf_i_j)).
       type_check.
 Qed.
 
@@ -422,15 +422,15 @@ Definition TOF_at_ij01 (n k : nat) (pf_j : 1 < k) (pf_n : k < n)
   - destruct n as [| [| [|n]]]; try (exfalso;lia).
     refine (box_ q ⇒ let_ (q0,(q1,(q2,qs))) ← q;
                      let_ (q0,(q1,qs)) ← IHk _ (S (S n)) _ $ (q0,(q1,qs));
-                     (q0,(q1,(q2,qs)))); auto with arith.
+            (q0,(q1,(q2,qs)))); auto with arith.
 Defined.
 Lemma TOF_at_ij01_WT : forall n k pf_j pf_n, Typed_Box (TOF_at_ij01 n k pf_j pf_n).
 Proof.
   intros n k. gen n.
   induction k as [| [| [|k]]]; intros; destruct n as [| [| [|n]]]; try (exfalso;lia).
   type_check.
-  set( pf_j' := gt_le_S 1 (S (S k)) (lt_n_S 0 (S k) (Nat.lt_0_succ k))).
-  set (pf_n' := gt_le_S (S (S k)) (S (S n)) (gt_S_le (S (S (S k))) (S (S n)) pf_n)).
+  set( pf_j' := Arith_base.gt_le_S_stt 1 (S (S k)) (Arith_base.lt_n_S_stt 0 (S k) (Nat.lt_0_succ k))).
+  set (pf_n' := Arith_base.gt_le_S_stt (S (S k)) (S (S n)) (Arith_base.gt_S_le_stt (S (S (S k))) (S (S n)) pf_n)).
   specialize (IHk _ pf_j' pf_n').
   type_check.
 Qed.  
@@ -454,8 +454,8 @@ Proof.
   intros n j. gen n.
   induction j as [| [| [|j]]]; intros; destruct n as [| [| [|n]]]; try (exfalso;lia).
   type_check.
-  set( pf_j' := gt_le_S 1 (S (S j)) (lt_n_S 0 (S j) (Nat.lt_0_succ j))).
-  set (pf_n' := gt_le_S (S (S j)) (S (S n)) (gt_S_le (S (S (S j))) (S (S n)) pf_n)).
+  set( pf_j' := Arith_base.gt_le_S_stt 1 (S (S j)) (Arith_base.lt_n_S_stt 0 (S j) (Nat.lt_0_succ j))).
+  set (pf_n' := Arith_base.gt_le_S_stt (S (S j)) (S (S n)) (Arith_base.gt_S_le_stt (S (S (S j))) (S (S n)) pf_n)).
   specialize (IHj _ pf_j' pf_n').
   type_check.
 Qed.  
@@ -480,8 +480,8 @@ Proof.
   intros n j. gen n.
   induction j as [| [| [|j]]]; intros; destruct n as [| [| [|n]]]; try (exfalso;lia).
   type_check.
-  set( pf_j' := gt_le_S 1 (S (S j)) (lt_n_S 0 (S j) (Nat.lt_0_succ j))).
-  set (pf_n' := gt_le_S (S (S j)) (S (S n)) (gt_S_le (S (S (S j))) (S (S n)) pf_n)).
+  set( pf_j' := Arith_base.gt_le_S_stt 1 (S (S j)) (Arith_base.lt_n_S_stt 0 (S j) (Nat.lt_0_succ j))).
+  set (pf_n' := Arith_base.gt_le_S_stt (S (S j)) (S (S n)) (Arith_base.gt_S_le_stt (S (S (S j))) (S (S n)) pf_n)).
   specialize (IHj _ pf_j' pf_n').
   type_check.
 Qed.  
@@ -735,7 +735,7 @@ Definition in_target (n t i : nat) := (n <= i).
 Definition in_source (n t i : nat) := i < n.
 Lemma in_source_in_scope : forall n t i, in_source n t i -> in_scope n t i.
 Proof.
-  intros. apply lt_le_trans with (m := n); auto. lia. 
+  intros. apply Nat.lt_le_trans with (m := n); auto. lia. 
 Qed.
 
 Inductive gate_acts_on {m} k : Box (m ⨂ Qubit) (m ⨂ Qubit) -> Set :=
